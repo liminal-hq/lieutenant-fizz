@@ -1,3 +1,8 @@
+# Runs formatting, lint, type-check, tests, header checks and build on every change.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
 name: CI
 
 on:
@@ -29,6 +34,7 @@ jobs:
       - run: bun install --frozen-lockfile
       # The WASM must exist before the integration tests and the Vite build run.
       - run: bun run build:wasm
+      - run: bun run check:headers
       - run: bunx prettier --check .
       - run: bun run lint
       - run: bun run typecheck
