@@ -1,3 +1,5 @@
+// Pixel-drawing pen and seeded RNG for building palette-indexed sprite grids.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

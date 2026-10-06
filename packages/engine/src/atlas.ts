@@ -1,3 +1,5 @@
+// Packs sprite grids into albedo and normal atlas textures with UV rectangles.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

@@ -1,3 +1,5 @@
+// Pixel-art overworld tiles plus ship, sky and cinematic props for Episode 1.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Builds every episode's WASM sim (raw C-ABI exports: no wasm-bindgen needed) into
-# episodes/<name>/src/wasm/sim.wasm, which Vite imports as a URL.
+# Builds the Episode 1 WASM sim into episodes/episode-1/src/wasm/sim.wasm.
+#
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
+
+# Raw C-ABI exports (no wasm-bindgen needed); Vite imports the output as a URL.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

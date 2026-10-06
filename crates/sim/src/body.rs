@@ -1,3 +1,5 @@
+// Axis-aligned body that resolves X then Y movement against tiles, slopes and platforms.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

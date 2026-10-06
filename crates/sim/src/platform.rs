@@ -1,3 +1,5 @@
+// Moving platforms that ease between anchor points and carry their riders.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

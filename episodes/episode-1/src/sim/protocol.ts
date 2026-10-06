@@ -1,3 +1,5 @@
+// Constants shared with the Rust sim for input bits, states, events and outputs.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

@@ -1,3 +1,5 @@
+// Tests that the opening cinematic only uses atlas sprites and stays deterministic.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
