@@ -79,6 +79,7 @@ export class Ui {
   private readonly controls: HTMLElement;
   private readonly overlay: HTMLElement;
   private readonly overlayMenu: HTMLElement;
+  private readonly overlayNote: HTMLElement;
   private readonly letterbox: HTMLElement;
   private readonly dialogue: HTMLElement;
   private readonly panel: HTMLElement;
@@ -107,10 +108,10 @@ export class Ui {
     this.toastEl = el('div', { id: 'toast', class: 'lf lf-panel', hidden: '' });
 
     this.title = el('div', { id: 'title', class: 'lf screen', hidden: '' });
-    this.title.innerHTML = `<div><h1><small>Episode 1 · The Cocoa Caper</small>The Melting Adventures of Ben “Lieutenant Fizz” Blaze</h1></div>
-      <div class="sub">A very small hero. A very large chocolate problem.</div>`;
-    this.menuEl = el('div', { class: 'menu lf-panel' });
-    this.controls = el('div', { id: 'controls', class: 'lf-panel', hidden: '' });
+    this.title.innerHTML = `<div class="head"><h1 class="wordmark"><span class="kicker">The Melting Adventures of</span><span class="hero">Ben Blaze</span><span class="alias">“Lieutenant Fizz”</span></h1>
+      <p class="episode">Episode 1 · The Cocoa Caper</p></div>`;
+    this.menuEl = el('div', { class: 'menu' });
+    this.controls = el('div', { id: 'controls', hidden: '' });
     this.controls.innerHTML = `<table>
       <tr><th>Action</th><th>Keen-style</th><th>Modern</th><th>Gamepad</th></tr>
       <tr><td>Move</td><td>← →</td><td>← → / A D</td><td>D-pad / stick</td></tr>
@@ -120,17 +121,20 @@ export class Ui {
       <tr><td>Menu</td><td>Esc</td><td>Esc / P</td><td>Start</td></tr>
       <tr><td>Save / Load</td><td>F5 / F9</td><td>F5 / F9</td><td>Pause menu</td></tr>
     </table>
-    <p style="margin:10px 0 0;color:#7c8796;font-size:12px">Hold jump while pogoing for a high bounce. Aim fizz up with ↑, or down with ↓ in the air.</p>`;
-    const back = el('button', { class: 'btn ghost', style: 'margin-top:12px' }, 'Back');
+    <p class="note">Hold jump while pogoing for a high bounce. Aim fizz up with ↑, or down with ↓ in the air.</p>`;
+    const back = el('button', { class: 'back' }, 'Back');
     back.addEventListener('click', () => h.backFromControls());
     this.controls.append(back);
-    this.title.append(this.menuEl, this.controls);
+    const keys = el('div', { class: 'keys' });
+    keys.innerHTML = `<span><kbd>↑ ↓</kbd>Choose</span><span><kbd>Enter</kbd><kbd>A</kbd>Select</span>`;
+    this.title.append(this.menuEl, this.controls, keys);
 
     this.overlay = el('div', { id: 'overlay', class: 'lf screen', hidden: '' });
-    const box = el('div', { class: 'box lf-panel' });
-    box.innerHTML = '<h2></h2><p></p>';
+    const box = el('div', { class: 'box' });
+    box.innerHTML = '<h2></h2><p class="text"></p>';
     this.overlayMenu = el('div', { class: 'menu' });
-    box.append(this.overlayMenu);
+    this.overlayNote = el('p', { class: 'note' });
+    box.append(this.overlayMenu, this.overlayNote);
     this.overlay.append(box);
 
     this.letterbox = el('div', { id: 'letterbox', class: 'lf', hidden: '' });
@@ -147,8 +151,14 @@ export class Ui {
 
     this.panelBtn = el(
       'button',
-      { id: 'panelBtn', class: 'lf lf-panel', hidden: '' },
-      'Engine panel (`)',
+      {
+        id: 'panelBtn',
+        class: 'lf',
+        hidden: '',
+        title: 'Engine panel (`)',
+        'aria-label': 'Engine panel',
+      },
+      'Engine ↙',
     );
     this.panelBtn.addEventListener('click', () => this.togglePanel());
     this.panel = el('div', { id: 'panel', class: 'lf lf-panel', hidden: '' });
@@ -313,13 +323,17 @@ export class Ui {
     this.controls.hidden = !controls;
   }
 
-  showOverlay(o: { title: string; text: string; items: MenuItem[]; sel: number } | null): void {
+  showOverlay(
+    o: { title: string; text: string; note?: string; items: MenuItem[]; sel: number } | null,
+  ): void {
     this.overlay.hidden = !o;
     if (!o) return;
     this.overlay.querySelector('h2')!.textContent = o.title;
-    const p = this.overlay.querySelector('p')!;
+    const p = this.overlay.querySelector('.text') as HTMLElement;
     p.textContent = o.text;
     p.hidden = !o.text;
+    this.overlayNote.textContent = o.note ?? '';
+    this.overlayNote.hidden = !o.note;
     this.renderMenu(this.overlayMenu, o.items, o.sel);
   }
 

@@ -34,6 +34,9 @@ interface Card {
   secondary?: () => void;
 }
 
+const PAUSE_NOTE =
+  'Saves stay on this device. The map also saves automatically each time you return to it.';
+
 const TALL = { level: 13, map: 12, cine: CINE_TALL };
 
 /** The Episode 1 game shell: boots the engine, runs the loop and drives the screen flow. */
@@ -530,8 +533,8 @@ export class Game {
     if (this.screen === 'pause') {
       const items: MenuItem[] = [
         { label: 'Resume' },
-        { label: 'Save progress', value: 'F5' },
-        { label: 'Load progress', value: 'F9' },
+        { label: 'Save game', value: 'F5' },
+        { label: 'Load game', value: 'F9' },
       ];
       if (this.sim.x.mode() === Mode.LEVEL) items.push({ label: 'Leave level' });
       return [...items, mus, sfx, { label: 'Quit to title' }];
@@ -583,8 +586,8 @@ export class Game {
       else if (label === 'Sound') this.toggle('sfx');
     } else if (this.screen === 'pause') {
       if (label === 'Resume') this.resume();
-      else if (label === 'Save progress') this.saveGame();
-      else if (label === 'Load progress') this.loadGame();
+      else if (label === 'Save game') this.saveGame();
+      else if (label === 'Load game') this.loadGame();
       else if (label === 'Leave level') this.enterMap();
       else if (label === 'Music') this.toggle('music');
       else if (label === 'Sound') this.toggle('sfx');
@@ -785,7 +788,7 @@ export class Game {
     if (s === 'title' && this.sub === 'controls') ui.showTitle(null, 0, true);
     ui.showOverlay(
       s === 'pause'
-        ? { title: 'Paused', text: '', items, sel }
+        ? { title: 'Paused', text: '', note: PAUSE_NOTE, items, sel }
         : s === 'card' && this.card
           ? { title: this.card.title, text: this.card.text, items, sel }
           : null,
