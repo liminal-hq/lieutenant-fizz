@@ -1,0 +1,72 @@
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+//! Sound-cue captions and toasts the sim can emit. Captions double as sound-effect triggers
+//! (a caption with colour 0 is silent on screen but still triggers its sound).
+
+macro_rules! captions {
+    ($($id:ident = ($text:expr, $col:expr)),* $(,)?) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        #[repr(u16)]
+        pub enum Cap { $($id),* }
+        pub const CAPTIONS: &[(&str, u32)] = &[$(($text, $col)),*];
+    };
+}
+
+captions! {
+    Jump = ("jump", 0), Boing = ("boing", 0xffff55), Fzzt = ("fzzt", 0x55ffff),
+    NoFizz = ("click — no fizz", 0xaaaaaa), Whoa = ("whoa!", 0xff5555), TaDa = ("ta-da!", 0x55ff55),
+    Clunk = ("clunk", 0xffffff), Crunch = ("crunch", 0xffff55), ExtraLife = ("ding! extra life", 0x55ff55),
+    Fsssht = ("fsssht", 0x55ffff), RedGumdrop = ("red gumdrop", 0xff5555), BlueGumdrop = ("blue gumdrop", 0x5555ff),
+    GoldUsb = ("gold USB drive", 0xffff55), ClickClack = ("click-clack", 0xaaaaaa), BeepBoop = ("beep boop", 0x55ff55),
+    NeedsDrive = ("needs a drive", 0xaaaaaa), Sproing = ("sproing", 0xff55ff), Bwomp = ("bwomp", 0xff55ff),
+    Bonk = ("bonk", 0xffffff), Pfff = ("pfff", 0xff55ff), Thunk = ("thunk", 0xffffff), Snort = ("snort", 0xff5555),
+    Skreee = ("skreee", 0x55ffff), ZapZapZap = ("zap zap zap", 0xff5555), Krunch = ("KRUNCH", 0xaaaaaa),
+    Brrrt = ("brrrt", 0xff5555), Splorp = ("splorp", 0xaa5500), Thoom = ("THOOM", 0xffffff),
+    Clang = ("CLANG — dome open!", 0xffff55), Zzzap = ("ZZZAP", 0x55ffff), Plink = ("plink", 0xaaaaaa),
+    Blorp = ("blorp", 0xaaaaaa), Fizzled = ("fizzled", 0x55ffff), Poof = ("poof", 0xffffff), Vworp = ("vworp", 0x55ffff),
+}
+
+macro_rules! toasts {
+    ($($id:ident = $text:expr),* $(,)?) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        #[repr(u16)]
+        pub enum Toast { $($id),* }
+        pub const TOASTS: &[&str] = &[$($text),*];
+    };
+}
+
+toasts! {
+    RedDoor = "The red cookie door swings open",
+    BlueDoor = "The blue cookie door swings open",
+    ExtraLife = "Extra life! Every 100 snack points earns one.",
+    UsbFound = "Gold USB drive! Find the security terminal.",
+    BridgeOn = "Somewhere ahead, a bridge rumbles into place",
+    BridgeOff = "The bridge folds away",
+}
+
+/// Event kinds shared with the shell (`events.ts` mirrors these).
+pub mod ev {
+    pub const CAPTION: u32 = 1;
+    pub const HUD: u32 = 2;
+    pub const TOAST: u32 = 3;
+    pub const LEVEL_COMPLETE: u32 = 4;
+    pub const DIED: u32 = 5;
+    pub const GAME_OVER: u32 = 6;
+    pub const DIALOGUE: u32 = 7;
+    pub const BOSS_HP: u32 = 8;
+    pub const ENDING: u32 = 9;
+    pub const MAP_PROMPT: u32 = 10;
+    pub const LEVEL_START: u32 = 11;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tables_line_up() {
+        assert_eq!(CAPTIONS[Cap::Vworp as usize].0, "vworp");
+        assert_eq!(TOASTS[Toast::BridgeOff as usize], "The bridge folds away");
+    }
+}

@@ -1,0 +1,886 @@
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+//! Scene drawing: walks the visible region of the world and writes sprite instances into the
+//! shared buffer (painter's order), plus the per-frame light selection.
+
+use crate::ents::*;
+use crate::sprites::*;
+use crate::tiles::*;
+use crate::world::{Mode, World};
+use lf_sim::{hashf, PushOpts};
+
+pub mod flags {
+    pub const NIGHT: u32 = 1;
+    pub const CULLING: u32 = 2;
+    pub const STRESS: u32 = 4;
+}
+
+/// Indices into the `out` array the shell reads each frame.
+pub mod out {
+    pub const COUNT: usize = 0;
+    pub const CAM_X: usize = 1;
+    pub const CAM_Y: usize = 2;
+    pub const LIGHTS: usize = 3;
+    pub const WORLD: usize = 4;
+    pub const CLEAR_R: usize = 5;
+    pub const CLEAR_G: usize = 6;
+    pub const CLEAR_B: usize = 7;
+    pub const CLEAR_A: usize = 8;
+    pub const AMB_R: usize = 9;
+    pub const AMB_G: usize = 10;
+    pub const AMB_B: usize = 11;
+    pub const LIGHTING: usize = 12;
+    pub const SKY_GLOW: usize = 13;
+}
+
+pub enum Layer {
+    Stars,
+    Hills {
+        s: Spr,
+        tint: u32,
+        nt: u32,
+        f: f64,
+        base: f64,
+        amp: f64,
+    },
+    Wall {
+        s: u16,
+        tint: u32,
+        nt: u32,
+        f: f64,
+    },
+}
+
+pub struct Biome {
+    pub clear: u32,
+    pub amb: [f32; 3],
+    pub night: [f32; 3],
+    pub lm: f64,
+    pub lantern: bool,
+    pub layers: Vec<Layer>,
+    pub crys: Spr,
+    pub lc: [f64; 3],
+}
+
+pub fn biome(id: u8) -> Biome {
+    match id {
+        1 => Biome {
+            clear: 0x000000,
+            amb: [0.85, 0.85, 0.95],
+            night: [0.14, 0.12, 0.24],
+            lm: 0.6,
+            lantern: true,
+            layers: vec![Layer::Wall {
+                s: biome_tile(1, BT_BACK),
+                tint: 0x50506a,
+                nt: 0x9a9a9a,
+                f: 0.5,
+            }],
+            crys: Spr::CrysC,
+            lc: [0.35, 1.1, 1.2],
+        },
+        2 => Biome {
+            clear: 0x000000,
+            amb: [0.95, 0.9, 0.95],
+            night: [0.3, 0.24, 0.32],
+            lm: 0.6,
+            lantern: true,
+            layers: vec![Layer::Wall {
+                s: biome_tile(2, BT_BACK),
+                tint: 0x8a4a70,
+                nt: 0x8a6a7a,
+                f: 0.6,
+            }],
+            crys: Spr::CrysM,
+            lc: [1.2, 0.5, 1.1],
+        },
+        _ => Biome {
+            clear: 0x5555ff,
+            amb: [1.0, 1.0, 1.0],
+            night: [0.32, 0.28, 0.42],
+            lm: 0.55,
+            lantern: true,
+            layers: vec![
+                Layer::Stars,
+                Layer::Hills {
+                    s: Spr::MtnTop,
+                    tint: 0xaa00aa,
+                    nt: 0x3a1858,
+                    f: 0.22,
+                    base: 4.5,
+                    amp: 2.0,
+                },
+                Layer::Hills {
+                    s: Spr::HillTop,
+                    tint: 0x00aa00,
+                    nt: 0x14102a,
+                    f: 0.5,
+                    base: 3.5,
+                    amp: 1.5,
+                },
+            ],
+            crys: Spr::CrysM,
+            lc: [1.0, 0.67, 0.3],
+        },
+    }
+}
+
+fn js_round(x: f64) -> f64 {
+    (x + 0.5).floor()
+}
+
+fn rgb(c: u32) -> [f32; 3] {
+    [
+        ((c >> 16) & 255) as f32 / 255.0,
+        ((c >> 8) & 255) as f32 / 255.0,
+        (c & 255) as f32 / 255.0,
+    ]
+}
+
+impl World {
+    pub fn push(&mut self, x: f64, y: f64, id: impl Into<u16>, o: &PushOpts) {
+        let sp = self.spr[id.into() as usize];
+        self.inst.push(x, y, &sp, o);
+    }
+
+    fn sprite_h(&self, id: u16) -> f64 {
+        f64::from(self.spr[id as usize].h)
+    }
+
+    /// Fills the instance buffer for the current scene. `alpha` is the interpolation factor
+    /// between the previous and current tick.
+    pub fn render(&mut self, alpha: f64, fl: u32) {
+        self.inst.clear();
+        self.lights.clear();
+        let night = fl & flags::NIGHT != 0;
+        let sh = if self.shake > 0.0 {
+            (self.t * 70.0).sin() * self.shake * 0.15
+        } else {
+            0.0
+        };
+        let cx = self.pcx + (self.cam_x - self.pcx) * alpha + sh;
+        let cy = self.pcy + (self.cam_y - self.pcy) * alpha;
+        self.out[out::CAM_X] = cx as f32;
+        self.out[out::CAM_Y] = cy as f32;
+        let bio =
+            (self.mode == Mode::Level || self.mode == Mode::Attract).then(|| biome(self.biome));
+        let sky_glow = night
+            && bio
+                .as_ref()
+                .is_some_and(|b| matches!(b.layers.first(), Some(Layer::Stars)));
+        let clear = match &bio {
+            _ if sky_glow => (0, 0.0),
+            Some(b) if !night => (b.clear, 1.0),
+            _ => (0, 1.0),
+        };
+        let c = rgb(clear.0);
+        self.out[out::CLEAR_R] = c[0];
+        self.out[out::CLEAR_G] = c[1];
+        self.out[out::CLEAR_B] = c[2];
+        self.out[out::CLEAR_A] = clear.1 as f32;
+        self.out[out::SKY_GLOW] = f32::from(u8::from(sky_glow));
+        let amb = bio
+            .as_ref()
+            .map_or([1.0; 3], |b| if night { b.night } else { b.amb });
+        self.out[out::AMB_R] = amb[0];
+        self.out[out::AMB_G] = amb[1];
+        self.out[out::AMB_B] = amb[2];
+        self.out[out::LIGHTING] = f32::from(u8::from(bio.is_some()));
+        self.out[out::WORLD] = 0.0;
+        let view = [
+            cx - self.half_w - 1.0,
+            cx + self.half_w + 1.0,
+            cy - self.half_h - 1.0,
+            cy + self.half_h + 1.0,
+        ];
+        let mut world = 0usize;
+        match self.mode {
+            Mode::Map => world += self.draw_map(alpha, view, fl, (cx, cy)),
+            Mode::Level | Mode::Attract => {
+                if let Some(b) = &bio {
+                    world += self.draw_level(alpha, view, fl, (cx, cy), b);
+                }
+            }
+            Mode::None => {}
+        }
+        let nl = match &bio {
+            Some(b) => self.update_lights(b, night, (cx, cy)),
+            None => 0,
+        };
+        self.out[out::COUNT] = self.inst.len() as f32;
+        self.out[out::LIGHTS] = nl as f32;
+        self.out[out::WORLD] = world as f32;
+    }
+
+    fn draw_map(&mut self, alpha: f64, v: [f64; 4], fl: u32, _cam: (f64, f64)) -> usize {
+        let cul = fl & flags::CULLING != 0;
+        let (w, h) = (self.map.w, self.map.h);
+        let (tx0, tx1, ty0, ty1) = if cul {
+            (
+                v[0].floor().max(0.0) as i32,
+                v[1].ceil().min(f64::from(w - 1)) as i32,
+                v[2].floor().max(0.0) as i32,
+                v[3].ceil().min(f64::from(h - 1)) as i32,
+            )
+        } else {
+            (0, w - 1, 0, h - 1)
+        };
+        let rf = ((self.t * 2.0).floor() as i64) & 1;
+        let em = PushOpts::em();
+        for y in ty0..=ty1 {
+            for x in tx0..=tx1 {
+                let tt = self.map.get(x, y);
+                let (fx, fy) = (f64::from(x) + 0.5, f64::from(y) + 0.5);
+                if tt == RIVER {
+                    let s = if (i64::from(x) + i64::from(y) + rf) & 1 != 0 {
+                        Spr::OwRiver0
+                    } else {
+                        Spr::OwRiver1
+                    };
+                    self.push(fx, fy, s, &em);
+                    continue;
+                }
+                self.push(
+                    fx,
+                    fy,
+                    if tt == PATH {
+                        Spr::OwPath
+                    } else {
+                        Spr::OwGrass
+                    },
+                    &em,
+                );
+                if tt == TREE {
+                    self.push(
+                        fx,
+                        fy,
+                        if hashf(x, y) < 0.5 {
+                            Spr::OwTree0
+                        } else {
+                            Spr::OwTree1
+                        },
+                        &em,
+                    );
+                }
+                if tt == ROCK {
+                    self.push(fx, fy, Spr::OwRock, &em);
+                }
+            }
+        }
+        for i in 0..self.points.len() {
+            let pt = self.points[i];
+            let (x, y) = (pt.x + 0.5, pt.y + 0.5);
+            match pt.kind {
+                crate::levels::PtKind::Saucer => self.push(x, y, Spr::Saucer, &em),
+                crate::levels::PtKind::Tele => {
+                    let on = self.game.done[pt.req as usize];
+                    let s = if on && ((self.t * 4.0).floor() as i64) & 1 != 0 {
+                        Spr::OwTele1
+                    } else {
+                        Spr::OwTele0
+                    };
+                    self.push(
+                        x,
+                        y,
+                        s,
+                        &PushOpts {
+                            tint: if on { 0xffffff } else { 0x777777 },
+                            ..em
+                        },
+                    );
+                }
+                crate::levels::PtKind::Level => {
+                    let s = match pt.level {
+                        0 => Spr::OwCrater,
+                        1 => Spr::OwCave,
+                        _ => Spr::OwCastle,
+                    };
+                    let (bx, by) = if pt.big { (x + 0.5, y + 0.5) } else { (x, y) };
+                    self.push(bx, by, s, &em);
+                    if self.game.done[pt.level as usize] {
+                        self.push(
+                            x + 0.6,
+                            y + 0.9,
+                            Spr::OwFlag,
+                            &PushOpts { scale: 0.7, ..em },
+                        );
+                    }
+                }
+            }
+        }
+        let p = &self.p;
+        let px = p.b.px + (p.b.x - p.b.px) * alpha;
+        let py = p.b.py + (p.b.y - p.b.py) * alpha;
+        let s = if (p.anim.floor() as i64) & 1 != 0 {
+            Spr::BenMap1
+        } else {
+            Spr::BenMap0
+        };
+        let flip = p.face < 0.0;
+        self.push(px + 0.3, py + 0.4, s, &PushOpts { flip, ..em });
+        (w * h) as usize
+    }
+
+    fn draw_level(
+        &mut self,
+        alpha: f64,
+        v: [f64; 4],
+        fl: u32,
+        cam: (f64, f64),
+        bio: &Biome,
+    ) -> usize {
+        let cul = fl & flags::CULLING != 0;
+        let night = fl & flags::NIGHT != 0;
+        let (x0, x1, y0, y1) = (v[0], v[1], v[2], v[3]);
+        let (cx, cy) = cam;
+        let t = self.t;
+        let em = PushOpts::em();
+        let mut world = 0usize;
+        for layer in &bio.layers {
+            match layer {
+                Layer::Stars => {
+                    if !night {
+                        continue;
+                    }
+                    let f = 0.04;
+                    let (ox, oy, c) = (cx * (1.0 - f), cy * (1.0 - f), 2.5);
+                    let (gx0, gx1) = (
+                        ((x0 - ox) / c).floor() as i32,
+                        ((x1 - ox) / c).ceil() as i32,
+                    );
+                    let (gy0, gy1) = (
+                        ((y0 - oy) / c).floor() as i32,
+                        ((y1 - oy) / c).ceil() as i32,
+                    );
+                    for gx in gx0..=gx1 {
+                        for gy in gy0..=gy1 {
+                            let hh = hashf(gx, gy);
+                            if hh > 0.3 {
+                                continue;
+                            }
+                            let tint = if hh < 0.05 {
+                                0xffff55
+                            } else if hh < 0.1 {
+                                0x55ffff
+                            } else {
+                                0xffffff
+                            };
+                            self.push(
+                                (f64::from(gx) + hashf(gy, gx)) * c + ox,
+                                (f64::from(gy) + hashf(gx + 7, gy + 3)) * c + oy,
+                                Spr::Star,
+                                &PushOpts {
+                                    scale: 0.9,
+                                    alpha: (0.6 + 0.4 * (t * 1.5 + hh * 60.0).sin()) as f32,
+                                    tint,
+                                    ..em
+                                },
+                            );
+                        }
+                    }
+                }
+                Layer::Hills {
+                    s,
+                    tint,
+                    nt,
+                    f,
+                    base,
+                    amp,
+                } => {
+                    let (ox, oy) = (cx * (1.0 - f), cy * (1.0 - f) * 0.6);
+                    let tn = if night { *nt } else { *tint };
+                    for ix in ((x0 - ox).floor() as i32)..=((x1 - ox).ceil() as i32) {
+                        let fi = f64::from(ix);
+                        let ht = js_round(
+                            base + amp * (fi * 0.19 + f * 9.0).sin()
+                                + 2.0 * (fi * 0.067 + f * 20.0).sin(),
+                        ) + oy;
+                        let wx = fi + 0.5 + ox;
+                        self.push(wx, ht + 0.5, *s, &PushOpts { tint: tn, ..em });
+                        if ht > y0 {
+                            self.push(
+                                wx,
+                                (ht + y0) / 2.0,
+                                Spr::Fill,
+                                &PushOpts {
+                                    sy: (ht - y0) as f32,
+                                    tint: tn,
+                                    ..em
+                                },
+                            );
+                        }
+                    }
+                }
+                Layer::Wall { s, tint, nt, f } => {
+                    let (ox, oy) = (cx * (1.0 - f), cy * (1.0 - f));
+                    let o = if night {
+                        PushOpts::tint(*nt)
+                    } else {
+                        PushOpts { tint: *tint, ..em }
+                    };
+                    for ix in ((x0 - ox).floor() as i32)..=((x1 - ox).ceil() as i32) {
+                        for iy in ((y0 - oy).floor() as i32)..=((y1 - oy).ceil() as i32) {
+                            self.push(f64::from(ix) + 0.5 + ox, f64::from(iy) + 0.5 + oy, *s, &o);
+                        }
+                    }
+                }
+            }
+        }
+        if fl & flags::STRESS != 0 {
+            let (bx0, bx1) = if cul {
+                (x0.floor().max(-100.0) as i32, x1.ceil().min(299.0) as i32)
+            } else {
+                (-100, 299)
+            };
+            let (by0, by1) = if cul {
+                (y0.floor().max(-60.0) as i32, y1.ceil().min(64.0) as i32)
+            } else {
+                (-60, 64)
+            };
+            let sp = biome_tile(self.biome, BT_BACK);
+            for x in bx0..=bx1 {
+                for y in by0..=by1 {
+                    self.push(
+                        f64::from(x) + 0.5,
+                        f64::from(y) + 0.5,
+                        sp,
+                        &PushOpts::tint(0x707070),
+                    );
+                }
+            }
+            world += 50_000;
+        }
+
+        // Tiles
+        let (w, h) = (self.map.w, self.map.h);
+        let fr = ((t * 3.0).floor() as i64) & 1;
+        let (tx0, tx1, ty0, ty1) = if cul {
+            (
+                x0.floor().max(0.0) as i32,
+                x1.ceil().min(f64::from(w - 1)) as i32,
+                y0.floor().max(0.0) as i32,
+                y1.ceil().min(f64::from(h - 1)) as i32,
+            )
+        } else {
+            (0, w - 1, 0, h - 1)
+        };
+        let b = self.biome;
+        for y in ty0..=ty1 {
+            for x in tx0..=tx1 {
+                let tt = self.map.get(x, y);
+                if tt == 0 {
+                    continue;
+                }
+                let up = if y + 1 < h {
+                    self.map.get(x, y + 1)
+                } else {
+                    FILL
+                };
+                let mut op = PushOpts::default();
+                let sp: u16 = match tt {
+                    FILL => {
+                        if up == FILL
+                            || up == BLOCK
+                            || self.map.is_slope(up)
+                            || up == DOOR_R
+                            || up == DOOR_B
+                        {
+                            biome_tile(b, BT_FILL)
+                        } else {
+                            biome_tile(b, BT_TOP)
+                        }
+                    }
+                    BLOCK => biome_tile(b, BT_BLOCK),
+                    PLAT => biome_tile(b, BT_PLAT),
+                    SPIKE => Spr::SpikeTile as u16,
+                    CHOC => {
+                        op.emissive = true;
+                        match (up == CHOC, fr != 0) {
+                            (true, true) => Spr::ChocDeep1 as u16,
+                            (true, false) => Spr::ChocDeep0 as u16,
+                            (false, true) => Spr::ChocTop1 as u16,
+                            (false, false) => Spr::ChocTop0 as u16,
+                        }
+                    }
+                    DOOR_R => Spr::DoorRed as u16,
+                    DOOR_B => Spr::DoorBlue as u16,
+                    BRIDGE => {
+                        op.alpha = if self.map.switch_on { 1.0 } else { 0.22 };
+                        Spr::Bridge as u16
+                    }
+                    CRYS => {
+                        op.emissive = true;
+                        bio.crys as u16
+                    }
+                    EXIT => {
+                        op.emissive = true;
+                        if up == EXIT {
+                            Spr::ExitBot as u16
+                        } else {
+                            Spr::ExitTop as u16
+                        }
+                    }
+                    R45..=L22B => biome_tile(b, BT_SLOPE0 + u16::from(tt - R45)),
+                    _ => continue,
+                };
+                self.push(f64::from(x) + 0.5, f64::from(y) + 0.5, sp, &op);
+            }
+        }
+        world += self.solid_count;
+
+        let vis =
+            |x: f64, y: f64, r: f64| !cul || (x > x0 - r && x < x1 + r && y > y0 - r && y < y1 + r);
+        for i in 0..self.plats.len() {
+            let pl = &self.plats[i];
+            if vis(pl.x, pl.y, 2.0) {
+                let (x, y) = (pl.x + 1.0, pl.y + 0.25);
+                self.push(
+                    x,
+                    y,
+                    if fr != 0 { Spr::Hover1 } else { Spr::Hover0 },
+                    &PushOpts::default(),
+                );
+            }
+        }
+        for i in 0..self.items.len() {
+            let it = self.items[i];
+            if it.taken || !vis(it.x, it.y, 2.0) {
+                continue;
+            }
+            let s = match it.kind {
+                ItemKind::Cheezie => Spr::Cheezie,
+                ItemKind::Choc => Spr::Choc,
+                ItemKind::Cookie => Spr::Cookie,
+                ItemKind::Soda => Spr::Soda,
+                ItemKind::KeyRed => Spr::KeyRed,
+                ItemKind::KeyBlue => Spr::KeyBlue,
+                ItemKind::Usb => Spr::Usb,
+            };
+            let scale = if it.kind == ItemKind::Usb { 1.2 } else { 1.0 };
+            self.push(
+                it.x,
+                it.y + (t * 3.0 + it.x).sin() * 0.08,
+                s,
+                &PushOpts { scale, ..em },
+            );
+        }
+        for i in 0..self.ents.len() {
+            let e = &self.ents[i];
+            if e.dead {
+                continue;
+            }
+            let b = &e.b;
+            let (x, y) = (b.px + (b.x - b.px) * alpha, b.py + (b.y - b.py) * alpha);
+            if !vis(x, y, 3.0) {
+                continue;
+            }
+            let f2 = ((e.t * 4.0).floor() as i64) & 1 != 0;
+            let mut op = PushOpts {
+                flip: e.dir > 0.0,
+                tint: if e.stun > 0.0 { 0xaaaaaa } else { 0xffffff },
+                ..Default::default()
+            };
+            let bx = x + b.w / 2.0;
+            let sp = match e.kind {
+                Kind::Gloop => {
+                    if f2 {
+                        Spr::Gloop1
+                    } else {
+                        Spr::Gloop0
+                    }
+                }
+                Kind::Hopper => {
+                    if b.on_ground {
+                        Spr::Hopper0
+                    } else {
+                        Spr::Hopper1
+                    }
+                }
+                Kind::Marsh => {
+                    if b.vy > 4.0 || !b.on_ground {
+                        Spr::Marsh0
+                    } else {
+                        Spr::Marsh1
+                    }
+                }
+                Kind::Beetle => {
+                    let a = if e.state == St::Charge {
+                        ((e.t * 12.0).floor() as i64) & 1 != 0
+                    } else {
+                        f2
+                    };
+                    if a {
+                        Spr::Beetle1
+                    } else {
+                        Spr::Beetle0
+                    }
+                }
+                Kind::Bat => {
+                    if e.state == St::Idle && e.stun <= 0.0
+                        || ((e.t * 10.0).floor() as i64) & 1 == 0
+                    {
+                        Spr::Bat0
+                    } else {
+                        Spr::Bat1
+                    }
+                }
+                Kind::Pod => {
+                    if e.puff {
+                        Spr::Pod1
+                    } else {
+                        Spr::Pod0
+                    }
+                }
+                Kind::Phantom => {
+                    op.alpha = e.alpha.max(0.2) as f32;
+                    if e.alpha < 0.6 {
+                        Spr::Phantom1
+                    } else {
+                        Spr::Phantom0
+                    }
+                }
+                Kind::Roller => {
+                    op.rot = e.rot as f32;
+                    op.flip = false;
+                    Spr::Roller
+                }
+                Kind::Sentry => {
+                    if f2 {
+                        Spr::Sentry1
+                    } else {
+                        Spr::Sentry0
+                    }
+                }
+                Kind::Drone => {
+                    op.flip = false;
+                    if ((e.t * 8.0).floor() as i64) & 1 != 0 {
+                        Spr::Drone1
+                    } else {
+                        Spr::Drone0
+                    }
+                }
+                Kind::Boss => {
+                    op.flip = e.dir > 0.0;
+                    if e.state == St::Hot && ((e.t * 8.0).floor() as i64) & 1 != 0 {
+                        op.tint = 0xffaaaa;
+                    }
+                    if e.state == St::Hot || e.state == St::Down {
+                        Spr::Boss1
+                    } else {
+                        Spr::Boss0
+                    }
+                }
+                Kind::Switch => {
+                    op = PushOpts::default();
+                    if self.map.switch_on {
+                        Spr::SwitchOn
+                    } else {
+                        Spr::SwitchOff
+                    }
+                }
+                Kind::Terminal => {
+                    op = em;
+                    if ((e.t * 2.0).floor() as i64) & 1 != 0 {
+                        Spr::Terminal1
+                    } else {
+                        Spr::Terminal0
+                    }
+                }
+                Kind::Cage => {
+                    op = PushOpts::default();
+                    if self.hacked {
+                        Spr::Billy
+                    } else {
+                        Spr::BillyCage
+                    }
+                }
+            };
+            if !op.emissive {
+                op.actor = true;
+            }
+            let (stun, puff, stunned_t, ew, ey, eh, et) =
+                (e.stun > 0.0, e.puff, e.t, b.w, b.y, b.h, e.t);
+            let is_pod = e.kind == Kind::Pod;
+            let ph = self.sprite_h(sp as u16);
+            self.push(bx, y + ph / 32.0 - 1.0 / 16.0, sp, &op);
+            if stun {
+                let s = if ((stunned_t * 6.0).floor() as i64) & 1 != 0 {
+                    Spr::Stars1
+                } else {
+                    Spr::Stars0
+                };
+                self.push(bx, y + eh + 0.3, s, &em);
+            }
+            if is_pod && puff && !stun {
+                let k = et % 1.0;
+                let _ = ey;
+                for (i, ox) in [-1.2, -2.0, ew + 1.2, ew + 2.0].into_iter().enumerate() {
+                    let sx = x + if ox < 0.0 { ox + 0.4 } else { ox - 0.4 };
+                    self.push(
+                        sx,
+                        y + 0.6 + k * 0.4,
+                        if i & 1 != 0 { Spr::Spore1 } else { Spr::Spore0 },
+                        &PushOpts { alpha: 0.9, ..em },
+                    );
+                }
+            }
+        }
+        world += self.items.len() + self.ents.len() + self.plats.len();
+        for i in 0..self.shots.len() {
+            let sh = self.shots[i];
+            self.push(sh.x, sh.y, sh.sprite, &em);
+        }
+        for i in 0..self.fx.len() {
+            let f = self.fx[i];
+            self.push(
+                f.x,
+                f.y,
+                Spr::Puff,
+                &PushOpts {
+                    scale: (0.5 + f.t * 1.5) as f32,
+                    alpha: (1.0 - f.t / f.life) as f32,
+                    tint: f.tint,
+                    ..em
+                },
+            );
+        }
+        let p = &self.p;
+        if !p.hidden {
+            let px = p.b.px + (p.b.x - p.b.px) * alpha;
+            let py = p.b.py + (p.b.y - p.b.py) * alpha;
+            let blink = p.inv > 0.0 && ((t * 12.0).floor() as i64) & 1 != 0;
+            if !blink {
+                let sp = if p.dead > 0.0 {
+                    Spr::BenJump
+                } else if p.pogo {
+                    if p.squash > 0.0 {
+                        Spr::BenPogo2
+                    } else {
+                        Spr::BenPogo
+                    }
+                } else if p.shoot_t > 0.0 {
+                    Spr::BenShoot
+                } else if !p.b.on_ground {
+                    Spr::BenJump
+                } else if p.b.vx.abs() > 0.5 {
+                    if ((p.anim * 1.4).floor() as i64) & 1 != 0 {
+                        Spr::BenRun2
+                    } else {
+                        Spr::BenRun1
+                    }
+                } else {
+                    Spr::BenStand
+                };
+                let (flip, rot) = (p.face < 0.0, if p.dead > 0.0 { p.rot as f32 } else { 0.0 });
+                let ph = self.sprite_h(sp as u16);
+                self.push(
+                    px + 0.35,
+                    py + ph / 32.0,
+                    sp,
+                    &PushOpts {
+                        flip,
+                        rot,
+                        actor: true,
+                        ..Default::default()
+                    },
+                );
+            }
+        }
+        world
+    }
+
+    fn update_lights(&mut self, bio: &Biome, night: bool, cam: (f64, f64)) -> usize {
+        let t = self.t;
+        if bio.lantern && !self.p.hidden {
+            let p = &self.p.b;
+            if let Some(i) =
+                self.lights
+                    .add(cam, p.x + p.w / 2.0, p.y + 1.1, 1.2, 5.5, [0.95, 0.7, 0.45])
+            {
+                self.lights.pin_first(i);
+            }
+        }
+        for l in &self.static_lights {
+            let fl = 1.6 + 0.12 * (t * 9.0 + l.x).sin() + 0.08 * (t * 23.0 + l.x * 3.0).sin();
+            self.lights.add(
+                cam,
+                l.x,
+                l.y + 0.4,
+                1.4,
+                8.5,
+                [l.c[0] * fl, l.c[1] * fl, l.c[2] * fl],
+            );
+        }
+        for h in &self.hazards {
+            let k = 0.6 + 0.4 * (t * 4.0 + h.x).sin();
+            self.lights.add(
+                cam,
+                h.x,
+                h.y,
+                0.9,
+                3.0 + h.w * 0.4,
+                [0.96 * k * 1.3, 0.25 * k, 0.37 * k],
+            );
+        }
+        for sh in &self.shots {
+            let c = if sh.ben {
+                [0.3, 1.1, 1.2]
+            } else {
+                [1.2, 0.3, 0.3]
+            };
+            self.lights.add(cam, sh.x, sh.y, 0.6, 3.0, c);
+        }
+        for e in &self.ents {
+            if e.dead {
+                continue;
+            }
+            let b = &e.b;
+            match e.kind {
+                Kind::Sentry => {
+                    self.lights
+                        .add(cam, b.x + b.w / 2.0, b.y + 0.4, 0.8, 3.5, [1.3, 0.2, 0.2]);
+                }
+                Kind::Pod if e.puff => {
+                    self.lights
+                        .add(cam, b.x + 0.4, b.y + 0.8, 0.8, 4.0, [1.2, 0.3, 1.2]);
+                }
+                Kind::Terminal => {
+                    self.lights
+                        .add(cam, b.x + 0.5, b.y + 1.2, 1.0, 4.0, [0.3, 1.2, 0.3]);
+                }
+                Kind::Boss if e.state == St::Hot => {
+                    self.lights
+                        .add(cam, b.x + b.w / 2.0, b.y + 2.4, 1.2, 6.0, [1.4, 1.2, 0.3]);
+                }
+                _ => {}
+            }
+        }
+        for it in &self.items {
+            if it.taken {
+                continue;
+            }
+            let c = match it.kind {
+                ItemKind::Cheezie => [0.9, 0.6, 0.15],
+                ItemKind::Choc => [0.7, 0.4, 0.2],
+                ItemKind::Cookie => [0.9, 0.7, 0.3],
+                ItemKind::Soda => [0.15, 0.75, 0.9],
+                ItemKind::KeyRed => [1.1, 0.3, 0.3],
+                ItemKind::KeyBlue => [0.3, 0.4, 1.2],
+                ItemKind::Usb => [1.2, 1.1, 0.4],
+            };
+            let r = if matches!(
+                it.kind,
+                ItemKind::Usb | ItemKind::KeyRed | ItemKind::KeyBlue
+            ) {
+                3.2
+            } else {
+                2.4
+            };
+            self.lights.add(cam, it.x, it.y, 0.8, r, c);
+        }
+        let mul = if night { 1.0 } else { bio.lm };
+        self.lights
+            .select(mul, &mut self.lights_pos, &mut self.lights_col)
+    }
+}

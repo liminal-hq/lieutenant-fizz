@@ -7,3 +7,4 @@ dist-site/
 episodes/*/src/wasm/
 test-results/
 *.tsbuildinfo
+.playwright-mcp/
