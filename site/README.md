@@ -27,7 +27,7 @@ Add one object to `episodes.json`. Cards are sorted by `number`, and the "more e
 
 ## Pages artifact layout
 
-The workflow should assemble:
+The workflow assembles:
 
 ```
 <artifact>/             <- contents of site/ copied here (index.html, css/, js/, assets/, episodes.json)

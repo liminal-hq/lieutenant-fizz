@@ -1,8 +1,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-// Episode 1 text. Cinematic panel text follows the playable prototype (eight panels, one per
-// scene); docs/STORY.md has the condensed six-panel script.
+// Episode 1 text: eight opening cinematic panels (one per scene), the ending, dialogue and level
+// blurbs. docs/STORY.md mirrors the cinematic text.
 
 export interface Panel {
   place: string;

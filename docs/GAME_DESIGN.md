@@ -15,7 +15,7 @@ Billy, 14, has vanished. His cousin Ben, 10, finds a secret lab under their tree
 See `STORY.md` for the full opening cinematic and ending text.
 
 ## Structure
-1. Title screen, then the opening cinematic (6 panels, skippable).
+1. Title screen, then the opening cinematic (8 panels, skippable).
 2. **Overworld:** a top-down crystal forest split by chocolate rivers. Teleporter pairs power up as levels are cleared. Autosaves on every visit.
 3. **Crater Fields:** tutorial biome with slopes, pogo, fizz, chocolate pools, red gumdrop door.
 4. **Crystal Caves:** darker tunnels lit by crystals and Ben's lantern. Hover platforms, a bridge switch, bats, blue gumdrop door.
