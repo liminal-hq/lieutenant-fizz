@@ -1,10 +1,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { buildAtlas, InstanceWriter } from '@lieutenant-fizz/engine';
+import { buildAtlas } from '@lieutenant-fizz/engine/atlas';
+import { InstanceWriter } from '@lieutenant-fizz/engine/instances';
 import { describe, expect, it } from 'vitest';
 import { Cinematic, hashf } from './cine';
-import { defineSprites } from './sprites';
+import { defineSprites } from './sprites/catalog';
 
 describe('hashf', () => {
   it('is deterministic and in [0, 1)', () => {

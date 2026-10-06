@@ -3,8 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "exports": {
+    "./atlas": "./src/atlas.ts",
+    "./audio": "./src/audio.ts",
+    "./input": "./src/input.ts",
+    "./instances": "./src/instances.ts",
+    "./palette": "./src/palette.ts",
+    "./pen": "./src/pen.ts",
+    "./renderer": "./src/renderer.ts",
+    "./wasm": "./src/wasm.ts"
+  },
   "license": "Apache-2.0 OR MIT",
   "dependencies": {
     "@liminal-hq/undertone": "^0.2.0",
