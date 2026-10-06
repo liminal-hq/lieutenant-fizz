@@ -108,7 +108,7 @@ export class Ui {
     this.toastEl = el('div', { id: 'toast', class: 'lf lf-panel', hidden: '' });
 
     this.title = el('div', { id: 'title', class: 'lf screen', hidden: '' });
-    this.title.innerHTML = `<div class="head"><h1 class="wordmark"><span class="kicker">The Melting Adventures of</span><span class="hero">Ben Blaze</span><span class="alias">“Lieutenant Fizz”</span></h1>
+    this.title.innerHTML = `<div class="head"><h1 class="wordmark"><span class="kicker">Ben Blaze in</span><span class="hero">Lieutenant Fizz</span></h1>
       <p class="episode">Episode 1 · The Cocoa Caper</p></div>`;
     this.menuEl = el('div', { class: 'menu' });
     this.controls = el('div', { id: 'controls', hidden: '' });
