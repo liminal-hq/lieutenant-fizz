@@ -28,7 +28,7 @@
       "name": "@lieutenant-fizz/engine",
       "version": "0.1.0",
       "dependencies": {
-        "@liminal-hq/undertone": "^0.1.1",
+        "@liminal-hq/undertone": "^0.2.0",
         "three": "^0.184.0",
       },
       "devDependencies": {
@@ -83,7 +83,7 @@
 
     "@lieutenant-fizz/episode-1": ["@lieutenant-fizz/episode-1@workspace:episodes/episode-1"],
 
-    "@liminal-hq/undertone": ["@liminal-hq/undertone@0.1.1", "", {}, "sha512-ni3PLLgP7Mqj2CU0bMz9iee3InAu5Oy49Frbi1jxSsLZtgGLcXlRck8G+dgiImtlaN2uM1UynYV9473sP4Dn6Q=="],
+    "@liminal-hq/undertone": ["@liminal-hq/undertone@0.2.0", "", {}, "sha512-2y93+93xlz83H27fI5/q2ed4e6fJSpmjxhn2aJ0akUsJlW9vuh8YteqzE4iNOgf3nwAdpw1266dCbReofjjsJw=="],
 
     "@oxc-project/types": ["@oxc-project/types@0.152.0", "", {}, "sha512-oM/5rLBm2tPkg0iBgkH/FOeR3PCDpY19GTgAZjMFM8h9WI9VW7cLgzp6nwtarYKmovavIQZ+Fe/RKX/8C8O/Rw=="],
 
