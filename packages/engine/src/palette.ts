@@ -24,7 +24,7 @@ export const EGA = {
 export type Colour = keyof typeof EGA;
 
 export function isColour(c: string): c is Colour {
-  return c in EGA;
+  return Object.hasOwn(EGA, c);
 }
 
 /** Parses `#rrggbb` into 0..255 channels. */
