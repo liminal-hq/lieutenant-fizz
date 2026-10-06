@@ -1,0 +1,443 @@
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+import {
+  note,
+  sound,
+  stack,
+  type SoundEffect,
+  type SoundType,
+  type Voice,
+} from '@liminal-hq/undertone';
+
+/** One-shot SFX voice, as data (Undertone voice controls). */
+export interface SfxVoice {
+  /** Note name (`e4`) or noise type (`white`, `pink`, `brown`). */
+  n: string;
+  w?: OscillatorType;
+  a?: number;
+  d?: number;
+  r?: number;
+  g: number;
+  lpf?: number;
+  hpf?: number;
+  slide?: number;
+  nudge?: number;
+}
+
+/** One part of a looping music track (mini-notation pattern plus voice settings). */
+export interface MusicPart {
+  notes: string;
+  w?: OscillatorType;
+  noise?: boolean;
+  a?: number;
+  d?: number;
+  s?: number;
+  r?: number;
+  g: number;
+  lpf?: number;
+  hpf?: number;
+  slide?: number;
+  room?: number;
+  delay?: number;
+}
+
+export interface MusicTrack {
+  bpm: number;
+  parts: MusicPart[];
+}
+
+export interface AudioPatterns {
+  sfx: Record<string, SfxVoice[]>;
+  music: Record<string, MusicTrack>;
+  /** Caption text to SFX name, so on-screen sound captions and audio always agree. */
+  captionSfx: Record<string, string>;
+}
+
+// ---------- Mini-notation subset: [ ] seq, < > alternate, , stack, *n repeat, ~ rest ----------
+
+type Node =
+  | { t: 'rest'; rep?: number }
+  | { t: 'word'; v: string; rep?: number }
+  | { t: 'seq'; items: Node[]; rep?: number }
+  | { t: 'alt'; items: Node[]; rep?: number }
+  | { t: 'stack'; parts: Node[]; rep?: number };
+
+export function parseMini(src: string): Node {
+  let i = 0;
+  const ws = (): void => {
+    while (src[i] === ' ') i++;
+  };
+  const seq = (close: string | null): Extract<Node, { t: 'seq' }> => {
+    const items: Node[] = [];
+    for (;;) {
+      ws();
+      if (i >= src.length || src[i] === close || src[i] === ',') break;
+      items.push(item());
+    }
+    return { t: 'seq', items };
+  };
+  const group = (close: string, kind: 'seq' | 'alt'): Node => {
+    i++;
+    const parts = [seq(close)];
+    while (src[i] === ',') {
+      i++;
+      parts.push(seq(close));
+    }
+    i++;
+    if (parts.length > 1) return { t: 'stack', parts };
+    const first = parts[0]!;
+    return kind === 'alt' ? { t: 'alt', items: first.items } : first;
+  };
+  const atom = (): Node => {
+    if (src[i] === '[') return group(']', 'seq');
+    if (src[i] === '<') return group('>', 'alt');
+    let w = '';
+    while (i < src.length && !' []<>,*'.includes(src[i]!)) w += src[i++];
+    return w === '~' ? { t: 'rest' } : { t: 'word', v: w };
+  };
+  const item = (): Node => {
+    const a = atom();
+    if (src[i] === '*') {
+      i++;
+      let n = '';
+      while (/[0-9]/.test(src[i] ?? '')) n += src[i++];
+      a.rep = +n;
+    }
+    return a;
+  };
+  return seq(null);
+}
+
+export interface MiniEvent {
+  /** Start and end as a fraction of one cycle. */
+  t0: number;
+  t1: number;
+  v: string;
+}
+
+/** Evaluates cycle `cyc` of a parsed pattern into timed events (appended to `out`). */
+export function evalMini(node: Node, t0: number, t1: number, cyc: number, out: MiniEvent[]): void {
+  const rep = node.rep ?? 1;
+  const d = (t1 - t0) / rep;
+  for (let k = 0; k < rep; k++) {
+    const a = t0 + k * d;
+    const b = a + d;
+    const c = cyc * rep + k;
+    if (node.t === 'word') out.push({ t0: a, t1: b, v: node.v });
+    else if (node.t === 'seq') {
+      const n = node.items.length;
+      node.items.forEach((it, j) =>
+        evalMini(it, a + ((b - a) * j) / n, a + ((b - a) * (j + 1)) / n, c, out),
+      );
+    } else if (node.t === 'alt') {
+      const n = node.items.length;
+      const pick = node.items[((c % n) + n) % n];
+      if (pick) evalMini(pick, a, b, Math.floor(c / n), out);
+    } else if (node.t === 'stack') node.parts.forEach((p) => evalMini(p, a, b, c, out));
+  }
+}
+
+const NOTE: Record<string, number> = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
+
+/** Frequency in Hz of a note name like `c#4` (A4 = 440). */
+export function noteHz(name: string): number {
+  const m = /^([a-g])(#|b)?(-?\d)$/.exec(name);
+  if (!m) return 440;
+  const n = (NOTE[m[1]!] ?? 0) + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) + (+m[3]! + 1) * 12;
+  return 440 * Math.pow(2, (n - 69) / 12);
+}
+
+const isNoise = (n: string): boolean => n === 'white' || n === 'pink' || n === 'brown';
+
+interface VoiceSpec {
+  n: string;
+  w?: OscillatorType;
+  a?: number;
+  d?: number;
+  s?: number;
+  r?: number;
+  g: number;
+  lpf?: number;
+  hpf?: number;
+  slide?: number;
+  nudge?: number;
+  delay?: number;
+}
+
+/** Built-in Web Audio synth: plays the same patterns as Undertone, plus music loops. */
+export class MiniSynth {
+  private readonly noise: Partial<Record<string, AudioBuffer>> = {};
+  private readonly delay: DelayNode;
+
+  constructor(
+    private readonly ctx: AudioContext,
+    private readonly out: AudioNode,
+  ) {
+    this.delay = ctx.createDelay(1);
+    this.delay.delayTime.value = 0.33;
+    const fb = ctx.createGain();
+    fb.gain.value = 0.35;
+    this.delay.connect(fb);
+    fb.connect(this.delay);
+    this.delay.connect(out);
+  }
+
+  private noiseBuf(kind: string): AudioBuffer {
+    const hit = this.noise[kind];
+    if (hit) return hit;
+    const ctx = this.ctx;
+    const len = Math.floor(ctx.sampleRate * 1.5);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let l = 0;
+    let p0 = 0;
+    let p1 = 0;
+    let p2 = 0;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      if (kind === 'brown') {
+        l = (l + 0.02 * w) / 1.02;
+        d[i] = l * 3.5;
+      } else if (kind === 'pink') {
+        p0 = 0.997 * p0 + w * 0.029591;
+        p1 = 0.985 * p1 + w * 0.032534;
+        p2 = 0.95 * p2 + w * 0.048056;
+        d[i] = (p0 + p1 + p2 + w * 0.05) * 1.5;
+      } else d[i] = w;
+    }
+    this.noise[kind] = buf;
+    return buf;
+  }
+
+  voice(v: VoiceSpec, when: number, dur: number, gated: boolean): void {
+    const ctx = this.ctx;
+    const t = when + (v.nudge ?? 0);
+    let src: AudioBufferSourceNode | OscillatorNode;
+    if (isNoise(v.n)) {
+      const s = ctx.createBufferSource();
+      s.buffer = this.noiseBuf(v.n);
+      src = s;
+    } else {
+      const o = ctx.createOscillator();
+      o.type = v.w ?? 'triangle';
+      const f = noteHz(v.n);
+      if (v.slide) {
+        o.frequency.setValueAtTime(f * 2, t);
+        o.frequency.exponentialRampToValueAtTime(f, t + v.slide);
+      } else o.frequency.setValueAtTime(f, t);
+      src = o;
+    }
+    let node: AudioNode = src;
+    if (v.lpf) {
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = v.lpf;
+      node.connect(f);
+      node = f;
+    }
+    if (v.hpf) {
+      const f = ctx.createBiquadFilter();
+      f.type = 'highpass';
+      f.frequency.value = v.hpf;
+      node.connect(f);
+      node = f;
+    }
+    const g = ctx.createGain();
+    const a = v.a || 0.001;
+    const d = v.d || 0.1;
+    const s = gated ? (v.s ?? 0) : 0;
+    const r = v.r || 0.05;
+    const peak = v.g;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(peak, t + a);
+    g.gain.linearRampToValueAtTime(peak * s, t + a + d);
+    const end = gated ? Math.max(t + a + d, t + dur) : t + a + d;
+    g.gain.setValueAtTime(peak * s, end);
+    g.gain.linearRampToValueAtTime(0, end + r);
+    node.connect(g);
+    g.connect(this.out);
+    if (v.delay) {
+      const sg = ctx.createGain();
+      sg.gain.value = v.delay;
+      g.connect(sg);
+      sg.connect(this.delay);
+    }
+    src.start(t);
+    src.stop(end + r + 0.05);
+  }
+
+  playSfx(list: readonly SfxVoice[], vol: number): void {
+    const t = this.ctx.currentTime + 0.01;
+    for (const v of list) this.voice({ ...v, g: v.g * vol }, t, 0, false);
+  }
+
+  /** Loops a track, scheduling voices ~300 ms ahead. Returns a stopper. */
+  loop(track: MusicTrack, vol: number): { stop(): void } {
+    const ctx = this.ctx;
+    const cyc = 240 / track.bpm;
+    const parsed = track.parts.map((p) => ({ p, tree: parseMini(p.notes) }));
+    let c = 0;
+    let next = ctx.currentTime + 0.1;
+    let stopped = false;
+    const tick = (): void => {
+      if (stopped) return;
+      while (next < ctx.currentTime + 0.3) {
+        for (const { p, tree } of parsed) {
+          const ev: MiniEvent[] = [];
+          evalMini(tree, 0, 1, c, ev);
+          for (const e of ev) {
+            this.voice(
+              { ...p, n: e.v, g: p.g * vol },
+              next + e.t0 * cyc,
+              (e.t1 - e.t0) * cyc,
+              true,
+            );
+          }
+        }
+        c++;
+        next += cyc;
+      }
+    };
+    tick();
+    const id = setInterval(tick, 50);
+    return {
+      stop: () => {
+        stopped = true;
+        clearInterval(id);
+      },
+    };
+  }
+}
+
+/**
+ * Game audio manager. Sound effects are built as `@liminal-hq/undertone` stacks (voices that
+ * use a high-pass filter, which Undertone 0.1 lacks, fall back to the built-in synth); music
+ * loops are always played by the built-in synth, which implements the mini-notation subset the
+ * tracks are written in. The context unlocks on the first click or key press.
+ */
+export class GameAudio {
+  music = true;
+  sfx = true;
+  musicVol = 1;
+  sfxVol = 1;
+  backend = 'Undertone 0.1 + built-in synth';
+  private ctx: AudioContext | null = null;
+  private mini: MiniSynth | null = null;
+  private handle: { stop(): void } | null = null;
+  private track: string | null = null;
+  private pending: string | null = null;
+  private disposed = false;
+  private readonly cache = new Map<string, SoundEffect>();
+  private readonly unlock = (): void => {
+    if (this.disposed) return;
+    this.ensure();
+    if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
+  };
+
+  constructor(private readonly patterns: AudioPatterns) {
+    window.addEventListener('pointerdown', this.unlock);
+    window.addEventListener('keydown', this.unlock);
+  }
+
+  private ensure(): AudioContext | null {
+    if (this.disposed) return null;
+    if (this.ctx) return this.ctx;
+    const AC =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return null;
+    this.ctx = new AC();
+    this.mini = new MiniSynth(this.ctx, this.ctx.destination);
+    if (this.pending) {
+      const t = this.pending;
+      this.pending = null;
+      this.playMusic(t, true);
+    }
+    return this.ctx;
+  }
+
+  private undertoneEffect(name: string, voices: readonly SfxVoice[]): SoundEffect {
+    const key = `${name}@${this.sfxVol}`;
+    const hit = this.cache.get(key);
+    if (hit) return hit;
+    const vs: Voice[] = voices.map((v) => {
+      let p = isNoise(v.n)
+        ? sound(v.n as SoundType)
+        : note(v.n).sound((v.w ?? 'triangle') as SoundType);
+      p = p
+        .attack(v.a ?? 0.001)
+        .decay(v.d ?? 0.1)
+        .sustain(0)
+        .release(v.r ?? 0.05)
+        .gain(v.g * this.sfxVol);
+      if (v.lpf) p = p.lpf(v.lpf);
+      if (v.slide) p = p.slide(v.slide);
+      if (v.nudge) p = p.nudge(v.nudge);
+      return p;
+    });
+    const fx = stack(...vs);
+    this.cache.set(key, fx);
+    return fx;
+  }
+
+  play(name: string): void {
+    const voices = this.patterns.sfx[name];
+    if (!this.sfx || !voices) return;
+    const ctx = this.ensure();
+    if (!ctx || ctx.state !== 'running') return;
+    try {
+      if (voices.some((v) => v.hpf)) this.mini?.playSfx(voices, this.sfxVol);
+      else this.undertoneEffect(name, voices).play(ctx);
+    } catch (e) {
+      console.warn('sfx failed', name, e);
+    }
+  }
+
+  /** Plays the sound effect tied to an on-screen caption, if it has one. */
+  caption(text: string): void {
+    const k = this.patterns.captionSfx[text];
+    if (k) this.play(k);
+  }
+
+  playMusic(track: string | null, force = false): void {
+    if (this.disposed) return;
+    if (track === this.track && !force) return;
+    this.track = track;
+    this.handle?.stop();
+    this.handle = null;
+    const t = track ? this.patterns.music[track] : undefined;
+    if (!this.music || !t) return;
+    if (!this.ctx || !this.mini) {
+      this.pending = track;
+      return;
+    }
+    this.handle = this.mini.loop(t, this.musicVol);
+  }
+
+  setMusic(on: boolean): void {
+    this.music = on;
+    this.handle?.stop();
+    this.handle = null;
+    if (on && this.track) this.playMusic(this.track, true);
+  }
+
+  setSfx(on: boolean): void {
+    this.sfx = on;
+  }
+
+  /** Suspends or resumes the whole context (tab hidden, pause menu). */
+  setActive(on: boolean): void {
+    if (!this.ctx || this.disposed) return;
+    void (on ? this.ctx.resume() : this.ctx.suspend());
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    this.handle?.stop();
+    this.handle = null;
+    window.removeEventListener('pointerdown', this.unlock);
+    window.removeEventListener('keydown', this.unlock);
+    void this.ctx?.close();
+  }
+}

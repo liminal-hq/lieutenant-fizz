@@ -1,26 +1,17 @@
-import simUrl from './wasm/sim.wasm?url';
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
 
-const stage = document.getElementById('stage') as HTMLElement;
-const canvas = document.createElement('canvas');
-canvas.style.cssText = 'display:block;width:100%;height:100%';
-stage.appendChild(canvas);
+import { Game } from './game';
 
-async function boot(): Promise<void> {
-  const { instance } = await WebAssembly.instantiateStreaming(fetch(simUrl), {});
-  const stride = (instance.exports.stride as () => number)();
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('2D canvas unavailable');
-  const resize = (): void => {
-    canvas.width = stage.clientWidth;
-    canvas.height = stage.clientHeight;
-    ctx.fillStyle = '#5555ff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fff';
-    ctx.font = '16px monospace';
-    ctx.fillText(`sim.wasm loaded (stride ${stride})`, 16, 28);
-  };
-  resize();
-  window.addEventListener('resize', resize);
-}
+const stage = document.getElementById('stage');
+if (!stage) throw new Error('missing #stage');
 
-boot().catch((e) => console.error(e));
+Game.start(stage)
+  .then((game) => {
+    if (new URLSearchParams(location.search).has('debug')) {
+      (window as unknown as { __lf: Game }).__lf = game;
+    }
+  })
+  .catch(() => {
+    /* the overlay already shows the error */
+  });
