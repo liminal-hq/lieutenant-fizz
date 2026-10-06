@@ -123,6 +123,12 @@ export const SFX: Record<string, SfxVoice[]> = {
     V('e2', { w: 'sine', d: 0.15, g: 0.4, slide: 0.12 }),
     V('pink', { d: 0.06, g: 0.15, lpf: 1200 }),
   ],
+  stinger: [
+    V('e2', { w: 'sawtooth', a: 0.02, d: 1.1, g: 0.22, lpf: 500 }),
+    V('a#2', { w: 'sawtooth', a: 0.02, d: 1.1, g: 0.18, lpf: 500, nudge: 0.03 }),
+    V('e5', { w: 'sine', d: 0.8, g: 0.1, nudge: 0.5 }),
+    V('brown', { a: 0.05, d: 0.7, g: 0.2, lpf: 700 }),
+  ],
   menu: [
     V('a5', { w: 'sine', d: 0.06, g: 0.3, lpf: 3000 }),
     V('white', { a: 0, d: 0.008, g: 0.1, lpf: 6000 }),
@@ -163,6 +169,7 @@ export const CAPTION_SFX: Record<string, string> = {
   splorp: 'splorp',
   'click — no fizz': 'plink',
   'needs a drive': 'plink',
+  '♪ low sting': 'stinger',
 };
 
 // ---------- Music (mini-notation, shared by both back ends) ----------

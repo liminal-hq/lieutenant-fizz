@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { SpriteDef } from '@lieutenant-fizz/engine/atlas';
-import { ben, benMap, billy, type BenPose } from './characters';
+import { ben, benMap, billy, mortimer, type BenPose } from './characters';
 import * as e from './enemies';
 import * as it from './items';
 import * as sc from './scenes';
@@ -23,6 +23,7 @@ export function defineSprites(): SpriteDef[] {
   add('benMap1', benMap(1));
   add('billyCage', billy(true));
   add('billy', billy(false));
+  add('billyAlt', mortimer());
   const pairs: [string, (f: 0 | 1) => SpriteDef['grid']][] = [
     ['gloop', e.gloop],
     ['hopper', e.hopper],
