@@ -9,8 +9,9 @@
 
 ## Test plan
 
+- [ ] `bun run validate`
 - [ ] `bun run build`
 - [ ] `bun run test`
-- [ ] `cargo test -p sim`
+- [ ] `bun run test:rust`
 - [ ] Checked in a browser (describe what was played or inspected)
 - Not verified:

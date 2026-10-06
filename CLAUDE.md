@@ -13,7 +13,8 @@ Lieutenant Fizz (`liminal-hq/lieutenant-fizz`) is a monorepo for all episodes of
 Bun workspaces + Cargo workspace:
 
 - `crates/sim` and `packages/engine` — the shared engine; anything reusable across episodes goes here
-- `episodes/episode-N/` — one folder per episode (levels, assets, tuning, story, entry point), starting with `episodes/episode-1`
+- `episodes/episode-N/` — one folder per episode (levels, assets, tuning, story, entry point), starting with `episodes/episode-1`; an episode with its own game rules owns a Rust crate in `episodes/episode-N/game`
+- `site/` — static landing page; `scripts/` — build and check scripts
 - `docs/` — engine spec and cross-episode design; `design/` — reference prototypes
 
 Episodes depend on the engine, never on each other, and the engine never imports from an episode. To add an episode, follow "Adding an episode" in `AGENTS.md` → Repository Layout.
@@ -25,14 +26,15 @@ bun install          # install dependencies
 bun run dev          # Vite dev server
 bun run build        # production build
 bun run test         # TypeScript tests
-cargo test -p sim    # Rust simulation tests
+bun run test:rust   # Rust tests (cargo test --workspace)
+bun run validate    # full pre-PR gate
 ```
 
-`package.json` scripts are the source of truth; prefer `bun run validate` as the pre-PR gate once it exists. Use Bun, not npm, pnpm or yarn.
+`package.json` scripts are the source of truth; `bun run validate` is the pre-PR gate. Use Bun, not npm, pnpm or yarn.
 
 ## Architecture — the key things to understand
 
-**The Rust crate owns the simulation; TypeScript owns presentation.** Deterministic game rules (physics, collision, entity behaviour, timing) live in `crates/sim` behind a narrow `wasm-bindgen` surface, with a fixed timestep and seeded RNG. TypeScript renders with Three.js, handles input and audio, and reacts to simulation state; it never re-derives sim rules.
+**The Rust crate owns the simulation; TypeScript owns presentation.** Deterministic game rules (physics, collision, entity behaviour, timing) live in `crates/sim` behind a raw C-ABI export surface (no `wasm-bindgen`), with a fixed timestep and seeded RNG. TypeScript renders with Three.js, handles input and audio, and reacts to simulation state; it never re-derives sim rules.
 
 **Docs lead, code follows.** When behaviour changes, update the matching doc in the same branch.
 
