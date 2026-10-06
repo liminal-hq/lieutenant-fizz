@@ -1,0 +1,35 @@
+{
+  "name": "lieutenant-fizz",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Lieutenant Fizz: a Keen-style platformer series on a Rust/WASM + Three.js engine",
+  "license": "Apache-2.0 OR MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "episodes/*"
+  ],
+  "scripts": {
+    "dev": "bun run build:wasm && bun run --cwd episodes/episode-1 dev",
+    "build": "bun run build:wasm && bun run --cwd episodes/episode-1 build",
+    "build:wasm": "bash scripts/build-wasm.sh",
+    "build:site": "bash scripts/build-site.sh",
+    "preview": "bun run --cwd episodes/episode-1 preview",
+    "test": "vitest run",
+    "test:rust": "cargo test --workspace",
+    "lint": "eslint .",
+    "lint:rust": "cargo clippy --workspace --all-targets -- -D warnings",
+    "format": "prettier --write . && cargo fmt --all",
+    "format:check": "prettier --check . && cargo fmt --all -- --check",
+    "typecheck": "tsc -p packages/engine --noEmit && tsc -p episodes/episode-1 --noEmit",
+    "validate": "bun run format:check && bun run lint && bun run typecheck && bun run test && bun run lint:rust && bun run test:rust && bun run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10",
+    "eslint": "^10",
+    "prettier": "^3.9.9",
+    "typescript": "^6",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
+  }
+}

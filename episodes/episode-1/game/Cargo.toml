@@ -1,0 +1,16 @@
+[package]
+name = "lf-episode-1"
+version = "0.1.0"
+description = "Episode 1 (The Cocoa Caper) simulation, compiled to WASM"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+lf-sim = { path = "../../../crates/sim" }

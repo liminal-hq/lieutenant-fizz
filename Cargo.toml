@@ -1,0 +1,17 @@
+[workspace]
+members = ["crates/sim", "episodes/episode-1/game"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+authors = ["Liminal HQ, Scott Morris"]
+license = "Apache-2.0 OR MIT"
+homepage = "https://github.com/liminal-hq/lieutenant-fizz"
+repository = "https://github.com/liminal-hq/lieutenant-fizz"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

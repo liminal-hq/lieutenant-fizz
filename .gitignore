@@ -3,3 +3,7 @@ node_modules/
 dist/
 target/
 .DS_Store
+dist-site/
+episodes/*/src/wasm/
+test-results/
+*.tsbuildinfo

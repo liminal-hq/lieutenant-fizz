@@ -1,0 +1,17 @@
+target/
+node_modules/
+dist/
+dist-site/
+design/
+docs/
+*.lock
+bun.lock
+episodes/*/src/wasm/
+Last Light game design*.zip
+README.md
+AGENTS.md
+CLAUDE.md
+LICENSE*
+assets/
+site/
+.github/
