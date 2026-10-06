@@ -22,7 +22,7 @@
     }
     var body = el('div', 'card-body');
     body.appendChild(el('span', 'badge ' + (playable ? 'ok' : 'wait'), playable ? 'Playable' : 'Coming soon'));
-    body.appendChild(el('p', 'ep-no', 'Episode ' + ep.number));
+    body.appendChild(el('p', 'ep-no', (ep.series ? ep.series + ' — ' : '') + 'Episode ' + ep.number));
     var h = el('h3');
     if (playable) {
       var a = el('a', 'card-link', ep.title);

@@ -10,9 +10,9 @@
   <img src="https://img.shields.io/badge/licence-Apache--2.0%20OR%20MIT-3fb950" alt="Licence: Apache-2.0 OR MIT">
 </p>
 
-*The Melting Adventures of Ben "Lieutenant Fizz" Blaze* — a series of Keen-style platformers with a 16-colour EGA palette, bright and fun in the spirit of *Goodbye, Galaxy!* and *Aliens Ate My Babysitter*. Every episode runs on the Liminal Retro Engine: a deterministic Rust simulation core compiled to WebAssembly, drawn by a thin Three.js WebGL2 layer in a single instanced draw call, with music and sound written for [Undertone](https://github.com/liminal-hq/undertone).
+*Lieutenant Fizz* — a series of Keen-style platformers with a 16-colour EGA palette, bright and fun in the spirit of *Goodbye, Galaxy!* and *Aliens Ate My Babysitter*. Every episode runs on the Liminal Retro Engine: a deterministic Rust simulation core compiled to WebAssembly, drawn by a thin Three.js WebGL2 layer in a single instanced draw call, with music and sound written for [Undertone](https://github.com/liminal-hq/undertone).
 
-The first episode is **Episode 1: The Cocoa Caper**.
+The first episode is **Episode 1: The Cocoa Caper**, the opening chapter of the first arc, working title *Invasion of the Zargs*. You play Ben "Lieutenant Fizz" Blaze, a 10-year-old tinkerer.
 
 > **Status:** early development. The game and engine are fully playable as a browser prototype (kept in [`design/`](design/) for reference), and the specification records which parts of it are proven. This repository is where that prototype becomes the real thing: the shared engine and the Rust → WASM simulation core at the root, with each episode under `episodes/`. There are no releases yet. When the Pages deploy is live, the series lands at [liminalhq.ca/lieutenant-fizz](https://liminalhq.ca/lieutenant-fizz/) and Episode 1 at [liminalhq.ca/lieutenant-fizz/episode-1](https://liminalhq.ca/lieutenant-fizz/episode-1/).
 

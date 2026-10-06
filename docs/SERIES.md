@@ -4,7 +4,9 @@ Lieutenant Fizz is an episodic platformer series on the Liminal Retro Engine, a 
 
 Billy Blaze is the Keen of this world. Ben "Lieutenant Fizz" Blaze is the cousin who grew up idolising him, and the series follows Ben stepping out of Billy's shadow. Billy and Ben are best-friend cousins, and Billy has a story of his own that runs alongside Ben's.
 
-Working arc title: **Invasion of the Zargs** (Episodes 1–3). The title is not locked.
+Games are titled in the Keen style, "Lieutenant Fizz in *Arc Title*", with each episode carrying its own name, for example *Lieutenant Fizz — Episode 1: The Cocoa Caper*. The earlier long title, *The Melting Adventures of Ben "Lieutenant Fizz" Blaze*, is retired.
+
+Working arc title: **Invasion of the Zargs** (Episodes 1–3). This is still a working title and is not locked.
 
 ## Cast
 - **Ben "Lieutenant Fizz" Blaze, 10.** Protagonist. Neighbourhood tinkerer.

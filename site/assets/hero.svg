@@ -4,7 +4,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 OR MIT -->
 <svg width="1200" height="320" viewBox="0 0 1200 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="hero-title hero-desc">
   <title id="hero-title">Lieutenant Fizz</title>
-  <desc id="hero-desc">The Melting Adventures of Ben "Lieutenant Fizz" Blaze. A dark banner over Planet Zargoth: a pixel-art spaghetti with meatballs flying saucer trails marinara exhaust above twinkling crystals, a cake building with a cookie door, and a winding chocolate river.</desc>
+  <desc id="hero-desc">Lieutenant Fizz: Episode 1, The Cocoa Caper. A dark banner over Planet Zargoth: a pixel-art spaghetti with meatballs flying saucer trails marinara exhaust above twinkling crystals, a cake building with a cookie door, and a winding chocolate river.</desc>
 
   <style>
     .display { font-family: 'Space Grotesk', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
@@ -259,7 +259,7 @@
   </g>
 
   <!-- Eyebrow, title, subtitle -->
-  <text x="82" y="96" class="ui" font-size="15" fill="#7c8796">The Melting Adventures of Ben Blaze</text>
+  <text x="82" y="96" class="ui" font-size="15" fill="#7c8796">Ben Blaze in</text>
   <text x="80" y="156" class="display" font-size="64" font-weight="700" letter-spacing="-0.02em" fill="url(#brand)" filter="url(#text-glow)">Lieutenant Fizz</text>
   <text x="83" y="192" class="ui" font-size="19" fill="#b4bfce">Episode 1 · The Cocoa Caper</text>
   <text x="83" y="220" class="ui" font-size="15" fill="#7c8796">A Keen-style platformer on the Liminal Retro Engine</text>
