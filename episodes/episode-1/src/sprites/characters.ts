@@ -1,3 +1,5 @@
+// Pixel-art frames for Ben (in each pose), his overworld marker and Billy.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

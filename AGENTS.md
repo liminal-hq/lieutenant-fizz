@@ -140,6 +140,7 @@ bun install          # install dependencies
 bun run dev          # Vite dev server (episode selected by the script or --cwd episodes/episode-1)
 bun run build        # production build (WASM + TypeScript + Vite)
 bun run test         # TypeScript tests
+bun run check:headers  # verify the licence header on every source, workflow and shell file
 bun run test:rust   # Rust tests across the Cargo workspace (same as `cargo test --workspace`)
 cargo test -p lf-sim # Rust simulation core tests only
 ```

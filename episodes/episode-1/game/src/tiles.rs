@@ -1,3 +1,5 @@
+// Tile id constants and per-tile properties for the Episode 1 maps.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

@@ -1,3 +1,5 @@
+// Tests that Episode 1 captions map to effects and every music part parses.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

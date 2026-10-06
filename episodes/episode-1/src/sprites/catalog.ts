@@ -1,3 +1,5 @@
+// Collects every Episode 1 sprite into the named definitions the atlas packs.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

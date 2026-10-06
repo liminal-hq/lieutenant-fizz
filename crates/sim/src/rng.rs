@@ -1,3 +1,5 @@
+// Seeded random number generator and stateless 2D hash for deterministic jitter.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

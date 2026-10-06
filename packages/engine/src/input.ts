@@ -1,3 +1,5 @@
+// Keyboard and gamepad input mapped to sim input bits and menu commands.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

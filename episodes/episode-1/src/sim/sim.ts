@@ -1,3 +1,5 @@
+// Typed wrapper around the Episode 1 WASM sim exports and its memory views.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
