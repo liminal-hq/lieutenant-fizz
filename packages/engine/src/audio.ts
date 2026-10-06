@@ -1,14 +1,15 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import {
-  note,
-  sound,
-  stack,
-  type SoundEffect,
-  type SoundType,
-  type Voice,
-} from '@liminal-hq/undertone';
+import type { ControlPatch, Pattern, SoundType } from '@liminal-hq/undertone';
+
+/** The runtime surface of `@liminal-hq/undertone` the game uses (the module namespace, or a test double). */
+export type UndertoneModule = Pick<
+  typeof import('@liminal-hq/undertone'),
+  'note' | 'sound' | 'stack'
+>;
+
+type Voice = Pattern<ControlPatch>;
 
 /** One-shot SFX voice, as data (Undertone voice controls). */
 export interface SfxVoice {
@@ -311,33 +312,56 @@ export class MiniSynth {
 }
 
 /**
- * Game audio manager. Sound effects are built as `@liminal-hq/undertone` stacks (voices that
- * use a high-pass filter, which Undertone 0.1 lacks, fall back to the built-in synth); music
- * loops are always played by the built-in synth, which implements the mini-notation subset the
- * tracks are written in. The context unlocks on the first click or key press.
+ * Game audio manager. Sound effects and music are built as `@liminal-hq/undertone` 0.2 stacks
+ * (effects play once, music loops at the track's BPM). If Undertone fails to load, or throws while
+ * building or starting a sound, that sound falls back to the built-in synth, which implements the
+ * same patterns. The context unlocks on the first click or key press.
  */
 export class GameAudio {
   music = true;
   sfx = true;
   musicVol = 1;
   sfxVol = 1;
-  backend = 'Undertone 0.1 + built-in synth';
+  backend = 'Loading Undertone';
   private ctx: AudioContext | null = null;
   private mini: MiniSynth | null = null;
+  private ut: UndertoneModule | null = null;
   private handle: { stop(): void } | null = null;
   private track: string | null = null;
   private pending: string | null = null;
   private disposed = false;
-  private readonly cache = new Map<string, SoundEffect>();
+  private readonly cache = new Map<string, Voice>();
   private readonly unlock = (): void => {
     if (this.disposed) return;
     this.ensure();
     if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
   };
 
-  constructor(private readonly patterns: AudioPatterns) {
+  constructor(
+    private readonly patterns: AudioPatterns,
+    load: () => Promise<UndertoneModule> = () => import('@liminal-hq/undertone'),
+  ) {
     window.addEventListener('pointerdown', this.unlock);
     window.addEventListener('keydown', this.unlock);
+    load().then(
+      (m) => {
+        if (this.disposed) return;
+        if (
+          typeof m?.note === 'function' &&
+          typeof m.sound === 'function' &&
+          typeof m.stack === 'function'
+        ) {
+          this.ut = m;
+          this.backend = 'Undertone 0.2';
+          // Music requested before the library arrived was started on the built-in synth.
+          if (this.handle && this.music && this.track) this.playMusic(this.track, true);
+        } else this.backend = 'Built-in synth';
+      },
+      (e: unknown) => {
+        console.warn('Undertone unavailable, using the built-in synth', e);
+        this.backend = 'Built-in synth';
+      },
+    );
   }
 
   private ensure(): AudioContext | null {
@@ -357,26 +381,33 @@ export class GameAudio {
     return this.ctx;
   }
 
-  private undertoneEffect(name: string, voices: readonly SfxVoice[]): SoundEffect {
+  /** One Undertone voice. Music parts hold their envelope for the note length; effects are percussive. */
+  private utVoice(U: UndertoneModule, v: SfxVoice | MusicPart, vol: number, gated: boolean): Voice {
+    const text = 'notes' in v ? v.notes : v.n;
+    const noisy = 'noise' in v ? !!v.noise : isNoise(text);
+    let p: Voice = noisy
+      ? U.sound(text as SoundType)
+      : U.note(text).sound((v.w ?? 'triangle') as SoundType);
+    p = p
+      .attack(v.a ?? 0.001)
+      .decay(v.d ?? 0.1)
+      .sustain(gated ? ('s' in v ? (v.s ?? 0.3) : 0.3) : 0)
+      .release(v.r ?? 0.05)
+      .gain(v.g * vol);
+    if (v.lpf) p = p.lpf(v.lpf);
+    if (v.hpf) p = p.hpf(v.hpf);
+    if (v.slide) p = p.slide(v.slide);
+    if ('nudge' in v && v.nudge) p = p.nudge(v.nudge);
+    if ('room' in v && v.room) p = p.room(v.room).roomsize(6).orbit(1);
+    if ('delay' in v && v.delay) p = p.delay(v.delay).delaytime(0.33).delayfeedback(0.35).orbit(2);
+    return p;
+  }
+
+  private undertoneEffect(U: UndertoneModule, name: string, voices: readonly SfxVoice[]): Voice {
     const key = `${name}@${this.sfxVol}`;
     const hit = this.cache.get(key);
     if (hit) return hit;
-    const vs: Voice[] = voices.map((v) => {
-      let p = isNoise(v.n)
-        ? sound(v.n as SoundType)
-        : note(v.n).sound((v.w ?? 'triangle') as SoundType);
-      p = p
-        .attack(v.a ?? 0.001)
-        .decay(v.d ?? 0.1)
-        .sustain(0)
-        .release(v.r ?? 0.05)
-        .gain(v.g * this.sfxVol);
-      if (v.lpf) p = p.lpf(v.lpf);
-      if (v.slide) p = p.slide(v.slide);
-      if (v.nudge) p = p.nudge(v.nudge);
-      return p;
-    });
-    const fx = stack(...vs);
+    const fx = U.stack(...voices.map((v) => this.utVoice(U, v, this.sfxVol, false)));
     this.cache.set(key, fx);
     return fx;
   }
@@ -387,8 +418,15 @@ export class GameAudio {
     const ctx = this.ensure();
     if (!ctx || ctx.state !== 'running') return;
     try {
-      if (voices.some((v) => v.hpf)) this.mini?.playSfx(voices, this.sfxVol);
-      else this.undertoneEffect(name, voices).play(ctx);
+      if (this.ut) {
+        try {
+          this.undertoneEffect(this.ut, name, voices).play({ ctx });
+          return;
+        } catch (e) {
+          console.warn('Undertone sfx failed, using the built-in synth', name, e);
+        }
+      }
+      this.mini?.playSfx(voices, this.sfxVol);
     } catch (e) {
       console.warn('sfx failed', name, e);
     }
@@ -411,6 +449,18 @@ export class GameAudio {
     if (!this.ctx || !this.mini) {
       this.pending = track;
       return;
+    }
+    if (this.ut) {
+      try {
+        const U = this.ut;
+        this.handle = U.stack(...t.parts.map((p) => this.utVoice(U, p, this.musicVol, true))).loop({
+          ctx: this.ctx,
+          bpm: t.bpm,
+        });
+        return;
+      } catch (e) {
+        console.warn('Undertone music failed, using the built-in synth', track, e);
+      }
     }
     this.handle = this.mini.loop(t, this.musicVol);
   }

@@ -7,7 +7,7 @@
   "types": "src/index.ts",
   "license": "Apache-2.0 OR MIT",
   "dependencies": {
-    "@liminal-hq/undertone": "^0.1.1",
+    "@liminal-hq/undertone": "^0.2.0",
     "three": "^0.184.0"
   },
   "devDependencies": {

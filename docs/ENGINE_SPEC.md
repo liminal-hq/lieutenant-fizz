@@ -71,7 +71,7 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 - The engine emits events (`hud`, `stats`, `toast`, `levelComplete`, `dialogue`, …); the shell never reads simulation state directly.
 
 ## 6. Audio (new)
-- **Target:** Undertone patterns. Each sound effect is a `stack` of voices (`note|sound`, ADSR, `lpf/hpf`, `slide`, `nudge`); music is a looped `stack` of mini-notation parts at a fixed BPM, with `room` and `delay` sends.
+- **Target:** Undertone 0.2 patterns (`@liminal-hq/undertone` ^0.2.0). Each sound effect is a `stack` of voices (`note|sound`, ADSR, `lpf/hpf`, `slide`, `nudge`); music is a looped `stack` of mini-notation parts at a fixed BPM, with `room` and `delay` sends.
 - **Fallback:** the built-in synth parses the same subset of mini-notation (`[ ]`, `< >`, `,`, `*n`, `~`) and schedules voices 300 ms ahead.
 - The audio context unlocks on the first click or key press. Audio is a single global instance, disposed on unmount (prevents doubled loops on hot reload).
 - Caption events double as sound-effect triggers, so audio and captions always agree.
