@@ -47,3 +47,64 @@ impl Platform {
         self.y = ny;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_anchors_at_the_start_with_default_size() {
+        let p = Platform::new(1.0, 2.0, 5.0, 2.0, 0.5);
+        assert_eq!(
+            (p.x, p.y, p.ax, p.ay, p.bx, p.by),
+            (1.0, 2.0, 1.0, 2.0, 5.0, 2.0)
+        );
+        assert_eq!((p.w, p.h, p.speed), (2.0, 0.5, 0.5));
+        assert_eq!((p.ph, p.dx, p.dy), (0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn tick_eases_toward_the_far_anchor_and_records_the_delta() {
+        let mut p = Platform::new(0.0, 0.0, 4.0, 2.0, 1.0);
+        // Phase 0.5 is the midpoint of the cosine ease.
+        p.tick(0.5);
+        assert!((p.x - 2.0).abs() < 1e-9 && (p.y - 1.0).abs() < 1e-9);
+        assert!((p.dx - 2.0).abs() < 1e-9 && (p.dy - 1.0).abs() < 1e-9);
+        // Phase 1.0 reaches the far anchor, and the delta is the second half only.
+        p.tick(0.5);
+        assert!((p.x - 4.0).abs() < 1e-9 && (p.y - 2.0).abs() < 1e-9);
+        assert!((p.dx - 2.0).abs() < 1e-9 && (p.dy - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn tick_returns_to_the_start_after_a_full_period() {
+        let mut p = Platform::new(3.0, 1.0, 7.0, 1.0, 1.0);
+        p.tick(2.0);
+        assert!((p.x - 3.0).abs() < 1e-9 && (p.y - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn deltas_sum_to_the_total_displacement() {
+        let mut p = Platform::new(0.0, 0.0, 6.0, -3.0, 0.7);
+        let (mut sx, mut sy) = (0.0, 0.0);
+        for _ in 0..90 {
+            p.tick(1.0 / 60.0);
+            sx += p.dx;
+            sy += p.dy;
+        }
+        assert!((sx - p.x).abs() < 1e-9 && (sy - p.y).abs() < 1e-9);
+    }
+
+    #[test]
+    fn zero_speed_or_zero_dt_does_not_move() {
+        let mut still = Platform::new(1.0, 1.0, 9.0, 9.0, 0.0);
+        still.tick(1.0);
+        assert_eq!((still.x, still.y, still.dx, still.dy), (1.0, 1.0, 0.0, 0.0));
+        let mut paused = Platform::new(1.0, 1.0, 9.0, 9.0, 2.0);
+        paused.tick(0.0);
+        assert_eq!(
+            (paused.x, paused.y, paused.dx, paused.dy),
+            (1.0, 1.0, 0.0, 0.0)
+        );
+    }
+}
