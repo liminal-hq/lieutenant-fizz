@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/colours.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/base.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/styles.css">
+  <script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
+  <style>html,body{margin:0;height:100%;background:#000;overflow:hidden} a{color:#ffaa40} a:hover{color:#ffc46e} @keyframes mabBlink{0%,49%{opacity:1}50%,100%{opacity:0}} @keyframes mabNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(3px)}} @media (prefers-reduced-motion: reduce){*{animation:none!important}}</style>
+</helmet>
+<div style="position:fixed;inset:0;background:#000;font-family:var(--font-body);color:#e0e0e0;overflow:hidden;">
+  <sc-if value="{{ sky }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%, rgba(244,63,94,0.32), rgba(167,139,250,0.14) 45%, rgba(5,5,7,0) 75%), #050507;"></div>
+  </sc-if>
+  <div ref="{{ stageRef }}" style="position:absolute;inset:0;"></div>
+  <div ref="{{ fxRef }}" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>
+
+  <sc-if value="{{ showHud }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:16px;left:16px;display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:12px;background:rgba(12,12,16,0.82);border:1px solid rgba(255,255,255,0.10);box-shadow:0 4px 24px rgba(0,0,0,0.45);pointer-events:none;min-width:200px;">
+      <div style="display:grid;grid-template-columns:repeat(3,auto);gap:4px 18px;align-items:end;">
+        <span style="font-size:11px;color:#7c8796;">Score</span><span style="font-size:11px;color:#7c8796;">Lives</span><span style="font-size:11px;color:#7c8796;">Fizz</span>
+        <span style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:#ffff55;">{{ scoreLabel }}</span>
+        <span style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:#55ff55;">{{ livesLabel }}</span>
+        <span style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:#55ffff;">{{ ammoLabel }}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        <span style="font-size:11px;color:#7c8796;">{{ nextLifeLabel }}</span>
+        <sc-if value="{{ hasRed }}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Badge" tone="error" hint-size="80px,20px">Red gumdrop</x-import></sc-if>
+        <sc-if value="{{ hasBlue }}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Badge" tone="info" hint-size="80px,20px">Blue gumdrop</x-import></sc-if>
+        <sc-if value="{{ hasUsb }}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Badge" tone="warning" hint-size="80px,20px">Gold USB</x-import></sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showBoss }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:999px;background:rgba(12,12,16,0.82);border:1px solid rgba(255,255,255,0.10);pointer-events:none;">
+      <span style="font-family:var(--font-heading);font-weight:600;font-size:14px;color:#fff;">Cocoa Colossus</span>
+      <span style="font-family:var(--font-mono);font-size:14px;color:#ff5555;letter-spacing:2px;">{{ bossPips }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hasPrompt }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;bottom:56px;transform:translateX(-50%);max-width:min(520px,90vw);display:flex;flex-direction:column;gap:4px;align-items:center;text-align:center;padding:12px 20px;border-radius:16px;background:rgba(12,12,16,0.85);border:1px solid rgba(255,255,255,0.12);pointer-events:none;">
+      <span style="font-family:var(--font-heading);font-weight:600;font-size:16px;color:#fff;">{{ promptTitle }}</span>
+      <span style="font-size:13px;color:#b4bfce;text-wrap:pretty;">{{ promptText }}</span>
+      <sc-if value="{{ promptAction }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#ffff55;">{{ promptAction }}</span></sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ panelOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:16px;right:16px;width:290px;z-index:5;">
+      <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Card" title="Engine" meta="Bridge simulated in JS" interactive="{{ false }}" hint-size="290px,380px">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;font-size:12px;">
+            <span style="color:#7c8796;">Frame</span><span style="font-family:var(--font-mono);text-align:right;">{{ fpsLabel }}</span>
+            <span style="color:#7c8796;">Simulation</span><span style="font-family:var(--font-mono);text-align:right;">{{ simLabel }}</span>
+            <span style="color:#7c8796;">Instances</span><span style="font-family:var(--font-mono);text-align:right;">{{ instLabel }}</span>
+            <span style="color:#7c8796;">In world</span><span style="font-family:var(--font-mono);text-align:right;">{{ worldLabel }}</span>
+            <span style="color:#7c8796;">Draw calls</span><span style="font-family:var(--font-mono);text-align:right;color:#ffaa40;">{{ callsLabel }}</span>
+            <span style="color:#7c8796;">Bridge</span><span style="font-family:var(--font-mono);text-align:right;">f32 · stride 20 · 9.6 MB</span>
+            <span style="color:#7c8796;">Lights</span><span style="font-family:var(--font-mono);text-align:right;">{{ lightsLabel }}</span>
+            <span style="color:#7c8796;">Zoom</span><span style="font-family:var(--font-mono);text-align:right;">{{ zoomLabel }}</span>
+            <span style="color:#7c8796;">Gamepad</span><span style="font-family:var(--font-mono);text-align:right;">{{ padLabel }}</span>
+            <span style="color:#7c8796;">Audio</span><span style="font-family:var(--font-mono);text-align:right;">{{ audioLabel }}</span>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" on-click="{{ zoomOut }}" hint-size="28px,24px">−</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" on-click="{{ zoomIn }}" hint-size="28px,24px">+</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="secondary" on-click="{{ zoomReset }}" hint-size="48px,24px">Reset</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="secondary" on-click="{{ zoomMap }}" hint-size="64px,24px">Overview</x-import>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vLight }}" on-click="{{ tLight }}" hint-size="64px,24px">Lighting</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vNormals }}" on-click="{{ tNormals }}" hint-size="64px,24px">Normals</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vPoster }}" on-click="{{ tPoster }}" hint-size="64px,24px">Posterise</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vCull }}" on-click="{{ tCull }}" hint-size="64px,24px">Culling</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vStress }}" on-click="{{ tStress }}" hint-size="96px,24px">+50k back wall</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vCaps }}" on-click="{{ tCaps }}" hint-size="64px,24px">Captions</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vNight }}" on-click="{{ tNight }}" hint-size="56px,24px">Night</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vMusic }}" on-click="{{ tMusic }}" hint-size="56px,24px">Music</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vSfx }}" on-click="{{ tSfx }}" hint-size="56px,24px">SFX</x-import>
+          </div>
+          <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="ghost" on-click="{{ togglePanel }}" hint-size="80px,24px">Hide panel `</x-import>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ showPanelBtn }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:16px;right:16px;z-index:5;">
+      <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="ghost" on-click="{{ togglePanel }}" hint-size="72px,24px">Engine ↙</x-import>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isTitle }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;background:linear-gradient(90deg, rgba(5,5,7,0.88) 0%, rgba(5,5,7,0.6) 38%, rgba(5,5,7,0) 72%);"></div>
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:clamp(24px,6vh,56px);padding:clamp(24px,6vh,64px) clamp(24px,7vw,104px);box-sizing:border-box;overflow-y:auto;">
+      <div style="display:flex;flex-direction:column;gap:clamp(4px,1vh,10px);">
+        <span style="font-family:var(--font-heading);font-weight:600;font-size:clamp(15px,2.4vh,22px);color:#ffaa40;text-shadow:0 2px 0 #000;">The Melting Adventures of</span>
+        <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(48px,12vh,112px);line-height:0.92;letter-spacing:-0.03em;color:#fff;text-shadow:0 5px 0 #f43f5e, 0 10px 0 #000;">Ben Blaze</span>
+        <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(22px,4.4vh,40px);letter-spacing:-0.02em;color:#ffaa40;text-shadow:0 3px 0 #000;padding-top:clamp(6px,1.2vh,12px);">“Lieutenant Fizz”</span>
+        <span style="font-size:clamp(12px,1.7vh,14px);color:#b4bfce;text-shadow:0 1px 0 #000;">Episode 1 · The Cocoa Caper</span>
+      </div>
+
+      <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ true }}">
+        <span style="font-family:var(--font-heading);font-weight:600;font-size:20px;color:#7c8796;">Building the atlas…</span>
+      </sc-if>
+
+      <sc-if value="{{ showMenu }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <sc-for list="{{ menu }}" as="item" hint-placeholder-count="5">
+            <div onClick="{{ item.onClick }}" onMouseEnter="{{ item.onHover }}" style="display:flex;align-items:center;gap:12px;padding:5px 0;cursor:pointer;user-select:none;">
+              <sc-if value="{{ item.sel }}" hint-placeholder-val="{{ false }}">
+                <span style="width:20px;font-size:20px;color:#ffaa40;">{{ cursor }}</span>
+                <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(20px,3.4vh,30px);letter-spacing:-0.01em;color:#ffaa40;text-shadow:0 3px 0 #000;">{{ item.label }}</span>
+              </sc-if>
+              <sc-if value="{{ item.idle }}" hint-placeholder-val="{{ true }}">
+                <span style="width:20px;"></span>
+                <span style="font-family:var(--font-heading);font-weight:600;font-size:clamp(20px,3.4vh,30px);letter-spacing:-0.01em;color:#e0e0e0;text-shadow:0 3px 0 #000;">{{ item.label }}</span>
+              </sc-if>
+              <sc-if value="{{ item.dis }}" hint-placeholder-val="{{ false }}">
+                <span style="width:20px;"></span>
+                <span style="font-family:var(--font-heading);font-weight:600;font-size:clamp(20px,3.4vh,30px);letter-spacing:-0.01em;color:#7c8796;">{{ item.label }}</span>
+              </sc-if>
+              <span style="font-family:var(--font-mono);font-size:13px;color:#b4bfce;text-shadow:0 1px 0 #000;">{{ item.value }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showControls }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:18px;">
+          <div style="display:grid;grid-template-columns:auto auto auto;gap:10px 28px;font-size:14px;align-items:center;justify-content:start;text-shadow:0 1px 0 #000;">
+            <span></span><span style="font-size:12px;color:#b4bfce;">Keyboard</span><span style="font-size:12px;color:#b4bfce;">Gamepad</span>
+            <span style="font-family:var(--font-heading);font-weight:600;color:#fff;">Move</span><span style="font-family:var(--font-mono);">← →  ·  ↑ ↓ aim / look</span><span style="font-family:var(--font-mono);">D-pad / stick</span>
+            <span style="font-family:var(--font-heading);font-weight:600;color:#fff;">Jump</span><span style="font-family:var(--font-mono);">Ctrl · Z</span><span style="font-family:var(--font-mono);">A</span>
+            <span style="font-family:var(--font-heading);font-weight:600;color:#fff;">Pogo</span><span style="font-family:var(--font-mono);">Alt · X</span><span style="font-family:var(--font-mono);">B</span>
+            <span style="font-family:var(--font-heading);font-weight:600;color:#fff;">Fizz</span><span style="font-family:var(--font-mono);">Space · C</span><span style="font-family:var(--font-mono);">X / RT</span>
+            <span style="font-family:var(--font-heading);font-weight:600;color:#fff;">Menu</span><span style="font-family:var(--font-mono);">Esc · F5 save · F9 load</span><span style="font-family:var(--font-mono);">Start</span>
+          </div>
+          <div onClick="{{ backFromControls }}" style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+            <span style="width:20px;font-size:20px;color:#ffaa40;">{{ cursor }}</span>
+            <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(20px,3.4vh,30px);color:#ffaa40;text-shadow:0 3px 0 #000;">Back</span>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+    <div style="position:absolute;left:clamp(24px,7vw,104px);bottom:clamp(16px,4vh,36px);display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;font-size:12px;color:#b4bfce;">
+      <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.22);border-bottom-width:2px;border-radius:4px;font-family:var(--font-mono);font-size:11px;color:#e0e0e0;white-space:nowrap;">↑ ↓</span>Choose</span>
+      <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.22);border-bottom-width:2px;border-radius:4px;font-family:var(--font-mono);font-size:11px;color:#e0e0e0;white-space:nowrap;">Enter</span><span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.22);border-bottom-width:2px;border-radius:4px;font-family:var(--font-mono);font-size:11px;color:#e0e0e0;white-space:nowrap;">A</span>Select</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isLetterbox }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ lbAdvance }}" style="position:absolute;inset:0;cursor:pointer;">
+      <div style="position:absolute;left:0;right:0;top:0;height:clamp(44px,11vh,110px);background:#000;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:0 clamp(20px,5vw,64px) 12px;box-sizing:border-box;">
+        <span style="font-family:var(--font-heading);font-weight:600;font-size:15px;color:#ffaa40;white-space:nowrap;">{{ lbPlace }}</span>
+        <sc-if value="{{ showSkip }}" hint-placeholder-val="{{ false }}">
+          <span onClick="{{ skipCine }}" style="display:flex;align-items:center;gap:6px;font-size:12px;color:#b4bfce;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.22);border-bottom-width:2px;border-radius:4px;font-family:var(--font-mono);font-size:11px;color:#e0e0e0;white-space:nowrap;">Esc</span>Skip intro</span>
+        </sc-if>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0;min-height:clamp(150px,25vh,250px);background:#000;display:flex;justify-content:center;padding:clamp(16px,3vh,28px) clamp(20px,5vw,64px);box-sizing:border-box;">
+        <div style="width:min(920px,100%);display:flex;flex-direction:column;gap:14px;">
+          <span style="font-size:clamp(16px,2.3vh,20px);line-height:1.6;color:#e0e0e0;text-wrap:pretty;">{{ lbShown }}<span style="color:transparent;">{{ lbHidden }}</span></span>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;">
+            <span style="font-family:var(--font-mono);font-size:12px;color:#7c8796;letter-spacing:4px;">{{ lbPips }}</span>
+            <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:#b4bfce;">
+              <sc-if value="{{ lbDone }}" hint-placeholder-val="{{ false }}"><span style="font-size:16px;color:#ffaa40;">{{ cursor }}</span></sc-if>
+              <span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.22);border-bottom-width:2px;border-radius:4px;font-family:var(--font-mono);font-size:11px;color:#e0e0e0;white-space:nowrap;">Jump</span>
+              <span>{{ lbNextLabel }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isDialogue }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ dlgAdvance }}" style="position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:28px 24px;cursor:pointer;">
+      <div style="position:relative;width:min(760px,100%);display:flex;flex-direction:column;gap:10px;padding:26px 28px 18px;box-sizing:border-box;border-radius:8px;background:#0c0c10;border:2px solid rgba(255,255,255,0.14);box-shadow:0 0 0 4px #000, 0 20px 60px rgba(0,0,0,0.6);">
+        <span style="position:absolute;top:-14px;left:22px;padding:4px 12px;border-radius:4px;background:#ffaa40;color:#050507;font-family:var(--font-heading);font-weight:700;font-size:14px;box-shadow:0 0 0 3px #000;">{{ dlgSpeaker }}</span>
+        <span style="font-size:clamp(16px,2.3vh,20px);line-height:1.6;color:#fff;text-wrap:pretty;">{{ dlgShown }}<span style="color:transparent;">{{ dlgHidden }}</span></span>
+        <div style="display:flex;justify-content:flex-end;min-height:18px;">
+          <sc-if value="{{ dlgDone }}" hint-placeholder-val="{{ false }}"><span style="font-size:16px;color:#ffaa40;">{{ cursorDown }}</span></sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isMenuOverlay }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;overflow-y:auto;background:rgba(5,5,7,0.74);">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:clamp(14px,3vh,26px);text-align:center;width:min(600px,100%);">
+        <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(34px,7.5vh,64px);line-height:1;letter-spacing:-0.025em;color:#fff;text-shadow:0 4px 0 #f43f5e, 0 8px 0 #000;text-wrap:balance;">{{ ovTitle }}</span>
+        <sc-if value="{{ ovText }}" hint-placeholder-val="{{ false }}">
+          <span style="font-size:clamp(14px,2vh,17px);line-height:1.6;color:#b4bfce;text-wrap:pretty;max-width:520px;">{{ ovText }}</span>
+        </sc-if>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+          <sc-for list="{{ menu }}" as="item" hint-placeholder-count="2">
+            <div onClick="{{ item.onClick }}" onMouseEnter="{{ item.onHover }}" style="display:flex;align-items:center;gap:12px;padding:4px 0;cursor:pointer;user-select:none;">
+              <sc-if value="{{ item.sel }}" hint-placeholder-val="{{ false }}">
+                <span style="width:20px;font-size:18px;color:#ffaa40;">{{ cursor }}</span>
+                <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(18px,3vh,26px);color:#ffaa40;text-shadow:0 3px 0 #000;">{{ item.label }}</span>
+              </sc-if>
+              <sc-if value="{{ item.idle }}" hint-placeholder-val="{{ true }}">
+                <span style="width:20px;"></span>
+                <span style="font-family:var(--font-heading);font-weight:600;font-size:clamp(18px,3vh,26px);color:#e0e0e0;text-shadow:0 3px 0 #000;">{{ item.label }}</span>
+              </sc-if>
+              <sc-if value="{{ item.dis }}" hint-placeholder-val="{{ false }}">
+                <span style="width:20px;"></span>
+                <span style="font-family:var(--font-heading);font-weight:600;font-size:clamp(18px,3vh,26px);color:#7c8796;">{{ item.label }}</span>
+              </sc-if>
+              <span style="font-family:var(--font-mono);font-size:13px;color:#b4bfce;">{{ item.value }}</span>
+              <span style="width:20px;"></span>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ isPause }}" hint-placeholder-val="{{ false }}">
+          <span style="font-size:12px;color:#7c8796;line-height:1.5;max-width:380px;">Saves stay on this device. The map also saves automatically each time you return to it.</span>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;top:18px;transform:translateX(-50%);padding:8px 16px;border-radius:999px;background:rgba(22,22,28,0.92);border:1px solid rgba(255,255,255,0.14);font-size:13px;color:#e0e0e0;pointer-events:none;white-space:nowrap;z-index:6;">{{ toast }}</div>
+  </sc-if>
+
+  <sc-if value="{{ hasErr }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:24px;bottom:24px;max-width:460px;padding:12px 16px;border-radius:8px;background:rgba(244,63,94,0.15);color:#f43f5e;font-size:13px;">The engine couldn't start: {{ err }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showEnginePanel&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;pogoHeight&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:4,&quot;max&quot;:9,&quot;step&quot;:0.2,&quot;unit&quot;:&quot;tiles&quot;,&quot;default&quot;:6.6,&quot;tsType&quot;:&quot;number&quot;},&quot;startLives&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;min&quot;:1,&quot;max&quot;:9,&quot;default&quot;:3,&quot;tsType&quot;:&quot;number&quot;}}">
+class Component extends DCLogic {
+  state = { screen: 'loading', hud: { score: 0, lives: 3, ammo: 5 }, stats: {}, panel: this.props.showEnginePanel ?? false, opts: { lighting: true, normals: true, poster: false, culling: true, stress: false, captions: true, night: false },
+    prompt: null, toast: null, card: null, cine: 0, end: 0, dlg: null, dlgI: 0, boss: null, hasSave: false, err: null, mode: 'attract', mi: 0, sub: null, typed: 0 };
+  stageRef = React.createRef(); fxRef = React.createRef();
+  cursorEl = React.createElement('span', { style: { display: 'inline-block', animation: 'mabNudge 0.9s ease-in-out infinite' } }, '\u25b8');
+  cursorDownEl = React.createElement('span', { style: { display: 'inline-block', animation: 'mabBlink 1s steps(1) infinite' } }, '\u25bc');
+
+  static CINE = [
+    { place: 'The backyard', text: "One night, Ben Blaze's cousin Billy didn't come home. Ben checked the treehouse where they always played. Billy wasn't there \u2014 but a hatch between the roots was hanging open, and warm light was spilling out." },
+    { place: 'Under the treehouse', text: "A ladder led down to a secret lab: blinking consoles, blueprints pinned to the walls, and a prototype spaghetti with meatballs flying saucer on a launch pad. On the workbench lay Billy's note \u2014 a map, with an X and a planet name beside it. \u201cThat must be where he's gone.\u201d" },
+    { place: 'Liftoff', text: "Ben put on his bicycle helmet, climbed aboard and hit the big Engage button. A hatch in the lawn slid open, and the saucer rose past the treehouse into the night." },
+    { place: 'The stratosphere', text: "The G-force pressed Ben deep into the oversized, noodle-upholstered captain's chair as the saucer tore through the stratosphere. Marinara-scented exhaust plumed behind him, painting a crimson streak across the night sky. He gripped the steering yoke \u2014 which felt suspiciously like a giant, hardened breadstick \u2014 and steadied his breathing." },
+    { place: 'Past the Moon', text: "On the dashboard, pinned beneath a blinking, meatball-shaped radar dial, was Billy's note. Ben tapped the X on the crinkled parchment. The destination was boldly scribbled: Planet Zargoth, a remote outpost on the outer galactic rim \u2014 exactly the kind of dangerous, alien world Billy would wander off to." },
+    { place: 'Deep space', text: "Ben engaged the autopilot and popped open the glovebox: a crinkled bag of Cheezies and a cold can of Canadian cream soda. The loud, satisfying crunch of the bright orange snacks echoed in the quiet cabin as the stars stretched into streaks of blinding white light outside the viewport." },
+    { place: 'Planet Zargoth', text: "Hours later, the navigation console chimed a whimsical, retro 8-bit melody. Planet Zargoth loomed through the windshield, a swirling marble of neon green and deep purple clouds. Ben wiped his cheesy fingers on his jeans, grabbed the yoke, and manoeuvred the pasta-themed vessel down through the upper atmosphere." },
+    { place: 'The crystal forest', text: "He touched down with a heavy, saucy thud in the centre of a glowing, crystalline forest. The ramp extended with a hiss of steam. Ben adjusted the chin strap of his bicycle helmet, tucked his trusty, modified pogo stick under one arm, and stepped out into the alien unknown, determined to track down his missing cousin." }
+  ];
+  static CINE_TRACK = ['yard', 'lab', 'launch', 'launch', 'cine', 'cine', 'cine', 'cine'];
+  static END = [
+    { place: 'The security terminal', text: "The gold USB drive slid into the security terminal with a satisfying click. Lines of green text raced up the screen. Mildred's security system blinked, sputtered, and gave up." },
+    { place: "Billy's cage", text: "The cage door swung open. Billy stepped out, straightened his football helmet and grinned. \u201cTook you long enough, Lieutenant Fizz.\u201d" },
+    { place: 'Somewhere above', text: "Somewhere above, a hatch slammed. Mildred McMire's voice echoed down the chocolate halls: \u201cThis isn't over, Ben Blaze! Mortimer and I have plenty more castles to build!\u201d" },
+    { place: 'Homeward', text: "The cousins raced back to the spaghetti with meatballs flying saucer, its hold stuffed with every cocoa bean the Zargs had taken. Earth's chocolate was safe \u2014 for now." }
+  ];
+  static DLG = {
+    bossIntro: [['Mildred McMire', "Ben Blaze? Mortimer said Billy's little cousin might show up. Cute helmet."], ['Mildred McMire', "Every cocoa bean on Earth is going into my castle \u2014 the biggest chocolate castle in the galaxy! Colossus, squash him!"], ['Ben', "Not before I get Billy back."], ['Tip', "The Colossus's armour shrugs off fizz. Wait for its dome to pop open after a charge, then strike."]],
+    bossDefeated: [['Mildred McMire', "My Colossus! Fine, keep your silly cousin. I've got a castle to finish!"], ['Ben', "It dropped something\u2026 a gold USB drive. There's a security terminal back by the entrance."]]
+  };
+
+  componentDidMount() {
+    this.boot();
+    this.visible = true; this.onScreen = true;
+    const sync = () => { const on = this.visible && this.onScreen; if (this.audio) this.audio.setActive(on); if (this.eng && this.state.screen === 'play' && !on) { this.pause(true); this.setState({ screen: 'pause' }); } };
+    this.onVis = () => { this.visible = document.visibilityState === 'visible'; sync(); };
+    document.addEventListener('visibilitychange', this.onVis);
+    window.addEventListener('pagehide', this.onVis);
+    if (window.IntersectionObserver && this.stageRef.current) { this.io = new IntersectionObserver(es => { this.onScreen = es.some(e => e.isIntersecting); sync(); }); this.io.observe(this.stageRef.current); }
+  }
+  twKeyNow() { const st = this.state; return st.screen + ':' + st.cine + ':' + st.end + ':' + st.dlgI + ':' + (st.dlg ? 1 : 0); }
+  curText() {
+    const st = this.state;
+    if (st.screen === 'cine') return Component.CINE[st.cine].text;
+    if (st.screen === 'ending') return Component.END[st.end].text;
+    if (st.screen === 'dialogue' && st.dlg) return st.dlg[st.dlgI][1];
+    return '';
+  }
+  componentDidUpdate(pp, ps) {
+    const st = this.state, key = this.twKeyNow();
+    if (key !== this.twKey) {
+      this.twKey = key; clearInterval(this.twT);
+      const len = this.curText().length;
+      if (len) { this.setState({ typed: 0 }); this.twT = setInterval(() => this.setState(s => { const n = Math.min(len, (s.typed || 0) + 2); if (n >= len) clearInterval(this.twT); return { typed: n }; }), 24); }
+    }
+    if (this.lastScreen !== st.screen) { this.lastScreen = st.screen; this.setState({ mi: st.screen === 'title' && st.hasSave ? 1 : 0, sub: null }); }
+    if (!this.audio) return;
+    const m = this.eng && this.eng.mode;
+    let t = null;
+    if (st.screen === 'title' || st.screen === 'loading') t = 'title';
+    else if (st.screen === 'cine') t = Component.CINE_TRACK[st.cine] || 'cine';
+    else if (st.screen === 'ending' || (st.screen === 'card' && st.card && /end of Episode/.test(st.card.title))) t = 'ending';
+    else if (m === 'map') t = 'map';
+    else if (m === 'level' && this.eng.sim) t = (st.boss !== null && st.boss > 0) ? 'boss' : this.eng.sim.id;
+    if (st.screen === 'pause') t = this.audio.track;
+    this.audio.playMusic(t);
+  }
+  componentWillUnmount() { document.removeEventListener('visibilitychange', this.onVis); window.removeEventListener('pagehide', this.onVis); if (this.io) this.io.disconnect(); if (this.audio) this.audio.dispose(); if (this.eng) this.eng.destroy(); clearTimeout(this.toastT); clearInterval(this.twT); }
+  async boot() {
+    try {
+      const mod = await import(new URL('melting/engine.js', document.baseURI).href);
+      this.eng = new mod.Engine(this.stageRef.current, this.fxRef.current, (t, d) => this.onEv(t, d));
+      this.eng.onSky = v => { if (v !== this.state.sky) this.setState({ sky: v }); };
+      try { const am = await import(new URL('melting/audio.js', document.baseURI).href); this.audio = new am.GameAudio(); this.eng.audio = this.audio; this.audio.init().then(b => this.setState({ audioBackend: b })); } catch (e) { console.warn(e); }
+      await this.eng.init();
+      window.__mab = this.eng;
+      this.eng.pogoHeight = this.props.pogoHeight ?? 6.6;
+      if (this.props.startLives) this.startLives = this.props.startLives;
+      this.setState({ screen: 'title', hasSave: this.eng.hasSave() });
+    } catch (e) { console.error(e); this.setState({ err: String((e && e.message) || e) }); }
+  }
+  pause(p) { if (this.eng) this.eng.setPaused(p); }
+  showToast(t) { clearTimeout(this.toastT); this.setState({ toast: t }); this.toastT = setTimeout(() => this.setState({ toast: null }), 2800); }
+
+  menuItems() {
+    const st = this.state, s = st.screen;
+    const mus = { label: 'Music', value: st.music === false ? 'Off' : 'On', act: this.toggleMusic };
+    const sfx = { label: 'Sound', value: st.sfx === false ? 'Off' : 'On', act: this.toggleSfx };
+    if (s === 'title') {
+      if (st.sub === 'controls') return [{ label: 'Back', act: this.backFromControls }];
+      return [{ label: 'New Game', act: this.newGame }, { label: 'Continue', dis: !st.hasSave, act: this.continueGame }, { label: 'Controls', act: () => this.setState({ sub: 'controls', mi: 0 }) }, mus, sfx];
+    }
+    if (s === 'pause') {
+      const it = [{ label: 'Resume', act: this.resume }, { label: 'Save game', value: 'F5', act: this.saveGame }, { label: 'Load game', value: 'F9', act: this.loadGame }];
+      if (this.eng && this.eng.mode === 'level') it.push({ label: 'Leave level', act: this.quitToMap });
+      return it.concat([mus, sfx, { label: 'Quit to title', act: this.quitToTitle }]);
+    }
+    if (s === 'card' && st.card) { const it = [{ label: st.card.primaryLabel, act: () => st.card.primary() }]; if (st.card.secondaryLabel) it.push({ label: st.card.secondaryLabel, act: () => st.card.secondary() }); return it; }
+    return [];
+  }
+  nav(d) {
+    const items = this.menuItems(), n = items.length; if (!n) return;
+    let i = Math.min(this.state.mi || 0, n - 1);
+    for (let k = 0; k < n; k++) { i = (i + d + n) % n; if (!items[i].dis) break; }
+    if (this.audio) this.audio.play('menu');
+    this.setState({ mi: i });
+  }
+  activate(idx) {
+    const items = this.menuItems(), it = items[idx ?? Math.min(this.state.mi || 0, items.length - 1)];
+    if (!it || it.dis) return;
+    if (this.audio) this.audio.play('click');
+    it.act();
+  }
+  typeOrNext(next) {
+    const len = this.curText().length;
+    if ((this.state.typed || 0) < len && this.twKey === this.twKeyNow()) { clearInterval(this.twT); this.setState({ typed: len }); return; }
+    next();
+  }
+  primary() {
+    const s = this.state.screen;
+    if (s === 'cine') this.typeOrNext(this.nextCine);
+    else if (s === 'dialogue') this.typeOrNext(this.nextLine);
+    else if (s === 'ending') this.typeOrNext(this.nextEnd);
+    else if (s === 'title' || s === 'pause' || s === 'card') { if (s === 'title' && this.state.sub === 'controls') return this.backFromControls(); this.activate(); }
+  }
+  onEv(type, d) {
+    switch (type) {
+      case 'confirm': case 'advance': this.primary(); break;
+      case 'nav': if (['title', 'pause', 'card'].includes(this.state.screen) && !this.state.sub) this.nav(d); break;
+      case 'pause': {
+        const s = this.state.screen;
+        if (s === 'play') { this.pause(true); this.setState({ screen: 'pause' }); }
+        else if (s === 'pause') this.resume();
+        else if (s === 'cine') this.skipCine();
+        else if (s === 'title' && this.state.sub) this.backFromControls();
+        break;
+      }
+      case 'togglePanel': this.togglePanel(); break;
+      case 'hud': this.setState({ hud: d }); break;
+      case 'stats': this.setState({ stats: d }); break;
+      case 'mapPrompt': this.setState({ prompt: d }); break;
+      case 'toast': this.showToast(d); break;
+      case 'levelStart': this.setState({ screen: 'play', prompt: null, boss: null, mode: 'level' }); this.showToast(d.name); break;
+      case 'levelComplete': setTimeout(() => { this.pause(true); this.setState({ screen: 'card', card: { title: `${d.name} cleared`, text: d.id === 'crater' ? 'The first teleporter on the map is humming now. The Crystal Caves are waiting.' : 'The next teleporter is humming. Mildred\u2019s Citadel is waiting.', primaryLabel: 'Back to the map', primary: () => this.backToMap() } }); }, 700); break;
+      case 'died': this.pause(true); this.setState({ screen: 'card', card: { title: 'Ben took a tumble', text: `${d.name} sends you back to the map. ${d.lives} ${d.lives === 1 ? 'life' : 'lives'} left \u2014 every 100 snack points earns another.`, primaryLabel: 'Back to the map', primary: () => this.backToMap() } }); break;
+      case 'gameOver': this.pause(true); this.setState({ screen: 'card', card: { title: 'Out of lives', text: `You finished with ${d.score} snack points. Your last save is still on this device.`, primaryLabel: 'Load last save', primary: () => this.continueGame(), secondaryLabel: 'Title screen', secondary: () => this.quitToTitle() } }); break;
+      case 'dialogue': this.pause(true); this.setState({ screen: 'dialogue', dlg: Component.DLG[d], dlgI: 0 }); break;
+      case 'bossHp': this.setState({ boss: d }); break;
+      case 'ending': this.pause(true); this.setState({ screen: 'ending', end: 0, boss: null }); break;
+      case 'loaded': this.pause(false); this.setState({ screen: 'play', mode: d.mode, card: null }); break;
+    }
+  }
+  newGame = () => { if (!this.eng) return; this.eng.newGame(); if (this.startLives) this.eng.game.lives = this.startLives; this.pause(false); this.setState({ screen: 'cine', cine: 0, mode: 'cine' }); };
+  continueGame = () => { if (!this.eng) return; if (this.eng.continueGame()) { this.pause(false); this.setState({ screen: 'play', mode: this.eng.mode, card: null }); } else this.showToast('No save on this device yet'); };
+  nextCine = () => { const n = this.state.cine + 1; if (n >= Component.CINE.length) return this.skipCine(); this.eng.startCine(n); this.setState({ cine: n }); };
+  skipCine = e => { if (e && e.stopPropagation) e.stopPropagation(); this.eng.toMap(); this.pause(false); this.setState({ screen: 'play', mode: 'map' }); this.showToast('Find Billy. Start at the Crater Fields, up the path to the north.'); };
+  backToMap = () => { this.eng.toMap(); this.pause(false); this.setState({ screen: 'play', mode: 'map', card: null, boss: null }); };
+  nextLine = () => { const n = this.state.dlgI + 1; if (!this.state.dlg || n >= this.state.dlg.length) { this.pause(false); this.setState({ screen: 'play', dlg: null, boss: this.state.dlg === Component.DLG.bossIntro ? 3 : null }); } else this.setState({ dlgI: n }); };
+  nextEnd = () => { const n = this.state.end + 1; if (n < Component.END.length) return this.setState({ end: n }); const g = this.eng.game; this.setState({ screen: 'card', card: { title: 'The end of Episode 1', text: `Billy's home, the cocoa's back, and you finished with ${g.score} snack points and ${g.lives} ${g.lives === 1 ? 'life' : 'lives'} to spare. Mildred will be back.`, primaryLabel: 'Play Again', primary: () => this.quitToTitle() } }); };
+  resume = () => { this.pause(false); this.setState({ screen: 'play' }); };
+  saveGame = () => { this.eng.quickSave(); this.setState({ hasSave: true }); };
+  loadGame = () => { this.eng.quickLoad(); };
+  quitToMap = () => { this.backToMap(); };
+  quitToTitle = () => { this.eng.loadAttract(); this.pause(false); this.setState({ screen: 'title', card: null, prompt: null, boss: null, hasSave: this.eng.hasSave(), mode: 'attract' }); };
+  backFromControls = () => { if (this.audio) this.audio.play('click'); this.setState({ sub: null, mi: 2 }); };
+  togglePanel = () => this.setState(s => ({ panel: !s.panel }));
+  toggleMusic = () => { const on = this.state.music === false; this.audio && this.audio.setMusic(on); this.setState({ music: on }); };
+  toggleSfx = () => { const on = this.state.sfx === false; this.audio && this.audio.setSfx(on); this.setState({ sfx: on }); };
+  tg = k => () => { const v = !this.state.opts[k]; if (this.eng) this.eng.setOpt(k, v); this.setState(s => ({ opts: Object.assign({}, s.opts, { [k]: v }) })); };
+
+  renderVals() {
+    const st = this.state, h = st.hud || {}, x = st.stats || {}, o = st.opts, v = b => b ? 'primary' : 'secondary', fmt = n => Number(n || 0).toLocaleString('en-CA');
+    const pr = st.prompt, dl = st.dlg && st.dlg[st.dlgI], scr = st.screen;
+    const z = f => () => this.eng && this.eng.setZoom(f(this.eng.zoom));
+    const items = this.menuItems(), mi = Math.min(st.mi || 0, Math.max(0, items.length - 1));
+    const menu = items.map((it, i) => ({ label: it.label, value: it.value || '', sel: i === mi && !it.dis, idle: i !== mi && !it.dis, dis: !!it.dis, onClick: () => this.activate(i), onHover: () => { if (!it.dis && this.state.mi !== i) this.setState({ mi: i }); } }));
+    const text = this.curText(), typed = this.twKey === this.twKeyNow() ? Math.min(text.length, st.typed || 0) : 0, done = typed >= text.length;
+    const isCine = scr === 'cine', isEnding = scr === 'ending', lbArr = isCine ? Component.CINE : Component.END, lbI = isCine ? st.cine : st.end;
+    const lastLb = lbI === lbArr.length - 1;
+    return {
+      stageRef: this.stageRef, fxRef: this.fxRef, cursor: this.cursorEl, cursorDown: this.cursorDownEl, menu,
+      isTitle: scr === 'title' || scr === 'loading', isLoading: scr === 'loading', showMenu: scr === 'title' && !st.sub, showControls: scr === 'title' && st.sub === 'controls', backFromControls: this.backFromControls,
+      isLetterbox: isCine || isEnding, showSkip: isCine, lbPlace: (isCine || isEnding) ? lbArr[lbI].place : '', lbShown: (isCine || isEnding) ? text.slice(0, typed) : '', lbHidden: (isCine || isEnding) ? text.slice(typed) : '', lbDone: (isCine || isEnding) && done,
+      lbPips: (isCine || isEnding) ? '\u25cf'.repeat(lbI + 1) + '\u25cb'.repeat(lbArr.length - lbI - 1) : '', lbNextLabel: !done ? 'Hurry' : isCine && lastLb ? 'Step out' : 'Continue', lbAdvance: () => this.primary(),
+      isDialogue: scr === 'dialogue', dlgSpeaker: dl ? dl[0] : '', dlgShown: dl ? text.slice(0, typed) : '', dlgHidden: dl ? text.slice(typed) : '', dlgDone: !!dl && done, dlgAdvance: () => this.primary(),
+      isMenuOverlay: scr === 'pause' || (scr === 'card' && !!st.card), isPause: scr === 'pause', ovTitle: scr === 'pause' ? 'Paused' : st.card ? st.card.title : '', ovText: scr === 'card' && st.card ? st.card.text : '',
+      showHud: ['play', 'pause', 'dialogue', 'card'].includes(scr), showBoss: st.boss !== null && scr === 'play',
+      scoreLabel: fmt(h.score), livesLabel: String(Math.max(0, h.lives ?? 0)), ammoLabel: String(h.ammo ?? 0), nextLifeLabel: `Next life at ${(Math.floor((h.score || 0) / 100) + 1) * 100}`,
+      hasRed: !!h.red, hasBlue: !!h.blue, hasUsb: !!h.usb, bossPips: '\u25cf'.repeat(Math.max(0, st.boss || 0)) + '\u25cb'.repeat(Math.max(0, 3 - (st.boss || 0))),
+      hasPrompt: !!pr && scr === 'play', promptTitle: pr ? pr.title : '', promptText: pr ? pr.text : '', promptAction: pr && pr.action ? `Jump, fire or Enter to ${pr.action.toLowerCase()}` : '',
+      hasToast: !!st.toast, toast: st.toast,
+      panelOpen: st.panel, showPanelBtn: !st.panel && (scr === 'play' || scr === 'title'), togglePanel: this.togglePanel,
+      fpsLabel: `${x.fps || 0} fps · ${x.ms || 0} ms`, simLabel: `60 Hz · tick ${fmt(x.tick)}`, instLabel: `${fmt(x.inst)} / 120,000`, worldLabel: fmt(x.world), callsLabel: String(x.calls || 0),
+      lightsLabel: `${x.lights || 0} / 16 point`, zoomLabel: `${(x.zoom || 1).toFixed(2)}× · ${(x.tall || 13).toFixed(1)} tiles`, padLabel: x.pad ? 'Connected' : 'None',
+      zoomIn: z(q => q * 1.25), zoomOut: z(q => q / 1.25), zoomReset: z(() => 1), zoomMap: z(() => 0.12),
+      vLight: v(o.lighting), vNormals: v(o.normals), vPoster: v(o.poster), vCull: v(o.culling), vStress: v(o.stress), vCaps: v(o.captions), vMusic: v(st.music !== false), vSfx: v(st.sfx !== false), tMusic: this.toggleMusic, tSfx: this.toggleSfx, audioLabel: st.audioBackend || 'Loading…', vNight: v(o.night), tNight: this.tg('night'),
+      tLight: this.tg('lighting'), tNormals: this.tg('normals'), tPoster: this.tg('poster'), tCull: this.tg('culling'), tStress: this.tg('stress'), tCaps: this.tg('captions'),
+      skipCine: this.skipCine,
+      hasErr: !!st.err, err: st.err, sky: st.sky !== false
+    };
+  }
+}
+</script>
+</body>
+</html>

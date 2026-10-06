@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/colours.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/base.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/styles.css">
+  <script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
+  <style>html,body{margin:0;height:100%;background:#050507;overflow:hidden} a{color:#ffaa40} a:hover{color:#ffc46e}</style>
+</helmet>
+<div style="position:fixed;inset:0;background:#050507;font-family:var(--font-body);color:#e0e0e0;overflow:hidden;">
+  <div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%, rgba(244,63,94,0.28), rgba(167,139,250,0.12) 45%, rgba(5,5,7,0) 75%);"></div>
+  <div ref="{{ stageRef }}" style="position:absolute;inset:0;"></div>
+  <div ref="{{ fxRef }}" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>
+
+  <div style="position:absolute;top:20px;left:24px;display:flex;flex-direction:column;gap:8px;pointer-events:none;">
+    <div style="font-family:var(--font-heading);font-weight:700;font-size:20px;letter-spacing:-0.02em;color:#fff;">Last Light</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Badge" tone="info" hint-size="72px,22px">◆ {{ shardsLabel }}</x-import>
+      <sc-if value="{{ hasKey }}" hint-placeholder-val="{{ false }}">
+        <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Badge" tone="accent" hint-size="80px,22px">Key in hand</x-import>
+      </sc-if>
+      <span style="font-family:var(--font-mono);font-size:12px;color:#b4bfce;">{{ timeLabel }}</span>
+    </div>
+  </div>
+
+  <sc-if value="{{ panelOpen }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;top:16px;right:16px;width:300px;">
+      <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Card" title="Engine" meta="Bridge · simulated in JS" interactive="{{ false }}" hint-size="300px,360px">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;font-size:12px;">
+            <span style="color:#7c8796;">Frame</span><span style="font-family:var(--font-mono);text-align:right;color:#e0e0e0;">{{ fpsLabel }}</span>
+            <span style="color:#7c8796;">Simulation</span><span style="font-family:var(--font-mono);text-align:right;color:#e0e0e0;">{{ simLabel }}</span>
+            <span style="color:#7c8796;">Instances</span><span style="font-family:var(--font-mono);text-align:right;color:#e0e0e0;">{{ instLabel }}</span>
+            <span style="color:#7c8796;">In world</span><span style="font-family:var(--font-mono);text-align:right;color:#e0e0e0;">{{ worldLabel }}</span>
+            <span style="color:#7c8796;">Draw calls</span><span style="font-family:var(--font-mono);text-align:right;color:#ffaa40;">{{ callsLabel }}</span>
+            <span style="color:#7c8796;">Bridge</span><span style="font-family:var(--font-mono);text-align:right;color:#e0e0e0;">f32 · stride 20 · 9.6 MB</span>
+            <span style="color:#7c8796;">Lights</span><span style="font-family:var(--font-mono);text-align:right;color:#e0e0e0;">{{ lightsLabel }}</span>
+            <span style="color:#7c8796;">Zoom</span><span style="font-family:var(--font-mono);text-align:right;color:#e0e0e0;">{{ zoomLabel }}</span>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" on-click="{{ zoomOut }}" hint-size="28px,24px">−</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" on-click="{{ zoomIn }}" hint-size="28px,24px">+</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="secondary" on-click="{{ zoomReset }}" hint-size="48px,24px">Reset</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="secondary" on-click="{{ zoomMap }}" hint-size="64px,24px">Overview</x-import>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vLight }}" on-click="{{ tLight }}" hint-size="64px,24px">Lighting</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vNormals }}" on-click="{{ tNormals }}" hint-size="64px,24px">Normals</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vPoster }}" on-click="{{ tPoster }}" hint-size="64px,24px">Posterise</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vCull }}" on-click="{{ tCull }}" hint-size="64px,24px">Culling</x-import>
+            <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="{{ vStress }}" on-click="{{ tStress }}" hint-size="96px,24px">+50k back wall</x-import>
+          </div>
+          <div style="font-size:11px;line-height:1.5;color:#7c8796;text-wrap:pretty;">Turn culling off with the back wall on to push every tile through the bridge each frame.</div>
+        </div>
+      </x-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ panelClosed }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:16px;right:16px;">
+      <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" size="sm" variant="secondary" on-click="{{ togglePanel }}" hint-size="72px,24px">Engine ↙</x-import>
+    </div>
+  </sc-if>
+
+  <div style="position:absolute;left:24px;bottom:20px;display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:#7c8796;pointer-events:none;">
+    <span><span style="font-family:var(--font-mono);color:#b4bfce;">← →</span> move</span>
+    <span><span style="font-family:var(--font-mono);color:#b4bfce;">Space</span> jump</span>
+    <span><span style="font-family:var(--font-mono);color:#b4bfce;">X</span> pogo (hold Space on landing to go higher)</span>
+    <span><span style="font-family:var(--font-mono);color:#b4bfce;">Wheel</span> zoom</span>
+    <span><span style="font-family:var(--font-mono);color:#b4bfce;">`</span> engine panel</span>
+  </div>
+
+  <sc-if value="{{ isTitle }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;display:grid;place-items:center;padding:24px;background:rgba(5,5,7,0.35);">
+      <div style="max-width:440px;display:flex;flex-direction:column;gap:20px;padding:40px;border-radius:20px;background:rgba(20,20,25,0.72);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.10);box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+        <div style="font-size:12px;color:#7c8796;">A test level for the retro engine</div>
+        <div style="font-family:var(--font-heading);font-weight:700;font-size:52px;line-height:1;letter-spacing:-0.02em;background:linear-gradient(to right,#fff 20%,#ffaa40,#f43f5e);-webkit-background-clip:text;background-clip:text;color:transparent;">Last Light</div>
+        <div style="font-size:16px;font-weight:300;line-height:1.6;color:#b4bfce;text-wrap:pretty;">Gather the shards of afterglow before dusk settles. Light the lamps, find the key, open the gate and step through.</div>
+        <div style="display:flex;align-items:center;gap:16px;">
+          <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" variant="primary" on-click="{{ start }}" hint-size="96px,38px">Play Now →</x-import>
+          <span style="font-size:12px;color:#7c8796;">or press Enter</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isDone }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;display:grid;place-items:center;padding:24px;background:rgba(5,5,7,0.45);">
+      <div style="max-width:440px;width:100%;display:flex;flex-direction:column;gap:20px;padding:40px;border-radius:20px;background:rgba(20,20,25,0.72);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.10);box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+        <div style="font-family:var(--font-heading);font-weight:700;font-size:36px;letter-spacing:-0.02em;color:#fff;">Through the gate.</div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+          <div style="display:flex;flex-direction:column;gap:4px;padding:14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);">
+            <span style="font-family:var(--font-heading);font-size:22px;font-weight:600;color:#22d3ee;">{{ shardsLabel }}</span><span style="font-size:11px;color:#7c8796;">Shards</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;padding:14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);">
+            <span style="font-family:var(--font-heading);font-size:22px;font-weight:600;color:#fff;">{{ timeLabel }}</span><span style="font-size:11px;color:#7c8796;">Time</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;padding:14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);">
+            <span style="font-family:var(--font-heading);font-size:22px;font-weight:600;color:#fff;">{{ tumbles }}</span><span style="font-size:11px;color:#7c8796;">Tumbles</span>
+          </div>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:13px;color:#ffb454;">jax 🦦 · {{ jaxLine }}</div>
+        <div style="display:flex;align-items:center;gap:16px;">
+          <x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Button" variant="primary" on-click="{{ start }}" hint-size="96px,38px">Play Again</x-import>
+          <span style="font-size:12px;color:#7c8796;">or press Enter</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hasErr }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:24px;bottom:56px;max-width:420px;padding:12px 16px;border-radius:8px;background:rgba(244,63,94,0.15);color:#f43f5e;font-size:13px;">The renderer couldn't start: {{ err }}. WebGL2 is required.</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showEnginePanel&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;ambience&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Dusk&quot;,&quot;Night&quot;,&quot;Daylight&quot;],&quot;default&quot;:&quot;Dusk&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;pogoHeight&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:4,&quot;max&quot;:9,&quot;step&quot;:0.2,&quot;unit&quot;:&quot;tiles&quot;,&quot;default&quot;:6.6,&quot;tsType&quot;:&quot;number&quot;},&quot;startZoom&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:0.5,&quot;max&quot;:2,&quot;step&quot;:0.1,&quot;default&quot;:1,&quot;tsType&quot;:&quot;number&quot;}}">
+class Component extends DCLogic {
+  state = { phase: 'title', shards: 0, totalShards: 0, hasKey: false, tumbles: 0, time: 0, fps: 0, ms: 0, tick: 0, inst: 0, world: 0, calls: 0, lights: 0, zoom: 1, tall: 14,
+    lighting: true, normals: true, poster: false, culling: true, stress: false, panel: this.props.showEnginePanel ?? true, err: null };
+  stageRef = React.createRef();
+  fxRef = React.createRef();
+  MAX = 120000;
+
+  componentDidMount() { this.boot().catch(e => { console.error(e); this.setState({ err: String((e && e.message) || e) }); }); }
+  componentWillUnmount() {
+    this.dead = true; cancelAnimationFrame(this.raf);
+    window.removeEventListener('keydown', this.kd); window.removeEventListener('keyup', this.ku);
+    if (this.ro) this.ro.disconnect();
+    if (this.stageRef.current && this.wh) this.stageRef.current.removeEventListener('wheel', this.wh);
+    if (this.renderer) { this.renderer.dispose(); this.renderer.domElement.remove(); }
+  }
+
+  async boot() {
+    const T = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');
+    if (this.dead) return;
+    this.T = T;
+    this.zoom = this.props.startZoom ?? 1;
+    this.buildAtlas();
+    this.resetLevel();
+    this.setupRenderer();
+    this.bindInput();
+    this.last = performance.now(); this.acc = 0; this.tickCount = 0; this.fpsE = 60; this.statT = 0;
+    const loop = t => { if (this.dead) return; this.raf = requestAnimationFrame(loop); this.frame(t); };
+    this.raf = requestAnimationFrame(loop);
+  }
+
+  // ---------- Atlas: 64px cells (16 logical px ×4), 1px extruded border, paired normal atlas ----------
+  buildAtlas() {
+    const P = { k: '#050507', n: '#16161c', g: '#2a2a35', m: '#7c8796', w: '#e0e0e0', W: '#ffffff', o: '#ffaa40', O: '#b86e1a', r: '#f43f5e', R: '#8f1d36', p: '#a78bfa', P: '#5e44cc', c: '#22d3ee', b: '#60a5fa', G: '#2ec66a', y: '#fbbf24' };
+    const N = 1024, CELL = 66, COLS = 15;
+    const mk = () => { const c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'); x.imageSmoothingEnabled = false; return [c, x]; };
+    const [alb, ac] = mk(); const [nrm, nc] = mk();
+    nc.fillStyle = '#8080ff'; nc.fillRect(0, 0, N, N);
+    const lum = h => { const v = parseInt(h.slice(1), 16); return (((v >> 16) & 255) * 0.3 + ((v >> 8) & 255) * 0.59 + (v & 255) * 0.11) / 255; };
+    let rs = 1234567; const rnd = () => { rs = (rs * 1103515245 + 12345) & 0x7fffffff; return rs / 0x7fffffff; };
+    const fromRows = rows => { const g = []; for (let y = 0; y < 16; y++) { const r = (rows[y] || '').padEnd(16, '.').slice(0, 16); g.push([...r].map(ch => P[ch] || null)); } return g; };
+    const fromFn = fn => { const g = []; for (let y = 0; y < 16; y++) { const r = []; for (let x = 0; x < 16; x++) { const ch = fn(x, y); r.push(ch ? P[ch] : null); } g.push(r); } return g; };
+    this.spr = {}; this.cellUV = 64 / N; let idx = 0;
+    const add = (name, grid, tile) => {
+      const col = idx % COLS, row = Math.floor(idx / COLS); idx++;
+      const ox = col * CELL + 1, oy = row * CELL + 1;
+      const H = (x, y) => { if (tile) { x = Math.max(0, Math.min(15, x)); y = Math.max(0, Math.min(15, y)); } else if (x < 0 || y < 0 || x > 15 || y > 15) return 0; const c = grid[y][x]; return c ? 0.4 + lum(c) * 0.6 : 0; };
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const c = grid[y][x]; if (!c) { nc.clearRect(ox + x * 4, oy + y * 4, 4, 4); continue; }
+        ac.fillStyle = c; ac.fillRect(ox + x * 4, oy + y * 4, 4, 4);
+        let nx = (H(x - 1, y) - H(x + 1, y)) * 2.2, ny = (H(x, y + 1) - H(x, y - 1)) * 2.2, nz = 1;
+        const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
+        nc.fillStyle = `rgb(${Math.round((nx * 0.5 + 0.5) * 255)},${Math.round((ny * 0.5 + 0.5) * 255)},${Math.round((nz * 0.5 + 0.5) * 255)})`;
+        nc.fillRect(ox + x * 4, oy + y * 4, 4, 4);
+      }
+      for (const [cv, cx] of [[alb, ac], [nrm, nc]]) {
+        cx.drawImage(cv, ox, oy, 64, 1, ox, oy - 1, 64, 1);
+        cx.drawImage(cv, ox, oy + 63, 64, 1, ox, oy + 64, 64, 1);
+        cx.drawImage(cv, ox, oy - 1, 1, 66, ox - 1, oy - 1, 1, 66);
+        cx.drawImage(cv, ox + 63, oy - 1, 1, 66, ox + 64, oy - 1, 1, 66);
+      }
+      this.spr[name] = { u: ox / N, v: 1 - (oy + 64) / N };
+    };
+    const body = ['................', '................', '........oo..oo..', '.......oooooooo.', '.......oWkooWko.', '.......oWWWWWWo.', '.......ooWWkWWo.', '........oWWWWo..', '...O...oooooooo.', '..OO..ooooWWWoo.', '..OOooooooWWWoo.', '...OOooooooWWo..', '....ooooooooo...'];
+    add('idle', fromRows([...body, '.....oo....oo...', '.....OO....OO...']));
+    add('run1', fromRows([...body, '....oo......oo..', '...OO........OO.']));
+    add('run2', fromRows([...body, '......oo..oo....', '......OO.OO.....']));
+    add('jump', fromRows([...body, '....ooo..ooo....', '................']));
+    add('pogo', fromRows([...body.slice(2), '.....oommmoo....', '........m.......', '........m.......', '.......mmm......', '........y.......']));
+    const E = '................';
+    add('slug1', fromRows([E, E, E, E, E, E, E, E, '.........pp.....', '........pWkp....', '.......ppppp....', '.....ppppppPp...', '...pppppppppPp..', '..pPpPpPpPpPpPp.', '..PPPPPPPPPPPPP.', E]));
+    add('slug2', fromRows([E, E, E, E, E, E, E, E, E, '..........pp....', '.........pWkp...', '....pppppppppp..', '..pppppppppppPp.', '.pPpPpPpPpPpPpPp', '.PPPPPPPPPPPPPPP', E]));
+    add('gem', fromRows([E, E, E, '......cccc......', '.....cWWccc.....', '....cWcccccb....', '...ccccccccbb...', '...bccccccbbb...', '....bccccbbb....', '.....bccbbb.....', '......bbbb......', '.......bb.......']));
+    add('key', fromRows([E, E, E, E, '...yyy..........', '..y...y.........', '..y...yyyyyyyy..', '..y...y....y.y..', '...yyy.....y.y..']));
+    const body2 = (x, y) => { const r = rnd(); return r < 0.1 ? 'n' : r < 0.14 ? 'm' : r < 0.2 ? 'P' : 'g'; };
+    add('groundTop', fromFn((x, y) => y === 0 ? 'p' : y === 1 ? (rnd() < 0.5 ? 'p' : 'P') : y === 2 ? 'P' : y === 3 && rnd() < 0.5 ? 'P' : body2(x, y)), true);
+    add('ground', fromFn(body2), true);
+    add('brick', fromFn((x, y) => { const off = (Math.floor(y / 4) % 2) * 4; if (y % 4 === 3 || (x + off) % 8 === 7) return 'k'; return y % 4 === 0 && rnd() < 0.4 ? 'r' : 'R'; }), true);
+    add('plank', fromFn((x, y) => y === 0 ? 'y' : y < 3 ? ((x === 2 || x === 13) ? 'O' : 'o') : y === 3 ? 'O' : null));
+    add('spike', fromFn((x, y) => { if (y < 8) return null; const lx = (x % 4) - 1.5; const w = (y - 7) / 8 * 2; if (Math.abs(lx) > w) return null; return y < 10 ? 'W' : lx < 0 ? 'r' : 'R'; }));
+    add('back', fromFn((x, y) => (x % 8 === 7 || y % 8 === 7) ? 'n' : rnd() < 0.15 ? 'n' : 'g'), true);
+    add('hillTop', fromFn((x, y) => y >= 7 + Math.round(2 * Math.sin(x / 16 * Math.PI * 2)) ? 'W' : null));
+    add('fill', fromFn(() => 'W'), true);
+    add('star', fromFn((x, y) => (x === 7 || x === 8) && (y === 7 || y === 8) ? 'W' : ((x === 7 || x === 8) && (y === 6 || y === 9)) || ((y === 7 || y === 8) && (x === 6 || x === 9)) ? 'm' : null));
+    add('door', fromFn((x, y) => { if (x === 0 || x === 15 || y === 0 || y === 15) return 'O'; if ((x === 7 || x === 8) && y >= 6 && y <= 9) return y === 6 ? 'y' : 'k'; if (x === 3 || x === 12 || y === 3 || y === 12) return 'r'; return 'R'; }));
+    const exitFn = (x, y) => { if (x >= 2 && x <= 5 && (y === 2 || y === 3)) return 'p'; if ((x === 2 || x === 3) && y >= 2) return 'p'; if (x >= 10 && x <= 13 && (y === 2 || y === 3)) return 'o'; if ((x === 12 || x === 13) && y >= 2) return 'o'; if ((x === 7 || x === 8) && y >= 5) return x === 7 ? 'W' : 'w'; return 'n'; };
+    add('exitTop', fromFn(exitFn));
+    add('exitBot', fromFn((x, y) => exitFn(x, 15 - y)));
+    add('lamp', fromFn((x, y) => { if (y >= 1 && y <= 5 && x >= 5 && x <= 10) return (y >= 2 && y <= 4 && x >= 6 && x <= 9) ? 'y' : 'g'; if (y === 0 && x >= 6 && x <= 9) return 'm'; if (y >= 14 && x >= 5 && x <= 10) return 'g'; if (y > 5 && (x === 7 || x === 8)) return x === 7 ? 'm' : 'g'; return null; }));
+    this.albCanvas = alb; this.nrmCanvas = nrm;
+  }
+
+  // ---------- Level ----------
+  resetLevel() {
+    const W = 128, H = 24, m = new Uint8Array(W * H);
+    const set = (x, y, t) => { if (x >= 0 && x < W && y >= 0 && y < H) m[y * W + x] = t; };
+    const fill = (x0, x1, y0, y1, t) => { for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) set(x, y, t); };
+    const ground = (x0, x1, h) => fill(x0, x1, 0, h - 1, 1);
+    const gems = [], slugs = [], lamps = [], hazards = [];
+    const gem = (x, y) => gems.push({ x: x + 0.5, y: y + 0.5, taken: false });
+    const slug = (x, y) => slugs.push({ x: x + 0.1, y, w: 0.8, h: 0.5, vx: 0, vy: 0, dir: -1, dead: 0, px: x, py: y });
+    const lamp = (x, y, lit) => lamps.push({ x: x + 0.5, y, lit: !!lit });
+    const spikes = (x0, x1, y) => { fill(x0, x1, y, y, 4); hazards.push({ x: (x0 + x1 + 1) / 2, y: y + 0.6 }); };
+    fill(0, 0, 0, H - 1, 2); fill(W - 1, W - 1, 0, H - 1, 2);
+    ground(0, 20, 3); lamp(2, 3, true);
+    fill(7, 11, 6, 6, 3); gem(8, 7); gem(10, 7);
+    ground(14, 16, 4);
+    ground(21, 23, 1); spikes(21, 23, 1);
+    ground(24, 40, 3); lamp(26, 3); slug(31, 3);
+    fill(33, 37, 7, 7, 2); gem(34, 8); gem(36, 8);
+    ground(41, 44, 3); spikes(41, 44, 3);
+    ground(45, 51, 3); ground(52, 70, 5); slug(48, 3); slug(57, 5); gem(46, 6); gem(55, 8);
+    lamp(61, 5); fill(62, 65, 10, 10, 3); gem(63, 11);
+    ground(71, 75, 1); spikes(71, 75, 1); fill(73, 73, 5, 5, 3);
+    ground(76, 100, 3); lamp(78, 3); slug(83, 3); slug(94, 3);
+    fill(85, 87, 6, 6, 2); gem(85, 7); gem(87, 7);
+    fill(89, 91, 9, 9, 2); gem(90, 10);
+    fill(95, 98, 7, 7, 3); gem(96, 8); gem(97, 8);
+    ground(101, 126, 3); lamp(103, 3);
+    set(108, 3, 5); set(108, 4, 5); fill(108, 108, 5, H - 1, 2);
+    gem(118, 4);
+    let solidCount = 0; for (let i = 0; i < m.length; i++) if (m[i]) solidCount++;
+    this.sim = {
+      W, H, m, gems, slugs, lamps, hazards, solidCount, t: 0, time: 0, doorOpen: false, hasKey: false, tumbles: 0, shards: 0,
+      key: { x: 64.5, y: 11.5, taken: false }, door: { x: 108.5, y: 4 }, exit: { x: 114.5, y: 4 },
+      check: { x: 3, y: 3 },
+      p: { x: 3, y: 3, w: 0.6, h: 0.85, vx: 0, vy: 0, px: 3, py: 3, face: 1, onGround: false, pogo: false, cut: false, anim: 0, hurt: 0, inv: 0 },
+      camX: 10, camY: 8, pcx: 10, pcy: 8
+    };
+    this.jumpPrev = false; this.pogoPrev = false;
+    this.setState({ shards: 0, totalShards: gems.length, hasKey: false, tumbles: 0, time: 0 });
+  }
+
+  // ---------- Renderer (Three.js thin wrapper, single draw call) ----------
+  setupRenderer() {
+    const T = this.T, host = this.stageRef.current;
+    const r = new T.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
+    if (!r.capabilities.isWebGL2) throw new Error('WebGL2 not available');
+    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); r.setClearColor(0x000000, 0);
+    r.domElement.style.cssText = 'display:block;width:100%;height:100%;image-rendering:pixelated;';
+    host.appendChild(r.domElement);
+    this.renderer = r;
+    this.cam = new T.OrthographicCamera(-1, 1, 1, -1, -10, 10); this.cam.position.z = 5;
+    this.scene = new T.Scene();
+    const tex = c => { const t = new T.CanvasTexture(c); t.magFilter = T.NearestFilter; t.minFilter = T.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true; return t; };
+    const base = new T.PlaneGeometry(1, 1);
+    const g = new T.InstancedBufferGeometry();
+    g.setIndex(base.index); g.setAttribute('position', base.attributes.position); g.setAttribute('uv', base.attributes.uv);
+    const buf = new Float32Array(this.MAX * 20);
+    for (let i = 0; i < this.MAX; i++) { buf[i * 20 + 10] = 1; buf[i * 20 + 15] = 1; }
+    const ib = new T.InstancedInterleavedBuffer(buf, 20, 1); ib.setUsage(T.DynamicDrawUsage);
+    g.setAttribute('iM0', new T.InterleavedBufferAttribute(ib, 4, 0));
+    g.setAttribute('iM1', new T.InterleavedBufferAttribute(ib, 4, 4));
+    g.setAttribute('iM2', new T.InterleavedBufferAttribute(ib, 4, 8));
+    g.setAttribute('iM3', new T.InterleavedBufferAttribute(ib, 4, 12));
+    g.setAttribute('iData', new T.InterleavedBufferAttribute(ib, 4, 16));
+    g.instanceCount = 0;
+    this.buf = buf; this.ib = ib; this.geo = g;
+    this.uLP = Array.from({ length: 16 }, () => new T.Vector4());
+    this.uLC = Array.from({ length: 16 }, () => new T.Vector3());
+    this.lightPool = Array.from({ length: 128 }, () => ({ x: 0, y: 0, z: 0, r: 0, cr: 0, cg: 0, cb: 0, d: 0 }));
+    this.uniforms = {
+      uAlb: { value: tex(this.albCanvas) }, uNrm: { value: tex(this.nrmCanvas) }, uCell: { value: this.cellUV },
+      uAmb: { value: new T.Vector3(0.3, 0.26, 0.4) }, uNL: { value: 0 }, uLP: { value: this.uLP }, uLC: { value: this.uLC },
+      uLighting: { value: 1 }, uNormals: { value: 1 }, uPoster: { value: 0 }
+    };
+    const mat = new T.ShaderMaterial({
+      uniforms: this.uniforms, transparent: true, depthTest: false, depthWrite: false,
+      vertexShader: `
+        attribute vec4 iM0; attribute vec4 iM1; attribute vec4 iM2; attribute vec4 iM3; attribute vec4 iData;
+        uniform float uCell;
+        varying vec2 vUv; varying vec3 vTint; varying float vA; varying float vEm; varying vec2 vWorld; varying float vFlip;
+        void main(){
+          mat4 m = mat4(iM0, iM1, iM2, iM3);
+          vec4 wp = m * vec4(position, 1.0);
+          vWorld = wp.xy;
+          vUv = iData.xy + uv * uCell;
+          float t = iData.z;
+          vTint = vec3(floor(t / 65536.0), mod(floor(t / 256.0), 256.0), mod(t, 256.0)) / 255.0;
+          vEm = step(1.5, iData.w); vA = iData.w - 2.0 * vEm;
+          vFlip = sign(iM0.x);
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }`,
+      fragmentShader: `
+        uniform sampler2D uAlb; uniform sampler2D uNrm; uniform vec3 uAmb; uniform int uNL;
+        uniform vec4 uLP[16]; uniform vec3 uLC[16]; uniform float uLighting; uniform float uNormals; uniform float uPoster;
+        varying vec2 vUv; varying vec3 vTint; varying float vA; varying float vEm; varying vec2 vWorld; varying float vFlip;
+        void main(){
+          vec4 c = texture2D(uAlb, vUv);
+          if (c.a < 0.5) discard;
+          vec3 base = c.rgb * vTint;
+          if (uLighting < 0.5 || vEm > 0.5) { gl_FragColor = vec4(base, vA); return; }
+          vec3 n = texture2D(uNrm, vUv).xyz * 2.0 - 1.0; n.x *= vFlip;
+          if (uNormals < 0.5) n = vec3(0.0, 0.0, 1.0);
+          n = normalize(n);
+          vec3 L = uAmb;
+          for (int i = 0; i < 16; i++) {
+            if (i >= uNL) break;
+            vec3 d = vec3(uLP[i].xy - vWorld, uLP[i].z);
+            float att = clamp(1.0 - length(d) / uLP[i].w, 0.0, 1.0); att *= att;
+            L += uLC[i] * max(dot(n, normalize(d)), 0.0) * att;
+          }
+          if (uPoster > 0.5) L = floor(L * 4.0 + 0.5) / 4.0;
+          gl_FragColor = vec4(base * L, vA);
+        }`
+    });
+    this.mesh = new T.Mesh(g, mat); this.mesh.frustumCulled = false; this.scene.add(this.mesh);
+    const resize = () => { const w = host.clientWidth || 1, h = host.clientHeight || 1; r.setSize(w, h, false); this.vw = w; this.vh = h; };
+    resize(); this.ro = new ResizeObserver(resize); this.ro.observe(host);
+  }
+
+  bindInput() {
+    this.keys = {};
+    const block = ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+    this.kd = e => {
+      if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+      if (block.includes(e.code)) e.preventDefault();
+      this.keys[e.code] = true;
+      if (e.code === 'Enter' && this.phase !== 'play') this.start();
+      if (e.code === 'Backquote') this.togglePanel();
+      if (e.code === 'Minus') this.setZoom(this.zoom / 1.25);
+      if (e.code === 'Equal') this.setZoom(this.zoom * 1.25);
+      if (e.code === 'Digit0') this.setZoom(1);
+    };
+    this.ku = e => { this.keys[e.code] = false; };
+    window.addEventListener('keydown', this.kd); window.addEventListener('keyup', this.ku);
+    this.wh = e => { e.preventDefault(); this.setZoom(this.zoom * Math.exp(-e.deltaY * 0.0015)); };
+    this.stageRef.current.addEventListener('wheel', this.wh, { passive: false });
+    this.phase = 'title';
+  }
+  setZoom(z) { this.zoom = Math.max(0.05, Math.min(3, z)); }
+
+  start = () => {
+    this.resetLevel(); this.phase = 'play'; this.setState({ phase: 'play' });
+  };
+
+  // ---------- Simulation (fixed 60 Hz, f64 physics) ----------
+  solid(cx, cy, down, prevBottom) {
+    const s = this.sim; if (cx < 0 || cx >= s.W) return true; if (cy < 0 || cy >= s.H) return false;
+    const t = s.m[cy * s.W + cx];
+    if (t === 1 || t === 2) return true;
+    if (t === 5) return !s.doorOpen;
+    if (t === 3) return down && prevBottom >= cy + 1 - 1e-6;
+    return false;
+  }
+  moveX(e, dx) {
+    e.x += dx; let hit = false; const y0 = Math.floor(e.y + 1e-4), y1 = Math.floor(e.y + e.h - 1e-4);
+    if (dx > 0) { const cx = Math.floor(e.x + e.w); for (let cy = y0; cy <= y1; cy++) if (this.solid(cx, cy)) { e.x = cx - e.w - 1e-6; e.vx = 0; hit = true; break; } }
+    else if (dx < 0) { const cx = Math.floor(e.x); for (let cy = y0; cy <= y1; cy++) if (this.solid(cx, cy)) { e.x = cx + 1; e.vx = 0; hit = true; break; } }
+    return hit;
+  }
+  moveY(e, dy) {
+    const pb = e.y; e.y += dy; let land = false; const x0 = Math.floor(e.x + 1e-4), x1 = Math.floor(e.x + e.w - 1e-4);
+    if (dy < 0) { const cy = Math.floor(e.y); for (let cx = x0; cx <= x1; cx++) if (this.solid(cx, cy, true, pb)) { e.y = cy + 1; e.vy = 0; land = true; break; } }
+    else if (dy > 0) { const cy = Math.floor(e.y + e.h); for (let cx = x0; cx <= x1; cx++) if (this.solid(cx, cy)) { e.y = cy - e.h - 1e-6; e.vy = 0; break; } }
+    return land;
+  }
+
+  tick(dt) {
+    const s = this.sim; s.t += dt; this.tickCount++;
+    const p = s.p; p.px = p.x; p.py = p.y; s.pcx = s.camX; s.pcy = s.camY;
+    if (this.phase === 'play') { s.time += dt; this.stepPlayer(dt); }
+    for (const sl of s.slugs) {
+      sl.px = sl.x; sl.py = sl.y;
+      if (sl.dead) { sl.dead += dt; continue; }
+      sl.vx = sl.dir * 1.6; sl.vy = Math.max(sl.vy - 60 * dt, -20);
+      if (this.moveX(sl, sl.vx * dt)) sl.dir *= -1;
+      this.moveY(sl, sl.vy * dt);
+      const fx = sl.dir > 0 ? sl.x + sl.w + 0.05 : sl.x - 0.05;
+      if (!this.solid(Math.floor(fx), Math.floor(sl.y - 0.1), true, sl.y)) sl.dir *= -1;
+    }
+    const hw = this.halfW || 10, hh = this.halfH || 7;
+    let tx = p.x + p.w / 2 + p.face * 1.2, ty = p.y + 1.5;
+    s.camX += (tx - s.camX) * Math.min(1, 5 * dt); s.camY += (ty - s.camY) * Math.min(1, 3.5 * dt);
+    s.camX = hw * 2 < s.W ? Math.max(hw, Math.min(s.W - hw, s.camX)) : s.W / 2;
+    s.camY = hh * 2 < s.H ? Math.max(hh, Math.min(s.H - hh, s.camY)) : s.H / 2;
+  }
+
+  stepPlayer(dt) {
+    const s = this.sim, p = s.p, k = this.keys;
+    if (p.hurt > 0) {
+      p.hurt -= dt;
+      if (p.hurt <= 0) { p.x = s.check.x; p.y = s.check.y; p.px = p.x; p.py = p.y; p.vx = p.vy = 0; p.pogo = false; p.inv = 1; }
+      return;
+    }
+    if (p.inv > 0) p.inv -= dt;
+    const left = k.ArrowLeft || k.KeyA, right = k.ArrowRight || k.KeyD;
+    const jump = !!(k.Space || k.ArrowUp || k.KeyW || k.KeyZ), pogoK = !!(k.KeyX || k.ShiftLeft || k.ShiftRight);
+    const jp = jump && !this.jumpPrev, pp = pogoK && !this.pogoPrev; this.jumpPrev = jump; this.pogoPrev = pogoK;
+    if (pp) p.pogo = !p.pogo;
+    const ax = (right ? 1 : 0) - (left ? 1 : 0);
+    if (ax) p.face = ax;
+    const MAXR = 7;
+    if (p.onGround && !p.pogo) {
+      if (ax) p.vx += ax * (Math.sign(p.vx) === -ax ? 90 : 55) * dt;
+      else { const f = 60 * dt; p.vx = Math.abs(p.vx) <= f ? 0 : p.vx - Math.sign(p.vx) * f; }
+    } else {
+      p.vx += ax * 32 * dt;
+      if (!ax) p.vx *= 1 - 1.5 * dt;
+    }
+    p.vx = Math.max(-MAXR, Math.min(MAXR, p.vx));
+    const G = 60, hi = this.props.pogoHeight ?? 6.6;
+    if (p.onGround) {
+      if (p.pogo) { p.vy = jump ? Math.sqrt(2 * G * hi) : 14; p.onGround = false; }
+      else if (jp) { p.vy = 20.5; p.cut = true; p.onGround = false; }
+    }
+    if (p.cut && !jump && p.vy > 0) { p.vy *= 0.45; p.cut = false; }
+    if (p.vy <= 0) p.cut = false;
+    p.vy = Math.max(p.vy - G * dt, -22);
+    this.moveX(p, p.vx * dt);
+    p.onGround = this.moveY(p, p.vy * dt);
+    p.anim += Math.abs(p.vx) * dt;
+
+    const ov = (ax0, ay0, aw, ah, bx, by, bw, bh) => ax0 < bx + bw && ax0 + aw > bx && ay0 < by + bh && ay0 + ah > by;
+    // hazards
+    let hurt = p.y < -2;
+    for (let cx = Math.floor(p.x); cx <= Math.floor(p.x + p.w); cx++) for (let cy = Math.floor(p.y); cy <= Math.floor(p.y + p.h); cy++) {
+      if (cy >= 0 && cy < s.H && cx >= 0 && cx < s.W && s.m[cy * s.W + cx] === 4 && p.y < cy + 0.55) hurt = true;
+    }
+    for (const sl of s.slugs) {
+      if (sl.dead || !ov(p.x, p.y, p.w, p.h, sl.x, sl.y, sl.w, sl.h)) continue;
+      if (p.vy < 0 && p.py > sl.y + sl.h * 0.4) { sl.dead = 0.001; p.vy = p.pogo ? 22 : 13; this.pop(sl.x + 0.4, sl.y + 0.8, 'squelch', '#a78bfa'); }
+      else if (p.inv <= 0) hurt = true;
+    }
+    if (hurt && p.inv <= 0) { p.hurt = 0.7; s.tumbles++; this.pop(p.x + 0.3, p.y + 1, 'tumble', '#f43f5e'); this.setState({ tumbles: s.tumbles }); return; }
+    if (hurt && p.y < -2) { p.x = s.check.x; p.y = s.check.y; }
+    // pickups
+    for (const g of s.gems) if (!g.taken && ov(p.x, p.y, p.w, p.h, g.x - 0.35, g.y - 0.35, 0.7, 0.7)) {
+      g.taken = true; s.shards++; this.pop(g.x, g.y + 0.4, '+1', '#22d3ee'); this.setState({ shards: s.shards });
+    }
+    if (!s.key.taken && ov(p.x, p.y, p.w, p.h, s.key.x - 0.4, s.key.y - 0.3, 0.8, 0.6)) { s.key.taken = true; s.hasKey = true; this.pop(s.key.x, s.key.y + 0.5, 'Key', '#ffaa40'); this.setState({ hasKey: true }); }
+    if (s.hasKey && !s.doorOpen && Math.abs(p.x + p.w / 2 - s.door.x) < 1.3 && p.y < 5) { s.doorOpen = true; this.pop(s.door.x, 5.4, 'Gate open', '#ffaa40'); }
+    for (const l of s.lamps) if (!l.lit && Math.abs(p.x + p.w / 2 - l.x) < 0.6 && Math.abs(p.y - l.y) < 1.5) { l.lit = true; s.check = { x: l.x - 0.3, y: l.y }; this.pop(l.x, l.y + 1.4, 'Lamp lit', '#ffaa40'); }
+    if (ov(p.x, p.y, p.w, p.h, s.exit.x - 0.3, 3, 0.6, 2)) {
+      this.phase = 'done'; this.setState({ phase: 'done', time: s.time });
+    }
+  }
+
+  pop(wx, wy, text, colour) {
+    const host = this.fxRef.current; if (!host || !this.ppu) return;
+    const sx = (wx - this.camX) * this.ppu + this.vw / 2, sy = this.vh / 2 - (wy - this.camY) * this.ppu;
+    const d = document.createElement('div');
+    d.textContent = text;
+    d.style.cssText = `position:absolute;left:${sx}px;top:${sy}px;transform:translate(-50%,-50%);font-family:var(--font-heading);font-weight:600;font-size:14px;color:${colour};text-shadow:0 0 12px ${colour};white-space:nowrap;`;
+    host.appendChild(d);
+    const a = d.animate([{ transform: 'translate(-50%,-50%)', opacity: 1 }, { transform: 'translate(-50%,-180%)', opacity: 0 }], { duration: 900, easing: 'ease-out' });
+    a.onfinish = () => d.remove();
+  }
+
+  // ---------- Frame: fixed-step accumulate, then write bridge + render ----------
+  frame(t) {
+    const dt = Math.max(0, (t - this.last) / 1000); this.last = t;
+    const STEP = 1 / 60; this.acc += Math.min(dt, 0.25);
+    while (this.acc >= STEP) { this.tick(STEP); this.acc -= STEP; }
+    const a = this.acc / STEP, s = this.sim;
+    this.ppu = (this.vh / 14) * this.zoom;
+    this.halfW = this.vw / 2 / this.ppu; this.halfH = this.vh / 2 / this.ppu;
+    const snap = 1 / (this.ppu * this.renderer.getPixelRatio());
+    this.camX = Math.round((s.pcx + (s.camX - s.pcx) * a) / snap) * snap;
+    this.camY = Math.round((s.pcy + (s.camY - s.pcy) * a) / snap) * snap;
+    const c = this.cam; c.left = -this.halfW; c.right = this.halfW; c.top = this.halfH; c.bottom = -this.halfH;
+    c.position.set(this.camX, this.camY, 5); c.updateProjectionMatrix();
+    const st = this.state;
+    const amb = { Night: [0.12, 0.11, 0.2], Daylight: [0.95, 0.9, 0.9] }[this.props.ambience] || [0.3, 0.26, 0.4];
+    this.uniforms.uAmb.value.set(amb[0], amb[1], amb[2]);
+    this.uniforms.uLighting.value = st.lighting ? 1 : 0; this.uniforms.uNormals.value = st.normals ? 1 : 0; this.uniforms.uPoster.value = st.poster ? 1 : 0;
+    const n = this.writeInstances(a);
+    const nl = this.updateLights();
+    this.geo.instanceCount = n;
+    if (n > 0) {
+      const ib = this.ib;
+      if (ib.addUpdateRange) { ib.clearUpdateRanges(); ib.addUpdateRange(0, n * 20); } else { ib.updateRange.offset = 0; ib.updateRange.count = n * 20; }
+      ib.needsUpdate = true;
+    }
+    this.renderer.render(this.scene, this.cam);
+    if (dt > 0) this.fpsE += (1 / dt - this.fpsE) * 0.05;
+    this.statT += dt;
+    if (this.statT > 0.25) {
+      this.statT = 0;
+      this.setState({ fps: Math.round(this.fpsE), ms: (1000 / this.fpsE).toFixed(1), tick: this.tickCount, inst: n, world: this.worldCount, calls: this.renderer.info.render.calls, lights: nl, zoom: this.zoom, tall: this.halfH * 2, time: s.time });
+    }
+  }
+
+  writeInstances(a) {
+    const s = this.sim, b = this.buf, S = this.spr, MAX = this.MAX, cul = this.state.culling, stress = this.state.stress;
+    let i = 0;
+    const push = (x, y, sx, sy, sp, tint, al, em) => { if (i >= MAX) return; const o = i * 20; b[o] = sx; b[o + 5] = sy; b[o + 12] = x; b[o + 13] = y; b[o + 16] = sp.u; b[o + 17] = sp.v; b[o + 18] = tint; b[o + 19] = al + (em ? 2 : 0); i++; };
+    const cx = this.camX, cy = this.camY, hw = this.halfW, hh = this.halfH, t = s.t;
+    const x0 = cx - hw - 1, x1 = cx + hw + 1, y0 = cy - hh - 1, y1 = cy + hh + 1;
+    const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+    let world = 0;
+    // stars (parallax 0.04)
+    { const f = 0.04, ox = cx * (1 - f), oy = cy * (1 - f), C = 2.5;
+      const gx0 = Math.floor((x0 - ox) / C), gx1 = Math.ceil((x1 - ox) / C), gy0 = Math.floor((y0 - oy) / C), gy1 = Math.ceil((y1 - oy) / C);
+      const tints = [0xffffff, 0xb4bfce, 0xa78bfa, 0xffaa40];
+      for (let gx = gx0; gx <= gx1; gx++) for (let gy = gy0; gy <= gy1; gy++) {
+        const h = hash(gx, gy); if (h > 0.28) continue;
+        const px = (gx + hash(gy, gx)) * C + ox, py = (gy + hash(gx + 7, gy + 3)) * C + oy;
+        push(px, py, 0.5, 0.5, S.star, tints[(h * 100 | 0) & 3], 0.55 + 0.45 * Math.sin(t * 1.5 + h * 60), true);
+      }
+    }
+    // hills
+    const hills = (f, baseH, seed, tint) => {
+      const ox = cx * (1 - f), oy = cy * (1 - f);
+      for (let ix = Math.floor(x0 - ox); ix <= Math.ceil(x1 - ox); ix++) {
+        const ht = Math.round(baseH + 3 * Math.sin(ix * 0.19 + seed) + 2 * Math.sin(ix * 0.067 + seed * 2) + 1.2 * Math.sin(ix * 0.43 + seed)) + oy;
+        const wx = ix + 0.5 + ox;
+        push(wx, ht + 0.5, 1, 1, S.hillTop, tint, 1, true);
+        if (ht > y0) push(wx, (ht + y0) / 2, 1, ht - y0, S.fill, tint, 1, true);
+      }
+    };
+    hills(0.3, 10, 1.3, 0x2c2250); hills(0.55, 7, 4.1, 0x17122a);
+    // stress back wall: 400 × 125 = 50,000 tiles
+    if (stress) {
+      const bx0 = cul ? Math.max(-100, Math.floor(x0)) : -100, bx1 = cul ? Math.min(299, Math.ceil(x1)) : 299;
+      const by0 = cul ? Math.max(-60, Math.floor(y0)) : -60, by1 = cul ? Math.min(64, Math.ceil(y1)) : 64;
+      const bt = [0x7a6f95, 0x6a5f88, 0x8a7a9e, 0x5e5478];
+      for (let x = bx0; x <= bx1; x++) for (let y = by0; y <= by1; y++) push(x + 0.5, y + 0.5, 1, 1, S.back, bt[(hash(x, y) * 4) | 0], 1, false);
+      world += 50000;
+    }
+    // level tiles (uniform grid → visible range only)
+    const W = s.W, H = s.H, m = s.m;
+    const tx0 = cul ? Math.max(0, Math.floor(x0)) : 0, tx1 = cul ? Math.min(W - 1, Math.ceil(x1)) : W - 1;
+    const ty0 = cul ? Math.max(0, Math.floor(y0)) : 0, ty1 = cul ? Math.min(H - 1, Math.ceil(y1)) : H - 1;
+    for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) {
+      const tt = m[y * W + x]; if (!tt) continue;
+      let sp;
+      if (tt === 1) { const up = y + 1 < H ? m[(y + 1) * W + x] : 0; sp = (up === 1 || up === 2) ? S.ground : S.groundTop; }
+      else if (tt === 2) sp = S.brick; else if (tt === 3) sp = S.plank; else if (tt === 4) sp = S.spike;
+      else if (tt === 5) { if (s.doorOpen) continue; sp = S.door; }
+      push(x + 0.5, y + 0.5, 1, 1, sp, 0xffffff, 1, false);
+    }
+    world += s.solidCount;
+    const vis = (x, y) => !cul || (x > x0 && x < x1 && y > y0 && y < y1);
+    for (const l of s.lamps) if (vis(l.x, l.y)) push(l.x, l.y + 0.5, 1, 1, S.lamp, l.lit ? 0xffffff : 0x8a8a9a, 1, l.lit);
+    push(s.exit.x, 3.5, 1, 1, S.exitBot, 0xffffff, 1, true); push(s.exit.x, 4.5, 1, 1, S.exitTop, 0xffffff, 1, true);
+    for (const g of s.gems) if (!g.taken && vis(g.x, g.y)) push(g.x, g.y + Math.sin(t * 3 + g.x) * 0.08, 1, 1, S.gem, 0xffffff, 1, true);
+    if (!s.key.taken) push(s.key.x, s.key.y + Math.sin(t * 2.5) * 0.08, 1, 1, S.key, 0xffffff, 1, true);
+    for (const sl of s.slugs) {
+      const x = sl.px + (sl.x - sl.px) * a, y = sl.py + (sl.y - sl.py) * a;
+      if (sl.dead > 0.6 || !vis(x, y)) continue;
+      const fr = (Math.floor(t * 4 + sl.x) & 1) ? S.slug2 : S.slug1;
+      push(x + sl.w / 2, y + 0.5 - 1 / 16, sl.dir < 0 ? -1 : 1, 1, fr, sl.dead ? 0x9a9aaa : 0xffffff, sl.dead ? 1 - sl.dead / 0.6 : 1, false);
+    }
+    world += s.gems.length + s.slugs.length + s.lamps.length + 3;
+    const p = s.p, px = p.px + (p.x - p.px) * a, py = p.py + (p.y - p.py) * a;
+    if (!(p.hurt > 0 && Math.floor(t * 20) & 1) && !(p.inv > 0 && Math.floor(t * 12) & 1)) {
+      const sp = p.pogo ? S.pogo : !p.onGround ? S.jump : Math.abs(p.vx) > 0.5 ? ((Math.floor(p.anim * 1.6) & 1) ? S.run2 : S.run1) : S.idle;
+      push(px + p.w / 2, py + 0.5 - 1 / 16, p.face, 1, sp, 0xffffff, 1, false);
+    }
+    this.worldCount = world + 1;
+    return i;
+  }
+
+  updateLights() {
+    const s = this.sim, L = this.lightPool, t = s.t; let n = 0;
+    const add = (x, y, z, r, cr, cg, cb) => { if (n >= L.length) return; const o = L[n++]; o.x = x; o.y = y; o.z = z; o.r = r; o.cr = cr; o.cg = cg; o.cb = cb; o.d = (x - this.camX) ** 2 + (y - this.camY) ** 2; };
+    const p = s.p;
+    add(p.x + p.w / 2, p.y + 0.8, 1.2, 5, 0.95, 0.7, 0.45);
+    for (const l of s.lamps) if (l.lit) { const fl = 1.6 + 0.12 * Math.sin(t * 9 + l.x) + 0.08 * Math.sin(t * 23 + l.x * 3); add(l.x, l.y + 1.1, 1.4, 8.5, fl, fl * 0.66, fl * 0.3); }
+    for (const g of s.gems) if (!g.taken) add(g.x, g.y, 0.8, 2.6, 0.15, 0.75, 0.9);
+    if (!s.key.taken) add(s.key.x, s.key.y, 0.8, 3, 0.95, 0.75, 0.2);
+    const ep = 1.3 + 0.3 * Math.sin(t * 1.4);
+    add(s.exit.x, 4, 1.2, 7, 0.65 * ep, 0.55 * ep, 0.98 * ep);
+    for (const h of s.hazards) { const k = 0.6 + 0.4 * Math.sin(t * 4 + h.x); add(h.x, h.y, 0.9, 3.5, 0.96 * k * 1.3, 0.25 * k, 0.37 * k); }
+    const cnt = Math.min(16, n);
+    for (let k = 0; k < cnt; k++) {
+      let mi = k; for (let j = k + 1; j < n; j++) if (L[j].d < L[mi].d) mi = j;
+      if (mi !== k) { const tmp = L[k]; L[k] = L[mi]; L[mi] = tmp; }
+      const o = L[k]; this.uLP[k].set(o.x, o.y, o.z, o.r); this.uLC[k].set(o.cr, o.cg, o.cb);
+    }
+    this.uniforms.uNL.value = cnt;
+    return cnt;
+  }
+
+  togglePanel = () => this.setState(s => ({ panel: !s.panel }));
+
+  renderVals() {
+    const st = this.state, v = b => b ? 'primary' : 'secondary';
+    const fmt = n => Number(n || 0).toLocaleString('en-CA');
+    const tm = Math.floor(st.time || 0), timeLabel = `${Math.floor(tm / 60)}:${String(tm % 60).padStart(2, '0')}`;
+    let jaxLine = st.tumbles === 0 ? 'not a single tumble. show-off.' : `tumbled ${st.tumbles} time${st.tumbles === 1 ? '' : 's'}, character building.`;
+    if (st.shards === st.totalShards && st.totalShards) jaxLine = 'every shard accounted for. ' + jaxLine;
+    const tg = k => () => this.setState(s => ({ [k]: !s[k] }));
+    return {
+      stageRef: this.stageRef, fxRef: this.fxRef,
+      isTitle: st.phase === 'title', isDone: st.phase === 'done',
+      shardsLabel: `${st.shards} / ${st.totalShards}`, hasKey: st.hasKey, timeLabel, tumbles: st.tumbles, jaxLine,
+      panelOpen: st.panel, panelClosed: !st.panel, togglePanel: this.togglePanel,
+      fpsLabel: `${st.fps} fps · ${st.ms} ms`, simLabel: `60 Hz · tick ${fmt(st.tick)}`,
+      instLabel: `${fmt(st.inst)} / ${fmt(this.MAX)}`, worldLabel: fmt(st.world), callsLabel: String(st.calls),
+      lightsLabel: `${st.lights} / 16 point`, zoomLabel: `${(st.zoom || 1).toFixed(2)}× · ${(st.tall || 14).toFixed(1)} tiles tall`,
+      vLight: v(st.lighting), vNormals: v(st.normals), vPoster: v(st.poster), vCull: v(st.culling), vStress: v(st.stress),
+      tLight: tg('lighting'), tNormals: tg('normals'), tPoster: tg('poster'), tCull: tg('culling'), tStress: tg('stress'),
+      zoomIn: () => this.setZoom(this.zoom * 1.25), zoomOut: () => this.setZoom(this.zoom / 1.25), zoomReset: () => this.setZoom(1), zoomMap: () => this.setZoom(0.1),
+      start: this.start, hasErr: !!st.err, err: st.err
+    };
+  }
+}
+</script>
+</body>
+</html>
