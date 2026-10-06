@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/base.css">
   <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/styles.css">
   <script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
-  <style>html,body{margin:0;height:100%;background:#000;overflow:hidden} a{color:#ffaa40} a:hover{color:#ffc46e} @keyframes mabBlink{0%,49%{opacity:1}50%,100%{opacity:0}} @keyframes mabNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(3px)}} @media (prefers-reduced-motion: reduce){*{animation:none!important}}</style>
+  <style>html,body{margin:0;height:100%;background:#000;overflow:hidden} a{color:#ffaa40} a:hover{color:#ffc46e} @keyframes mabBlink{0%,49%{opacity:1}50%,100%{opacity:0}} @keyframes mabNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(3px)}} @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}</style>
 </helmet>
 <div style="position:fixed;inset:0;background:#000;font-family:var(--font-body);color:#e0e0e0;overflow:hidden;">
   <sc-if value="{{ sky }}" hint-placeholder-val="{{ true }}">
@@ -104,9 +104,8 @@
     <div style="position:absolute;inset:0;background:linear-gradient(90deg, rgba(5,5,7,0.88) 0%, rgba(5,5,7,0.6) 38%, rgba(5,5,7,0) 72%);"></div>
     <div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:clamp(24px,6vh,56px);padding:clamp(24px,6vh,64px) clamp(24px,7vw,104px);box-sizing:border-box;overflow-y:auto;">
       <div style="display:flex;flex-direction:column;gap:clamp(4px,1vh,10px);">
-        <span style="font-family:var(--font-heading);font-weight:600;font-size:clamp(15px,2.4vh,22px);color:#ffaa40;text-shadow:0 2px 0 #000;">The Melting Adventures of</span>
-        <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(48px,12vh,112px);line-height:0.92;letter-spacing:-0.03em;color:#fff;text-shadow:0 5px 0 #f43f5e, 0 10px 0 #000;">Ben Blaze</span>
-        <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(22px,4.4vh,40px);letter-spacing:-0.02em;color:#ffaa40;text-shadow:0 3px 0 #000;padding-top:clamp(6px,1.2vh,12px);">“Lieutenant Fizz”</span>
+        <span style="font-family:var(--font-heading);font-weight:600;font-size:clamp(15px,2.4vh,22px);color:#ffaa40;text-shadow:0 2px 0 #000;">Ben Blaze in</span>
+        <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(44px,min(12vh,10vw),112px);line-height:0.92;letter-spacing:-0.03em;color:#fff;text-shadow:0 5px 0 #f43f5e, 0 10px 0 #000;">Lieutenant Fizz</span>
         <span style="font-size:clamp(12px,1.7vh,14px);color:#b4bfce;text-shadow:0 1px 0 #000;">Episode 1 · The Cocoa Caper</span>
       </div>
 
@@ -229,6 +228,69 @@
     </div>
   </sc-if>
 
+  <sc-if value="{{ isCredits }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ credAdvance }}" style="position:absolute;inset:0;background:#050507;overflow:hidden;cursor:pointer;">
+      <div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%, rgba(244,63,94,0.28), rgba(167,139,250,0.12) 45%, rgba(5,5,7,0) 75%);opacity:{{ credGlowO }};transition:opacity 3.5s ease;pointer-events:none;"></div>
+      <sc-for list="{{ stars }}" as="s" hint-placeholder-count="0">
+        <div style="position:absolute;left:{{ s.x }};top:{{ s.y }};width:{{ s.z }};height:{{ s.z }};border-radius:50%;background:#fff;opacity:{{ s.o }};"></div>
+      </sc-for>
+      <div ref="{{ credRef }}" style="position:absolute;left:0;right:0;top:0;transform:translateY(100vh);will-change:transform;display:flex;flex-direction:column;align-items:center;gap:clamp(44px,9vh,88px);padding:0 24px;box-sizing:border-box;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;opacity:{{ credBodyO }};transform:{{ credBodyT }};transition:opacity 1.6s ease-out, transform 2.2s ease-out;">
+          <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(40px,min(10vh,9vw),88px);line-height:0.95;letter-spacing:-0.03em;color:#fff;text-shadow:0 4px 0 #f43f5e, 0 8px 0 #000;">Lieutenant Fizz</span>
+          <span style="font-size:clamp(13px,1.9vh,16px);color:#b4bfce;">Episode 1 · The Cocoa Caper</span>
+        </div>
+        <sc-for list="{{ credSections }}" as="sec" hint-placeholder-count="4">
+          <div style="width:min(720px,100%);display:flex;flex-direction:column;align-items:center;gap:clamp(12px,2.2vh,20px);opacity:{{ credBodyO }};transform:{{ credBodyT }};transition:opacity 1.6s ease-out, transform 2.2s ease-out;">
+            <span style="font-family:var(--font-heading);font-weight:600;font-size:clamp(18px,3vh,26px);color:#ffaa40;text-shadow:0 2px 0 #000;">{{ sec.head }}</span>
+            <div style="width:100%;display:flex;flex-direction:column;gap:clamp(8px,1.6vh,14px);">
+              <sc-for list="{{ sec.lines }}" as="ln" hint-placeholder-count="3">
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 clamp(16px,3vw,32px);align-items:baseline;">
+                  <span style="text-align:right;font-size:clamp(13px,2vh,17px);color:#b4bfce;text-wrap:pretty;">{{ ln.role }}</span>
+                  <span style="font-family:var(--font-heading);font-weight:600;font-size:clamp(16px,2.6vh,22px);color:#fff;text-wrap:pretty;">{{ ln.name }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+        <div ref="{{ endRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding-bottom:clamp(40px,10vh,120px);position:relative;">
+          <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(28px,6vh,52px);letter-spacing:-0.02em;color:#fff;text-shadow:0 3px 0 #f43f5e, 0 6px 0 #000;">Thanks for playing</span>
+          <span style="font-size:clamp(14px,2.1vh,18px);color:#b4bfce;text-wrap:balance;max-width:420px;">Billy’s home and the cocoa’s back.</span>
+          <div style="position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:clamp(-40px,-4vh,-16px);width:max-content;max-width:100vw;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;opacity:{{ credTitleO }};transition:opacity 2s ease 1.2s;pointer-events:none;">
+            <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(40px,min(10vh,9vw),88px);line-height:0.95;letter-spacing:-0.03em;color:#fff;text-shadow:0 4px 0 #f43f5e, 0 8px 0 #000;">Lieutenant Fizz</span>
+            <span style="font-size:clamp(13px,1.9vh,16px);color:#b4bfce;">Episode 1 · The Cocoa Caper</span>
+            <span style="margin-top:clamp(10px,2vh,18px);font-size:clamp(14px,2.1vh,18px);color:#b4bfce;opacity:{{ credTitleO }};transition:opacity 2s ease 3.4s;">Lieutenant Fizz will return.</span>
+          </div>
+        </div>
+      </div>
+      <div style="position:absolute;left:0;right:0;top:0;height:clamp(60px,14vh,140px);background:linear-gradient(180deg,#050507 20%,rgba(5,5,7,0));pointer-events:none;"></div>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:clamp(60px,12vh,120px);background:linear-gradient(0deg,#050507 20%,rgba(5,5,7,0));pointer-events:none;"></div>
+      <div style="position:absolute;right:clamp(16px,4vw,48px);bottom:clamp(14px,3vh,28px);display:flex;align-items:center;gap:8px 18px;flex-wrap:wrap;justify-content:flex-end;font-size:12px;color:#b4bfce;">
+        <span onClick="{{ credSkip }}" style="display:flex;align-items:center;gap:6px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.22);border-bottom-width:2px;border-radius:4px;font-family:var(--font-mono);font-size:11px;color:#e0e0e0;white-space:nowrap;">Esc</span>Skip credits</span>
+        <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.22);border-bottom-width:2px;border-radius:4px;font-family:var(--font-mono);font-size:11px;color:#e0e0e0;white-space:nowrap;">Jump</span>{{ credHint }}</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isStinger }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ stAdvance }}" style="position:absolute;inset:0;background:#000;cursor:pointer;overflow:hidden;">
+      <div style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:{{ stW }};height:{{ stH }};opacity:{{ stO }};background:linear-gradient(180deg,#ffaa40,#f43f5e 70%,#a78bfa);box-shadow:0 0 {{ stGlow }} rgba(255,170,64,0.4);transition:width 1.4s cubic-bezier(.22,1,.36,1), height 1.4s cubic-bezier(.22,1,.36,1), opacity 0.8s ease, box-shadow 1.4s ease;"></div>
+      <div style="position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:min(22vw,170px);height:min(44vh,340px);display:flex;align-items:flex-end;justify-content:center;opacity:{{ stFigO }};transition:opacity 1.2s ease;"><img src="{{ mortImg }}" alt="Mortimer McMire" style="height:92%;width:auto;image-rendering:pixelated;"></div>
+      <div style="position:absolute;left:0;right:0;top:calc(42% + clamp(70px,24vh,190px));display:flex;justify-content:center;opacity:{{ stNameO }};transition:opacity 1s ease;">
+        <span style="font-family:var(--font-heading);font-weight:700;font-size:clamp(22px,4.4vh,40px);letter-spacing:-0.02em;color:#ffaa40;text-shadow:0 3px 0 #000;">Mortimer McMire</span>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0;min-height:clamp(130px,22vh,210px);background:#000;display:flex;justify-content:center;padding:clamp(14px,3vh,26px) clamp(20px,5vw,64px);box-sizing:border-box;opacity:{{ stNameO }};transition:opacity 1s ease;">
+        <div style="width:min(920px,100%);display:flex;flex-direction:column;gap:12px;">
+          <span style="font-family:var(--font-heading);font-weight:600;font-size:15px;color:#ffaa40;">{{ stPlace }}</span>
+          <span style="font-size:clamp(16px,2.3vh,20px);line-height:1.6;color:#e0e0e0;text-wrap:pretty;">{{ stShown }}<span style="color:transparent;">{{ stHidden }}</span></span>
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px 18px;margin-top:auto;font-size:12px;color:#b4bfce;">
+            <span onClick="{{ stSkip }}" style="display:flex;align-items:center;gap:6px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.22);border-bottom-width:2px;border-radius:4px;font-family:var(--font-mono);font-size:11px;color:#e0e0e0;white-space:nowrap;">Esc</span>Skip</span>
+            <span style="display:flex;align-items:center;gap:6px;"><sc-if value="{{ stDone }}" hint-placeholder-val="{{ false }}"><span style="font-size:16px;color:#ffaa40;">{{ cursor }}</span></sc-if><span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.22);border-bottom-width:2px;border-radius:4px;font-family:var(--font-mono);font-size:11px;color:#e0e0e0;white-space:nowrap;">Jump</span>Continue</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
     <div style="position:absolute;left:50%;top:18px;transform:translateX(-50%);padding:8px 16px;border-radius:999px;background:rgba(22,22,28,0.92);border:1px solid rgba(255,255,255,0.14);font-size:13px;color:#e0e0e0;pointer-events:none;white-space:nowrap;z-index:6;">{{ toast }}</div>
   </sc-if>
@@ -238,10 +300,12 @@
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;showEnginePanel&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;pogoHeight&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:4,&quot;max&quot;:9,&quot;step&quot;:0.2,&quot;unit&quot;:&quot;tiles&quot;,&quot;default&quot;:6.6,&quot;tsType&quot;:&quot;number&quot;},&quot;startLives&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;min&quot;:1,&quot;max&quot;:9,&quot;default&quot;:3,&quot;tsType&quot;:&quot;number&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;showEnginePanel&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;pogoHeight&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:4,&quot;max&quot;:9,&quot;step&quot;:0.2,&quot;unit&quot;:&quot;tiles&quot;,&quot;default&quot;:6.6,&quot;tsType&quot;:&quot;number&quot;},&quot;startLives&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;min&quot;:1,&quot;max&quot;:9,&quot;default&quot;:3,&quot;tsType&quot;:&quot;number&quot;},&quot;jumpToCredits&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Ending&quot;},&quot;previewStinger&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Ending&quot;}}">
 class Component extends DCLogic {
   state = { screen: 'loading', hud: { score: 0, lives: 3, ammo: 5 }, stats: {}, panel: this.props.showEnginePanel ?? false, opts: { lighting: true, normals: true, poster: false, culling: true, stress: false, captions: true, night: false },
-    prompt: null, toast: null, card: null, cine: 0, end: 0, dlg: null, dlgI: 0, boss: null, hasSave: false, err: null, mode: 'attract', mi: 0, sub: null, typed: 0 };
+    prompt: null, toast: null, card: null, cine: 0, end: 0, dlg: null, dlgI: 0, boss: null, hasSave: false, err: null, mode: 'attract', mi: 0, sub: null, typed: 0, credDone: false, stP: 0 };
+  credRef = React.createRef(); endRef = React.createRef();
+  stars = Array.from({ length: 44 }, (_, i) => ({ x: ((i * 37 + 11) % 97 + 1) + '%', y: ((i * 53 + 7) % 93 + 2) + '%', z: (i % 5 === 0 ? 3 : 2) + 'px', o: 0.25 + (i % 4) * 0.15 }));
   stageRef = React.createRef(); fxRef = React.createRef();
   cursorEl = React.createElement('span', { style: { display: 'inline-block', animation: 'mabNudge 0.9s ease-in-out infinite' } }, '\u25b8');
   cursorDownEl = React.createElement('span', { style: { display: 'inline-block', animation: 'mabBlink 1s steps(1) infinite' } }, '\u25bc');
@@ -268,7 +332,15 @@ class Component extends DCLogic {
     bossDefeated: [['Mildred McMire', "My Colossus! Fine, keep your silly cousin. I've got a castle to finish!"], ['Ben', "It dropped something\u2026 a gold USB drive. There's a security terminal back by the entrance."]]
   };
 
+  static CRED = [
+    { head: 'Starring', lines: [['Neighbourhood tinkerer', 'Ben \u201cLieutenant Fizz\u201d Blaze'], ['Local genius', 'Billy Blaze'], ['Chocolate castle architect', 'Mildred McMire'], ['Hiding in the shadows somewhere', 'Mortimer McMire'], ['Itself', 'The Cocoa Colossus']] },
+    { head: 'Made by', lines: [['Game design, story, and code', 'Scott Morris'], ['Studio', 'Liminal HQ']] },
+    { head: 'Built with', lines: [['Engine', 'Liminal Retro Engine'], ['Sound and music', 'Undertone'], ['Rendering', 'Three.js'], ['Interface', 'Afterglow']] },
+    { head: 'In the spirit of', lines: [['Platforms and pogo sticks', 'Commander Keen']] }
+  ];
+  static STING = { place: 'Far from the citadel', text: "A door hissed open in the dark, and a familiar figure stepped into the light. \u201cHi, Mildred. Remember me?\u201d" };
   componentDidMount() {
+    import(new URL('melting/sprites.js', document.baseURI).href).then(m => this.setState({ mortImg: m.spriteDataURL('billyAlt', 8) }));
     this.boot();
     this.visible = true; this.onScreen = true;
     const sync = () => { const on = this.visible && this.onScreen; if (this.audio) this.audio.setActive(on); if (this.eng && this.state.screen === 'play' && !on) { this.pause(true); this.setState({ screen: 'pause' }); } };
@@ -277,34 +349,37 @@ class Component extends DCLogic {
     window.addEventListener('pagehide', this.onVis);
     if (window.IntersectionObserver && this.stageRef.current) { this.io = new IntersectionObserver(es => { this.onScreen = es.some(e => e.isIntersecting); sync(); }); this.io.observe(this.stageRef.current); }
   }
-  twKeyNow() { const st = this.state; return st.screen + ':' + st.cine + ':' + st.end + ':' + st.dlgI + ':' + (st.dlg ? 1 : 0); }
+  twKeyNow() { const st = this.state; return st.screen + ':' + st.cine + ':' + st.end + ':' + st.dlgI + ':' + (st.dlg ? 1 : 0) + ':' + st.stP; }
   curText() {
     const st = this.state;
     if (st.screen === 'cine') return Component.CINE[st.cine].text;
     if (st.screen === 'ending') return Component.END[st.end].text;
     if (st.screen === 'dialogue' && st.dlg) return st.dlg[st.dlgI][1];
+    if (st.screen === 'stinger') return st.stP >= 3 ? Component.STING.text : '';
     return '';
   }
+  jumpCredits() { if (!this.eng || this.state.screen === 'credits') return; this.pause(true); this.setState({ screen: 'credits', credDone: false, card: null, dlg: null, boss: null, prompt: null }); }
   componentDidUpdate(pp, ps) {
     const st = this.state, key = this.twKeyNow();
+    if (this.props.jumpToCredits && (!pp.jumpToCredits || (ps.screen === 'loading' && st.screen !== 'loading'))) this.jumpCredits();
     if (key !== this.twKey) {
       this.twKey = key; clearInterval(this.twT);
       const len = this.curText().length;
       if (len) { this.setState({ typed: 0 }); this.twT = setInterval(() => this.setState(s => { const n = Math.min(len, (s.typed || 0) + 2); if (n >= len) clearInterval(this.twT); return { typed: n }; }), 24); }
     }
-    if (this.lastScreen !== st.screen) { this.lastScreen = st.screen; this.setState({ mi: st.screen === 'title' && st.hasSave ? 1 : 0, sub: null }); }
+    if (this.lastScreen !== st.screen) { this.lastScreen = st.screen; this.setState({ mi: st.screen === 'title' && st.hasSave ? 1 : 0, sub: null }); if (st.screen === 'credits') this.runCredits(); if (st.screen === 'stinger') this.runStinger(); }
     if (!this.audio) return;
     const m = this.eng && this.eng.mode;
     let t = null;
     if (st.screen === 'title' || st.screen === 'loading') t = 'title';
     else if (st.screen === 'cine') t = Component.CINE_TRACK[st.cine] || 'cine';
-    else if (st.screen === 'ending' || (st.screen === 'card' && st.card && /end of Episode/.test(st.card.title))) t = 'ending';
+    else if (st.screen === 'ending' || st.screen === 'credits' || (st.screen === 'card' && st.card && /end of Episode/.test(st.card.title))) t = 'ending';
     else if (m === 'map') t = 'map';
     else if (m === 'level' && this.eng.sim) t = (st.boss !== null && st.boss > 0) ? 'boss' : this.eng.sim.id;
     if (st.screen === 'pause') t = this.audio.track;
     this.audio.playMusic(t);
   }
-  componentWillUnmount() { document.removeEventListener('visibilitychange', this.onVis); window.removeEventListener('pagehide', this.onVis); if (this.io) this.io.disconnect(); if (this.audio) this.audio.dispose(); if (this.eng) this.eng.destroy(); clearTimeout(this.toastT); clearInterval(this.twT); }
+  componentWillUnmount() { document.removeEventListener('visibilitychange', this.onVis); window.removeEventListener('pagehide', this.onVis); if (this.io) this.io.disconnect(); if (this.audio) this.audio.dispose(); if (this.eng) this.eng.destroy(); clearTimeout(this.toastT); clearInterval(this.twT); cancelAnimationFrame(this.credRaf); (this.stT || []).forEach(clearTimeout); }
   async boot() {
     try {
       const mod = await import(new URL('melting/engine.js', document.baseURI).href);
@@ -360,6 +435,8 @@ class Component extends DCLogic {
     if (s === 'cine') this.typeOrNext(this.nextCine);
     else if (s === 'dialogue') this.typeOrNext(this.nextLine);
     else if (s === 'ending') this.typeOrNext(this.nextEnd);
+    else if (s === 'credits') { if (this.state.credDone) this.finishCredits(); else this.credFast = !this.credFast; }
+    else if (s === 'stinger') { if (this.state.stP >= 3) this.typeOrNext(this.finishStinger); }
     else if (s === 'title' || s === 'pause' || s === 'card') { if (s === 'title' && this.state.sub === 'controls') return this.backFromControls(); this.activate(); }
   }
   onEv(type, d) {
@@ -371,6 +448,8 @@ class Component extends DCLogic {
         if (s === 'play') { this.pause(true); this.setState({ screen: 'pause' }); }
         else if (s === 'pause') this.resume();
         else if (s === 'cine') this.skipCine();
+        else if (s === 'credits') this.finishCredits();
+        else if (s === 'stinger') this.finishStinger();
         else if (s === 'title' && this.state.sub) this.backFromControls();
         break;
       }
@@ -395,8 +474,32 @@ class Component extends DCLogic {
   skipCine = e => { if (e && e.stopPropagation) e.stopPropagation(); this.eng.toMap(); this.pause(false); this.setState({ screen: 'play', mode: 'map' }); this.showToast('Find Billy. Start at the Crater Fields, up the path to the north.'); };
   backToMap = () => { this.eng.toMap(); this.pause(false); this.setState({ screen: 'play', mode: 'map', card: null, boss: null }); };
   nextLine = () => { const n = this.state.dlgI + 1; if (!this.state.dlg || n >= this.state.dlg.length) { this.pause(false); this.setState({ screen: 'play', dlg: null, boss: this.state.dlg === Component.DLG.bossIntro ? 3 : null }); } else this.setState({ dlgI: n }); };
-  nextEnd = () => { const n = this.state.end + 1; if (n < Component.END.length) return this.setState({ end: n }); const g = this.eng.game; this.setState({ screen: 'card', card: { title: 'The end of Episode 1', text: `Billy's home, the cocoa's back, and you finished with ${g.score} snack points and ${g.lives} ${g.lives === 1 ? 'life' : 'lives'} to spare. Mildred will be back.`, primaryLabel: 'Play Again', primary: () => this.quitToTitle() } }); };
+  nextEnd = () => { const n = this.state.end + 1; if (n < Component.END.length) return this.setState({ end: n }); this.setState({ screen: 'credits', credDone: false }); };
+  endCard = () => { const g = this.eng.game; this.setState({ screen: 'card', card: { title: 'The end of Episode 1', text: `Billy's home, the cocoa's back, and you finished with ${g.score} snack points and ${g.lives} ${g.lives === 1 ? 'life' : 'lives'} to spare. Mildred will be back.`, primaryLabel: 'Play Again', primary: () => this.quitToTitle() } }); };
   resume = () => { this.pause(false); this.setState({ screen: 'play' }); };
+  runCredits() {
+    cancelAnimationFrame(this.credRaf); this.credFast = false;
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let last = 0, y = null;
+    const step = ts => {
+      const el = this.credRef.current, end = this.endRef.current;
+      if (!el || !end) { this.credRaf = requestAnimationFrame(step); return; }
+      const vh = el.parentElement.clientHeight, target = vh / 2 - (end.offsetTop + end.offsetHeight / 2);
+      if (y === null) y = reduce ? target : vh;
+      const dt = last ? Math.min(0.05, (ts - last) / 1000) : 0; last = ts;
+      y -= dt * Math.max(40, vh * 0.1) * (this.credFast ? 4 : 1);
+      if (y <= target) { el.style.transform = 'translateY(' + target + 'px)'; this.setState({ credDone: true }); return; }
+      el.style.transform = 'translateY(' + y + 'px)';
+      this.credRaf = requestAnimationFrame(step);
+    };
+    this.credRaf = requestAnimationFrame(step);
+  }
+  finishCredits = e => { if (e && e.stopPropagation) e.stopPropagation(); cancelAnimationFrame(this.credRaf); if (this.props.previewStinger) this.setState({ screen: 'stinger', stP: 0 }); else this.endCard(); };
+  runStinger() {
+    (this.stT || []).forEach(clearTimeout);
+    this.stT = [setTimeout(() => { if (this.audio) this.audio.play('stinger'); this.setState({ stP: 1 }); }, 1200), setTimeout(() => this.setState({ stP: 2 }), 2600), setTimeout(() => this.setState({ stP: 3 }), 4600)];
+  }
+  finishStinger = e => { if (e && e.stopPropagation) e.stopPropagation(); (this.stT || []).forEach(clearTimeout); this.endCard(); };
   saveGame = () => { this.eng.quickSave(); this.setState({ hasSave: true }); };
   loadGame = () => { this.eng.quickLoad(); };
   quitToMap = () => { this.backToMap(); };
@@ -435,6 +538,13 @@ class Component extends DCLogic {
       vLight: v(o.lighting), vNormals: v(o.normals), vPoster: v(o.poster), vCull: v(o.culling), vStress: v(o.stress), vCaps: v(o.captions), vMusic: v(st.music !== false), vSfx: v(st.sfx !== false), tMusic: this.toggleMusic, tSfx: this.toggleSfx, audioLabel: st.audioBackend || 'Loading…', vNight: v(o.night), tNight: this.tg('night'),
       tLight: this.tg('lighting'), tNormals: this.tg('normals'), tPoster: this.tg('poster'), tCull: this.tg('culling'), tStress: this.tg('stress'), tCaps: this.tg('captions'),
       skipCine: this.skipCine,
+      isCredits: scr === 'credits', credRef: this.credRef, endRef: this.endRef, stars: this.stars, credAdvance: () => this.primary(), credSkip: this.finishCredits,
+      credSections: Component.CRED.map(s => ({ head: s.head, lines: s.lines.map(l => ({ role: l[0], name: l[1] })) })),
+      credTitleO: st.credDone ? 1 : 0, credGlowO: st.credDone ? 0 : 1, credBodyO: st.credDone ? 0 : 1, credBodyT: st.credDone ? 'translateY(-90px)' : 'none',
+      credHint: st.credDone ? 'Continue' : this.credFast ? 'Normal speed' : 'Speed up',
+      stFigO: st.stP >= 2 ? 1 : 0, mortImg: st.mortImg || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', isStinger: scr === 'stinger', stAdvance: () => this.primary(), stSkip: this.finishStinger,
+      stW: st.stP === 0 ? '360px' : st.stP === 1 ? 'min(46vw,420px)' : 'min(22vw,170px)', stH: st.stP < 2 ? (st.stP === 0 ? '2px' : '3px') : 'min(44vh,340px)', stO: st.stP === 0 ? 0 : 1, stGlow: st.stP === 0 ? '0px' : st.stP === 1 ? '30px' : '90px', stNameO: st.stP >= 3 ? 1 : 0,
+      stPlace: Component.STING.place, stShown: scr === 'stinger' ? text.slice(0, typed) : '', stHidden: scr === 'stinger' ? text.slice(typed) : '', stDone: scr === 'stinger' && st.stP >= 3 && done,
       hasErr: !!st.err, err: st.err, sky: st.sky !== false
     };
   }
