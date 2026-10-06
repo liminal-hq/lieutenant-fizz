@@ -1,0 +1,285 @@
+<!-- Hero banner for the Lieutenant Fizz README. -->
+<!-- -->
+<!-- (c) Copyright 2026 Liminal HQ, Scott Morris -->
+<!-- SPDX-License-Identifier: Apache-2.0 OR MIT -->
+<svg width="1200" height="320" viewBox="0 0 1200 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="hero-title hero-desc">
+  <title id="hero-title">Lieutenant Fizz</title>
+  <desc id="hero-desc">The Melting Adventures of Ben "Lieutenant Fizz" Blaze. A dark banner over Planet Zargoth: a pixel-art spaghetti with meatballs flying saucer trails marinara exhaust above twinkling crystals, a cake building with a cookie door, and a winding chocolate river.</desc>
+
+  <style>
+    .display { font-family: 'Space Grotesk', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+    .ui { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    @media (prefers-reduced-motion: reduce) {
+      .motion { display: none; }
+    }
+  </style>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#050507"/>
+      <stop offset="100%" stop-color="#15121f"/>
+    </linearGradient>
+
+    <!-- House hero-text gradient: white into Afterglow orange and rose. -->
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="20%" stop-color="#ffffff"/>
+      <stop offset="65%" stop-color="#ffaa40"/>
+      <stop offset="100%" stop-color="#f43f5e"/>
+    </linearGradient>
+
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a3157"/>
+      <stop offset="100%" stop-color="#15121f"/>
+    </linearGradient>
+
+    <!-- Chocolate river: orange ramp steps 500 to 700. -->
+    <linearGradient id="cocoa" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7d5422"/>
+      <stop offset="100%" stop-color="#372612"/>
+    </linearGradient>
+
+    <linearGradient id="crystal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#85e7f6"/>
+      <stop offset="55%" stop-color="#22d3ee" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#a78bfa" stop-opacity="0.6"/>
+    </linearGradient>
+
+    <linearGradient id="crystal-pink" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#cfbffc"/>
+      <stop offset="60%" stop-color="#a78bfa" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#f43f5e" stop-opacity="0.5"/>
+    </linearGradient>
+
+    <!-- Fades the planet surface in from the left so the title sits on the void. -->
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0.42" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.6" stop-color="#fff" stop-opacity="1"/>
+    </linearGradient>
+    <mask id="scene-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="320">
+      <rect width="1200" height="320" fill="url(#fade)"/>
+    </mask>
+
+    <clipPath id="frame">
+      <rect width="1200" height="320" rx="18"/>
+    </clipPath>
+
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="text-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="320" rx="18" fill="url(#bg)"/>
+
+  <g clip-path="url(#frame)">
+    <!-- Ambient Afterglow light -->
+    <g opacity="0.07">
+      <circle cx="220" cy="70" r="160" fill="#ffaa40"/>
+      <circle cx="960" cy="140" r="220" fill="#a78bfa"/>
+      <circle cx="620" cy="300" r="150" fill="#22d3ee"/>
+    </g>
+
+    <!-- Starfield -->
+    <g fill="#e0e0e0">
+      <rect x="560" y="40" width="2" height="2" opacity="0.6"/>
+      <rect x="640" y="96" width="2" height="2" opacity="0.4"/>
+      <rect x="700" y="28" width="2" height="2" opacity="0.7"/>
+      <rect x="822" y="62" width="2" height="2" opacity="0.5"/>
+      <rect x="1060" y="104" width="2" height="2" opacity="0.5"/>
+      <rect x="1150" y="150" width="2" height="2" opacity="0.4"/>
+      <rect x="1012" y="168" width="2" height="2" opacity="0.4"/>
+      <rect x="760" y="186" width="2" height="2" opacity="0.35"/>
+      <rect x="420" y="30" width="2" height="2" opacity="0.35"/>
+      <rect x="40" y="250" width="2" height="2" opacity="0.3"/>
+      <rect x="330" y="240" width="2" height="2" opacity="0.3"/>
+      <rect x="610" y="150" width="2" height="2" opacity="0.4"/>
+    </g>
+    <g fill="#fddc87" class="motion">
+      <rect x="884" y="22" width="3" height="3">
+        <animate attributeName="opacity" values="0.9;0.2;0.9" dur="2.6s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="1120" y="70" width="3" height="3">
+        <animate attributeName="opacity" values="0.3;0.9;0.3" dur="3.4s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="520" y="120" width="3" height="3">
+        <animate attributeName="opacity" values="0.8;0.2;0.8" dur="4.1s" repeatCount="indefinite"/>
+      </rect>
+    </g>
+
+    <!-- Planet Zargoth: surface, chocolate river, cake building, crystals -->
+    <g mask="url(#scene-mask)">
+      <path d="M480,320 L480,252 C560,240 640,236 720,240 C800,244 860,228 940,230 C1020,232 1100,240 1200,234 L1200,320 Z" fill="url(#ground)"/>
+      <path d="M480,252 C560,240 640,236 720,240 C800,244 860,228 940,230 C1020,232 1100,240 1200,234" fill="none" stroke="#6d5ba3" stroke-width="1.5" opacity="0.7"/>
+
+      <!-- Chocolate river, widening towards the viewer -->
+      <path d="M1060,236 C1030,248 980,252 960,262 C930,278 990,292 930,306 C900,314 860,316 830,320 L930,320 C980,312 1040,300 1020,282 C1000,266 1050,256 1090,238 Z" fill="url(#cocoa)"/>
+      <g fill="none" stroke="#d28c36" stroke-width="1.5" stroke-linecap="round" opacity="0.7">
+        <path d="M1050,244 C1030,252 1000,256 990,262" stroke-dasharray="6 10">
+          <animate attributeName="stroke-dashoffset" values="0;-32" dur="2.4s" repeatCount="indefinite"/>
+        </path>
+        <path d="M985,276 C995,286 990,296 960,306" stroke-dasharray="8 12">
+          <animate attributeName="stroke-dashoffset" values="0;-40" dur="2.8s" repeatCount="indefinite"/>
+        </path>
+      </g>
+
+      <!-- Frozen chocolate spikes on the bank -->
+      <g fill="#a56f2b">
+        <path d="M1040,296 L1046,280 L1052,296 Z"/>
+        <path d="M1054,296 L1059,284 L1064,296 Z" fill="#7d5422"/>
+        <path d="M880,300 L885,288 L890,300 Z" fill="#7d5422"/>
+      </g>
+
+      <!-- Cake building with a cookie door -->
+      <g>
+        <rect x="868" y="206" width="64" height="28" rx="2" fill="#7d5422"/>
+        <rect x="868" y="206" width="64" height="5" rx="2" fill="#f995a6"/>
+        <rect x="880" y="190" width="40" height="17" rx="2" fill="#a56f2b"/>
+        <rect x="880" y="190" width="40" height="4" rx="2" fill="#ffd096"/>
+        <circle cx="900" cy="186" r="4" fill="#f43f5e"/>
+        <circle cx="900" cy="226" r="8" fill="#d28c36"/>
+        <rect x="892" y="226" width="16" height="8" fill="#d28c36"/>
+        <circle cx="897" cy="224" r="1.3" fill="#583b1a"/>
+        <circle cx="903" cy="229" r="1.3" fill="#583b1a"/>
+        <circle cx="898" cy="231" r="1.1" fill="#583b1a"/>
+      </g>
+
+      <!-- Crystal clusters -->
+      <g filter="url(#glow)">
+        <g>
+          <path d="M700,250 L708,214 L716,250 Z" fill="url(#crystal)"/>
+          <path d="M714,252 L724,198 L734,252 Z" fill="url(#crystal)"/>
+          <path d="M730,252 L736,226 L742,252 Z" fill="url(#crystal-pink)"/>
+          <animate attributeName="opacity" values="1;0.7;1;0.85;1" dur="3.2s" repeatCount="indefinite"/>
+        </g>
+        <g>
+          <path d="M1110,262 L1120,220 L1130,262 Z" fill="url(#crystal-pink)"/>
+          <path d="M1126,264 L1138,206 L1150,264 Z" fill="url(#crystal)"/>
+          <path d="M1146,264 L1153,236 L1160,264 Z" fill="url(#crystal)"/>
+          <animate attributeName="opacity" values="0.8;1;0.75;1;0.8" dur="2.7s" repeatCount="indefinite"/>
+        </g>
+        <g>
+          <path d="M800,284 L806,262 L812,284 Z" fill="url(#crystal)"/>
+          <path d="M810,286 L817,254 L824,286 Z" fill="url(#crystal-pink)"/>
+          <animate attributeName="opacity" values="1;0.75;1" dur="4s" repeatCount="indefinite"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- Spaghetti with meatballs flying saucer (EGA-style pixel art, 6px per pixel) -->
+    <g>
+      <animateTransform attributeName="transform" type="translate" values="0,0;0,-6;0,0" dur="3s" repeatCount="indefinite"/>
+
+      <!-- Marinara exhaust -->
+      <g class="motion" fill="#f43f5e">
+        <rect x="796" y="150" width="8" height="8">
+          <animateMotion dur="1.8s" repeatCount="indefinite" path="M0,0 L-90,22"/>
+          <animate attributeName="opacity" values="0.9;0" dur="1.8s" repeatCount="indefinite"/>
+        </rect>
+        <rect x="796" y="150" width="6" height="6" fill="#c9354e">
+          <animateMotion dur="1.8s" begin="0.6s" repeatCount="indefinite" path="M0,0 L-110,10"/>
+          <animate attributeName="opacity" values="0.9;0" dur="1.8s" begin="0.6s" repeatCount="indefinite"/>
+        </rect>
+        <rect x="796" y="150" width="7" height="7">
+          <animateMotion dur="1.8s" begin="1.2s" repeatCount="indefinite" path="M0,0 L-80,34"/>
+          <animate attributeName="opacity" values="0.8;0" dur="1.8s" begin="1.2s" repeatCount="indefinite"/>
+        </rect>
+      </g>
+
+      <g transform="translate(780,98) scale(6)" shape-rendering="crispEdges">
+        <rect x="9" y="0" width="1" height="1" fill="#ffffff"/>
+        <rect x="10" y="0" width="1" height="1" fill="#85e7f6"/>
+        <rect x="11" y="0" width="2" height="1" fill="#22d3ee"/>
+        <rect x="8" y="1" width="2" height="1" fill="#85e7f6"/>
+        <rect x="10" y="1" width="4" height="1" fill="#22d3ee"/>
+        <rect x="7" y="2" width="1" height="1" fill="#85e7f6"/>
+        <rect x="8" y="2" width="7" height="1" fill="#22d3ee"/>
+        <rect x="3" y="3" width="2" height="1" fill="#a56f2b"/>
+        <rect x="5" y="3" width="1" height="1" fill="#7d5422"/>
+        <rect x="6" y="3" width="2" height="1" fill="#f43f5e"/>
+        <rect x="8" y="3" width="6" height="1" fill="#22d3ee"/>
+        <rect x="14" y="3" width="2" height="1" fill="#f43f5e"/>
+        <rect x="16" y="3" width="2" height="1" fill="#a56f2b"/>
+        <rect x="18" y="3" width="1" height="1" fill="#7d5422"/>
+        <rect x="1" y="4" width="1" height="1" fill="#fddc87"/>
+        <rect x="2" y="4" width="1" height="1" fill="#fbbf24"/>
+        <rect x="3" y="4" width="1" height="1" fill="#fddc87"/>
+        <rect x="4" y="4" width="2" height="1" fill="#fbbf24"/>
+        <rect x="6" y="4" width="1" height="1" fill="#fddc87"/>
+        <rect x="7" y="4" width="1" height="1" fill="#fbbf24"/>
+        <rect x="8" y="4" width="1" height="1" fill="#fddc87"/>
+        <rect x="9" y="4" width="1" height="1" fill="#fbbf24"/>
+        <rect x="10" y="4" width="2" height="1" fill="#fddc87"/>
+        <rect x="12" y="4" width="1" height="1" fill="#fbbf24"/>
+        <rect x="13" y="4" width="1" height="1" fill="#fddc87"/>
+        <rect x="14" y="4" width="1" height="1" fill="#fbbf24"/>
+        <rect x="15" y="4" width="1" height="1" fill="#fddc87"/>
+        <rect x="16" y="4" width="2" height="1" fill="#fbbf24"/>
+        <rect x="18" y="4" width="1" height="1" fill="#fddc87"/>
+        <rect x="19" y="4" width="1" height="1" fill="#fbbf24"/>
+        <rect x="20" y="4" width="1" height="1" fill="#fddc87"/>
+        <rect x="0" y="5" width="1" height="1" fill="#fddc87"/>
+        <rect x="1" y="5" width="1" height="1" fill="#fbbf24"/>
+        <rect x="2" y="5" width="1" height="1" fill="#fddc87"/>
+        <rect x="3" y="5" width="1" height="1" fill="#fbbf24"/>
+        <rect x="4" y="5" width="1" height="1" fill="#f43f5e"/>
+        <rect x="5" y="5" width="1" height="1" fill="#fddc87"/>
+        <rect x="6" y="5" width="2" height="1" fill="#fbbf24"/>
+        <rect x="8" y="5" width="1" height="1" fill="#fddc87"/>
+        <rect x="9" y="5" width="1" height="1" fill="#fbbf24"/>
+        <rect x="10" y="5" width="2" height="1" fill="#f43f5e"/>
+        <rect x="12" y="5" width="1" height="1" fill="#fbbf24"/>
+        <rect x="13" y="5" width="1" height="1" fill="#fddc87"/>
+        <rect x="14" y="5" width="2" height="1" fill="#fbbf24"/>
+        <rect x="16" y="5" width="1" height="1" fill="#fddc87"/>
+        <rect x="17" y="5" width="1" height="1" fill="#f43f5e"/>
+        <rect x="18" y="5" width="1" height="1" fill="#fbbf24"/>
+        <rect x="19" y="5" width="1" height="1" fill="#fddc87"/>
+        <rect x="20" y="5" width="1" height="1" fill="#fbbf24"/>
+        <rect x="21" y="5" width="1" height="1" fill="#fddc87"/>
+        <rect x="2" y="6" width="18" height="1" fill="#b4bfce"/>
+        <rect x="4" y="7" width="14" height="1" fill="#8d97a8"/>
+        <rect x="5" y="8" width="1" height="1" fill="#a56f2b"/>
+        <rect x="6" y="8" width="1" height="1" fill="#7d5422"/>
+        <rect x="15" y="8" width="1" height="1" fill="#a56f2b"/>
+        <rect x="16" y="8" width="1" height="1" fill="#7d5422"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Eyebrow, title, subtitle -->
+  <text x="82" y="96" class="ui" font-size="15" fill="#7c8796">The Melting Adventures of Ben Blaze</text>
+  <text x="80" y="156" class="display" font-size="64" font-weight="700" letter-spacing="-0.02em" fill="url(#brand)" filter="url(#text-glow)">Lieutenant Fizz</text>
+  <text x="83" y="192" class="ui" font-size="19" fill="#b4bfce">Episode 1 · The Cocoa Caper</text>
+  <text x="83" y="220" class="ui" font-size="15" fill="#7c8796">A Keen-style platformer on the Liminal Retro Engine</text>
+
+  <!-- Tech badge -->
+  <g transform="translate(866,30)">
+    <rect width="300" height="36" rx="10" fill="#0f0c09" fill-opacity="0.85" stroke="#333847" stroke-width="1"/>
+    <text x="16" y="23" class="mono" font-size="13" xml:space="preserve"><tspan fill="#ffaa40">rust</tspan><tspan fill="#5a6273"> → </tspan><tspan fill="#a78bfa">wasm</tspan><tspan fill="#5a6273"> + </tspan><tspan fill="#22d3ee">three.js</tspan><tspan fill="#5a6273"> + </tspan><tspan fill="#2ec66a">undertone</tspan></text>
+  </g>
+
+  <!-- Bottom info line -->
+  <text x="80" y="290" class="mono" font-size="13" fill="#7c8796">
+    <tspan fill="#9aa4b2">pogo</tspan>
+    <tspan fill="#333847"> | </tspan>
+    <tspan fill="#9aa4b2">fizz</tspan>
+    <tspan fill="#333847"> | </tspan>
+    <tspan fill="#9aa4b2">stomp</tspan>
+    <tspan fill="#333847"> | </tspan>
+    <tspan fill="#9aa4b2">gumdrop doors</tspan>
+    <tspan fill="#333847">  &#x2022;  </tspan>
+    <tspan fill="#7c8796">Liminal HQ</tspan>
+  </text>
+</svg>

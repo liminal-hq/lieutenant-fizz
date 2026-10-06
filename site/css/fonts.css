@@ -1,0 +1,3 @@
+/* Liminal HQ webfonts, as chosen by the design system (Google Fonts CDN).
+   The page falls back to system fonts if these cannot load. */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500;700&display=swap');

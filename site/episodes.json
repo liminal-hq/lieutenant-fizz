@@ -1,0 +1,14 @@
+{
+  "episodes": [
+    {
+      "id": "episode-1",
+      "number": 1,
+      "title": "The Cocoa Caper",
+      "tagline": "Billy is missing, the Zargs are stealing Earth's cocoa beans, and Ben has a pogo stick, a Fizz Blaster and a spaghetti saucer.",
+      "status": "playable",
+      "path": "./episode-1/",
+      "thumbnail": "assets/episode-1.jpg",
+      "thumbnailAlt": "The spaghetti and meatballs saucer trailing marinara exhaust through space in the Episode 1 opening cinematic"
+    }
+  ]
+}
