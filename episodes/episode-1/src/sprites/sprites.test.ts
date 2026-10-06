@@ -5,10 +5,10 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { buildAtlas } from '@lieutenant-fizz/engine';
+import { buildAtlas } from '@lieutenant-fizz/engine/atlas';
 import { describe, expect, it } from 'vitest';
 import { Sim } from '../sim/sim';
-import { defineSprites } from './index';
+import { defineSprites } from './catalog';
 
 describe('Episode 1 sprites', () => {
   const defs = defineSprites();

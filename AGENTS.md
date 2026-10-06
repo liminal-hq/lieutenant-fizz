@@ -108,7 +108,7 @@ Add labels to every PR when it is created and keep them accurate as scope change
 
 - **Primary category (at least one):** `enhancement`, `bug`, `documentation`, `testing`, `ci`, `build`, `chore`.
 - **Operational:** `infrastructure`, `internal`, `blocked`, `skip-changelog`.
-- **Scope:** `engine`, `episode-1`, `rendering`, `sim`, `rust`, `wasm`, `gameplay`, `audio`, `input`, `deploy`.
+- **Scope:** `engine`, `episode-1`, `rendering`, `sim`, `rust`, `wasm`, `gameplay`, `audio`, `input`, `deploy`, `ui`, `frontend`, `pages`, `level-design`, `story`, `art`, `design-docs`.
 - Prefer GitHub category labels (`enhancement`, `bug`) over Conventional Commit terms (`feat`, `fix`).
 
 ## Git Workflow
@@ -141,17 +141,18 @@ bun run dev          # Vite dev server (episode selected by the script or --cwd 
 bun run build        # production build (WASM + TypeScript + Vite)
 bun run test         # TypeScript tests
 bun run check:headers  # verify the licence header on every source, workflow and shell file
-cargo test -p sim    # Rust simulation tests (from the repository root)
+bun run test:rust   # Rust tests across the Cargo workspace (same as `cargo test --workspace`)
+cargo test -p lf-sim # Rust simulation core tests only
 ```
 
-Treat `package.json` scripts as the source of truth for exact commands; if a script named here does not exist yet, add it rather than inventing an ad hoc invocation. If the Rust toolchain or `wasm32-unknown-unknown` target is unavailable on the host, install it with `rustup` or use a container with the toolchain preinstalled. A single local validation script (`bun run validate`, covering format, type-check, tests, build and the Rust checks) is the preferred pre-PR gate once it exists.
+Treat `package.json` scripts as the source of truth for exact commands; if a script named here does not exist yet, add it rather than inventing an ad hoc invocation. If the Rust toolchain or `wasm32-unknown-unknown` target is unavailable on the host, install it with `rustup` or use a container with the toolchain preinstalled. `bun run validate` (format, lint, type-check, tests, the Rust checks and build) is the preferred pre-PR gate.
 
 ## Code Conventions
 
 - **TypeScript:** strict mode, no `any` without a justifying comment, prefer `const` and readonly data, explicit return types on exported functions.
 - **No barrel files.** Do not create an `index.ts` that only re-exports siblings; import from the file that defines the thing.
-- **Engine versus episode:** anything reusable across episodes (simulation rules, renderer, input, audio, lighting) belongs in `crates/sim` or `packages/engine`; episode folders hold only that episode's levels, assets, tuning, story and entry point. Episodes depend on the engine, never on each other, and the engine never imports from an episode.
-- **Simulation boundary:** deterministic game simulation (physics, collision, entity rules, timing) belongs in `crates/sim` and is exposed through a narrow `wasm-bindgen` surface. TypeScript renders, handles input and audio, and reacts to simulation state; it does not re-derive simulation rules. Keep `crates/sim` free of I/O and browser dependencies beyond the WASM binding layer so it stays testable natively with `cargo test`.
+- **Engine versus episode:** anything reusable across episodes (simulation rules, renderer, input, audio, lighting) belongs in `crates/sim` or `packages/engine`; episode folders hold only that episode's levels, assets, tuning, story and entry point. An episode that has its own game rules (levels, enemies, bosses, scene drawing) owns a Rust crate of its own, such as `episodes/episode-1/game` (`lf-episode-1`), which builds on `crates/sim` and produces that episode's WASM. Episodes depend on the engine, never on each other, and the engine never imports from an episode.
+- **Simulation boundary:** deterministic game simulation (physics, collision, entity rules, timing) belongs in `crates/sim` and is exposed to TypeScript through a raw C-ABI export surface (plain `extern "C"` functions plus shared linear memory, built with `cargo build --target wasm32-unknown-unknown`; no `wasm-bindgen`). TypeScript renders, handles input and audio, and reacts to simulation state; it does not re-derive simulation rules. Keep `crates/sim` free of I/O and browser dependencies beyond the export layer so it stays testable natively with `cargo test`.
 - **Determinism:** the simulation takes a fixed timestep and a seeded RNG; no wall-clock time or unseeded randomness inside it.
 - **Rust:** `cargo fmt` and `cargo clippy -- -D warnings` clean; no `unsafe` without a documented justification.
 - **Rendering:** dispose of Three.js geometries, materials and textures you create; avoid per-frame allocations in hot loops.
@@ -175,16 +176,17 @@ Treat `package.json` scripts as the source of truth for exact commands; if a scr
 
 Bun workspaces + Cargo workspace:
 
-- `crates/sim` — shared Rust simulation crate, compiled to WASM
+- `crates/sim` — shared Rust simulation crate (`lf-sim`), game-agnostic; linked into each episode's WASM rather than shipped alone
 - `packages/engine` — shared TypeScript engine: rendering, input, audio and the WASM bridge
 - `episodes/episode-N/` — one folder per episode (levels, assets, tuning, story, entry point); starts with `episodes/episode-1`
+- `episodes/episode-N/game` — the episode's own Rust crate (for Episode 1, `lf-episode-1`), compiled to that episode's WASM
 - `docs/` — engine spec and cross-episode design (the source of truth)
 - `design/` — original design prototypes, reference only
+- `site/` — static landing page published at the Pages root, with episodes listed in `site/episodes.json`
+- `scripts/` — shell scripts for the WASM build, the site assembly and repository checks
 - `.github/` — workflows (Pages deploy and CI), pull request and issue templates
 
 **Adding an episode:** create `episodes/episode-N/` as a Bun workspace package that depends on `packages/engine`, add its design and story docs, add it to the workspaces list, and extend the Pages build so it publishes under `/lieutenant-fizz/episode-N/` (the site base path is `/lieutenant-fizz/`). If the episode needs engine changes, make them in `crates/sim` or `packages/engine` in a separate focused commit (or PR) and update `docs/ENGINE_SPEC.md`.
-
-Update this section as the layout settles.
 
 ## Licence and Copyright
 

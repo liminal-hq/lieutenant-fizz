@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { InstanceWriter, PushOptions } from '@lieutenant-fizz/engine';
+import type { InstanceWriter, PushOptions } from '@lieutenant-fizz/engine/instances';
 
 /** Deterministic 2D hash in [0, 1) (same function as the sim's `hashf`). */
 export function hashf(x: number, y: number): number {

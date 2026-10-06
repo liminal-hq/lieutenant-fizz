@@ -63,6 +63,13 @@ const el = <K extends keyof HTMLElementTagNameMap>(
   return e;
 };
 
+/** Finds a child the markup is known to contain, failing loudly if the template drifts. */
+const need = (root: ParentNode, selector: string): HTMLElement => {
+  const found = root.querySelector<HTMLElement>(selector);
+  if (!found) throw new Error(`UI template is missing ${selector}`);
+  return found;
+};
+
 const fmt = (n: number): string => Math.round(n).toLocaleString('en-CA');
 
 /** The DOM overlay. All text is static or comes from the game's own content tables. */
@@ -193,7 +200,7 @@ export class Ui {
       ${kv('calls', 'Draw calls')}${kv('lights', 'Lights')}${kv('zoom', 'Zoom')}${kv('pad', 'Gamepad')}
       <div class="tg" id="pk-zoom"></div><div class="tg" id="pk-toggles"></div>`;
     this.panel.querySelector('#pk-close')?.addEventListener('click', () => this.togglePanel());
-    const zoom = this.panel.querySelector('#pk-zoom')!;
+    const zoom = need(this.panel, '#pk-zoom');
     for (const [label, f] of [
       ['Zoom in', 1.25],
       ['Zoom out', 0.8],
@@ -203,7 +210,7 @@ export class Ui {
       b.addEventListener('click', () => this.h.zoom(f));
       zoom.append(b);
     }
-    const tg = this.panel.querySelector('#pk-toggles')!;
+    const tg = need(this.panel, '#pk-toggles');
     const defs: [OptionKey, string][] = [
       ['lighting', 'Lighting'],
       ['normals', 'Normals'],
@@ -254,7 +261,7 @@ export class Ui {
   showError(msg: string): void {
     this.err.hidden = false;
     this.err.innerHTML = '<div><h2>Ben’s saucer hit a snag</h2><p></p></div>';
-    this.err.querySelector('p')!.textContent = msg;
+    need(this.err, 'p').textContent = msg;
   }
 
   // ----- HUD, prompt, toast, boss -----
@@ -282,9 +289,9 @@ export class Ui {
     this.prompt.hidden = !p;
     if (!p) return;
     this.prompt.innerHTML = '<div class="t"></div><div class="d"></div><div class="a"></div>';
-    this.prompt.querySelector('.t')!.textContent = p.title;
-    this.prompt.querySelector('.d')!.textContent = p.text;
-    this.prompt.querySelector('.a')!.textContent = p.action
+    need(this.prompt, '.t').textContent = p.title;
+    need(this.prompt, '.d').textContent = p.text;
+    need(this.prompt, '.a').textContent = p.action
       ? `Jump, fire or Enter to ${p.action.toLowerCase()}`
       : '';
   }
@@ -330,8 +337,8 @@ export class Ui {
   ): void {
     this.overlay.hidden = !o;
     if (!o) return;
-    this.overlay.querySelector('h2')!.textContent = o.title;
-    const p = this.overlay.querySelector('.text') as HTMLElement;
+    need(this.overlay, 'h2').textContent = o.title;
+    const p = need(this.overlay, '.text');
     p.textContent = o.text;
     p.hidden = !o.text;
     this.overlayNote.textContent = o.note ?? '';
@@ -352,7 +359,7 @@ export class Ui {
   ): void {
     this.letterbox.hidden = !o;
     if (!o) return;
-    const q = (s: string): HTMLElement => this.letterbox.querySelector(s)!;
+    const q = (s: string): HTMLElement => need(this.letterbox, s);
     q('.place').textContent = o.place;
     q('.shown').textContent = o.shown;
     q('.hidden-text').textContent = o.hidden;
@@ -364,7 +371,7 @@ export class Ui {
   showDialogue(o: { who: string; shown: string; hidden: string; done: boolean } | null): void {
     this.dialogue.hidden = !o;
     if (!o) return;
-    const q = (s: string): HTMLElement => this.dialogue.querySelector(s)!;
+    const q = (s: string): HTMLElement => need(this.dialogue, s);
     q('.who').textContent = o.who;
     q('.shown').textContent = o.shown;
     q('.hidden-text').textContent = o.hidden;

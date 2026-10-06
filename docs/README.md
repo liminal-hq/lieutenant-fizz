@@ -4,4 +4,4 @@
 - [STORY.md](STORY.md): cinematic, dialogue and ending text
 - [STATUS.md](STATUS.md): what is built, verified and still missing in the Rust/WASM port
 
-Play: `Melting Adventures.dc.html`. Engine reference scene: `Last Light.dc.html`.
+Play the original prototype: [`Melting Adventures.dc.html`](../design/Melting%20Adventures.dc.html). Engine reference scene: [`Last Light.dc.html`](../design/Last%20Light.dc.html).

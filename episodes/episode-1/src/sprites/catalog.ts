@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { SpriteDef } from '@lieutenant-fizz/engine';
+import type { SpriteDef } from '@lieutenant-fizz/engine/atlas';
 import { ben, benMap, billy, type BenPose } from './characters';
 import * as e from './enemies';
 import * as it from './items';

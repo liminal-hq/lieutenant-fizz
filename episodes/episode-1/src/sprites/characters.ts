@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { Pen, type Grid } from '@lieutenant-fizz/engine';
+import { Pen, type Grid } from '@lieutenant-fizz/engine/pen';
 
 export type BenPose = 'stand' | 'run1' | 'run2' | 'jump' | 'shoot' | 'pogo' | 'pogo2';
 

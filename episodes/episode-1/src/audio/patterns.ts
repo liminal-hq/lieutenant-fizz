@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { AudioPatterns, MusicPart, MusicTrack, SfxVoice } from '@lieutenant-fizz/engine';
+import type { AudioPatterns, MusicPart, MusicTrack, SfxVoice } from '@lieutenant-fizz/engine/audio';
 
 // Sound effects and music for Episode 1, written as Undertone-style voice data and
 // mini-notation patterns (ported from the prototype's audio.js).

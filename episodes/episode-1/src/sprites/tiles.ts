@@ -3,7 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { Pen, spriteRng, type Colour, type Grid } from '@lieutenant-fizz/engine';
+import { Pen, spriteRng, type Grid } from '@lieutenant-fizz/engine/pen';
+import type { Colour } from '@lieutenant-fizz/engine/palette';
 
 export type Biome = 'crater' | 'caves' | 'citadel';
 

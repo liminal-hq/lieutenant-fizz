@@ -3,24 +3,18 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import {
-  buildAtlas,
-  FixedStepper,
-  GameAudio,
-  InputManager,
-  InstanceWriter,
-  InstancedRenderer,
-  Input as Bits,
-  type Atlas,
-  type Command,
-} from '@lieutenant-fizz/engine';
+import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
+import { GameAudio } from '@lieutenant-fizz/engine/audio';
+import { Input as Bits, InputManager, type Command } from '@lieutenant-fizz/engine/input';
+import { FixedStepper, InstanceWriter } from '@lieutenant-fizz/engine/instances';
+import { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
 import simUrl from './wasm/sim.wasm?url';
 import { PATTERNS } from './audio/patterns';
 import { Cinematic, CINE_TALL } from './cine';
 import { applyProgress, captureProgress, readProgress, safeStorage, writeProgress } from './save';
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
-import { defineSprites } from './sprites';
+import { defineSprites } from './sprites/catalog';
 import { CINE, CINE_TRACK, CLEARED_TEXT, DIALOGUE, END, LEVELS, type Line } from './story';
 import { Ui, type HudState, type MenuItem, type OptionKey, type Prompt } from './ui';
 

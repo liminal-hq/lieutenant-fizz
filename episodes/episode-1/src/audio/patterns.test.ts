@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { evalMini, parseMini, type MiniEvent } from '@lieutenant-fizz/engine';
+import { evalMini, parseMini, type MiniEvent } from '@lieutenant-fizz/engine/audio';
 import { describe, expect, it } from 'vitest';
 import { CAPTION_SFX, MUSIC, SFX } from './patterns';
 import { CINE_TRACK, LEVELS } from '../story';

@@ -1,6 +1,6 @@
 # SPEC: Retro Rendering & Simulation Engine (v0.2)
 
-Revision of the original spec after the first two test games. Sections marked **Proven** are working in the prototype; **Planned** items are not yet built.
+Revision of the original spec after the first two test games. Sections marked **Proven** are working (in the prototype and, where noted, in the Rust/WASM port); **Planned** items are not yet built.
 
 ## 1. Overview
 A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at native display resolution. Simulation runs separately from rendering: a deterministic fixed-step core writes into a shared buffer that a thin WebGL layer draws in one instanced call. The engine is game-agnostic; see `GAME_DESIGN.md` for the first title built on it.
@@ -8,7 +8,7 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 ## 2. Architecture
 | Layer | Target | Prototype stand-in |
 |---|---|---|
-| Simulation core | Rust → WASM (`wasm32-unknown-unknown`), ECS | `melting/engine.js` (plain JS, same data layout and tick boundary) |
+| Simulation core | Rust → WASM (`wasm32-unknown-unknown`), raw C-ABI exports; **done** (`crates/sim` plus `episodes/episode-1/game`) | `melting/engine.js` (plain JS, same data layout and tick boundary) |
 | Renderer | Three.js r160+ over WebGL2 (WebGPU later) | Same: one `InstancedBufferGeometry` + `ShaderMaterial` |
 | Shell | Tauri v2 | Browser tab |
 | Audio | Undertone (`@liminal-hq/undertone`) | `melting/audio.js`: tries Undertone, falls back to a built-in mini-notation synth |
@@ -44,7 +44,8 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 - Tile types: solid, one-way platform, 45° and 22.5° slopes (two tiles per 22.5° rise), spike, chocolate (liquid hazard), keyed doors, switchable bridge.
 - 0.55-tile step-up when grounded; slope snapping keeps walking downhill glued to the surface.
 - Moving platforms carry riders by their per-tick delta.
-- **Planned:** Rust port with f64 state; sparse grid or quadtree for entity–entity tests (currently O(n) per level).
+- **Done:** the Rust port with f64 state (`crates/sim` and `episodes/episode-1/game`).
+- **Planned:** sparse grid or quadtree for entity–entity tests (currently O(n) per level).
 
 ### 4.3 Culling — Proven
 - Tiles iterate only the visible rectangle; entities, items and platforms are skipped when outside the view plus a margin.
@@ -52,7 +53,7 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 
 ### 4.4 Save state — Proven
 - Autosave (meta progress) on every overworld visit.
-- Quick-save serialises the full simulation (tile map, entities, items, shots, keys, platforms) to `localStorage`. F5 saves, F9 loads.
+- Quick-save is progress-level in the Rust port: it stores lives, score, ammo, cleared levels and map position in `localStorage`. F5 saves, F9 loads. The prototype serialised the full simulation (tile map, entities, items, shots, keys, platforms); restoring that in the port needs a serialisable world in Rust and is **Planned**.
 
 ## 5. Visuals
 ### 5.1 Lighting — Proven
@@ -90,8 +91,8 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 |---|---|---|
 | Frame rate | 60 fps, paced up to 144 Hz | Interpolated; 60 fps typical |
 | Instances | 50–100k on integrated GPU | 120k capacity; 54k stress test |
-| GC | None during play | No per-frame allocation in render; sim allocates for shots/effects (pool in Rust port) |
-| WASM size | < 2 MB | Not yet applicable |
+| GC | None during play | No per-frame allocation in render; sim allocates for shots/effects (pooling in the Rust port is Planned) |
+| WASM size | < 2 MB | About 119 kB (48 kB gzipped) for Episode 1 |
 
 ## 9. Modules (prototype)
 | File | Role |
