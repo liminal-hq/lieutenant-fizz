@@ -1,3 +1,5 @@
+// Episode 1 world state and the fixed-step level, overworld, player and enemy logic.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

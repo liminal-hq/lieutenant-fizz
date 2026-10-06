@@ -22,7 +22,8 @@
     "format": "prettier --write . && cargo fmt --all",
     "format:check": "prettier --check . && cargo fmt --all -- --check",
     "typecheck": "tsc -p packages/engine --noEmit && tsc -p episodes/episode-1 --noEmit",
-    "validate": "bun run format:check && bun run lint && bun run typecheck && bun run test && bun run lint:rust && bun run test:rust && bun run build"
+    "check:headers": "bash scripts/check-headers.sh",
+    "validate": "bun run check:headers && bun run format:check && bun run lint && bun run typecheck && bun run test && bun run lint:rust && bun run test:rust && bun run build"
   },
   "devDependencies": {
     "@eslint/js": "^10",

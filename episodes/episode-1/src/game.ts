@@ -1,3 +1,5 @@
+// Game shell that wires the sim, renderer, input, audio, UI and screen flow together.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

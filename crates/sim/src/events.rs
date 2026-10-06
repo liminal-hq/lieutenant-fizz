@@ -1,3 +1,5 @@
+// Flat event queue the simulation fills and the shell reads from linear memory.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

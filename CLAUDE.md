@@ -25,6 +25,7 @@ bun install          # install dependencies
 bun run dev          # Vite dev server
 bun run build        # production build
 bun run test         # TypeScript tests
+bun run check:headers  # verify the licence header on every source, workflow and shell file
 cargo test -p sim    # Rust simulation tests
 ```
 

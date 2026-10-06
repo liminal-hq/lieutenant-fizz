@@ -1,4 +1,9 @@
-// Renders episode cards from episodes.json. All URLs are relative so the site works under any subpath.
+// Renders the landing page episode cards from episodes.json.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+// All URLs are relative so the site works under any subpath.
 (function () {
   var grid = document.getElementById('grid');
   if (!grid || !window.fetch) return;

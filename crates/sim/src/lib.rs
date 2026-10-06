@@ -1,12 +1,14 @@
+// Crate root for the game-agnostic engine core: module wiring and shared constants.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 //! Lieutenant Fizz engine core (game-agnostic).
 //!
 //! A deterministic fixed-step simulation toolkit: a tile map with per-tile properties
 //! (solid, one-way, switchable, 45 and 22.5 degree slopes), an AABB body that resolves X then
 //! Y against it, moving platforms, a front-to-back instance buffer shared with the renderer,
 //! a nearest-first light selector and a flat event queue.
-//!
-//! (c) Copyright 2026 Liminal HQ, Scott Morris
-//! SPDX-License-Identifier: Apache-2.0 OR MIT
 
 pub mod body;
 pub mod events;

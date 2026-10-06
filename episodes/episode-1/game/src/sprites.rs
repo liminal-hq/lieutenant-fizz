@@ -1,3 +1,5 @@
+// Table of sprite ids the Episode 1 simulation draws.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

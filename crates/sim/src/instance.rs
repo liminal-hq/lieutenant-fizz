@@ -1,3 +1,5 @@
+// Instance buffer of sprite draw records shared with the renderer.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

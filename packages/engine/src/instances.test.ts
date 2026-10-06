@@ -1,3 +1,5 @@
+// Tests for the instance writer, fixed-step loop, input mapping and mini-notation.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

@@ -1,3 +1,5 @@
+// Episode 1 sound effects and music as Undertone voice data and mini-notation.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

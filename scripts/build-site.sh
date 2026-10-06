@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Assembles the GitHub Pages site into dist-site/: a landing page at the root and each
-# episode under its own subpath (https://liminalhq.ca/lieutenant-fizz/<episode>/).
+# Assembles the GitHub Pages site into dist-site/.
+#
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
+
+# A landing page sits at the root and each episode under its own subpath
+# (https://liminalhq.ca/lieutenant-fizz/<episode>/).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
