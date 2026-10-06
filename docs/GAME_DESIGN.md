@@ -1,5 +1,5 @@
-# The Melting Adventures of Ben "Lieutenant Fizz" Blaze
-Episode 1: The Cocoa Caper. A Keen-style platformer and the first full test title for the engine (`ENGINE_SPEC.md`).
+# Lieutenant Fizz — Episode 1: The Cocoa Caper
+The first episode of *Lieutenant Fizz* (arc one, working title *Invasion of the Zargs*). A Keen-style platformer and the first full test title for the engine (`ENGINE_SPEC.md`).
 
 ## Pitch
 Billy, 14, has vanished. His cousin Ben, 10, finds a secret lab under their treehouse, a prototype spaghetti with meatballs flying saucer, and Billy's map with an X marked *Planet Zargoth*. He straps on his bicycle helmet and follows him.

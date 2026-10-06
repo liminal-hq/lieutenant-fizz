@@ -3,6 +3,7 @@
     {
       "id": "episode-1",
       "number": 1,
+      "series": "Lieutenant Fizz",
       "title": "The Cocoa Caper",
       "tagline": "Billy is missing, the Zargs are stealing Earth's cocoa beans, and Ben has a pogo stick, a Fizz Blaster and a spaghetti saucer.",
       "status": "playable",

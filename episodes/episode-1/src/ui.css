@@ -224,21 +224,13 @@ body {
 }
 #title .hero {
   font-weight: 700;
-  font-size: clamp(44px, min(12vh, 17vw), 112px);
+  font-size: clamp(44px, min(12vh, 10vw), 112px);
   line-height: 0.92;
   letter-spacing: -0.03em;
   color: #fff;
   text-shadow:
     0 5px 0 #f43f5e,
     0 10px 0 #000;
-}
-#title .alias {
-  font-weight: 700;
-  font-size: clamp(22px, 4.4vh, 40px);
-  letter-spacing: -0.02em;
-  color: var(--lf-accent);
-  text-shadow: 0 3px 0 #000;
-  padding-top: clamp(6px, 1.2vh, 12px);
 }
 #title .episode {
   margin: 0;

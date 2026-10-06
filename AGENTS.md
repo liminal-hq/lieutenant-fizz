@@ -23,7 +23,7 @@
 
 ## Project Status
 
-Lieutenant Fizz (`liminal-hq/lieutenant-fizz`) is a monorepo for every episode of the retro platformer series, starting with Episode 1 (*The Melting Adventures of Ben "Lieutenant Fizz" Blaze*). All episodes share the Liminal Retro Engine at the repository root: a Rust simulation crate compiled to WebAssembly (`crates/sim`) and a TypeScript engine package (`packages/engine`) using Three.js, bundled with Vite and deployed to GitHub Pages under the `/lieutenant-fizz/` base path. Each episode lives in `episodes/episode-N/`. The repository is at an early stage, and the design documents are the ground truth for implementation. Update this file as parts move from plan to real implementation.
+Lieutenant Fizz (`liminal-hq/lieutenant-fizz`) is a monorepo for every episode of the retro platformer series, starting with Episode 1 (*Lieutenant Fizz — Episode 1: The Cocoa Caper*, arc one working title *Invasion of the Zargs*). All episodes share the Liminal Retro Engine at the repository root: a Rust simulation crate compiled to WebAssembly (`crates/sim`) and a TypeScript engine package (`packages/engine`) using Three.js, bundled with Vite and deployed to GitHub Pages under the `/lieutenant-fizz/` base path. Each episode lives in `episodes/episode-N/`. The repository is at an early stage, and the design documents are the ground truth for implementation. Update this file as parts move from plan to real implementation.
 
 ## Source of Truth
 

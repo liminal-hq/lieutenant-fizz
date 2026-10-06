@@ -10,6 +10,7 @@ Add one object to `episodes.json`. Cards are sorted by `number`, and the "more e
 {
   "id": "episode-2",
   "number": 2,
+  "series": "Lieutenant Fizz",
   "title": "Title",
   "tagline": "One or two sentences.",
   "status": "coming-soon",
@@ -19,6 +20,7 @@ Add one object to `episodes.json`. Cards are sorted by `number`, and the "more e
 }
 ```
 
+- `series` is optional and prefixes the card's episode label ("Lieutenant Fizz — Episode 2").
 - `status` is `playable` (links to `path`) or `coming-soon` (a non-clickable card).
 - `thumbnail` is optional; put a ~800px wide JPEG in `assets/`.
 - When an episode ships, flip `status` to `playable`.
