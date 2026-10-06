@@ -20,7 +20,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 3. **Crater Fields:** tutorial biome with slopes, pogo, fizz, chocolate pools, red gumdrop door.
 4. **Crystal Caves:** darker tunnels lit by crystals and Ben's lantern. Hover platforms, a bridge switch, bats, blue gumdrop door.
 5. **Mildred's Citadel:** boulder ramp, sentries, phantoms, then the boss arena, the terminal and Billy's cage.
-6. Ending (4 panels), then a score card.
+6. Ending (4 panels), then the credits (skippable), then a score card. Episode 1 has no post-credits stinger; it belongs to Episode 3.
 
 ## Mechanics
 - **Run & jump:** variable-height jump (release early to cut it short), 7 tiles/s top speed, momentum on the ground and in the air.

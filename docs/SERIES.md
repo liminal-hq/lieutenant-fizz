@@ -39,7 +39,7 @@ Mildred and Mortimer join forces against Billy and Ben, two cousin-pairs and fou
 Every episode ends with a credits sequence after the ending panels and before the score card, and it can be skipped.
 - Credit the people involved in making the game, the Liminal HQ studio, the engine (Liminal Retro Engine) and the audio library (Undertone).
 - Episode 3's credits are followed by the Mortimer stinger.
-- Engine requirement: a skippable, text-driven scene using the existing cinematic panel system. To be specified in `ENGINE_SPEC.md` when built.
+- Engine requirement: a skippable, text-driven scene. Specified in `ENGINE_SPEC.md` section 5.3 and built; each episode supplies its credits as data and may supply a stinger.
 
 ## Conventions
 - Each episode is a complete story with its own ending. Cliffhangers are hooks, not unresolved plots.
