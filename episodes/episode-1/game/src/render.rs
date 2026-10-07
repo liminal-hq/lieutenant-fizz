@@ -164,7 +164,7 @@ pub fn theme(t: Theme) -> LevelTheme {
                     tint: 0xffffff,
                     nt: 0x3a3a68,
                     f: 0.08,
-                    base: 11.0,
+                    base: 6.5,
                     spread: 10.0,
                     speed: 0.25,
                     alpha: 0.9,
@@ -695,12 +695,9 @@ impl World {
                     }
                     DOOR_R => Spr::DoorRed as u16,
                     DOOR_B => Spr::DoorBlue as u16,
-                    GATE => {
-                        op.alpha = if self.map.switch(GATE_CHANNEL) {
-                            1.0
-                        } else {
-                            0.18
-                        };
+                    GATE | GATE_2 | GATE_3 => {
+                        let on = self.map.switch(self.map.props.channel(tt));
+                        op.alpha = if on { 1.0 } else { 0.18 };
                         Spr::Gate as u16
                     }
                     BRIDGE => {
