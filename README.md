@@ -91,6 +91,7 @@ bun run build       # production build: WASM, TypeScript and Vite
 bun run build:site  # landing page plus episodes assembled in dist-site/, as Pages publishes them
 bun run test        # TypeScript tests
 bun run test:rust   # Rust tests across the Cargo workspace
+bun run test:e2e    # Browser layout checks of the overlay (Playwright; not part of validate)
 bun run typecheck   # TypeScript type-check
 bun run lint        # lint
 bun run format      # format TypeScript, markdown and Rust

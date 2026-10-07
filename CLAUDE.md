@@ -28,6 +28,7 @@ bun run build        # production build
 bun run test         # TypeScript tests
 bun run check:headers  # verify the licence header on every source, workflow and shell file
 bun run test:rust   # Rust tests (cargo test --workspace)
+bun run test:e2e    # Playwright layout checks (separate from validate; needs a Chromium)
 bun run validate    # full pre-PR gate
 ```
 
