@@ -31,6 +31,7 @@
   --lf-pad-x: 49px;
   --lf-pad-y: 37px;
   --lf-cols: 40;
+  --lf-thumb: 1;
   --lf-line: 13px;
 }
 
@@ -246,6 +247,15 @@ body {
   }
 }
 
+#overlay[data-side] {
+  background: linear-gradient(
+    90deg,
+    rgba(5, 5, 7, 0.92) 0%,
+    rgba(5, 5, 7, 0.78) 60%,
+    rgba(5, 5, 7, 0.5) 100%
+  );
+}
+
 #title .head {
   display: flex;
   flex-direction: column;
@@ -397,6 +407,83 @@ body {
   outline-offset: 2px;
 }
 
+/* Save slot rows: thumbnail, two lines of text and a pip per level. */
+.menu {
+  max-width: 100%;
+}
+.menu button.slot {
+  height: auto;
+  min-height: calc(var(--n) * 10px);
+  max-width: 100%;
+  text-shadow: none;
+}
+.menu button.slot .plate {
+  min-width: 0;
+  gap: calc(var(--n) * 4px);
+  padding: calc(var(--n) * 2px) calc(var(--n) * 4px) calc(var(--n) * 2px) calc(var(--n) * 2px);
+  background: rgba(5, 5, 7, 0.6);
+}
+.menu .thumb {
+  flex: none;
+  width: calc(60px * var(--lf-thumb));
+  height: calc(44px * var(--lf-thumb));
+  box-sizing: border-box;
+  image-rendering: pixelated;
+  box-shadow: 0 0 0 2px var(--lf-dim);
+}
+.menu .thumb.none {
+  box-shadow: none;
+  border: 2px dashed var(--lf-dim);
+}
+.menu button.sel .thumb {
+  box-shadow: 0 0 0 2px var(--lf-ink);
+}
+.menu button.sel .thumb.none {
+  box-shadow: none;
+  border-color: var(--lf-ink);
+}
+.menu .txt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  text-align: left;
+}
+.menu .l1 {
+  --n: var(--lf-n-small);
+}
+.menu .l2 {
+  --n: var(--lf-n-hint);
+  color: var(--lf-muted);
+  overflow-wrap: anywhere;
+}
+.menu button.sel .l2 {
+  color: var(--lf-ink);
+}
+.menu .pips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  max-width: calc(var(--n) * 2px * 8 + 8px);
+  margin-left: calc(var(--n) * 2px);
+}
+.menu .pips-row[hidden] {
+  display: none;
+}
+.menu .pips-row i {
+  width: calc(var(--n) * 2px);
+  height: calc(var(--n) * 3px);
+  background: rgba(255, 255, 255, 0.18);
+}
+.menu .pips-row i.on {
+  background: var(--lf-accent);
+}
+.menu button.sel .pips-row i {
+  background: rgba(26, 16, 0, 0.25);
+}
+.menu button.sel .pips-row i.on {
+  background: var(--lf-ink);
+}
+
 @keyframes lf-plate {
   0% {
     background: #ffaa40;
@@ -505,6 +592,10 @@ body {
 }
 #controls th {
   color: var(--lf-dim);
+}
+#controls th.on,
+#controls td.on {
+  color: var(--lf-accent);
 }
 #controls .note {
   --n: var(--lf-n-hint);

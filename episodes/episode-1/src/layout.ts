@@ -26,6 +26,7 @@ export function layoutVars(width: number, height: number, large: boolean): Recor
     '--lf-pad-x': `${padX}px`,
     '--lf-pad-y': `${verticalPadding(height)}px`,
     '--lf-keys-bottom': `${Math.min(36, Math.max(16, Math.round(height * 0.04)))}px`,
+    '--lf-thumb': String(steps.item >= 4 ? 2 : 1),
     '--lf-cols': String(wrapColumns(width - 2 * padX, steps.small)),
   };
 }
