@@ -23,12 +23,14 @@
     "lint:rust": "cargo clippy --workspace --all-targets -- -D warnings",
     "format": "prettier --write . && cargo fmt --all",
     "format:check": "prettier --check . && cargo fmt --all -- --check",
-    "typecheck": "tsc -p packages/engine --noEmit && tsc -p episodes/episode-1 --noEmit && tsc -p scripts --noEmit",
+    "typecheck": "tsc -p packages/engine --noEmit && tsc -p episodes/episode-1 --noEmit && tsc -p scripts --noEmit && tsc -p e2e --noEmit",
+    "test:e2e": "playwright test",
     "check:headers": "bash scripts/check-headers.sh",
     "validate": "bun run check:headers && bun run check:font && bun run format:check && bun run lint && bun run typecheck && bun run test && bun run lint:rust && bun run test:rust && bun run build"
   },
   "devDependencies": {
     "@eslint/js": "^10",
+    "@playwright/test": "^1.64.0",
     "@types/node": "^22",
     "eslint": "^10",
     "opentype.js": "^2.0.0",
