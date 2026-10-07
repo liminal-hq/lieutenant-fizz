@@ -21,6 +21,10 @@ use lf_sim::{
 
 pub const MAX_INSTANCES: usize = 120_000;
 
+/// How far a press must have dropped from its raised position before it can crush Ben: its
+/// bottom is then within about a tile of the floor.
+pub const PRESS_DANGER_DROP: f64 = 1.6;
+
 /// How opaque a room's front wall is while Ben stands inside it.
 pub const ROOM_SEEN_ALPHA: f64 = 0.22;
 
@@ -1029,6 +1033,8 @@ impl World {
                     }
                     continue;
                 }
+                // A raised press is harmless; only one that has come down towards the floor crushes.
+                Kind::Press if en.b.y >= en.ay - PRESS_DANGER_DROP => continue,
                 _ => {}
             }
             if d.prop {

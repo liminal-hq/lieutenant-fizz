@@ -1292,6 +1292,36 @@ fn a_press_kills_while_down_and_is_harmless_while_raised() {
 }
 
 #[test]
+fn jumping_into_a_raised_press_is_harmless_and_it_kills_as_it_comes_down_on_him() {
+    let mut w = foundry();
+    let i = w
+        .ents
+        .iter()
+        .position(|e| e.kind == Kind::Press && (e.b.x - 23.5).abs() < 0.01)
+        .expect("press at 24");
+    // Hold the press raised (phase 0 keeps it up) and put Ben inside its box, as if he had jumped
+    // up into it from the floor below: nothing happens.
+    w.ents[i].t = 0.0;
+    w.p.b.x = 23.8;
+    w.p.b.y = 7.5;
+    w.p.b.vy = 0.0;
+    w.p.inv = 0.0;
+    w.step(0);
+    assert!(w.ents[i].b.y > 6.5, "still raised, y = {}", w.ents[i].b.y);
+    assert_eq!(
+        w.p.dead, 0.0,
+        "a raised press does not hurt even when he is inside it"
+    );
+    // As soon as it has come down far enough, the same overlap is fatal.
+    w.ents[i].t = std::f64::consts::PI / 1.6;
+    w.p.b.y = 4.0;
+    // Entities move after Ben in a tick, so the press is down by the second one.
+    w.step(0);
+    w.step(0);
+    assert!(w.p.dead > 0.0, "the lowered press crushes him");
+}
+
+#[test]
 fn presses_are_staggered_deterministically() {
     let a = foundry();
     let b = foundry();

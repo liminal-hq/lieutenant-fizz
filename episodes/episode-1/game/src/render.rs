@@ -930,7 +930,7 @@ impl World {
                 }
                 Kind::Press => {
                     op = PushOpts::default();
-                    if e.b.y < e.ay - 1.5 {
+                    if e.b.y < e.ay - crate::world::PRESS_DANGER_DROP {
                         Spr::Press1
                     } else {
                         Spr::Press0

@@ -1372,11 +1372,11 @@ fn cocoa_foundry() -> LevelData {
     b.fill(208, 208, 4, 5, EXIT);
     // A press every so often, each on a floor it can crush; the floor height is read from the map.
     for x in [
-        24, 40, 50, 58, 68, 78, 90, 108, 118, 128, 140, 152, 164, 176, 186, 196,
+        24, 40, 50, 58, 68, 78, 100, 108, 118, 128, 140, 152, 164, 176, 186, 196,
     ] {
         let floor = (0..b.h)
             .rev()
-            .find(|&y| b.map.solid(x, y, false, 0.0))
+            .find(|&y| b.map.solid(x, y, false, 0.0) || b.map.get(x, y) == PLAT)
             .map_or(4, |y| y + 1);
         b.ent_at(Kind::Press, f64::from(x), f64::from(floor) + 3.0);
     }
@@ -1801,6 +1801,31 @@ mod tests {
         assert_eq!(count(&l.map, EXIT), 2);
         assert!(l.arena.is_none() && l.plats.len() == 1);
         assert_eq!(l.theme, Theme::OpenSky);
+    }
+
+    #[test]
+    fn no_press_sweeps_through_a_ledge_or_solid_ground() {
+        for def in LEVELS.iter() {
+            let l = (def.build)();
+            for s in l.spawns.iter().filter(|s| s.kind == Kind::Press) {
+                // A press is 2 wide (body x = spawn x - 0.5), raised with its bottom at `s.y`, and it
+                // drops 3 tiles; its box sweeps from the floor up to its raised top.
+                let (x0, x1) = ((s.x - 0.5).floor() as i32, (s.x + 1.4).floor() as i32);
+                let (y0, y1) = ((s.y - 3.0).floor() as i32, (s.y + 1.4).floor() as i32);
+                for x in x0..=x1 {
+                    // The floor itself is the row below the press's lowest point.
+                    for y in y0..=y1 {
+                        let t = l.map.get(x, y);
+                        assert!(
+                            !l.map.is_solid_tile(t) && t != PLAT,
+                            "level {}: press at {} sweeps through tile {t} at {x},{y}",
+                            def.id,
+                            s.x
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]
