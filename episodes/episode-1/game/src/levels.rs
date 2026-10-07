@@ -917,8 +917,8 @@ fn mirror_shafts() -> LevelData {
         (48, 10, 20),
         (51, 6, 14),
         (54, 6, 14),
-        (57, 12, 16),
-        (60, 20, 26),
+        (57, 12, 17),
+        (60, 19, 25),
         (63, 24, 30),
         (66, 18, 28),
         (69, 14, 24),
@@ -946,8 +946,8 @@ fn mirror_shafts() -> LevelData {
         .ent_dir(Kind::CrystalSwitch, 28.0, 26.0, 1.0);
     // Puzzle 2: two mirrors in a chain, right and then up.
     b.ent_dir(Kind::Mirror, 10.0, 58.0, 1.0)
-        .ent_dir(Kind::Mirror, 18.0, 58.0, 1.0)
-        .ent_dir(Kind::CrystalSwitch, 18.0, 62.0, 2.0);
+        .ent_dir(Kind::Mirror, 17.0, 58.0, 1.0)
+        .ent_dir(Kind::CrystalSwitch, 17.0, 62.0, 2.0);
     // Puzzle 3: the swivel mirror sends the first bubble right into the wall and swings round to
     // send the second left, to the switch.
     b.ent_dir(Kind::Swivel, 18.0, 82.0, 1.0)
