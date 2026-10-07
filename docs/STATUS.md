@@ -22,7 +22,7 @@ bun run validate       # format, lint, typecheck, vitest, clippy, cargo test, bu
 The WASM is built with plain `cargo build --target wasm32-unknown-unknown` and raw exports, so no wasm-bindgen CLI is needed. It is about 119 kB (48 kB gzipped), well inside the 2 MB target.
 
 ## Done and verified
-Verified by `cargo test` (52 tests), `vitest` (87 tests, including the real WASM) and a real browser pass (Chromium via Playwright: no console errors, only the headless GPU perf notices).
+Verified by `cargo test`, `vitest` (including the real WASM) and a real browser pass (Chromium via Playwright: no console errors, only the headless GPU perf notices).
 
 - **Simulation (Rust, f64, 60 Hz fixed step):** run, variable-height jump, pogo (high bounce with jump held, about 6.6 tiles), fizz shots (aim up, aim down in the air, ammo), stomps, lives and extra lives every 100 points, snacks, keys and matching doors, switchable bridge, hover platforms that carry riders, spikes and chocolate, exit and level completion, deterministic given the same inputs.
 - **Enemies:** all eleven kinds ported (gloop, hopper, marshmallow, beetle, bat, spore pod, phantom, roller, sentry, drone, Cocoa Colossus with hover, globs, slam, charge and open-dome phases), plus the switch, terminal and caged Billy.

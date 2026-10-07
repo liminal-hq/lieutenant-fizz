@@ -69,6 +69,11 @@ pub const SECRET_FOUND: u32 = 1 << 15;
 pub const PROGRESS_BITS: u32 = ((1 << levels::LEVEL_COUNT) - 1) | SECRET_FOUND;
 
 impl Game {
+    /// Takes a saved cleared-levels mask, dropping every bit that means nothing.
+    pub fn load_done(&mut self, mask: u32) {
+        self.done = mask & PROGRESS_BITS;
+    }
+
     pub fn is_done(&self, level: u8) -> bool {
         self.done & levels::level_bit(level) != 0
     }
@@ -375,6 +380,7 @@ impl World {
     }
 
     pub fn enter_level(&mut self, id: u8) {
+        let id = if id < levels::LEVEL_COUNT { id } else { 0 };
         if self.mode == Mode::Map {
             if let Some(pt) = self
                 .points
@@ -391,6 +397,8 @@ impl World {
     }
 
     pub fn load_level(&mut self, id: u8) {
+        // An id the table does not know builds the first level, so it is also that level's id.
+        let id = if id < levels::LEVEL_COUNT { id } else { 0 };
         let d = levels::build_level(id);
         self.level_id = id;
         self.theme = d.theme;
@@ -1157,7 +1165,7 @@ impl World {
         let (mut sx, mut sy) = (p.b.x + p.b.w / 2.0 + p.face * 0.6, p.b.y + 0.85);
         if self.held & UP != 0 && !p.climb {
             (vx, vy, sx, sy) = (0.0, 16.0, p.b.x + p.b.w / 2.0, p.b.y + 1.5);
-        } else if self.held & DOWN != 0 && !p.b.on_ground {
+        } else if self.held & DOWN != 0 && !p.b.on_ground && !p.climb {
             (vx, vy, sx, sy) = (0.0, -16.0, p.b.x + p.b.w / 2.0, p.b.y);
         }
         self.shots.push(Shot {
