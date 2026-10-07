@@ -19,7 +19,7 @@ macro_rules! sprites {
 
 sprites! {
     BenStand = "ben_stand", BenRun1 = "ben_run1", BenRun2 = "ben_run2", BenJump = "ben_jump",
-    BenShoot = "ben_shoot", BenPogo = "ben_pogo", BenPogo2 = "ben_pogo2",
+    BenShoot = "ben_shoot", BenLookUp = "ben_lookUp", BenLookDown = "ben_lookDown", BenAimUp = "ben_aimUp", BenAimDown = "ben_aimDown", BenPogo = "ben_pogo", BenPogo2 = "ben_pogo2",
     BenClimb1 = "ben_climb1", BenClimb2 = "ben_climb2",
     BenMap0 = "benMap0", BenMap1 = "benMap1", BillyCage = "billyCage", Billy = "billy", BillyAlt = "billyAlt",
     Gloop0 = "gloop0", Gloop1 = "gloop1", Hopper0 = "hopper0", Hopper1 = "hopper1",

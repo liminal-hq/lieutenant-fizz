@@ -26,6 +26,10 @@ export function defineSprites(): SpriteDef[] {
     'pogo2',
     'climb1',
     'climb2',
+    'lookUp',
+    'lookDown',
+    'aimUp',
+    'aimDown',
   ] as BenPose[]) {
     add(`ben_${pose}`, ben(pose));
   }

@@ -131,6 +131,8 @@ pub struct Player {
     pub cut: bool,
     pub anim: f64,
     pub shoot_t: f64,
+    /// Where the last shot went: 1 up, -1 down, 0 sideways.
+    pub aim: i8,
     /// 0 while alive, otherwise seconds since death.
     pub dead: f64,
     pub dead_sent: bool,
@@ -163,6 +165,7 @@ impl Player {
             cut: false,
             anim: 0.0,
             shoot_t: 0.0,
+            aim: 0,
             dead: 0.0,
             dead_sent: false,
             inv: 0.0,
@@ -1454,11 +1457,15 @@ impl World {
         let p = &self.p;
         let (mut vx, mut vy) = (p.face * 16.0, 0.0);
         let (mut sx, mut sy) = (p.b.x + p.b.w / 2.0 + p.face * 0.6, p.b.y + 0.85);
+        let mut aim = 0;
         if self.held & UP != 0 {
             (vx, vy, sx, sy) = (0.0, 16.0, p.b.x + p.b.w / 2.0, p.b.y + 1.5);
+            aim = 1;
         } else if self.held & DOWN != 0 && (!p.b.on_ground || p.climb) {
             (vx, vy, sx, sy) = (0.0, -16.0, p.b.x + p.b.w / 2.0, p.b.y);
+            aim = -1;
         }
+        self.p.aim = aim;
         self.shots.push(Shot {
             x: sx,
             y: sy,
