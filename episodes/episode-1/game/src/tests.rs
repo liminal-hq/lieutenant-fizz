@@ -606,9 +606,23 @@ fn a_locked_level_point_prompts_as_locked_and_names_what_is_missing() {
 #[test]
 fn loading_progress_drops_bits_that_mean_nothing() {
     let mut w = World::new();
-    w.game.done = (1 << 20) | crate::world::SECRET_FOUND | 0b101;
-    w.game.done &= crate::world::PROGRESS_BITS;
+    w.game
+        .load_done((1 << 20) | crate::world::SECRET_FOUND | 0b101);
     assert_eq!(w.game.done, crate::world::SECRET_FOUND | 0b101);
+    // Garbage that is not even a whole number of bits cannot get through either.
+    w.game.load_done(u32::MAX);
+    assert_eq!(w.game.done, crate::world::PROGRESS_BITS);
+}
+
+#[test]
+fn an_unknown_level_id_builds_the_first_level_and_cannot_set_stray_bits() {
+    let mut w = World::new();
+    w.game_new();
+    w.enter_level(200);
+    assert_eq!(w.level_id, 0, "falls back to the first level, id and all");
+    w.won = false;
+    w.game.set_done(w.level_id);
+    assert_eq!(w.game.done, 1, "only the first level's bit");
 }
 
 fn lookout() -> World {
@@ -711,15 +725,22 @@ fn climbing_ignores_the_pogo_toggle() {
 fn the_tower_camera_keeps_ben_in_view_through_a_long_fall() {
     let mut w = lookout();
     w.half_h = 6.5;
-    w.p.b.x = 5.0;
+    // Knock a one-tile shaft through every floor and the roof at x = 5 so Ben falls the whole
+    // tower, about 72 tiles, instead of landing on the roof he starts on.
+    for y in 3..75 {
+        w.map.set(5, y, 0);
+    }
+    w.p.b.x = 5.2;
     w.p.b.y = 75.0;
     w.cam_y = 78.0;
     w.pcy = 78.0;
-    for t in 0..220 {
+    let mut ticks = 0;
+    for t in 0..600 {
         w.step(0);
         if w.p.b.on_ground {
             break;
         }
+        ticks = t;
         assert!(
             (w.p.b.y - w.cam_y).abs() < w.half_h - 1.0,
             "tick {t}: Ben at {:.1}, camera at {:.1}",
@@ -727,7 +748,12 @@ fn the_tower_camera_keeps_ben_in_view_through_a_long_fall() {
             w.cam_y
         );
     }
+    assert!(
+        ticks > 150,
+        "a long fall, not a one-tick landing: {ticks} ticks"
+    );
     assert!(w.p.b.on_ground, "landed");
+    assert!(w.p.b.y < 4.0, "all the way down, y = {}", w.p.b.y);
 }
 
 #[test]
@@ -867,4 +893,22 @@ fn flats_are_drawn_after_ben_so_they_cover_him_until_they_fade() {
     let n = w.inst.len();
     let faded = (0..n).filter(|&i| data[i * STRIDE + 16] == 0.31 && alpha(i) < 0.5);
     assert!(faded.count() > 0, "flats in Ben's room are translucent");
+}
+
+#[test]
+fn fizz_fires_sideways_on_a_ladder_with_down_held_too() {
+    let mut w = lookout();
+    w.p.b.x = 17.8;
+    w.p.b.y = 3.0;
+    run(&mut w, 40, UP);
+    assert!(w.p.climb);
+    w.shots.clear();
+    w.step(DOWN | FIRE);
+    let s = w.shots.last().expect("a shot");
+    assert!(
+        s.vx.abs() > 10.0 && s.vy == 0.0,
+        "sideways, got {} {}",
+        s.vx,
+        s.vy
+    );
 }
