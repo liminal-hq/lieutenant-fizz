@@ -435,10 +435,9 @@ impl Builder {
         self
     }
 
-    /// A ladder from standing row `y0` up to the ledge at row `y1`: rungs below, a standable top.
     /// A hidden room reached by a vine: a vine climbs from `foot` to a rock shelf at row `shelf`
     /// (Ben stands on it at that height), a two-tile pocket runs away from the vine in direction
-    /// `dir`, and a cracked wall two tiles tall closes it off from a room `depth` tiles deep and
+    /// `dir`, and a cracked wall as tall as the room closes it off from a room `depth` tiles deep and
     /// `h` tall. Carved out of whatever solid rock is already there, so the caller fills the mass
     /// first and leaves at least a row of rock above `shelf + h`.
     fn vine_nook(
@@ -455,12 +454,13 @@ impl Builder {
         self.fill(x0, x1, shelf - 2, shelf - 1, FILL);
         self.fill(x0, x1, shelf, shelf + h - 1, EMPTY);
         let cx = vx + dir * 3;
-        self.fill(cx, cx, shelf, shelf + 1, CRACKED);
+        self.fill(cx, cx, shelf, shelf + h - 1, CRACKED);
         self.fill(vx, vx, foot, shelf + 1, VINE)
     }
 
     /// A snack cache on a small ledge `rise` tiles above the ground at `x0`: a pogo bounce with
-    /// Jump held reaches about six tiles, an ordinary jump only about three and a half.
+    /// Jump held lifts Ben about six and a half tiles (enough to knock the cookie loose), an ordinary
+    /// jump only about three and a half.
     fn pogo_cache(&mut self, x0: i32, x1: i32, rise: i32) -> &mut Self {
         let stand = self.ground_at(f64::from(x0)) as i32 + rise;
         self.plat(x0, x1, stand - 1)
@@ -469,6 +469,7 @@ impl Builder {
             .item(Cheezie, x1, stand)
     }
 
+    /// A ladder from standing row `y0` up to the ledge at row `y1`: rungs below, a standable top.
     fn ladder(&mut self, x: i32, y0: i32, y1: i32) -> &mut Self {
         self.fill(x, x, y0, y1 - 1, RUNG);
         self.map.set(x, y1, RUNG_TOP);
@@ -1014,8 +1015,12 @@ fn fudge_bog() -> LevelData {
     b.item(Cookie, 41, 12)
         .item(Cookie, 43, 12)
         .item(Soda, 40, 12)
+<<<<<<< HEAD
         .ent_dir(Kind::Glyph, 34.0, f64::from(foot), 3.0)
         .ent_dir(Kind::Cameo, 44.0, 12.0, 1.0);
+=======
+        .ent_dir(Kind::Glyph, 38.0, f64::from(foot), 3.0);
+>>>>>>> feat/climbing-cave-level
     b.out(FUDGE_BOG, (3.0, 4.0), None)
 }
 
@@ -1655,7 +1660,7 @@ fn caves() -> LevelData {
     // The room's far wall: the ceiling steps down here, so close the gap above the old step.
     b.fill(77, 77, 13, 14, FILL);
     b.row(Cookie, 79, 2, 14, 3)
-        .row(Choc, 81, 3, 14, 1)
+        .row(Choc, 80, 2, 14, 1)
         .item(Soda, 84, 14)
         .ent_dir(Kind::Glyph, 91.0, f64::from(foot), 2.0)
         .ent_dir(Kind::Cameo, 82.0, 13.0, 0.0);
@@ -1678,11 +1683,9 @@ fn whisper_hollow() -> LevelData {
     // The starting hall, with a fudge pool in the middle that only the rope crosses.
     b.fill(1, 29, 3, 11, EMPTY)
         .fill(8, 22, 1, 2, CHOC)
-        .fill(8, 22, 1, 2, CHOC)
         .fill(7, 7, 3, 8, VINE)
         .fill(23, 23, 3, 8, VINE)
         .fill(7, 23, 8, 8, VINE);
-    // Pillar stubs at both ends of the pool keep the ends of the rope above the floor.
     // The chimney: a door at the bottom, then three tiles between two walls all the way up.
     b.fill(30, 30, 3, 5, EMPTY)
         .fill(31, 33, 3, 25, EMPTY)
