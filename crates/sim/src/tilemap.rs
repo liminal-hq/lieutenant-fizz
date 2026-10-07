@@ -16,6 +16,10 @@ pub const CONVEY_R: u8 = 16;
 /// Tile a body can climb. Combine with [`ONEWAY`] for a ladder top that can be stood on.
 pub const LADDER: u8 = 32;
 
+/// A surface a body can free-climb in any direction (a crystal vine on a cave wall). Unlike a
+/// ladder it does not snap the body to a column.
+pub const CLIMB: u8 = 64;
+
 /// Speed (tiles per second) at which a conveyor tile carries a body standing on it.
 pub const CONVEYOR_SPEED: f64 = 3.0;
 
@@ -168,6 +172,11 @@ impl TileMap {
         self.props.flags(self.get(cx, cy)) & LADDER != 0
     }
 
+    /// Whether the tile at (x, y) is a free-climb surface such as a vine.
+    pub fn has_climb(&self, cx: i32, cy: i32) -> bool {
+        self.props.flags(self.get(cx, cy)) & CLIMB != 0
+    }
+
     pub fn is_slope(&self, t: u8) -> bool {
         self.props.slope(t) != 0
     }
@@ -221,6 +230,7 @@ mod tests {
         p.set_flags(7, SOLID | CONVEY_L);
         p.set_flags(8, LADDER);
         p.set_flags(9, LADDER | ONEWAY);
+        p.set_flags(10, CLIMB);
         p
     }
 
@@ -281,6 +291,16 @@ mod tests {
         assert_eq!(m.drift_at(2, 0), 0.0);
         assert_eq!(m.drift_at(-5, 9), 0.0, "outside the map");
         assert!(m.solid(0, 0, false, 0.0), "a conveyor is also solid");
+    }
+
+    #[test]
+    fn vines_are_climbable_but_not_solid_and_not_ladders() {
+        let mut m = TileMap::new(4, 4, props());
+        m.set(1, 1, 10);
+        assert!(m.has_climb(1, 1));
+        assert!(!m.has_ladder(1, 1));
+        assert!(!m.has_climb(0, 0));
+        assert!(!m.solid(1, 1, true, 5.0), "a vine never blocks");
     }
 
     #[test]

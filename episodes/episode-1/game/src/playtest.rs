@@ -443,7 +443,13 @@ mod tests {
     fn bonbon_playhouse_can_be_finished_via_both_keys() {
         use crate::levels::BONBON_PLAYHOUSE;
         let route = [wp(50.5, 10.0), wp(108.5, 14.0), exit_of(BONBON_PLAYHOUSE)];
-        let r = play_level(BONBON_PLAYHOUSE, &route, &Options::default());
+        // Pulling up onto ledges and kicking off walls reach heights the distance heuristic likes
+        // better than the walk to the door, so keep a wider beam than the default.
+        let o = Options {
+            beam: 400,
+            ..Options::default()
+        };
+        let r = play_level(BONBON_PLAYHOUSE, &route, &o);
         assert!(
             r.finished,
             "bot stalled at wp {} after {} ticks; best states {:?}",

@@ -574,5 +574,7 @@ export const MUSIC: Record<string, MusicTrack> = {
 };
 
 CAPTION_SFX['jump'] = 'jump';
+CAPTION_SFX['kick'] = 'jump';
+CAPTION_SFX['heave'] = 'bonk';
 
 export const PATTERNS: AudioPatterns = { sfx: SFX, music: MUSIC, captionSfx: CAPTION_SFX };

@@ -722,6 +722,7 @@ impl World {
                     }
                     RUNG => Spr::Ladder as u16,
                     RUNG_TOP => Spr::LadderTop as u16,
+                    VINE => Spr::Vine as u16,
                     SPIKE => Spr::SpikeTile as u16,
                     CONV_L => {
                         if fr != 0 {

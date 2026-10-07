@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use lf_sim::tilemap::{
-    TileProps, CONVEY_L, CONVEY_R, LADDER as LADDER_FLAG, ONEWAY, SLOPE_L22A, SLOPE_L22B,
+    TileProps, CLIMB, CONVEY_L, CONVEY_R, LADDER as LADDER_FLAG, ONEWAY, SLOPE_L22A, SLOPE_L22B,
     SLOPE_L45, SLOPE_R22A, SLOPE_R22B, SLOPE_R45, SOLID, SWITCHED,
 };
 
@@ -50,6 +50,8 @@ pub const GATE_2: u8 = 33;
 pub const GATE_3: u8 = 34;
 /// Painted flat that hides a room (see `levels::Room`); fades out while Ben is inside it.
 pub const FACADE: u8 = 31;
+/// A crystal vine on a cave wall: not solid, and Ben can free-climb it in any direction.
+pub const VINE: u8 = 36;
 /// Decorative interior wall behind a building's rooms, stairs and ladders (not solid).
 pub const WALLBG: u8 = 30;
 /// Climbable rung (not solid).
@@ -75,6 +77,7 @@ pub fn props() -> TileProps {
         p.set_flags(t, SWITCHED);
         p.set_channel(t, ch);
     }
+    p.set_flags(VINE, CLIMB);
     p.set_flags(RUNG, LADDER_FLAG);
     p.set_flags(RUNG_TOP, LADDER_FLAG | ONEWAY);
     p.set_flags(BRIDGE, SWITCHED);
