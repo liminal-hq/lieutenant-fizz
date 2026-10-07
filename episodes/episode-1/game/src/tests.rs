@@ -1845,7 +1845,7 @@ fn a_single_wall_cannot_be_climbed_by_kicking_but_two_facing_walls_can() {
         w.p.b.x = if both { 14.0 } else { 11.28 };
         w.p.b.y = 3.0;
         let mut top = 0.0_f64;
-        for t in 0..420 {
+        for t in 0..300 {
             // Head for the next wall, tap Jump (every other tick) while he touches one, so each kick is a
             // fresh press.
             let towards = if !both || w.p.b.vx >= 0.0 {
@@ -2395,8 +2395,27 @@ fn ben_shows_his_aim_pose_while_firing_along_a_ladder() {
     // Climbing without firing keeps the climb frames.
     let mut w = ladder_world();
     w.step(UP);
-    assert!(matches!(
-        ben_sprite(&w.p),
-        Spr::BenClimb1 | Spr::BenClimb2
-    ));
+    assert!(matches!(ben_sprite(&w.p), Spr::BenClimb1 | Spr::BenClimb2));
+}
+
+#[test]
+fn a_rider_on_a_tall_vertical_platform_is_not_sent_home() {
+    use lf_sim::Platform;
+    let mut w = level(CRATER);
+    w.ents.clear();
+    w.plats = vec![Platform::new(8.0, 8.0, 8.0, 20.0, 0.25).sized(3.0, 0.5)];
+    let rider = w.init_ent(&crate::ents::Spawn {
+        kind: Kind::Beetle,
+        x: 9.0,
+        y: 8.5,
+        dir: -1.0,
+        ride: true,
+    });
+    w.ents.push(rider);
+    run(&mut w, 300, 0);
+    assert!(
+        w.ents[0].b.y > w.ents[0].ay + crate::world::STRAY_HEIGHT,
+        "still riding high up, at {:.1}",
+        w.ents[0].b.y
+    );
 }

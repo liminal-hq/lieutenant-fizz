@@ -1546,11 +1546,14 @@ impl World {
                 }
             }
             self.ai(&mut e, dt);
-            if matches!(
-                e.kind,
-                Kind::Gloop | Kind::Hopper | Kind::Beetle | Kind::Marsh
-            ) {
+            if !e.ride
+                && matches!(
+                    e.kind,
+                    Kind::Gloop | Kind::Hopper | Kind::Beetle | Kind::Marsh
+                )
+            {
                 // An enemy that has ended up on another floor for a few seconds goes back home.
+                // Riders leave their floor on purpose, so they are exempt.
                 if (e.b.y - e.ay).abs() > STRAY_HEIGHT {
                     e.stray += dt;
                 } else {
