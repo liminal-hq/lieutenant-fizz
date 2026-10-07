@@ -213,9 +213,7 @@ pub extern "C" fn state_get(i: u32) -> f64 {
         SCORE => f64::from(s.game.score),
         NEXT_LIFE => f64::from(s.game.next_life),
         AMMO => f64::from(s.game.ammo),
-        DONE_MASK => s.game.done.iter().enumerate().fold(0.0, |a, (k, d)| {
-            a + if *d { f64::from(1u32 << k) } else { 0.0 }
-        }),
+        DONE_MASK => f64::from(s.game.done),
         MAP_X => s.game.map_pos.map_or(0.0, |p| p.0),
         MAP_Y => s.game.map_pos.map_or(0.0, |p| p.1),
         HAS_MAP_POS => b(s.game.map_pos.is_some()),
@@ -247,11 +245,7 @@ pub extern "C" fn state_set(i: u32, v: f64) {
         SCORE => s.game.score = v as i32,
         NEXT_LIFE => s.game.next_life = v as i32,
         AMMO => s.game.ammo = v as i32,
-        DONE_MASK => {
-            for k in 0..3 {
-                s.game.done[k] = (v as u32) & (1 << k) != 0;
-            }
-        }
+        DONE_MASK => s.game.done = (v as u32) & world::PROGRESS_BITS,
         MAP_X => {
             let y = s.game.map_pos.map_or(0.0, |p| p.1);
             s.game.map_pos = Some((v, y));

@@ -9,6 +9,7 @@
 
 use crate::ents::*;
 use crate::levels::{self, Arena, MapPoint, PtKind};
+use crate::render::Theme;
 use crate::sprites::Spr;
 use crate::text::{ev, Cap, Toast};
 use crate::tiles::*;
@@ -49,18 +50,33 @@ pub struct Game {
     pub score: i32,
     pub next_life: i32,
     pub ammo: i32,
-    pub done: [bool; 3],
+    /// Cleared levels (`levels::level_bit`) plus flags such as `SECRET_FOUND`.
+    pub done: u32,
     pub map_pos: Option<(f64, f64)>,
 }
 
+/// Bit in `Game::done` set once the secret teleporter has been discovered.
+pub const SECRET_FOUND: u32 = 1 << 15;
+
+/// Every bit of `Game::done` that carries meaning; anything else is dropped when loading a save.
+pub const PROGRESS_BITS: u32 = ((1 << levels::LEVEL_COUNT) - 1) | SECRET_FOUND;
+
 impl Game {
+    pub fn is_done(&self, level: u8) -> bool {
+        self.done & levels::level_bit(level) != 0
+    }
+
+    pub fn set_done(&mut self, level: u8) {
+        self.done |= levels::level_bit(level);
+    }
+
     pub fn fresh() -> Self {
         Game {
             lives: 3,
             score: 0,
             next_life: 100,
             ammo: 5,
-            done: [false; 3],
+            done: 0,
             map_pos: None,
         }
     }
@@ -140,7 +156,7 @@ pub struct World {
 
     // Scene (level or overworld)
     pub level_id: u8,
-    pub biome: u8,
+    pub theme: Theme,
     pub map: TileMap,
     pub ents: Vec<Ent>,
     pub items: Vec<Item>,
@@ -232,7 +248,7 @@ impl World {
             pcy: 0.0,
             shake: 0.0,
             level_id: 0,
-            biome: 0,
+            theme: Theme::Crater,
             map: TileMap::new(1, 1, props()),
             ents: vec![],
             items: vec![],
@@ -306,7 +322,7 @@ impl World {
     pub fn load_level(&mut self, id: u8) {
         let d = levels::build_level(id);
         self.level_id = id;
-        self.biome = id;
+        self.theme = d.theme;
         self.map = d.map;
         self.t = 0.0;
         self.shots.clear();
@@ -330,7 +346,7 @@ impl World {
         self.pcx = self.cam_x;
         self.pcy = self.cam_y;
         let (w, h) = (self.map.w, self.map.h);
-        let bio = crate::render::biome(self.biome);
+        let bio = crate::render::theme(self.theme);
         self.static_lights.clear();
         for y in 0..h {
             for x in 0..w {
@@ -556,7 +572,7 @@ impl World {
                     let pt = self.points[i];
                     match pt.kind {
                         PtKind::Level => {
-                            let done = self.game.done[pt.level as usize];
+                            let done = self.game.is_done(pt.level);
                             self.events.emit(
                                 ev::MAP_PROMPT,
                                 1.0,
@@ -565,11 +581,11 @@ impl World {
                             );
                         }
                         PtKind::Tele => {
-                            let done = self.game.done[pt.req as usize];
+                            let done = self.met(pt.req);
                             self.events.emit(
                                 ev::MAP_PROMPT,
                                 2.0,
-                                f64::from(pt.req),
+                                f64::from(self.first_unmet(pt.req)),
                                 f64::from(u8::from(done)),
                             );
                         }
@@ -585,11 +601,26 @@ impl World {
         }
     }
 
+    /// True when every level in the `req` mask has been cleared (0 means no requirement).
+    pub fn met(&self, req: u16) -> bool {
+        self.game.done & u32::from(req) == u32::from(req)
+    }
+
+    /// Lowest-numbered level in `req` that is not yet cleared, or 0 when all are.
+    fn first_unmet(&self, req: u16) -> u8 {
+        let missing = u32::from(req) & !self.game.done;
+        if missing == 0 {
+            0
+        } else {
+            missing.trailing_zeros() as u8
+        }
+    }
+
     fn activate(&mut self, i: usize) {
         let pt = self.points[i];
         match pt.kind {
-            PtKind::Level => self.enter_level(pt.level),
-            PtKind::Tele if self.game.done[pt.req as usize] => {
+            PtKind::Level if self.met(pt.req) => self.enter_level(pt.level),
+            PtKind::Tele if self.met(pt.req) => {
                 let to = self.points[pt.to];
                 let (px, py) = (self.p.b.x, self.p.b.y);
                 self.cap(px, py + 1.0, Cap::Vworp);
@@ -737,7 +768,7 @@ impl World {
                 }
                 if t == EXIT && !self.won {
                     self.won = true;
-                    self.game.done[self.level_id as usize] = true;
+                    self.game.set_done(self.level_id);
                     self.cap(px, py + 2.0, Cap::TaDa);
                     self.hud();
                     self.events

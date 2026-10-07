@@ -6,6 +6,8 @@
 //! Level and overworld builders: a port of the prototype's `levels.js`.
 
 use crate::ents::{Item, ItemKind, Kind, Spawn};
+use crate::render::Theme;
+use crate::sprites::Spr;
 use crate::tiles::*;
 use lf_sim::{Platform, TileMap};
 
@@ -13,6 +15,54 @@ pub const CRATER: u8 = 0;
 pub const CAVES: u8 = 1;
 pub const CITADEL: u8 = 2;
 
+/// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
+pub const LEVEL_COUNT: u8 = 3;
+
+/// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
+pub const AREA_CRATER_FIELDS: u8 = 0;
+pub const AREA_MARSHMALLOW_MEADOWS: u8 = 1;
+pub const AREA_ROCK_CANDY_REACH: u8 = 2;
+pub const AREA_FROSTING_FRONTIER: u8 = 3;
+
+/// Static description of one level: how it is built and where it sits on the overworld.
+pub struct LevelDef {
+    pub id: u8,
+    pub build: fn() -> LevelData,
+    pub theme: Theme,
+    pub area: u8,
+    /// Overworld marker sprite.
+    pub icon: Spr,
+}
+
+/// Every level, indexed by id.
+pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
+    LevelDef {
+        id: CRATER,
+        build: crater,
+        theme: Theme::Crater,
+        area: AREA_CRATER_FIELDS,
+        icon: Spr::OwCrater,
+    },
+    LevelDef {
+        id: CAVES,
+        build: caves,
+        theme: Theme::Caves,
+        area: AREA_ROCK_CANDY_REACH,
+        icon: Spr::OwCave,
+    },
+    LevelDef {
+        id: CITADEL,
+        build: citadel,
+        theme: Theme::Citadel,
+        area: AREA_FROSTING_FRONTIER,
+        icon: Spr::OwCastle,
+    },
+];
+
+/// Bit in `Game::done` for a cleared level.
+pub const fn level_bit(id: u8) -> u32 {
+    1 << id
+}
 #[derive(Clone, Copy, Debug)]
 pub struct Arena {
     pub x0: f64,
@@ -22,6 +72,8 @@ pub struct Arena {
 
 pub struct LevelData {
     pub id: u8,
+    pub theme: Theme,
+    pub area: u8,
     pub map: TileMap,
     pub spawns: Vec<Spawn>,
     pub items: Vec<Item>,
@@ -204,8 +256,11 @@ impl Builder {
     }
 
     fn out(self, id: u8, start: (f64, f64), arena: Option<Arena>) -> LevelData {
+        let def = &LEVELS[id as usize];
         LevelData {
             id,
+            theme: def.theme,
+            area: def.area,
             map: self.map,
             spawns: self.spawns,
             items: self.items,
@@ -420,12 +475,10 @@ fn citadel() -> LevelData {
     )
 }
 
+/// Builds a level by id; an unknown id falls back to the first level.
 pub fn build_level(id: u8) -> LevelData {
-    match id {
-        CAVES => caves(),
-        CITADEL => citadel(),
-        _ => crater(),
-    }
+    let def = LEVELS.get(usize::from(id)).unwrap_or(&LEVELS[0]);
+    (def.build)()
 }
 
 // ---------- Overworld ----------
@@ -446,8 +499,8 @@ pub struct MapPoint {
     pub y: f64,
     /// Index of the paired teleporter.
     pub to: usize,
-    /// Level that must be cleared to power this teleporter.
-    pub req: u8,
+    /// Levels (as `level_bit`s) that must all be cleared before this point works; 0 means none.
+    pub req: u16,
     pub big: bool,
 }
 
@@ -477,6 +530,7 @@ pub fn build_overworld() -> MapData {
         map.set(x, 22, RIVER);
         map.set(x, 23, RIVER);
     }
+    let req = |id: u8| level_bit(id) as u16;
     let pt = |kind, level, x, y, to, req, big| MapPoint {
         kind,
         level,
@@ -489,11 +543,11 @@ pub fn build_overworld() -> MapData {
     let points = vec![
         pt(PtKind::Saucer, 0, 8, 10, 0, 0, false),
         pt(PtKind::Level, CRATER, 12, 30, 0, 0, false),
-        pt(PtKind::Tele, 0, 20, 38, 3, CRATER, false),
-        pt(PtKind::Tele, 0, 29, 38, 2, CRATER, false),
+        pt(PtKind::Tele, 0, 20, 38, 3, req(CRATER), false),
+        pt(PtKind::Tele, 0, 29, 38, 2, req(CRATER), false),
         pt(PtKind::Level, CAVES, 46, 35, 0, 0, false),
-        pt(PtKind::Tele, 0, 53, 27, 6, CAVES, false),
-        pt(PtKind::Tele, 0, 53, 18, 5, CAVES, false),
+        pt(PtKind::Tele, 0, 53, 27, 6, req(CAVES), false),
+        pt(PtKind::Tele, 0, 53, 18, 5, req(CAVES), false),
         pt(PtKind::Level, CITADEL, 41, 8, 0, 0, true),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
@@ -592,6 +646,34 @@ mod tests {
         assert_eq!(count(&build_level(CAVES).map, EXIT), 2);
         assert!(build_level(CITADEL).arena.is_some());
         assert_eq!(build_level(CAVES).plats.len(), 3);
+    }
+
+    #[test]
+    fn the_level_table_is_indexed_by_id_and_every_builder_agrees() {
+        assert_eq!(LEVELS.len(), usize::from(LEVEL_COUNT));
+        for (i, def) in LEVELS.iter().enumerate() {
+            assert_eq!(usize::from(def.id), i, "table slot {i} holds id {}", def.id);
+            let l = (def.build)();
+            assert_eq!(l.id, def.id);
+            assert_eq!(l.theme, def.theme);
+            assert_eq!(l.area, def.area);
+        }
+        assert_eq!(
+            build_level(200).id,
+            0,
+            "unknown ids fall back to the first level"
+        );
+    }
+
+    #[test]
+    fn progress_bits_cover_every_level() {
+        for id in 0..LEVEL_COUNT {
+            assert_ne!(crate::world::PROGRESS_BITS & level_bit(id), 0);
+        }
+        assert_eq!(
+            crate::world::PROGRESS_BITS & crate::world::SECRET_FOUND,
+            crate::world::SECRET_FOUND
+        );
     }
 
     #[test]

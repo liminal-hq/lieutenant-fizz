@@ -21,13 +21,20 @@ describe('save', () => {
     expect(parsed).toEqual({ v: 1, at: 123, progress });
   });
 
+  it('accepts the whole level range and the secret flag, and loads three-level saves', () => {
+    const wide = { ...progress, doneMask: 0x8000 | 0x3fff };
+    expect(parseSave(serialise(wide, 5))?.progress.doneMask).toBe(wide.doneMask);
+    expect(parseSave(serialise({ ...progress, doneMask: 7 }, 5))?.progress.doneMask).toBe(7);
+  });
+
   it('rejects malformed, tampered or out-of-range saves', () => {
     expect(parseSave(null)).toBeNull();
     expect(parseSave('not json')).toBeNull();
     expect(parseSave('{"v":2,"at":1,"progress":{}}')).toBeNull();
     expect(parseSave(serialise({ ...progress, lives: -1 }))).toBeNull();
     expect(parseSave(serialise({ ...progress, lives: 1e9 }))).toBeNull();
-    expect(parseSave(serialise({ ...progress, doneMask: 99 }))).toBeNull();
+    expect(parseSave(serialise({ ...progress, doneMask: 0x10000 }))).toBeNull();
+    expect(parseSave(serialise({ ...progress, doneMask: -1 }))).toBeNull();
     expect(
       parseSave(JSON.stringify({ v: 1, at: 1, progress: { ...progress, score: 'x' } })),
     ).toBeNull();

@@ -250,7 +250,7 @@ fn reaching_the_exit_completes_the_level_once() {
     w.step(0);
     w.step(0);
     assert_eq!(events_of(&w, ev::LEVEL_COMPLETE).len(), 1);
-    assert!(w.game.done[0]);
+    assert!(w.game.is_done(CRATER));
 }
 
 #[test]
@@ -437,7 +437,7 @@ fn teleporters_need_a_cleared_level() {
         (w.p.b.x - (pt.x + 0.2)).abs() < 0.2,
         "locked teleporter does not move Ben"
     );
-    w.game.done[CRATER as usize] = true;
+    w.game.set_done(CRATER);
     w.near = None;
     w.step(0);
     w.step(JUMP | FIRE);
@@ -530,4 +530,49 @@ fn attract_mode_scrolls_without_ben() {
     assert!((w.cam_x - x0).abs() > 0.01);
     w.render(0.5, 2);
     assert!(w.p.hidden);
+}
+
+#[test]
+fn requirement_masks_need_every_listed_level() {
+    let mut w = level(CRATER);
+    let both = (crate::levels::level_bit(CRATER) | crate::levels::level_bit(CAVES)) as u16;
+    assert!(w.met(0), "no requirement is always met");
+    assert!(!w.met(both));
+    w.game.set_done(CAVES);
+    assert!(!w.met(both), "one of two is not enough");
+    w.game.set_done(CRATER);
+    assert!(w.met(both));
+}
+
+#[test]
+fn a_locked_level_point_refuses_entry_until_its_requirement_is_met() {
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    let i = w
+        .points
+        .iter()
+        .position(|p| p.kind == crate::levels::PtKind::Level && p.level == CAVES)
+        .unwrap();
+    w.points[i].req = crate::levels::level_bit(CRATER) as u16;
+    let pt = w.points[i];
+    w.p.b.x = pt.x + 0.2;
+    w.p.b.y = pt.y + 0.2;
+    w.step(0);
+    w.step(JUMP);
+    assert_eq!(w.mode, Mode::Map, "locked level did not start");
+    w.game.set_done(CRATER);
+    w.near = None;
+    w.step(0);
+    w.step(JUMP);
+    assert_eq!(w.mode, Mode::Level);
+    assert_eq!(w.level_id, CAVES);
+}
+
+#[test]
+fn loading_progress_drops_bits_that_mean_nothing() {
+    let mut w = World::new();
+    w.game.done = (1 << 20) | crate::world::SECRET_FOUND | 0b101;
+    w.game.done &= crate::world::PROGRESS_BITS;
+    assert_eq!(w.game.done, crate::world::SECRET_FOUND | 0b101);
 }

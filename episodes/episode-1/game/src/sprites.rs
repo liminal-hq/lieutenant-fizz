@@ -50,8 +50,8 @@ sprites! {
     Saucer = "saucer", HillTop = "hillTop", MtnTop = "mtnTop", Fill = "fill", Star = "star",
 }
 
-/// Per-biome tile sprites are laid out in this order, 11 per biome, starting at `CraterTop`.
-pub const BIOME_STRIDE: u16 = 11;
+/// Per-tileset tile sprites are laid out in this order, 11 per tileset, starting at `CraterTop`.
+pub const TILESET_STRIDE: u16 = 11;
 pub const BT_TOP: u16 = 0;
 pub const BT_FILL: u16 = 1;
 pub const BT_SLOPE0: u16 = 2; // R45, L45, R22A, R22B, L22A, L22B
@@ -59,8 +59,8 @@ pub const BT_PLAT: u16 = 8;
 pub const BT_BLOCK: u16 = 9;
 pub const BT_BACK: u16 = 10;
 
-pub fn biome_tile(biome: u8, k: u16) -> u16 {
-    Spr::CraterTop as u16 + u16::from(biome) * BIOME_STRIDE + k
+pub fn tileset_tile(tileset: u8, k: u16) -> u16 {
+    Spr::CraterTop as u16 + u16::from(tileset) * TILESET_STRIDE + k
 }
 
 #[cfg(test)]
@@ -68,12 +68,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn biome_layout_matches_names() {
-        assert_eq!(SPRITE_NAMES[biome_tile(0, BT_TOP) as usize], "craterTop");
-        assert_eq!(SPRITE_NAMES[biome_tile(1, BT_BLOCK) as usize], "cavesBlock");
-        assert_eq!(SPRITE_NAMES[biome_tile(2, BT_BACK) as usize], "citadelBack");
+    fn tileset_layout_matches_names() {
+        assert_eq!(SPRITE_NAMES[tileset_tile(0, BT_TOP) as usize], "craterTop");
         assert_eq!(
-            SPRITE_NAMES[biome_tile(2, BT_SLOPE0 + 5) as usize],
+            SPRITE_NAMES[tileset_tile(1, BT_BLOCK) as usize],
+            "cavesBlock"
+        );
+        assert_eq!(
+            SPRITE_NAMES[tileset_tile(2, BT_BACK) as usize],
+            "citadelBack"
+        );
+        assert_eq!(
+            SPRITE_NAMES[tileset_tile(2, BT_SLOPE0 + 5) as usize],
             "citadelL22B"
         );
         assert_eq!(SPRITE_NAMES[Spr::BenStand as usize], "ben_stand");

@@ -54,7 +54,27 @@ pub enum Layer {
     },
 }
 
-pub struct Biome {
+/// How a level plays and looks; chosen per level, independent of the overworld area it sits in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Theme {
+    Crater,
+    Caves,
+    Citadel,
+}
+
+impl Theme {
+    /// Index of this theme's tile set for `tileset_tile`.
+    pub const fn tiles(self) -> u8 {
+        match self {
+            Theme::Crater => 0,
+            Theme::Caves => 1,
+            Theme::Citadel => 2,
+        }
+    }
+}
+
+/// Lighting, parallax and sprites for one level theme.
+pub struct LevelTheme {
     pub clear: u32,
     pub amb: [f32; 3],
     pub night: [f32; 3],
@@ -65,16 +85,16 @@ pub struct Biome {
     pub lc: [f64; 3],
 }
 
-pub fn biome(id: u8) -> Biome {
-    match id {
-        1 => Biome {
+pub fn theme(t: Theme) -> LevelTheme {
+    match t {
+        Theme::Caves => LevelTheme {
             clear: 0x000000,
             amb: [0.85, 0.85, 0.95],
             night: [0.14, 0.12, 0.24],
             lm: 0.6,
             lantern: true,
             layers: vec![Layer::Wall {
-                s: biome_tile(1, BT_BACK),
+                s: tileset_tile(Theme::Caves.tiles(), BT_BACK),
                 tint: 0x50506a,
                 nt: 0x9a9a9a,
                 f: 0.5,
@@ -82,14 +102,14 @@ pub fn biome(id: u8) -> Biome {
             crys: Spr::CrysC,
             lc: [0.35, 1.1, 1.2],
         },
-        2 => Biome {
+        Theme::Citadel => LevelTheme {
             clear: 0x000000,
             amb: [0.95, 0.9, 0.95],
             night: [0.3, 0.24, 0.32],
             lm: 0.6,
             lantern: true,
             layers: vec![Layer::Wall {
-                s: biome_tile(2, BT_BACK),
+                s: tileset_tile(Theme::Citadel.tiles(), BT_BACK),
                 tint: 0x8a4a70,
                 nt: 0x8a6a7a,
                 f: 0.6,
@@ -97,7 +117,7 @@ pub fn biome(id: u8) -> Biome {
             crys: Spr::CrysM,
             lc: [1.2, 0.5, 1.1],
         },
-        _ => Biome {
+        Theme::Crater => LevelTheme {
             clear: 0x5555ff,
             amb: [1.0, 1.0, 1.0],
             night: [0.32, 0.28, 0.42],
@@ -166,7 +186,7 @@ impl World {
         self.out[out::CAM_X] = cx as f32;
         self.out[out::CAM_Y] = cy as f32;
         let bio =
-            (self.mode == Mode::Level || self.mode == Mode::Attract).then(|| biome(self.biome));
+            (self.mode == Mode::Level || self.mode == Mode::Attract).then(|| theme(self.theme));
         let sky_glow = night
             && bio
                 .as_ref()
@@ -276,7 +296,7 @@ impl World {
             match pt.kind {
                 crate::levels::PtKind::Saucer => self.push(x, y, Spr::Saucer, &em),
                 crate::levels::PtKind::Tele => {
-                    let on = self.game.done[pt.req as usize];
+                    let on = self.met(pt.req);
                     let s = if on && ((self.t * 4.0).floor() as i64) & 1 != 0 {
                         Spr::OwTele1
                     } else {
@@ -293,14 +313,10 @@ impl World {
                     );
                 }
                 crate::levels::PtKind::Level => {
-                    let s = match pt.level {
-                        0 => Spr::OwCrater,
-                        1 => Spr::OwCave,
-                        _ => Spr::OwCastle,
-                    };
+                    let s = crate::levels::LEVELS[usize::from(pt.level)].icon;
                     let (bx, by) = if pt.big { (x + 0.5, y + 0.5) } else { (x, y) };
                     self.push(bx, by, s, &em);
-                    if self.game.done[pt.level as usize] {
+                    if self.game.is_done(pt.level) {
                         self.push(
                             x + 0.6,
                             y + 0.9,
@@ -330,7 +346,7 @@ impl World {
         v: [f64; 4],
         fl: u32,
         cam: (f64, f64),
-        bio: &Biome,
+        bio: &LevelTheme,
     ) -> usize {
         let cul = fl & flags::CULLING != 0;
         let night = fl & flags::NIGHT != 0;
@@ -440,7 +456,7 @@ impl World {
             } else {
                 (-60, 64)
             };
-            let sp = biome_tile(self.biome, BT_BACK);
+            let sp = tileset_tile(self.theme.tiles(), BT_BACK);
             for x in bx0..=bx1 {
                 for y in by0..=by1 {
                     self.push(
@@ -467,7 +483,7 @@ impl World {
         } else {
             (0, w - 1, 0, h - 1)
         };
-        let b = self.biome;
+        let b = self.theme.tiles();
         for y in ty0..=ty1 {
             for x in tx0..=tx1 {
                 let tt = self.map.get(x, y);
@@ -488,13 +504,13 @@ impl World {
                             || up == DOOR_R
                             || up == DOOR_B
                         {
-                            biome_tile(b, BT_FILL)
+                            tileset_tile(b, BT_FILL)
                         } else {
-                            biome_tile(b, BT_TOP)
+                            tileset_tile(b, BT_TOP)
                         }
                     }
-                    BLOCK => biome_tile(b, BT_BLOCK),
-                    PLAT => biome_tile(b, BT_PLAT),
+                    BLOCK => tileset_tile(b, BT_BLOCK),
+                    PLAT => tileset_tile(b, BT_PLAT),
                     SPIKE => Spr::SpikeTile as u16,
                     CHOC => {
                         op.emissive = true;
@@ -523,7 +539,7 @@ impl World {
                             Spr::ExitTop as u16
                         }
                     }
-                    R45..=L22B => biome_tile(b, BT_SLOPE0 + u16::from(tt - R45)),
+                    R45..=L22B => tileset_tile(b, BT_SLOPE0 + u16::from(tt - R45)),
                     _ => continue,
                 };
                 self.push(f64::from(x) + 0.5, f64::from(y) + 0.5, sp, &op);
@@ -792,7 +808,7 @@ impl World {
         world
     }
 
-    fn update_lights(&mut self, bio: &Biome, night: bool, cam: (f64, f64)) -> usize {
+    fn update_lights(&mut self, bio: &LevelTheme, night: bool, cam: (f64, f64)) -> usize {
         let t = self.t;
         if bio.lantern && !self.p.hidden {
             let p = &self.p.b;
