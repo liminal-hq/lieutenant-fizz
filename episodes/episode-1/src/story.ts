@@ -200,4 +200,11 @@ export const LEVELS: LevelInfo[] = [
     cleared:
       'Ben leaves the island with a few more lives than he came with, and a very full pocket.',
   },
+  {
+    name: 'Whisper Hollow',
+    blurb: 'A cave for climbers: a vine rope over fudge, a chimney to kick up, and hanging vines.',
+    track: 'caves',
+    cleared:
+      'Ben’s arms ache and his boots are scuffed. The old paintings never mentioned the climb, but somebody grew those vines on purpose.',
+  },
 ];
