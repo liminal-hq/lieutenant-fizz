@@ -164,9 +164,10 @@ pub extern "C" fn game_new() {
     w().game_new();
 }
 
+/// Loads one level of the attract loop; `still` holds the camera for reduced motion.
 #[no_mangle]
-pub extern "C" fn load_attract() {
-    w().load_attract();
+pub extern "C" fn load_attract(idx: u32, still: u32) {
+    w().load_attract(idx, still != 0);
 }
 
 #[no_mangle]
@@ -239,6 +240,9 @@ pub mod state {
     pub const LEVEL_ID: u32 = 17;
     pub const WON: u32 = 18;
     pub const KEY_GREEN: u32 = 19;
+    pub const ATTRACT_T: u32 = 20;
+    pub const ATTRACT_PERIOD: u32 = 21;
+    pub const ATTRACT_IDX: u32 = 22;
 }
 
 #[no_mangle]
@@ -271,6 +275,9 @@ pub extern "C" fn state_get(i: u32) -> f64 {
         TICK => f64::from(s.tick_count),
         LEVEL_ID => f64::from(s.level_id),
         WON => b(s.won),
+        ATTRACT_T => f64::from(s.attract_t),
+        ATTRACT_PERIOD => f64::from(s.attract_period()),
+        ATTRACT_IDX => f64::from(s.attract_idx),
         _ => 0.0,
     }
 }

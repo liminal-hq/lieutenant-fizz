@@ -24,7 +24,7 @@ export interface SimExports {
   events_len(): number;
   events_clear(): void;
   game_new(): void;
-  load_attract(): void;
+  load_attract(idx: number, still: number): void;
   enter_level(id: number): void;
   enter_map(): void;
   enter_none(): void;

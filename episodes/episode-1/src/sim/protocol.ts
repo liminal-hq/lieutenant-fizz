@@ -76,6 +76,9 @@ export const State = {
   LEVEL_ID: 17,
   WON: 18,
   KEY_GREEN: 19,
+  ATTRACT_T: 20,
+  ATTRACT_PERIOD: 21,
+  ATTRACT_IDX: 22,
 } as const;
 
 /** Sim modes returned by `mode()`. */

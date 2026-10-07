@@ -527,7 +527,7 @@ fn simulation_and_rendering_are_deterministic() {
 #[test]
 fn attract_mode_scrolls_without_ben() {
     let mut w = World::new();
-    w.load_attract();
+    w.load_attract(0, false);
     w.half_w = 11.0;
     w.half_h = 6.5;
     let x0 = w.cam_x;
@@ -2560,4 +2560,105 @@ fn the_overworld_thumbnail_marks_rivers_areas_and_level_nodes() {
     }
     let count = cells.iter().filter(|&&c| c & 0x0f == THUMB_NODE).count();
     assert_eq!(count, nodes.len());
+}
+
+#[test]
+fn attract_mode_visits_the_three_levels_in_turn() {
+    use crate::levels::{CAVES, CITADEL, CRATER};
+    let mut w = World::new();
+    for (idx, id) in [
+        (0, CRATER),
+        (1, CAVES),
+        (2, CITADEL),
+        (3, CRATER),
+        (7, CAVES),
+    ] {
+        w.load_attract(idx, false);
+        assert_eq!(w.level_id, id, "attract level {idx}");
+        assert_eq!(w.mode, Mode::Attract);
+        assert!(w.p.hidden);
+        assert!(w.attract_period() > 0);
+    }
+}
+
+#[test]
+fn attract_camera_never_shows_below_the_bottom_row() {
+    for idx in 0..3 {
+        for (hw, hh) in [
+            (8.0, 4.0),
+            (10.0, 6.5),
+            (14.0, 6.5),
+            (20.0, 6.0),
+            (30.0, 8.0),
+        ] {
+            let mut w = World::new();
+            w.half_w = hw;
+            w.half_h = hh;
+            w.load_attract(idx, false);
+            let period = w.attract_period();
+            for t in 0..(period + 5) {
+                w.step(0);
+                let bottom = w.cam_y - w.half_h;
+                assert!(
+                    bottom >= -1e-9,
+                    "level {idx}, view {hw}x{hh}, tick {t}: bottom edge at {bottom}"
+                );
+                let left = w.cam_x - w.half_w;
+                assert!(left >= -1e-9, "level {idx}: left edge at {left}");
+            }
+            // A level at least as tall as the view rests exactly on row 0.
+            if f64::from(w.map.h) >= hh * 2.0 {
+                assert!((w.cam_y - hh).abs() < 1e-9, "bottom edge is row 0");
+            }
+        }
+    }
+}
+
+#[test]
+fn attract_camera_depends_only_on_the_tick_count() {
+    let path = || {
+        let mut w = World::new();
+        w.half_w = 11.0;
+        w.half_h = 6.5;
+        w.load_attract(1, false);
+        (0..400)
+            .map(|_| {
+                w.step(0);
+                (w.cam_x.to_bits(), w.cam_y.to_bits())
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(path(), path());
+}
+
+#[test]
+fn attract_camera_pans_across_and_comes_back_each_period() {
+    let mut w = World::new();
+    w.half_w = 11.0;
+    w.half_h = 6.5;
+    w.load_attract(0, false);
+    let start = w.cam_x;
+    let period = w.attract_period();
+    let mut far = start;
+    for _ in 0..period {
+        w.step(0);
+        far = far.max(w.cam_x);
+    }
+    assert!(far - start > 20.0, "pans a good way across, to {far}");
+    assert!(
+        (w.cam_x - start).abs() < 0.2,
+        "back near the start after one period"
+    );
+    assert_eq!(w.attract_t, period);
+}
+
+#[test]
+fn attract_camera_holds_still_for_reduced_motion() {
+    let mut w = World::new();
+    w.half_w = 11.0;
+    w.half_h = 6.5;
+    w.load_attract(2, true);
+    let (x, y) = (w.cam_x, w.cam_y);
+    run(&mut w, 600, 0);
+    assert_eq!((w.cam_x, w.cam_y), (x, y));
 }
