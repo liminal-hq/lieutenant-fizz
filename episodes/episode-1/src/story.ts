@@ -151,7 +151,7 @@ export const LEVELS: LevelInfo[] = [
     blurb: 'A candy theatre. The walls are only painted flats, so walk right in.',
     track: 'theatre',
     cleared:
-      'The curtain falls on a very sticky stage. With Marshmallow Meadows, that powers the teleporter to Rock Candy Reach.',
+      'The curtain falls on a very sticky stage. That is one of the two levels the teleporter to Rock Candy Reach wants; Marshmallow Meadows is the other.',
   },
   {
     name: 'Fudge Bog',
@@ -165,7 +165,7 @@ export const LEVELS: LevelInfo[] = [
       'A tall crystal shaft sealed by gates. Bounce fizz off the mirrors to reach the switches.',
     track: 'caves',
     cleared:
-      'The last gate slides open and the shaft hums. With the Crystal Caves, that powers the teleporter to the Frosting Frontier.',
+      'The last gate slides open and the shaft hums. That is one of the two levels the teleporter to the Frosting Frontier wants; the Crystal Caves are the other.',
   },
   {
     name: 'Sugar Glass Gallery',
@@ -184,14 +184,14 @@ export const LEVELS: LevelInfo[] = [
     blurb: 'The tallest Zarg tower: twelve floors, three lifts, and a key in every colour.',
     track: 'tower',
     cleared:
-      'Twelve floors up and twelve floors down, and Ben’s knees have opinions about it. The Citadel opens once the Foundry is done too.',
+      'Twelve floors up and twelve floors down, and Ben’s knees have opinions about it. The Citadel needs both the Spire and the Foundry.',
   },
   {
     name: 'Cocoa Foundry',
     blurb: 'Belts, presses and pools of molten metal. Mind the timing, and mind the belts.',
     track: 'foundry',
     cleared:
-      'The presses thump on without him. Ben dusts the soot off his helmet. The Citadel opens once the Spire is done too.',
+      'The presses thump on without him. Ben dusts the soot off his helmet. The Citadel needs both the Spire and the Foundry.',
   },
   {
     name: 'Gumdrop Isle',
