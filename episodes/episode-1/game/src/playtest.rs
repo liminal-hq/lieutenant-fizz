@@ -365,6 +365,30 @@ mod tests {
     }
 
     #[test]
+    fn marshmallow_meadows_can_be_finished_via_the_blue_key() {
+        use crate::levels::MARSHMALLOW_MEADOWS;
+        let route = [wp(59.5, 15.0), exit_of(MARSHMALLOW_MEADOWS)];
+        let r = play_level(MARSHMALLOW_MEADOWS, &route, &Options::default());
+        assert!(
+            r.finished,
+            "bot stalled at wp {} after {} ticks; best states {:?}",
+            r.waypoint, r.ticks, r.top
+        );
+    }
+
+    #[test]
+    fn bonbon_playhouse_can_be_finished_via_both_keys() {
+        use crate::levels::BONBON_PLAYHOUSE;
+        let route = [wp(50.5, 10.0), wp(108.5, 14.0), exit_of(BONBON_PLAYHOUSE)];
+        let r = play_level(BONBON_PLAYHOUSE, &route, &Options::default());
+        assert!(
+            r.finished,
+            "bot stalled at wp {} after {} ticks; best states {:?}",
+            r.waypoint, r.ticks, r.top
+        );
+    }
+
+    #[test]
     fn a_win_does_not_count_while_a_waypoint_before_the_exit_is_unreached() {
         // The exit is easy to reach, but the first waypoint is in mid-air above the start where
         // nobody can stand: the bot may touch the exit and still must not be called finished.

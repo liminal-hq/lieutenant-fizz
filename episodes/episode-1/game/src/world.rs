@@ -8,7 +8,7 @@
 //! fixed 60 Hz step.
 
 use crate::ents::*;
-use crate::levels::{self, Arena, MapPoint, PtKind};
+use crate::levels::{self, Arena, MapPoint, PtKind, Room};
 use crate::render::{CamMode, Theme};
 use crate::sprites::Spr;
 use crate::text::{ev, Cap, Toast};
@@ -20,6 +20,12 @@ use lf_sim::{
 };
 
 pub const MAX_INSTANCES: usize = 120_000;
+
+/// Enemies in a hidden room do not move while its front wall is more opaque than this.
+pub const ROOM_DORMANT_ALPHA: f64 = 0.95;
+
+/// How opaque a room's front wall is while Ben stands inside it.
+pub const ROOM_SEEN_ALPHA: f64 = 0.22;
 
 /// Ladder climbing speed in tiles per second.
 pub const CLIMB_SPEED: f64 = 4.5;
@@ -195,6 +201,9 @@ pub struct World {
     pub won: bool,
     pub end_timer: Option<f64>,
     pub arena: Option<Arena>,
+    /// Hidden rooms and how opaque each one's front is (1 hides it, a low value shows it).
+    pub rooms: Vec<Room>,
+    pub room_alpha: Vec<f64>,
     pub solid_count: usize,
     pub points: Vec<MapPoint>,
     pub near: Option<usize>,
@@ -287,6 +296,8 @@ impl World {
             won: false,
             end_timer: None,
             arena: None,
+            rooms: vec![],
+            room_alpha: vec![],
             solid_count: 0,
             points: vec![],
             near: None,
@@ -339,6 +350,8 @@ impl World {
             won: self.won,
             end_timer: self.end_timer,
             arena: self.arena,
+            rooms: self.rooms.clone(),
+            room_alpha: self.room_alpha.clone(),
             solid_count: self.solid_count,
             points: self.points.clone(),
             near: self.near,
@@ -416,6 +429,8 @@ impl World {
         self.items = d.items;
         self.plats = d.plats;
         self.arena = d.arena;
+        self.room_alpha = vec![1.0; d.rooms.len()];
+        self.rooms = d.rooms;
         self.ents = d.spawns.iter().map(|s| self.init_ent(s)).collect();
         self.p = Player::level(d.start.0, d.start.1);
         self.cam_x = d.start.0 + 6.0;
@@ -575,6 +590,7 @@ impl World {
                     pl.tick(dt);
                 }
                 self.tick_ben(dt);
+                self.tick_rooms(dt);
                 self.tick_ents(dt);
                 self.tick_shots(dt);
                 if let Some(t) = self.end_timer {
@@ -1075,6 +1091,24 @@ impl World {
         }
     }
 
+    /// Fades each hidden room's front wall away while Ben is inside it and back once he leaves.
+    fn tick_rooms(&mut self, dt: f64) {
+        let b = &self.p.b;
+        for (r, a) in self.rooms.iter().zip(self.room_alpha.iter_mut()) {
+            let target = if r.overlaps(b.x, b.y, b.w, b.h) {
+                ROOM_SEEN_ALPHA
+            } else {
+                1.0
+            };
+            *a += (target - *a) * (6.0 * dt).min(1.0);
+        }
+    }
+
+    /// Index of the hidden room covering tile (x, y), if any.
+    pub fn room_at(&self, x: i32, y: i32) -> Option<usize> {
+        self.rooms.iter().position(|r| r.contains(x, y))
+    }
+
     /// Grabs, moves along and lets go of ladders. Up grabs a ladder at chest height; Down grabs the
     /// ladder under a ledge Ben stands on. Jump lets go with a hop; running out of ladder lets go.
     fn tick_climb(&mut self, h: u32, e: u32, ax: f64) {
@@ -1215,6 +1249,15 @@ impl World {
                 self.ents[i] = e;
                 self.tick_boss(i, dt);
                 continue;
+            }
+            // Whatever waits in a hidden room stays put until Ben walks in and the flat fades, so
+            // an ambush is still there when he arrives instead of having wandered out already.
+            let (cx, cy) = (e.b.x + e.b.w / 2.0, e.b.y + e.b.h / 2.0);
+            if let Some(r) = self.room_at(cx.floor() as i32, cy.floor() as i32) {
+                if self.room_alpha[r] > ROOM_DORMANT_ALPHA {
+                    self.ents[i] = e;
+                    continue;
+                }
             }
             self.ai(&mut e, dt);
             if matches!(

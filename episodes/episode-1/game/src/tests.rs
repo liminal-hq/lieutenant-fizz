@@ -781,6 +781,145 @@ fn the_lift_carries_ben_up_and_waits_at_each_end() {
     assert!(w.p.b.y <= top + 0.5);
 }
 
+fn playhouse() -> World {
+    let mut w = level(crate::levels::BONBON_PLAYHOUSE);
+    w.ents.clear();
+    w
+}
+
+#[test]
+fn a_hidden_room_fades_while_ben_is_inside_and_recovers_when_he_leaves() {
+    let mut w = playhouse();
+    // The tutorial room sits on the path at x 18..29.
+    assert_eq!(w.room_alpha[0], 1.0, "starts opaque");
+    w.p.b.x = 22.0;
+    w.p.b.y = 6.0;
+    let room = w
+        .rooms
+        .iter()
+        .position(|r| r.contains(22, 6))
+        .expect("room on the path");
+    run(&mut w, 60, 0);
+    assert!(
+        w.room_alpha[room] < 0.3,
+        "faded inside, alpha {}",
+        w.room_alpha[room]
+    );
+    w.p.b.x = 5.0;
+    w.p.b.y = 4.0;
+    run(&mut w, 60, 0);
+    assert!(
+        w.room_alpha[room] > 0.95,
+        "opaque again outside, alpha {}",
+        w.room_alpha[room]
+    );
+}
+
+#[test]
+fn hidden_rooms_are_hidden_from_the_start_and_only_the_room_ben_is_in_fades() {
+    let mut w = playhouse();
+    assert!(w.room_alpha.iter().all(|&a| a == 1.0));
+    w.p.b.x = 22.0;
+    w.p.b.y = 6.0;
+    run(&mut w, 60, 0);
+    let seen = w.rooms.iter().position(|r| r.contains(22, 6)).unwrap();
+    for (i, &a) in w.room_alpha.iter().enumerate() {
+        assert_eq!(a < 0.5, i == seen, "room {i} alpha {a}");
+    }
+}
+
+#[test]
+fn flats_are_drawn_after_ben_so_they_cover_him_until_they_fade() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = playhouse();
+    // Give the two sprites distinct atlas coordinates so their instances can be told apart.
+    let rect = |u: f32| SpriteRect {
+        u,
+        v: u,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h: 16.0,
+    };
+    w.spr[Spr::Facade as usize] = rect(0.31);
+    w.spr[Spr::BenStand as usize] = rect(0.62);
+    w.half_w = 11.0;
+    w.half_h = 6.5;
+    w.p.b.x = 22.0;
+    w.p.b.y = 6.0;
+    w.cam_x = 22.0;
+    w.cam_y = 8.0;
+    w.pcx = 22.0;
+    w.pcy = 8.0;
+    // Let Ben land so he is drawn with the standing pose, then look at the very first frame's
+    // room before it has had time to fade by drawing right after the landing.
+    w.p.b.on_ground = true;
+    w.room_alpha.iter_mut().for_each(|a| *a = 1.0);
+    w.render(0.5, 0);
+    let data = w.inst.as_slice();
+    let at = |i: usize| data[i * STRIDE + 16];
+    let n = w.inst.len();
+    let ben = (0..n).find(|&i| at(i) == 0.62).expect("Ben is drawn");
+    let flats: Vec<usize> = (0..n).filter(|&i| at(i) == 0.31).collect();
+    assert!(!flats.is_empty(), "the room's flats are drawn");
+    assert!(
+        flats.iter().all(|&i| i > ben),
+        "every flat comes after Ben in draw order"
+    );
+    // After the fade the flats inside his room are still drawn, but translucent.
+    run(&mut w, 60, 0);
+    w.render(0.5, 0);
+    let data = w.inst.as_slice();
+    let alpha = |i: usize| data[i * STRIDE + 19];
+    let n = w.inst.len();
+    let faded = (0..n).filter(|&i| data[i * STRIDE + 16] == 0.31 && alpha(i) < 0.5);
+    assert!(faded.count() > 0, "flats in Ben's room are translucent");
+}
+
+#[test]
+fn enemies_in_a_hidden_room_wait_there_until_ben_walks_in() {
+    let mut w = level(crate::levels::BONBON_PLAYHOUSE);
+    // The tutorial room on the path holds a gloop that would otherwise pace out of it.
+    let room = w
+        .rooms
+        .iter()
+        .position(|r| r.contains(24, 6))
+        .expect("tutorial room");
+    let g = w
+        .ents
+        .iter()
+        .position(|e| e.kind == Kind::Gloop && w.rooms[room].contains(e.b.x as i32, e.b.y as i32))
+        .expect("a gloop in the room");
+    let x0 = w.ents[g].b.x;
+    // Ben waits far away, well past the 4 seconds a gloop needs to leave the room.
+    w.p.inv = 1e9;
+    w.p.b.x = 5.0;
+    w.p.b.y = 4.0;
+    run(&mut w, 360, 0);
+    assert_eq!(w.ents[g].b.x, x0, "the ambusher has not moved");
+    assert!(w.rooms[room].contains(w.ents[g].b.x as i32, w.ents[g].b.y as i32));
+    // Once Ben is inside and the flat has faded, it moves like any other gloop.
+    w.p.b.x = 18.0;
+    w.p.b.y = 6.0;
+    run(&mut w, 90, 0);
+    assert!(w.room_alpha[room] < 0.9, "revealed");
+    assert!((w.ents[g].b.x - x0).abs() > 0.2, "and awake now");
+}
+
+#[test]
+fn enemies_outside_hidden_rooms_are_not_held_back() {
+    let mut w = level(crate::levels::BONBON_PLAYHOUSE);
+    let g = w
+        .ents
+        .iter()
+        .position(|e| e.kind == Kind::Gloop && e.b.x < 12.0)
+        .expect("the first gloop is outside any room");
+    let x0 = w.ents[g].b.x;
+    run(&mut w, 120, 0);
+    assert!((w.ents[g].b.x - x0).abs() > 0.5, "it paces as usual");
+}
+
 #[test]
 fn jumping_off_a_ladder_with_up_held_does_not_grab_it_again() {
     let mut w = lookout();

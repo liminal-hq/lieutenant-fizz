@@ -6,7 +6,7 @@
 import { Pen, spriteRng, type Grid } from '@lieutenant-fizz/engine/pen';
 import type { Colour } from '@lieutenant-fizz/engine/palette';
 
-export type Biome = 'crater' | 'caves' | 'citadel' | 'sky' | 'building';
+export type Biome = 'crater' | 'caves' | 'citadel' | 'sky' | 'building' | 'theatre';
 
 interface BiomeColours {
   top: Colour;
@@ -55,6 +55,16 @@ export const BIOMES: Record<Biome, BiomeColours> = {
     fleck: 'L',
     plat: ['y', 'N', 'R'],
     block: ['L', 'D', 'W'],
+  },
+  // A candy playhouse: a wooden stage, red velvet and gold trim.
+  theatre: {
+    top: 'N',
+    top2: 'N',
+    fill: 'R',
+    fill2: 'k',
+    fleck: 'y',
+    plat: ['y', 'N', 'R'],
+    block: ['R', 'k', 'y'],
   },
   // Sun-baked biscuit rock with cloud ledges, for the daylight mesa levels.
   sky: {
@@ -111,6 +121,15 @@ export function platTile(bio: Biome): Grid {
   );
 }
 
+/** Painted backstage flat: planks and nails. Drawn over a room to hide it until Ben walks in. */
+export function facadeTile(): Grid {
+  return new Pen(16, 16).fn((x, y) => {
+    if (y % 8 === 0) return 'k';
+    if ((x === 2 || x === 13) && y % 8 === 3) return 'y';
+    return (x + Math.floor(y / 8) * 5) % 9 === 0 ? 'R' : 'N';
+  });
+}
+
 /** A puffy white ledge with a pale-cyan underside; the flat top is the walking surface. */
 function cloudLedge(): Grid {
   const p = new Pen(16, 16);
@@ -144,6 +163,10 @@ export function blockTile(bio: Biome): Grid {
 export function backTile(bio: Biome, seed: number): Grid {
   const r = spriteRng(seed);
   const p = new Pen(16, 16);
+  if (bio === 'theatre') {
+    // Velvet curtain: deep folds every four pixels with a lighter ridge between them.
+    return p.fn((x, y) => (x % 4 === 0 ? 'k' : x % 4 === 2 && y % 8 < 6 ? 'M' : 'R'));
+  }
   if (bio === 'building') {
     // Panelled interior wall: a rail every eight rows and a stud in each panel.
     return p.fn((x, y) => (y % 8 === 0 ? 'D' : y % 8 === 4 && x % 8 === 3 ? 'D' : 'L'));

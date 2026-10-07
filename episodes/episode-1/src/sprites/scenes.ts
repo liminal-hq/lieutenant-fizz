@@ -88,6 +88,28 @@ export function owTower(): Grid {
   return p.outline();
 }
 
+export function owPlayhouse(): Grid {
+  const p = new Pen(16, 16);
+  p.rect(2, 6, 12, 9, 'R');
+  p.rect(1, 4, 14, 3, 'y');
+  p.rect(3, 7, 4, 7, 'k');
+  p.rect(9, 7, 4, 7, 'k');
+  p.rect(7, 7, 2, 7, 'M');
+  p.px(8, 2, 'W');
+  p.rect(7, 3, 2, 1, 'W');
+  return p.outline();
+}
+
+export function owMeadow(): Grid {
+  const p = new Pen(16, 16);
+  p.ell(8, 14, 7.5, 6, 'g', (_i, j) => j < 15);
+  p.ell(5, 9, 2.4, 2, 'W');
+  p.ell(11, 10, 2.2, 1.8, 'm');
+  p.ell(8, 7, 2, 1.6, 'W');
+  p.px(8, 6, 'm');
+  return p.outline();
+}
+
 export function owCave(): Grid {
   const p = new Pen(16, 16);
   p.ell(8, 11, 7.5, 8, 'D', (_i, j) => j < 16);

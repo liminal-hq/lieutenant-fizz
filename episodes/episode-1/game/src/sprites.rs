@@ -46,6 +46,10 @@ sprites! {
     BuildingTop = "buildingTop", BuildingFill = "buildingFill", BuildingR45 = "buildingR45", BuildingL45 = "buildingL45",
     BuildingR22A = "buildingR22A", BuildingR22B = "buildingR22B", BuildingL22A = "buildingL22A", BuildingL22B = "buildingL22B",
     BuildingPlat = "buildingPlat", BuildingBlock = "buildingBlock", BuildingBack = "buildingBack",
+    TheatreTop = "theatreTop", TheatreFill = "theatreFill", TheatreR45 = "theatreR45", TheatreL45 = "theatreL45",
+    TheatreR22A = "theatreR22A", TheatreR22B = "theatreR22B", TheatreL22A = "theatreL22A", TheatreL22B = "theatreL22B",
+    TheatrePlat = "theatrePlat", TheatreBlock = "theatreBlock", TheatreBack = "theatreBack",
+    Facade = "facade",
     CrysC = "crysC", CrysM = "crysM", SpikeTile = "spike",
     ChocTop0 = "chocTop0", ChocTop1 = "chocTop1", ChocDeep0 = "chocDeep0", ChocDeep1 = "chocDeep1",
     DoorRed = "doorRed", DoorBlue = "doorBlue", ExitTop = "exitTop", ExitBot = "exitBot",
@@ -54,7 +58,7 @@ sprites! {
     Terminal0 = "terminal0", Terminal1 = "terminal1",
     OwGrass = "owGrass", OwPath = "owPath", OwRiver0 = "owRiver0", OwRiver1 = "owRiver1",
     OwTree0 = "owTree0", OwTree1 = "owTree1", OwRock = "owRock", OwCrater = "owCrater",
-    OwCave = "owCave", OwMesa = "owMesa", OwTower = "owTower", OwCastle = "owCastle", OwTele0 = "owTele0", OwTele1 = "owTele1", OwFlag = "owFlag",
+    OwCave = "owCave", OwMesa = "owMesa", OwTower = "owTower", OwPlayhouse = "owPlayhouse", OwMeadow = "owMeadow", OwCastle = "owCastle", OwTele0 = "owTele0", OwTele1 = "owTele1", OwFlag = "owFlag",
     Saucer = "saucer", HillTop = "hillTop", MtnTop = "mtnTop", Fill = "fill", Star = "star", Cloud = "cloud",
 }
 

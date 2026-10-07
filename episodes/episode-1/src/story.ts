@@ -138,4 +138,16 @@ export const LEVELS: LevelInfo[] = [
     track: 'crater',
     cleared: 'Ben climbs down with a pocketful of snacks and the whole sky to look at.',
   },
+  {
+    name: 'Marshmallow Meadows',
+    blurb: 'Soft hills, fenced-in marshmallows to bounce off, and a blue key in the clouds.',
+    track: 'crater',
+    cleared: 'Marshmallow fluff clings to Ben’s boots. Somewhere ahead, the music of a playhouse.',
+  },
+  {
+    name: 'Bonbon Playhouse',
+    blurb: 'A candy theatre. The walls are only painted flats, so walk right in.',
+    track: 'caves',
+    cleared: 'The curtain falls on a very sticky stage. Ben takes a bow.',
+  },
 ];

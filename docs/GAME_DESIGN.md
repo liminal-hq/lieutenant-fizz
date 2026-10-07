@@ -20,6 +20,8 @@ See `STORY.md` for the full opening cinematic and ending text.
 3. **Crater Fields:** tutorial biome with slopes, pogo, fizz, chocolate pools, red gumdrop door.
 3a. **Meteor Mesa** (Crater Fields, open sky): daylight biscuit-rock mesas with drifting clouds, gaps bridged by cloud ledges and a hover platform, no ceiling.
 3b. **Zarg Lookout** (Crater Fields, building): a nine-floor watchtower in cutaway. Ladders, two flights of stairs and a slow lift link floors that alternate between full-width halls and small landings; the red key is on the roof and its cookie door guards the exit at the bottom, so Ben climbs up and comes back down. A cookie door that opens in a tower leaves interior wall behind it, not sky. The camera chases quickly and looks neither ahead nor far above.
+3c. **Marshmallow Meadows** (Marshmallow Meadows, open sky): soft hills, marshmallows bouncing in fenced corrals to pogo off, and the blue key at the top of a stack of cloud ledges.
+3d. **Bonbon Playhouse** (Marshmallow Meadows, theatre): a candy theatre whose backstage rooms are hidden behind painted flats. Walk into a room and its front wall fades away, showing what waits inside; the red key and blue key are each in a hidden room, a beetle waits in one on the path, and bats hang under the blue-key room.
 4. **Crystal Caves:** darker tunnels lit by crystals and Ben's lantern. Hover platforms, a bridge switch, bats, blue gumdrop door.
 5. **Mildred's Citadel:** boulder ramp, sentries, phantoms, then the boss arena, the terminal and Billy's cage.
 6. Ending (4 panels), then the credits (skippable), then a score card. Episode 1 has no post-credits stinger; it belongs to Episode 3.
@@ -32,6 +34,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 - **Lives:** start with 3, extra life every 100 snack points. Death returns Ben to the map; game over offers your last save.
 - **Enemies and lifts:** enemies pass through lift trays as if they were not there, so a lift never carries one off. A ground enemy that ends up more than four tiles from its home floor for three seconds fades back to where it started.
 - **Ladders:** Up grabs a ladder, Up and Down move along it at 4.5 tiles/s, Jump lets go with a hop (Ben cannot grab the same ladder again until Up and Down are released or he leaves it), and Ben can fire while climbing: Fire alone shoots sideways, Up with Fire shoots up and Down with Fire shoots down. The top rung is a ledge: Ben stands on it and presses Down to climb back onto the ladder. Pogo is off while climbing.
+- **Hidden rooms:** in theatre levels, painted flats cover some rooms completely. They fade to about a fifth opaque while Ben is inside and fade back when he leaves; everything inside, from snacks to ambushers, is hidden until then.
 - **Keys:** red and blue gumdrops open matching cookie doors.
 
 ## Collectibles
