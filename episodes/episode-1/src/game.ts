@@ -922,6 +922,11 @@ export class Game {
 
   /** Activates a menu item by index (mouse click or keyboard). */
   activate(idx?: number): void {
+    // The Controls screen has no rows of its own; Enter, jump or fire on it goes back.
+    if (this.sub === 'controls') {
+      this.closeSub();
+      return;
+    }
     const items = this.menuItems();
     const i = idx ?? Math.min(this.menuIdx, items.length - 1);
     const it = items[i];
@@ -944,7 +949,6 @@ export class Game {
       }
       return;
     }
-    if (this.sub === 'controls') return this.closeSub();
     if (this.screen === 'title') {
       // Ben waves for a moment before the choice takes effect, unless motion is reduced.
       const run = (): void => {
