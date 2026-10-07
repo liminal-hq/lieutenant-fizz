@@ -164,4 +164,10 @@ export const LEVELS: LevelInfo[] = [
     cleared:
       'The last gate slides open and the shaft hums. Ben has never seen so many reflections of himself.',
   },
+  {
+    name: 'Sugar Glass Gallery',
+    blurb: 'A long gallery of hidden rooms. Not everything on these walls is decoration.',
+    track: 'caves',
+    cleared: 'Ben leaves the gallery with a head full of paintings and pockets full of crumbs.',
+  },
 ];

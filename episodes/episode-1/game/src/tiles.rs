@@ -33,6 +33,9 @@ pub const PATH: u8 = 21;
 pub const RIVER: u8 = 22;
 pub const TREE: u8 = 23;
 pub const ROCK: u8 = 24;
+/// A wall mural. Its bottom-left tile draws the whole 3-by-2 picture; the other five do not draw.
+pub const MURAL: u8 = 18;
+pub const MURAL_PART: u8 = 19;
 /// Gates block a shaft while their switch channel is on; a crystal switch turns it off. Each gate
 /// has its own channel, so a level can hold several independent puzzles.
 pub const GATE: u8 = 32;

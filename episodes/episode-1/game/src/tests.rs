@@ -993,3 +993,58 @@ fn the_second_shot_through_the_swivel_reaches_the_switch() {
     assert!(!w.map.switch(3), "gate three opened by the second bubble");
     assert!(w.map.switch(2), "gate two is not involved");
 }
+
+#[test]
+fn the_secret_room_sets_the_found_bit_once_and_toasts() {
+    use crate::text::Toast;
+    let mut w = level(crate::levels::SUGAR_GLASS_GALLERY);
+    w.ents.clear();
+    assert_eq!(w.game.done & crate::world::SECRET_FOUND, 0);
+    let toasts = |w: &World| {
+        events_of(w, ev::TOAST)
+            .iter()
+            .filter(|e| e.a == Toast::SecretFound as u16 as f32)
+            .count()
+    };
+    // Walk past the clue without going in: nothing happens.
+    w.p.b.x = 119.0;
+    w.p.b.y = 4.0;
+    run(&mut w, 30, 0);
+    assert_eq!(w.game.done & crate::world::SECRET_FOUND, 0);
+    assert_eq!(toasts(&w), 0);
+    // Step into the mural room.
+    w.p.b.x = 130.0;
+    w.p.b.y = 10.0;
+    run(&mut w, 30, 0);
+    assert_ne!(w.game.done & crate::world::SECRET_FOUND, 0, "bit 15 set");
+    assert_eq!(toasts(&w), 1, "one toast");
+    // Leave and come back: still found, no second toast.
+    w.p.b.x = 119.0;
+    w.p.b.y = 4.0;
+    run(&mut w, 30, 0);
+    w.p.b.x = 130.0;
+    w.p.b.y = 10.0;
+    run(&mut w, 30, 0);
+    assert_eq!(toasts(&w), 1, "found once");
+}
+
+#[test]
+fn ordinary_hidden_rooms_do_not_count_as_the_secret() {
+    let mut w = playhouse();
+    w.p.b.x = 22.0;
+    w.p.b.y = 6.0;
+    run(&mut w, 60, 0);
+    assert_eq!(w.game.done & crate::world::SECRET_FOUND, 0);
+}
+
+#[test]
+fn the_secret_bit_survives_a_save_round_trip() {
+    let mut w = World::new();
+    w.game_new();
+    w.game.done = crate::world::SECRET_FOUND | 0b11;
+    let mask = f64::from(w.game.done);
+    let mut v = World::new();
+    v.game_new();
+    v.game.done = (mask as u32) & crate::world::PROGRESS_BITS;
+    assert_eq!(v.game.done, w.game.done);
+}

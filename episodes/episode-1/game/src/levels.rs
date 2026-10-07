@@ -20,9 +20,10 @@ pub const MARSHMALLOW_MEADOWS: u8 = 5;
 pub const BONBON_PLAYHOUSE: u8 = 6;
 pub const FUDGE_BOG: u8 = 7;
 pub const MIRROR_SHAFTS: u8 = 8;
+pub const SUGAR_GLASS_GALLERY: u8 = 9;
 
 /// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
-pub const LEVEL_COUNT: u8 = 9;
+pub const LEVEL_COUNT: u8 = 10;
 
 /// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
 pub const AREA_CRATER_FIELDS: u8 = 0;
@@ -105,6 +106,13 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
         area: AREA_ROCK_CANDY_REACH,
         icon: Spr::OwShaft,
     },
+    LevelDef {
+        id: SUGAR_GLASS_GALLERY,
+        build: sugar_glass_gallery,
+        theme: Theme::Theatre,
+        area: AREA_ROCK_CANDY_REACH,
+        icon: Spr::OwPlayhouse,
+    },
 ];
 
 /// Bit in `Game::done` for a cleared level.
@@ -125,6 +133,8 @@ pub struct Room {
     pub y0: i32,
     pub x1: i32,
     pub y1: i32,
+    /// Walking into it sets the secret-found bit (once), which reveals the hidden teleporter.
+    pub secret: bool,
 }
 
 impl Room {
@@ -341,7 +351,29 @@ impl Builder {
                 }
             }
         }
-        self.rooms.push(Room { x0, y0, x1, y1 });
+        self.rooms.push(Room {
+            x0,
+            y0,
+            x1,
+            y1,
+            secret: false,
+        });
+        self
+    }
+
+    /// A hidden room that counts as the secret: stepping into it is how the player finds the clue.
+    fn secret_room(&mut self, x0: i32, y0: i32, x1: i32, y1: i32) -> &mut Self {
+        self.room(x0, y0, x1, y1);
+        if let Some(r) = self.rooms.last_mut() {
+            r.secret = true;
+        }
+        self
+    }
+
+    /// A 3-by-2 mural whose bottom-left tile is (x, y).
+    fn mural(&mut self, x: i32, y: i32) -> &mut Self {
+        self.fill(x, x + 2, y, y + 1, MURAL_PART);
+        self.map.set(x, y, MURAL);
         self
     }
 
@@ -978,6 +1010,96 @@ fn mirror_shafts() -> LevelData {
     b.out(MIRROR_SHAFTS, (6.0, 3.0), None)
 }
 
+/// A long theatre of stacked hidden rooms. Red and blue keys sit in rooms up on balconies, a beetle
+/// waits in a room on the path, and an alcove reached by ledges over the last pit holds a mural of
+/// the crystal forest: the secret clue.
+fn sugar_glass_gallery() -> LevelData {
+    let mut b = Builder::new(160, 30, 4);
+    b.run(&[
+        (Flat, 14),
+        (Up, 2),
+        (Flat, 10),
+        (Down, 2),
+        (Flat, 8),
+        (Gap, 3),
+        (Flat, 12),
+        (Up22, 1),
+        (Flat, 10),
+        (Down22, 1),
+        (Flat, 12),
+        (Gap, 3),
+        (Flat, 10),
+        (Up, 3),
+        (Flat, 14),
+        (Down, 3),
+        (Flat, 10),
+        (Gap, 3),
+        (Flat, 14),
+        (Flat, 23),
+    ]);
+    b.walls();
+    // An ambush room on the path: two gloops lying in wait.
+    b.row(Cheezie, 18, 6, 7, 1);
+    b.ent_at(Kind::Gloop, 20.0, 6.0)
+        .ent_at(Kind::Gloop, 23.0, 6.0);
+    b.room(16, 6, 25, 11);
+    // Red key balcony, reached by ledges over the first pit.
+    b.fill(41, 50, 9, 9, FILL);
+    b.plat(36, 37, 5).plat(38, 38, 8);
+    b.item(KeyRed, 46, 10)
+        .item(Cookie, 48, 10)
+        .row(Cheezie, 42, 3, 10, 1);
+    b.ent_at(Kind::Bat, 45.0, 7.3);
+    b.room(41, 10, 50, 15);
+    // A beetle room on the path, ending at a ledge so the charge stops short of the pit.
+    b.row(Choc, 67, 4, 5, 2);
+    b.ent_at(Kind::Beetle, 74.0, 4.0);
+    b.room(65, 4, 76, 9);
+    // Blue key balcony, up four ledges, with two bats hanging beneath it.
+    b.fill(95, 106, 13, 13, FILL);
+    b.plat(86, 87, 6).plat(89, 90, 9).plat(92, 93, 12);
+    b.item(KeyBlue, 100, 14)
+        .item(Cookie, 104, 14)
+        .row(Cheezie, 96, 3, 14, 1);
+    b.room(95, 14, 106, 19);
+    for x in [98.0, 103.0] {
+        b.ent_at(Kind::Bat, x, 11.3);
+    }
+    // The secret: an alcove over the last pit, breadcrumbed with snacks, holding a mural.
+    b.fill(126, 136, 9, 9, FILL);
+    b.plat(120, 121, 5).plat(122, 123, 8);
+    b.row(Cheezie, 119, 3, 7, 1).row(Cheezie, 124, 2, 10, 1);
+    b.mural(130, 11);
+    b.row(Cookie, 133, 3, 10, 1);
+    b.secret_room(126, 10, 136, 15);
+    // Doors, and the exit.
+    b.fill(60, 60, 5, 6, DOOR_R).fill(60, 60, 7, 29, BLOCK);
+    b.fill(112, 112, 4, 5, DOOR_B).fill(112, 112, 6, 29, BLOCK);
+    b.fill(155, 155, 4, 5, EXIT);
+    b.row(Cheezie, 5, 6, 6, 1)
+        .row(Choc, 29, 4, 7, 1)
+        .row(Cheezie, 54, 5, 8, 1)
+        .item(Soda, 58, 9)
+        .row(Cheezie, 80, 6, 8, 1)
+        .item(Soda, 114, 7)
+        .row(Cheezie, 138, 6, 8, 1)
+        .row(Cookie, 146, 3, 7, 3);
+    for x in [8, 30, 56, 82, 114, 140] {
+        b.crys(x);
+    }
+    b.ent(Kind::Gloop, 8.0)
+        .ent(Kind::Gloop, 31.0)
+        .ent(Kind::Gloop, 56.0)
+        .ent(Kind::Gloop, 70.0)
+        .ent(Kind::Gloop, 84.0)
+        .ent(Kind::Gloop, 128.0)
+        .ent(Kind::Gloop, 144.0)
+        .ent(Kind::Phantom, 148.0)
+        .ent(Kind::Pod, 55.0)
+        .ent(Kind::Pod, 115.0);
+    b.out(SUGAR_GLASS_GALLERY, (3.0, 4.0), None)
+}
+
 fn caves() -> LevelData {
     let mut b = Builder::new(176, 26, 5);
     b.run(&[
@@ -1197,6 +1319,7 @@ pub fn build_overworld() -> MapData {
         pt(PtKind::Level, BONBON_PLAYHOUSE, 15, 27, 0, 0, false),
         pt(PtKind::Level, FUDGE_BOG, 15, 31, 0, 0, false),
         pt(PtKind::Level, MIRROR_SHAFTS, 15, 35, 0, 0, false),
+        pt(PtKind::Level, SUGAR_GLASS_GALLERY, 15, 39, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -1389,6 +1512,6 @@ mod tests {
                 );
             }
         }
-        assert_eq!(m.points.len(), 14);
+        assert_eq!(m.points.len(), 15);
     }
 }

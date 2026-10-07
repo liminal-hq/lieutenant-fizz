@@ -681,6 +681,16 @@ impl World {
                     BLOCK => tileset_tile(b, BT_BLOCK),
                     PLAT => tileset_tile(b, BT_PLAT),
                     WALLBG => tileset_tile(b, BT_BACK),
+                    MURAL => {
+                        // One instance draws the whole 3-by-2 picture from its bottom-left tile.
+                        self.push(
+                            f64::from(x) + 1.5,
+                            f64::from(y) + 1.0,
+                            Spr::Mural,
+                            &PushOpts::default(),
+                        );
+                        continue;
+                    }
                     RUNG => Spr::Ladder as u16,
                     RUNG_TOP => Spr::LadderTop as u16,
                     SPIKE => Spr::SpikeTile as u16,
