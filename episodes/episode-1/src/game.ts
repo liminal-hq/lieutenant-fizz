@@ -406,7 +406,7 @@ export class Game {
         this.syncUi();
         break;
       case Ev.MAP_PROMPT:
-        this.prompt = this.promptFor(e.a, e.b, e.c === 1);
+        this.prompt = this.promptFor(e.a, e.b, e.c);
         this.syncUi();
         break;
       default:
@@ -415,16 +415,34 @@ export class Game {
     void sim;
   }
 
-  private promptFor(type: number, id: number, flag: boolean): Prompt | null {
+  /**
+   * Builds the map prompt for a sim event. `extra` is the cleared flag for levels (1) and
+   * teleporters (2), and the locked level's own id for a locked level (4).
+   */
+  private promptFor(type: number, id: number, extra: number): Prompt | null {
     if (type === 1) {
       const info = LEVELS[id];
       return info
-        ? { title: info.name, text: (flag ? 'Cleared · ' : '') + info.blurb, action: 'Enter' }
+        ? {
+            title: info.name,
+            text: (extra === 1 ? 'Cleared · ' : '') + info.blurb,
+            action: 'Enter',
+          }
+        : null;
+    }
+    if (type === 4) {
+      const info = LEVELS[extra];
+      return info
+        ? {
+            title: info.name,
+            text: `Locked until you clear ${LEVELS[id]?.name ?? 'another level'}.`,
+            action: null,
+          }
         : null;
     }
     if (type === 2) {
       const req = LEVELS[id]?.name ?? 'a level';
-      return flag
+      return extra === 1
         ? { title: 'Teleporter', text: 'Humming and ready.', action: 'Teleport' }
         : { title: 'Teleporter', text: `Quiet for now. Clear ${req} to power it.`, action: null };
     }

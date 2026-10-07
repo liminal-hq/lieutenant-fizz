@@ -8,13 +8,16 @@ import type { Sim } from './sim/sim';
 
 export const SAVE_KEY = 'lf-ep1-save-v1';
 
+/** Highest `doneMask` the sim understands: level bits 0 to 14 and the secret flag in bit 15. */
+export const MAX_DONE_MASK = 0xffff;
+
 /** Progress that survives between levels: what an autosave on every map visit stores. */
 export interface Progress {
   lives: number;
   score: number;
   nextLife: number;
   ammo: number;
-  /** Bit per cleared level (crater, caves, citadel). */
+  /** Bit per cleared level (bit 0 is the first level), plus bit 15 once the secret is found. */
   doneMask: number;
   /** Where Ben stands on the overworld, if known. */
   map?: { x: number; y: number };
@@ -57,7 +60,7 @@ export function parseSave(json: string | null): Stored | null {
       ammo < 0 ||
       nextLife < 100 ||
       doneMask < 0 ||
-      doneMask > 7
+      doneMask > MAX_DONE_MASK
     ) {
       return null;
     }
