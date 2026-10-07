@@ -903,7 +903,7 @@ fn mirror_shafts() -> LevelData {
         (6, 4, 12),
         (9, 10, 18),
         (12, 16, 24),
-        (15, 22, 30),
+        (15, 22, 26),
         (18, 16, 24),
         (21, 10, 26),
         (24, 4, 12),
@@ -918,7 +918,7 @@ fn mirror_shafts() -> LevelData {
         (51, 6, 14),
         (54, 6, 14),
         (57, 12, 16),
-        (60, 16, 22),
+        (60, 20, 26),
         (63, 24, 30),
         (66, 18, 28),
         (69, 14, 24),
@@ -1360,6 +1360,67 @@ mod tests {
         assert_eq!(count(&l.map, EXIT), 2);
         assert!(l.arena.is_none() && l.plats.len() == 1);
         assert_eq!(l.theme, Theme::OpenSky);
+    }
+
+    /// Whether a bubble fired straight up from anywhere Ben can stand reaches a crystal switch
+    /// before a mirror or a wall turns or stops it. A bubble flies about 17 tiles.
+    fn switch_in_straight_line(l: &LevelData) -> Option<(f64, f64, f64, f64)> {
+        let cells = |kinds: &[Kind]| -> Vec<(f64, f64)> {
+            l.spawns
+                .iter()
+                .filter(|s| kinds.contains(&s.kind))
+                .map(|s| (s.x + 0.5, s.y + 0.5))
+                .collect()
+        };
+        let switches = cells(&[Kind::CrystalSwitch]);
+        let mirrors = cells(&[Kind::Mirror, Kind::Swivel]);
+        for x in 0..l.map.w {
+            for y in 0..l.map.h - 2 {
+                let t = l.map.get(x, y);
+                let floor = t == PLAT || l.map.is_solid_tile(t);
+                if !floor || l.map.get(x, y + 1) != EMPTY && l.map.get(x, y + 1) != WALLBG {
+                    continue;
+                }
+                let stand = f64::from(y + 1);
+                // Ben's centre can be anywhere that leaves part of his 0.7-wide body on the tile.
+                let mut cx = f64::from(x) - 0.3;
+                while cx < f64::from(x) + 1.3 {
+                    let mut py = stand + 1.5;
+                    while py < stand + 1.5 + 17.6 {
+                        if l.map
+                            .solid(cx.floor() as i32, py.floor() as i32, false, 0.0)
+                        {
+                            break;
+                        }
+                        if mirrors
+                            .iter()
+                            .any(|m| (m.0 - cx).abs() < 0.55 && (m.1 - py).abs() < 0.55)
+                        {
+                            break;
+                        }
+                        if let Some(s) = switches
+                            .iter()
+                            .find(|s| (s.0 - cx).abs() < 0.55 && (s.1 - py).abs() < 0.55)
+                        {
+                            return Some((cx, stand, s.0, s.1));
+                        }
+                        py += 0.05;
+                    }
+                    cx += 0.05;
+                }
+            }
+        }
+        None
+    }
+
+    #[test]
+    fn no_crystal_switch_can_be_shot_directly_from_a_ledge() {
+        let l = build_level(MIRROR_SHAFTS);
+        assert_eq!(
+            switch_in_straight_line(&l),
+            None,
+            "a switch is in a straight line up from somewhere Ben can stand: (x, stand, switch)"
+        );
     }
 
     #[test]

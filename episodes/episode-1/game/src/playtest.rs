@@ -247,9 +247,19 @@ pub fn solve(mut start: World, route: &[Waypoint], o: &Options) -> Outcome {
                 let mut w = n.w.fork();
                 let alive = play(&mut w, *a);
                 if w.won {
-                    best.finished = true;
-                    best.ticks = w.tick_count;
-                    return best;
+                    // Touching the exit only counts once every waypoint before it has been reached,
+                    // so a route's optional-looking stops (a key, a switch, the secret room) cannot be
+                    // skipped by a path that happens to win without them.
+                    let mut reached_to = n.wp;
+                    while reached_to < route.len() && reached(&w, route[reached_to]) {
+                        reached_to += 1;
+                    }
+                    if reached_to + 1 >= route.len() {
+                        best.finished = true;
+                        best.ticks = w.tick_count;
+                        return best;
+                    }
+                    continue;
                 }
                 if !alive {
                     continue;
