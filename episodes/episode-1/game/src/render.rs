@@ -166,7 +166,7 @@ pub fn theme(t: Theme) -> LevelTheme {
                     tint: 0xffffff,
                     nt: 0x3a3a68,
                     f: 0.08,
-                    base: 11.0,
+                    base: 6.5,
                     spread: 10.0,
                     speed: 0.25,
                     alpha: 0.9,
@@ -658,6 +658,9 @@ impl World {
         } else {
             (0, w - 1, 0, h - 1)
         };
+        // A mural is drawn from its bottom-left tile but spans three columns and two rows, so scan
+        // a little beyond the view or its edge pops out while most of it is still on screen.
+        let (tx0, ty0) = ((tx0 - 2).max(0), (ty0 - 1).max(0));
         let b = self.theme.tiles();
         for y in ty0..=ty1 {
             for x in tx0..=tx1 {
@@ -747,12 +750,9 @@ impl World {
                     DOOR_R => Spr::DoorRed as u16,
                     DOOR_B => Spr::DoorBlue as u16,
                     DOOR_G => Spr::DoorGreen as u16,
-                    GATE => {
-                        op.alpha = if self.map.switch(GATE_CHANNEL) {
-                            1.0
-                        } else {
-                            0.18
-                        };
+                    GATE | GATE_2 | GATE_3 => {
+                        let on = self.map.switch(self.map.props.channel(tt));
+                        op.alpha = if on { 1.0 } else { 0.18 };
                         Spr::Gate as u16
                     }
                     BRIDGE => {

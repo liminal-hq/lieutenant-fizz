@@ -606,9 +606,23 @@ fn a_locked_level_point_prompts_as_locked_and_names_what_is_missing() {
 #[test]
 fn loading_progress_drops_bits_that_mean_nothing() {
     let mut w = World::new();
-    w.game.done = (1 << 20) | crate::world::SECRET_FOUND | 0b101;
-    w.game.done &= crate::world::PROGRESS_BITS;
+    w.game
+        .load_done((1 << 20) | crate::world::SECRET_FOUND | 0b101);
     assert_eq!(w.game.done, crate::world::SECRET_FOUND | 0b101);
+    // Garbage that is not even a whole number of bits cannot get through either.
+    w.game.load_done(u32::MAX);
+    assert_eq!(w.game.done, crate::world::PROGRESS_BITS);
+}
+
+#[test]
+fn an_unknown_level_id_builds_the_first_level_and_cannot_set_stray_bits() {
+    let mut w = World::new();
+    w.game_new();
+    w.enter_level(200);
+    assert_eq!(w.level_id, 0, "falls back to the first level, id and all");
+    w.won = false;
+    w.game.set_done(w.level_id);
+    assert_eq!(w.game.done, 1, "only the first level's bit");
 }
 
 fn lookout() -> World {
@@ -711,15 +725,22 @@ fn climbing_ignores_the_pogo_toggle() {
 fn the_tower_camera_keeps_ben_in_view_through_a_long_fall() {
     let mut w = lookout();
     w.half_h = 6.5;
-    w.p.b.x = 5.0;
+    // Knock a one-tile shaft through every floor and the roof at x = 5 so Ben falls the whole
+    // tower, about 72 tiles, instead of landing on the roof he starts on.
+    for y in 3..75 {
+        w.map.set(5, y, 0);
+    }
+    w.p.b.x = 5.2;
     w.p.b.y = 75.0;
     w.cam_y = 78.0;
     w.pcy = 78.0;
-    for t in 0..220 {
+    let mut ticks = 0;
+    for t in 0..600 {
         w.step(0);
         if w.p.b.on_ground {
             break;
         }
+        ticks = t;
         assert!(
             (w.p.b.y - w.cam_y).abs() < w.half_h - 1.0,
             "tick {t}: Ben at {:.1}, camera at {:.1}",
@@ -727,7 +748,12 @@ fn the_tower_camera_keeps_ben_in_view_through_a_long_fall() {
             w.cam_y
         );
     }
+    assert!(
+        ticks > 150,
+        "a long fall, not a one-tick landing: {ticks} ticks"
+    );
     assert!(w.p.b.on_ground, "landed");
+    assert!(w.p.b.y < 4.0, "all the way down, y = {}", w.p.b.y);
 }
 
 #[test]
@@ -1038,15 +1064,113 @@ fn ordinary_hidden_rooms_do_not_count_as_the_secret() {
 }
 
 #[test]
-fn the_secret_bit_survives_a_save_round_trip() {
+fn the_secret_bit_survives_loading_a_save() {
+    // A save that carries the secret bit and the first two levels loads all three, and only those.
     let mut w = World::new();
     w.game_new();
-    w.game.done = crate::world::SECRET_FOUND | 0b11;
-    let mask = f64::from(w.game.done);
-    let mut v = World::new();
-    v.game_new();
-    v.game.done = (mask as u32) & crate::world::PROGRESS_BITS;
-    assert_eq!(v.game.done, w.game.done);
+    w.game
+        .load_done(crate::world::SECRET_FOUND | 0b11 | (1 << 20));
+    assert!(w.game.is_done(CRATER) && w.game.is_done(CAVES));
+    assert_ne!(w.game.done & crate::world::SECRET_FOUND, 0);
+    assert_eq!(w.game.done & (1 << 20), 0, "stray bits are dropped");
+}
+
+#[test]
+fn fizz_fires_sideways_on_a_ladder_with_down_held_too() {
+    let mut w = lookout();
+    w.p.b.x = 17.8;
+    w.p.b.y = 3.0;
+    run(&mut w, 40, UP);
+    assert!(w.p.climb);
+    w.shots.clear();
+    w.step(DOWN | FIRE);
+    let s = w.shots.last().expect("a shot");
+    assert!(
+        s.vx.abs() > 10.0 && s.vy == 0.0,
+        "sideways, got {} {}",
+        s.vx,
+        s.vy
+    );
+}
+
+#[test]
+fn every_gate_tile_is_drawn_and_fades_when_its_gate_opens() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = level(crate::levels::MIRROR_SHAFTS);
+    w.ents.clear();
+    w.spr[Spr::Gate as usize] = SpriteRect {
+        u: 0.4,
+        v: 0.4,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h: 16.0,
+    };
+    // Every instance of the gate sprite, as (faint, opaque); drawing is not culled in this call,
+    // so all three gates (30 tiles wide, two rows each) are in the buffer.
+    let counts = |w: &mut World| {
+        w.render(0.5, 0);
+        let data = w.inst.as_slice();
+        let gates: Vec<f32> = (0..w.inst.len())
+            .filter(|&i| data[i * STRIDE + 16] == 0.4)
+            .map(|i| data[i * STRIDE + 19])
+            .collect();
+        let faint = gates.iter().filter(|&&a| a < 0.5).count();
+        (faint, gates.len() - faint)
+    };
+    assert_eq!(
+        counts(&mut w),
+        (0, 180),
+        "all three gates drawn and opaque while shut"
+    );
+    w.map.set_switch(1, false);
+    assert_eq!(
+        counts(&mut w),
+        (60, 120),
+        "gate one faint, the others opaque"
+    );
+    w.map.set_switch(2, false);
+    assert_eq!(counts(&mut w), (120, 60), "gate two faint as well");
+    w.map.set_switch(3, false);
+    assert_eq!(
+        counts(&mut w),
+        (180, 0),
+        "all faint once all three are open"
+    );
+}
+
+#[test]
+fn the_mural_stays_drawn_while_only_part_of_it_is_on_screen() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = level(crate::levels::SUGAR_GLASS_GALLERY);
+    w.ents.clear();
+    w.spr[Spr::Mural as usize] = SpriteRect {
+        u: 0.77,
+        v: 0.77,
+        uw: 0.01,
+        vh: 0.01,
+        w: 48.0,
+        h: 32.0,
+    };
+    // The mural's bottom-left tile is (130, 11). Put the left edge of the view at column 131, so
+    // that tile is off screen while the mural's other two columns are still in view.
+    w.half_w = 5.0;
+    w.half_h = 4.0;
+    w.cam_x = 137.5;
+    w.cam_y = 12.5;
+    w.pcx = w.cam_x;
+    w.pcy = w.cam_y;
+    w.render(0.5, crate::render::flags::CULLING);
+    let data = w.inst.as_slice();
+    let murals = (0..w.inst.len())
+        .filter(|&i| data[i * STRIDE + 16] == 0.77)
+        .count();
+    assert_eq!(
+        murals, 1,
+        "the mural is drawn although its anchor tile is off screen"
+    );
 }
 
 #[test]
