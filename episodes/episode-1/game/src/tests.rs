@@ -725,15 +725,22 @@ fn climbing_ignores_the_pogo_toggle() {
 fn the_tower_camera_keeps_ben_in_view_through_a_long_fall() {
     let mut w = lookout();
     w.half_h = 6.5;
-    w.p.b.x = 5.0;
+    // Knock a one-tile shaft through every floor and the roof at x = 5 so Ben falls the whole
+    // tower, about 72 tiles, instead of landing on the roof he starts on.
+    for y in 3..75 {
+        w.map.set(5, y, 0);
+    }
+    w.p.b.x = 5.2;
     w.p.b.y = 75.0;
     w.cam_y = 78.0;
     w.pcy = 78.0;
-    for t in 0..220 {
+    let mut ticks = 0;
+    for t in 0..600 {
         w.step(0);
         if w.p.b.on_ground {
             break;
         }
+        ticks = t;
         assert!(
             (w.p.b.y - w.cam_y).abs() < w.half_h - 1.0,
             "tick {t}: Ben at {:.1}, camera at {:.1}",
@@ -741,7 +748,12 @@ fn the_tower_camera_keeps_ben_in_view_through_a_long_fall() {
             w.cam_y
         );
     }
+    assert!(
+        ticks > 150,
+        "a long fall, not a one-tick landing: {ticks} ticks"
+    );
     assert!(w.p.b.on_ground, "landed");
+    assert!(w.p.b.y < 4.0, "all the way down, y = {}", w.p.b.y);
 }
 
 #[test]
@@ -785,4 +797,22 @@ fn the_lift_carries_ben_up_and_waits_at_each_end() {
         "the lift rests at its ends, waited {waited} ticks"
     );
     assert!(w.p.b.y <= top + 0.5);
+}
+
+#[test]
+fn fizz_fires_sideways_on_a_ladder_with_down_held_too() {
+    let mut w = lookout();
+    w.p.b.x = 17.8;
+    w.p.b.y = 3.0;
+    run(&mut w, 40, UP);
+    assert!(w.p.climb);
+    w.shots.clear();
+    w.step(DOWN | FIRE);
+    let s = w.shots.last().expect("a shot");
+    assert!(
+        s.vx.abs() > 10.0 && s.vy == 0.0,
+        "sideways, got {} {}",
+        s.vx,
+        s.vy
+    );
 }

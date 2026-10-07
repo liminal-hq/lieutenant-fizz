@@ -523,7 +523,7 @@ fn zarg_lookout() -> LevelData {
     b.row(Cheezie, 6, 6, y(0), 1)
         .row(Cheezie, 8, 6, y(1), 2)
         .row(Cheezie, 34, 4, y(2), 1)
-        .row(Cheezie, 12, 8, y(3), 2)
+        .row(Cheezie, 16, 6, y(3), 2)
         .row(Cheezie, 12, 6, y(5), 2)
         .row(Cheezie, 22, 3, y(6), 1)
         .row(Cheezie, 36, 3, y(7), 1)
@@ -536,7 +536,7 @@ fn zarg_lookout() -> LevelData {
         .row(Choc, 3, 3, y(4), 1)
         .row(Choc, 8, 3, y(6), 2)
         .item(KeyRed, 19, y(8));
-    for (x, k) in [(14, 0), (26, 1), (22, 3), (12, 5), (30, 6)] {
+    for (x, k) in [(14, 0), (20, 1), (22, 3), (12, 5), (15, 6)] {
         b.map.set(x, y(k), CRYS);
     }
     b.ent_at(Kind::Gloop, 14.0, f64::from(y(0)))

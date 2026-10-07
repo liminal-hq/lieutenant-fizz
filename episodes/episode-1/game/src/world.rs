@@ -1129,7 +1129,7 @@ impl World {
         let (mut sx, mut sy) = (p.b.x + p.b.w / 2.0 + p.face * 0.6, p.b.y + 0.85);
         if self.held & UP != 0 && !p.climb {
             (vx, vy, sx, sy) = (0.0, 16.0, p.b.x + p.b.w / 2.0, p.b.y + 1.5);
-        } else if self.held & DOWN != 0 && !p.b.on_ground {
+        } else if self.held & DOWN != 0 && !p.b.on_ground && !p.climb {
             (vx, vy, sx, sy) = (0.0, -16.0, p.b.x + p.b.w / 2.0, p.b.y);
         }
         self.shots.push(Shot {
