@@ -743,7 +743,7 @@ export class Game {
 
   skipCine(): void {
     this.enterMap();
-    this.ui.toast('Find Billy. Start at the Crater Fields, up the path to the north.');
+    this.ui.toast('Find Billy. Start at the Crater Fields, along the path to the east.');
   }
 
   /** Starts (or returns to) the overworld and autosaves progress. */

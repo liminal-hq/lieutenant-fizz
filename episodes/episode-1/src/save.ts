@@ -6,7 +6,15 @@
 import { State } from './sim/protocol';
 import type { Sim } from './sim/sim';
 
+/** The storage key never changes; the version lives inside the saved JSON. */
 export const SAVE_KEY = 'lf-ep1-save-v1';
+
+/**
+ * Version 2 is the overworld with four areas. A version 1 save still loads (its progress is just as
+ * valid), but its map position belongs to the old layout and is dropped, so the player starts on
+ * the map at the saucer rather than stranded in a region the old position now falls in.
+ */
+export const SAVE_VERSION = 2;
 
 /** Highest `doneMask` the sim understands: level bits 0 to 14 and the secret flag in bit 15. */
 export const MAX_DONE_MASK = 0xffff;
@@ -24,7 +32,7 @@ export interface Progress {
 }
 
 interface Stored {
-  v: 1;
+  v: typeof SAVE_VERSION;
   at: number;
   progress: Progress;
 }
@@ -32,7 +40,7 @@ interface Stored {
 const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
 
 export function serialise(progress: Progress, now = Date.now()): string {
-  const s: Stored = { v: 1, at: now, progress };
+  const s: Stored = { v: SAVE_VERSION, at: now, progress };
   return JSON.stringify(s);
 }
 
@@ -40,9 +48,9 @@ export function serialise(progress: Progress, now = Date.now()): string {
 export function parseSave(json: string | null): Stored | null {
   if (!json) return null;
   try {
-    const raw = JSON.parse(json) as Partial<Stored> | null;
+    const raw = JSON.parse(json) as { v?: number; at?: number; progress?: unknown } | null;
     const p = raw?.progress as Partial<Progress> | undefined;
-    if (!raw || raw.v !== 1 || !p || !finite(raw.at)) return null;
+    if (!raw || (raw.v !== 1 && raw.v !== SAVE_VERSION) || !p || !finite(raw.at)) return null;
     const { lives, score, nextLife, ammo, doneMask } = p;
     if (
       !finite(lives) ||
@@ -64,10 +72,13 @@ export function parseSave(json: string | null): Stored | null {
     ) {
       return null;
     }
+    // A version 1 position was recorded on the old map, so it is not trusted.
     const map =
-      p.map && finite(p.map.x) && finite(p.map.y) ? { x: p.map.x, y: p.map.y } : undefined;
+      raw.v === SAVE_VERSION && p.map && finite(p.map.x) && finite(p.map.y)
+        ? { x: p.map.x, y: p.map.y }
+        : undefined;
     return {
-      v: 1,
+      v: SAVE_VERSION,
       at: raw.at,
       progress: { lives, score, nextLife, ammo, doneMask, ...(map ? { map } : {}) },
     };

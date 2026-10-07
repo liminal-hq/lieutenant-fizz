@@ -16,27 +16,27 @@ See `STORY.md` for the full opening cinematic and ending text.
 
 ## Structure
 1. Title screen, then the opening cinematic (8 panels, skippable).
-2. **Overworld:** a top-down map cut into four regions by chocolate rivers, each with its own ground, trees and levels. Teleporter pairs link the regions and power up once the levels in front of them are cleared; the Citadel stays locked until the two Frosting Frontier levels before it are done. Autosaves on every visit. A lake at the centre holds an island that cannot be walked to (see **The secret**).
+2. **Overworld:** a top-down map (north is up) cut into four regions by chocolate rivers, each with its own ground, trees and levels. Teleporter pairs link the regions and power up once the levels in front of them are cleared; the Citadel stays locked until the two Frosting Frontier levels before it are done. Autosaves on every visit. A lake at the centre holds an island that cannot be walked to (see **The secret**).
 3. **Areas and levels** (14 levels; the `Type` says how a level plays, not where it is):
 
 | Area | Level | Type | Notes |
 |---|---|---|---|
-| **Crater Fields** (north-west, start) | Crater Fields | crater | Tutorial: slopes, pogo, fizz, chocolate pools, red gumdrop door |
+| **Crater Fields** (south-west, start) | Crater Fields | crater | Tutorial: slopes, pogo, fizz, chocolate pools, red gumdrop door |
 | | Meteor Mesa | open sky | Daylight biscuit-rock mesas with drifting clouds, gaps bridged by cloud ledges and a hover platform, no ceiling |
 | | Zarg Lookout | building | A nine-floor watchtower in cutaway: ladders, two flights of stairs and a slow lift link floors that alternate between full-width halls and small landings. The red key is on the roof and its cookie door guards the exit at the bottom, so Ben climbs up and comes back down |
-| **Marshmallow Meadows** (south-west) | Marshmallow Meadows | open sky | Soft hills, marshmallows bouncing in fenced corrals to pogo off, the blue key at the top of a stack of cloud ledges |
+| **Marshmallow Meadows** (north-west) | Marshmallow Meadows | open sky | Soft hills, marshmallows bouncing in fenced corrals to pogo off, the blue key at the top of a stack of cloud ledges |
 | | Bonbon Playhouse | theatre | A candy theatre whose backstage rooms are hidden behind painted flats; the red and blue keys are each in a hidden room |
 | | Fudge Bog (optional) | crater | A harder crater: wide fudge pools on stepping stones, spike runs, three spore pods |
-| **Rock Candy Reach** (south-east) | Crystal Caves | cave | Darker tunnels lit by crystals and Ben's lantern; hover platforms, a bridge switch, bats, blue gumdrop door |
+| **Rock Candy Reach** (north-east) | Crystal Caves | cave | Darker tunnels lit by crystals and Ben's lantern; hover platforms, a bridge switch, bats, blue gumdrop door |
 | | Mirror Shafts | vertical cave | A tall crystal shaft sealed by three gates; fizz bounces off mirrors to reach the crystal switches |
 | | Sugar Glass Gallery (optional) | theatre | A long theatre of stacked hidden rooms; one of them is the secret |
-| **Frosting Frontier** (north-east) | Frosting Flats (optional) | open sky | The hardest open-sky level: spike runs, hover chains over long gaps, drones overhead |
+| **Frosting Frontier** (south-east) | Frosting Flats (optional) | open sky | The hardest open-sky level: spike runs, hover chains over long gaps, drones overhead |
 | | Frosting Spire | building | Twelve floors, ladders alternating sides, three lifts and a key in every colour; the green key is on the roof and its door guards the exit at the bottom |
 | | Cocoa Foundry | foundry | Conveyor belts, crushing presses and molten metal |
 | | Mildred's Citadel | citadel | Boulder ramp, sentries, phantoms, then the boss arena, the terminal and Billy's cage |
 | **Gumdrop Isle** (central island, secret) | Gumdrop Isle | open sky | A short, snack-dense bonus course with two caches of cookies that each earn an extra life |
 
-4. **The secret.** The island in the lake, its teleporter pad and its level are visible from the start but cannot be walked to. One hidden room in the Sugar Glass Gallery holds a mural of the crystal forest with a ring of trees glowing in the far south-east. Stepping into it sets the secret-found flag, which makes a hidden teleporter pad appear inside a ring of trees in that corner of the map (the ring has one gap). It pairs with the island pad.
+4. **The secret.** The island in the lake, its teleporter pad and its level are visible from the start but cannot be walked to. One hidden room in the Sugar Glass Gallery holds a mural of the crystal forest with a ring of trees glowing in the far north-east. Stepping into it sets the secret-found flag, which makes a hidden teleporter pad appear inside a ring of trees in that corner of the map (the ring has one gap). It pairs with the island pad.
 5. Ending (4 panels), then the credits (skippable), then a score card. Episode 1 has no post-credits stinger; it belongs to Episode 3.
 
 ## Mechanics
@@ -48,7 +48,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 - **Ladders:** Up grabs a ladder, Up and Down move along it at 4.5 tiles/s, Jump lets go with a hop, and Ben can fire sideways while climbing. The top rung is a ledge: Ben stands on it and presses Down to climb back onto the ladder. Pogo is off while climbing.
 - **Hidden rooms:** in theatre levels, painted flats cover some rooms completely. They fade to about a fifth opaque while Ben is inside and fade back when he leaves; everything inside, from snacks to ambushers, is hidden until then.
 - **Mirrors and crystal switches:** a fizz bubble bounces off a 45-degree mirror (`/` sends an upward bubble right, `\` sends it left). A swivel mirror swings to the other angle after every bounce. A crystal switch opens its own gate when a bubble hits it; each gate has its own switch.
-- **The secret:** one hidden room in the Sugar Glass Gallery counts as the secret. The first time Ben steps inside, the game records it (bit 15 of the saved progress) and toasts a clue pointing at the far south-east of the map.
+- **The secret:** one hidden room in the Sugar Glass Gallery counts as the secret. The first time Ben steps inside, the game records it (bit 15 of the saved progress) and toasts a clue pointing at the far north-east of the map.
 - **Conveyor belts** carry Ben (and enemies) at 3 tiles/s in the direction of their chevrons, on top of his own running. **Presses** rise and fall over a floor on a fixed beat; one that is raised is harmless, one that is down crushes. **Molten metal** is lethal like fudge.
 - **Keys:** red, blue and green gumdrops open matching cookie doors.
 

@@ -21,6 +21,10 @@ use lf_sim::{
 
 pub const MAX_INSTANCES: usize = 120_000;
 
+/// How far a press must have dropped from its raised position before it can crush Ben: its
+/// bottom is then within about a tile of the floor.
+pub const PRESS_DANGER_DROP: f64 = 1.6;
+
 /// How opaque a room's front wall is while Ben stands inside it.
 pub const ROOM_SEEN_ALPHA: f64 = 0.22;
 
@@ -69,6 +73,11 @@ pub const SECRET_FOUND: u32 = 1 << 15;
 pub const PROGRESS_BITS: u32 = ((1 << levels::LEVEL_COUNT) - 1) | SECRET_FOUND;
 
 impl Game {
+    /// Takes a saved cleared-levels mask, dropping every bit that means nothing.
+    pub fn load_done(&mut self, mask: u32) {
+        self.done = mask & PROGRESS_BITS;
+    }
+
     pub fn is_done(&self, level: u8) -> bool {
         self.done & levels::level_bit(level) != 0
     }
@@ -382,6 +391,7 @@ impl World {
     }
 
     pub fn enter_level(&mut self, id: u8) {
+        let id = if id < levels::LEVEL_COUNT { id } else { 0 };
         if self.mode == Mode::Map {
             if let Some(pt) = self
                 .points
@@ -398,6 +408,8 @@ impl World {
     }
 
     pub fn load_level(&mut self, id: u8) {
+        // An id the table does not know builds the first level, so it is also that level's id.
+        let id = if id < levels::LEVEL_COUNT { id } else { 0 };
         let d = levels::build_level(id);
         self.level_id = id;
         self.theme = d.theme;
@@ -531,11 +543,16 @@ impl World {
         // A saved position may belong to an older map: if Ben would start inside a river, a tree or
         // a rock, put him back at the saucer instead.
         let free = |map: &lf_sim::TileMap, (x, y): (f64, f64)| {
-            [(0.0, 0.0), (0.6, 0.0), (0.0, 0.6), (0.6, 0.6)]
-                .iter()
-                .all(|(dx, dy)| {
-                    !map.solid((x + dx).floor() as i32, (y + dy).floor() as i32, false, 0.0)
-                })
+            // Off the map entirely (a hand-edited save) is no better than inside a rock.
+            x >= 0.0
+                && y >= 0.0
+                && x + 0.6 < f64::from(map.w)
+                && y + 0.6 < f64::from(map.h)
+                && [(0.0, 0.0), (0.6, 0.0), (0.0, 0.6), (0.6, 0.6)]
+                    .iter()
+                    .all(|(dx, dy)| {
+                        !map.solid((x + dx).floor() as i32, (y + dy).floor() as i32, false, 0.0)
+                    })
         };
         let at = self
             .game
@@ -753,8 +770,10 @@ impl World {
                 let to = self.points[pt.to];
                 let (px, py) = (self.p.b.x, self.p.b.y);
                 self.cap(px, py + 1.0, Cap::Vworp);
+                // Land on the pad's own tile: a 0.6-tile body there covers one tile of ground, which
+                // is always walkable, whatever the scenery is like around the pad.
                 self.p.b.x = to.x + 0.2;
-                self.p.b.y = to.y - 1.2;
+                self.p.b.y = to.y + 0.1;
                 self.p.b.px = self.p.b.x;
                 self.p.b.py = self.p.b.y;
                 self.cam_x = self.p.b.x;
@@ -1046,6 +1065,8 @@ impl World {
                     }
                     continue;
                 }
+                // A raised press is harmless; only one that has come down towards the floor crushes.
+                Kind::Press if en.b.y >= en.ay - PRESS_DANGER_DROP => continue,
                 _ => {}
             }
             if d.prop {
@@ -1198,7 +1219,7 @@ impl World {
         let (mut sx, mut sy) = (p.b.x + p.b.w / 2.0 + p.face * 0.6, p.b.y + 0.85);
         if self.held & UP != 0 && !p.climb {
             (vx, vy, sx, sy) = (0.0, 16.0, p.b.x + p.b.w / 2.0, p.b.y + 1.5);
-        } else if self.held & DOWN != 0 && !p.b.on_ground {
+        } else if self.held & DOWN != 0 && !p.b.on_ground && !p.climb {
             (vx, vy, sx, sy) = (0.0, -16.0, p.b.x + p.b.w / 2.0, p.b.y);
         }
         self.shots.push(Shot {

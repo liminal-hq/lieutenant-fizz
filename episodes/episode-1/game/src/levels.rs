@@ -150,7 +150,9 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
 ];
 
 /// Bit in `Game::done` for a cleared level.
+/// `id` must be a real level id: anything from 32 up would overflow the shift.
 pub const fn level_bit(id: u8) -> u32 {
+    debug_assert!(id < LEVEL_COUNT);
     1 << id
 }
 #[derive(Clone, Copy, Debug)]
@@ -561,7 +563,8 @@ fn crater() -> LevelData {
 }
 
 /// Open-sky daylight level: biscuit-rock mesas separated by gaps that cloud ledges and a hover
-/// platform bridge. Gaps are at most 4 wide unless something carries Ben across.
+/// platform bridge. Gaps are at most 3 wide unless a ledge or hover platform carries Ben across: Ben
+/// only clears 4 tiles by jumping within a tenth of a second of the edge.
 fn meteor_mesa() -> LevelData {
     let mut b = Builder::new(200, 30, 4);
     b.run(&[
@@ -599,7 +602,7 @@ fn meteor_mesa() -> LevelData {
         (Flat, 27),
     ]);
     b.walls();
-    // Cloud ledges across the wide gaps, one tile under the neighbouring ground.
+    // Cloud ledges across the wide gaps, level with the neighbouring ground.
     b.plat(64, 65, 7).plat(127, 128, 8).plat(169, 170, 3);
     b.hover(97.0, 4.5, 103.0, 4.5, 0.3);
     b.row(Cheezie, 6, 5, 6, 1)
@@ -620,7 +623,7 @@ fn meteor_mesa() -> LevelData {
         .row(Choc, 167, 6, 7, 1)
         .row(Cookie, 185, 2, 6, 3);
     b.fill(195, 195, 4, 5, EXIT);
-    for x in [8, 30, 52, 74, 110, 121, 154, 182] {
+    for x in [8, 30, 50, 74, 110, 121, 154, 182] {
         b.crys(x);
     }
     b.ent(Kind::Gloop, 26.0)
@@ -688,7 +691,7 @@ fn zarg_lookout() -> LevelData {
     b.row(Cheezie, 6, 6, y(0), 1)
         .row(Cheezie, 8, 6, y(1), 2)
         .row(Cheezie, 34, 4, y(2), 1)
-        .row(Cheezie, 12, 8, y(3), 2)
+        .row(Cheezie, 16, 6, y(3), 2)
         .row(Cheezie, 12, 6, y(5), 2)
         .row(Cheezie, 22, 3, y(6), 1)
         .row(Cheezie, 36, 3, y(7), 1)
@@ -701,7 +704,7 @@ fn zarg_lookout() -> LevelData {
         .row(Choc, 3, 3, y(4), 1)
         .row(Choc, 8, 3, y(6), 2)
         .item(KeyRed, 19, y(8));
-    for (x, k) in [(14, 0), (26, 1), (22, 3), (12, 5), (30, 6)] {
+    for (x, k) in [(14, 0), (20, 1), (22, 3), (12, 5), (15, 6)] {
         b.map.set(x, y(k), CRYS);
     }
     b.ent_at(Kind::Gloop, 14.0, f64::from(y(0)))
@@ -994,8 +997,8 @@ fn mirror_shafts() -> LevelData {
         (48, 10, 20),
         (51, 6, 14),
         (54, 6, 14),
-        (57, 20, 28),
-        (60, 22, 30),
+        (57, 12, 16),
+        (60, 16, 22),
         (63, 24, 30),
         (66, 18, 28),
         (69, 14, 24),
@@ -1014,7 +1017,7 @@ fn mirror_shafts() -> LevelData {
     // Three gates, each on its own switch channel and closed to start with.
     b.fill(3, 32, 30, 31, GATE)
         .fill(3, 32, 66, 67, GATE_2)
-        .fill(3, 32, 88, 89, GATE_3);
+        .fill(3, 32, 87, 88, GATE_3);
     for ch in [GATE_CHANNEL, 2, 3] {
         b.map.set_switch(ch, true);
     }
@@ -1036,7 +1039,8 @@ fn mirror_shafts() -> LevelData {
         .item(Soda, 21, 78)
         .item(Soda, 12, 6);
     for (stand, x0, x1) in ledges {
-        if stand % 6 == 0 {
+        // The ledges under gates 1 and 2 have the gate's own rows at head height: no snacks there.
+        if stand % 6 == 0 && stand != 30 && stand != 66 {
             b.row(Cheezie, x0 + 1, (x1 - x0 - 1).min(5), stand, 1);
         }
     }
@@ -1378,11 +1382,11 @@ fn cocoa_foundry() -> LevelData {
     b.fill(208, 208, 4, 5, EXIT);
     // A press every so often, each on a floor it can crush; the floor height is read from the map.
     for x in [
-        24, 40, 50, 58, 68, 78, 90, 108, 118, 128, 140, 152, 164, 176, 186, 196,
+        24, 40, 50, 58, 68, 78, 100, 108, 118, 128, 140, 152, 164, 176, 186, 196,
     ] {
         let floor = (0..b.h)
             .rev()
-            .find(|&y| b.map.solid(x, y, false, 0.0))
+            .find(|&y| b.map.solid(x, y, false, 0.0) || b.map.get(x, y) == PLAT)
             .map_or(4, |y| y + 1);
         b.ent_at(Kind::Press, f64::from(x), f64::from(floor) + 3.0);
     }
@@ -1904,7 +1908,7 @@ pub fn build_overworld() -> MapData {
             true,
         ),
         // The secret pair: a pad on the island, always on show, and its hidden partner in a ring
-        // of trees in the far south-east, which appears once the mural has been found.
+        // of trees in the far north-east, which appears once the mural has been found.
         pt(PtKind::Tele, 0, 26, 22, 21, secret, false),
         MapPoint {
             hidden: true,
@@ -2034,6 +2038,16 @@ mod tests {
             );
             assert!(count(&l.map, CRYS) > 0);
             assert!(!l.items.is_empty());
+            for it in &l.items {
+                assert!(
+                    !l.map
+                        .solid(it.x.floor() as i32, it.y.floor() as i32, false, 0.0),
+                    "level {id}: {:?} at {:.1},{:.1} is inside solid ground",
+                    it.kind,
+                    it.x,
+                    it.y
+                );
+            }
             assert!(!l.spawns.is_empty());
         }
         assert_eq!(count(&build_level(CRATER).map, EXIT), 2);
@@ -2092,6 +2106,31 @@ mod tests {
         assert_eq!(count(&l.map, EXIT), 2);
         assert!(l.arena.is_none() && l.plats.len() == 1);
         assert_eq!(l.theme, Theme::OpenSky);
+    }
+
+    #[test]
+    fn no_press_sweeps_through_a_ledge_or_solid_ground() {
+        for def in LEVELS.iter() {
+            let l = (def.build)();
+            for s in l.spawns.iter().filter(|s| s.kind == Kind::Press) {
+                // A press is 2 wide (body x = spawn x - 0.5), raised with its bottom at `s.y`, and it
+                // drops 3 tiles; its box sweeps from the floor up to its raised top.
+                let (x0, x1) = ((s.x - 0.5).floor() as i32, (s.x + 1.4).floor() as i32);
+                let (y0, y1) = ((s.y - 3.0).floor() as i32, (s.y + 1.4).floor() as i32);
+                for x in x0..=x1 {
+                    // The floor itself is the row below the press's lowest point.
+                    for y in y0..=y1 {
+                        let t = l.map.get(x, y);
+                        assert!(
+                            !l.map.is_solid_tile(t) && t != PLAT,
+                            "level {}: press at {} sweeps through tile {t} at {x},{y}",
+                            def.id,
+                            s.x
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]
@@ -2215,7 +2254,7 @@ mod tests {
         // The island itself is walkable once there.
         let there = reachable_points(&m, 26, 22);
         assert!(there.contains(&isle) && there.contains(&island_pad));
-        // The hidden pad sits in the south-east region and is reached through the ring's gap.
+        // The hidden pad sits in the Rock Candy Reach region and is reached through the ring's gap.
         assert!(m.points[hidden_pad].hidden);
         let se = reachable_points(&m, m.points[10].x as i32, m.points[10].y as i32);
         assert!(
