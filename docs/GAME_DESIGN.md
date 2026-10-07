@@ -17,7 +17,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 ## Structure
 1. Title screen, then the opening cinematic (8 panels, skippable).
 2. **Overworld:** a top-down map (north is up) cut into four regions by chocolate rivers, each with its own ground, trees and levels. In Crater Fields the three levels open in order, tutorial first. Teleporter pairs link the regions and power up once the levels in front of them are cleared; the Citadel stays locked until the two Frosting Frontier levels before it are done. Autosaves on every visit. A lake at the centre holds an island that cannot be walked to (see **The secret**).
-3. **Areas and levels** (14 levels; the `Type` says how a level plays, not where it is):
+3. **Areas and levels** (15 levels; the `Type` says how a level plays, not where it is):
 
 | Area | Level | Type | Notes |
 |---|---|---|---|
@@ -29,6 +29,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 | | Fudge Bog (optional) | crater | A harder crater: wide fudge pools on stepping stones, spike runs, three spore pods |
 | **Rock Candy Reach** (north-east) | Crystal Caves | cave | Darker tunnels lit by crystals and Ben's lantern; hover platforms, a bridge switch, bats, blue gumdrop door |
 | | Mirror Shafts | vertical cave | A tall crystal shaft sealed by three gates; fizz bounces off mirrors to reach crystal switches that sit in rock, open only to the mirror's bubble |
+| | Whisper Hollow (optional) | cave | A cave for climbers: a vine rope over a fudge pool, a three-tile chimney climbed by kicking between its walls (and a vine to finish on), hanging vines across a chasm, tall shelves to pull up onto, and a cracked-wall closet of cookies in the chimney |
 | | Sugar Glass Gallery (optional) | theatre | A long theatre of stacked hidden rooms; one of them is the secret |
 | **Frosting Frontier** (south-east) | Frosting Flats (optional) | open sky | The hardest open-sky level: spike runs, hover chains over long gaps, drones overhead |
 | | Frosting Spire | building | Twelve floors, ladders alternating sides, three lifts and a key in every colour; the green key is on the roof and its door guards the exit at the bottom |

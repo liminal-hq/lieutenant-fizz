@@ -56,7 +56,7 @@ const WALK: [Act; 9] = [
 ];
 
 /// Extra macros for levels with ladders and lifts.
-const CLIMB: [Act; 4] = [
+const CLIMB: [Act; 6] = [
     Act {
         mask: UP,
         ticks: 10,
@@ -71,6 +71,14 @@ const CLIMB: [Act; 4] = [
     },
     Act {
         mask: DOWN | RIGHT,
+        ticks: 8,
+    },
+    Act {
+        mask: UP | LEFT,
+        ticks: 8,
+    },
+    Act {
+        mask: DOWN | LEFT,
         ticks: 8,
     },
 ];
@@ -437,6 +445,35 @@ mod tests {
             "bot stalled at wp {} after {} ticks; best states {:?}",
             r.waypoint, r.ticks, r.top
         );
+    }
+
+    #[test]
+    fn whisper_hollow_can_be_finished_by_climbing() {
+        use crate::levels::WHISPER_HOLLOW;
+        let route = [exit_of(WHISPER_HOLLOW)];
+        let o = Options {
+            climb: true,
+            beam: 600,
+            max_ticks: 12_000,
+            ..Options::default()
+        };
+        let r = play_level(WHISPER_HOLLOW, &route, &o);
+        assert!(
+            r.finished,
+            "bot stalled at wp {} after {} ticks, best {:.1},{:.1}; best states {:?}",
+            r.waypoint, r.ticks, r.best_x, r.best_y, r.top
+        );
+    }
+
+    #[test]
+    fn whisper_hollow_cannot_be_finished_without_climbing() {
+        use crate::levels::WHISPER_HOLLOW;
+        let route = [exit_of(WHISPER_HOLLOW)];
+        let o = Options {
+            max_ticks: 3_000,
+            ..Options::default()
+        };
+        assert!(!play_level(WHISPER_HOLLOW, &route, &o).finished);
     }
 
     #[test]

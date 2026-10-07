@@ -25,9 +25,10 @@ pub const FROSTING_FLATS: u8 = 10;
 pub const FROSTING_SPIRE: u8 = 11;
 pub const COCOA_FOUNDRY: u8 = 12;
 pub const GUMDROP_ISLE: u8 = 13;
+pub const WHISPER_HOLLOW: u8 = 14;
 
 /// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
-pub const LEVEL_COUNT: u8 = 14;
+pub const LEVEL_COUNT: u8 = 15;
 
 /// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
 pub const AREA_CRATER_FIELDS: u8 = 0;
@@ -146,6 +147,13 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
         theme: Theme::OpenSky,
         area: AREA_GUMDROP_ISLE,
         icon: Spr::OwMeadow,
+    },
+    LevelDef {
+        id: WHISPER_HOLLOW,
+        build: whisper_hollow,
+        theme: Theme::Caves,
+        area: AREA_ROCK_CANDY_REACH,
+        icon: Spr::OwCave,
     },
 ];
 
@@ -1645,6 +1653,73 @@ fn caves() -> LevelData {
     b.out(CAVES, (3.0, 5.0), None)
 }
 
+/// A cave built around climbing, carved out of solid rock. A rope of vines carries Ben over a
+/// fudge pool hand over hand, a three-tile chimney is climbed by kicking between its walls (with
+/// a vine to finish on), hanging vines swing him across a chasm, and tall shelves are pulled up
+/// onto. A cracked wall in the chimney hides a closet of cookies.
+fn whisper_hollow() -> LevelData {
+    let mut b = Builder::new(112, 40, 3);
+    b.fill(0, 111, 0, 39, FILL);
+    // The starting hall, with a fudge pool in the middle that only the rope crosses.
+    b.fill(1, 29, 3, 11, EMPTY)
+        .fill(8, 22, 1, 2, CHOC)
+        .fill(8, 22, 1, 2, CHOC)
+        .fill(7, 7, 3, 8, VINE)
+        .fill(23, 23, 3, 8, VINE)
+        .fill(7, 23, 8, 8, VINE);
+    // Pillar stubs at both ends of the pool keep the ends of the rope above the floor.
+    // The chimney: a door at the bottom, then three tiles between two walls all the way up.
+    b.fill(30, 30, 3, 5, EMPTY)
+        .fill(31, 33, 3, 25, EMPTY)
+        .fill(31, 31, 14, 25, VINE);
+    // A tunnel at the top leads on to the chasm.
+    b.fill(34, 48, 22, 25, EMPTY);
+    // The closet in the chimney's right-hand wall.
+    b.fill(35, 38, 10, 13, EMPTY).fill(34, 34, 10, 11, CRACKED);
+    // The chasm: fudge below, a ledge each side, and vines hanging from the ceiling.
+    b.fill(49, 86, 3, 34, EMPTY)
+        .fill(49, 86, 1, 2, CHOC)
+        .fill(49, 52, 3, 21, FILL)
+        .fill(80, 86, 3, 21, FILL);
+    for x in [56, 60, 64, 68, 72, 76] {
+        b.fill(x, x, 20, 34, VINE);
+    }
+    // The last climb: shelves four tiles apart, to be pulled up onto.
+    b.fill(87, 110, 22, 37, EMPTY)
+        .fill(90, 92, 22, 25, FILL)
+        .fill(95, 97, 22, 29, FILL)
+        .fill(100, 102, 22, 33, FILL)
+        .fill(103, 110, 22, 33, FILL)
+        .fill(109, 109, 34, 35, EXIT);
+    // Snacks, ammo and a few beasts.
+    b.row(Cheezie, 3, 5, 3, 1)
+        .item(Soda, 27, 3)
+        .row(Cheezie, 10, 5, 7, 3)
+        .row(Cheezie, 32, 1, 8, 1)
+        .item(Cookie, 36, 10)
+        .item(Cookie, 37, 12)
+        .item(Soda, 35, 12)
+        .row(Cheezie, 38, 4, 23, 3)
+        .item(Soda, 50, 22)
+        .row(Cheezie, 58, 4, 27, 4)
+        .item(Cookie, 66, 28)
+        .row(Choc, 82, 3, 22, 1)
+        .item(Soda, 91, 26)
+        .item(Cookie, 96, 30)
+        .row(Cheezie, 101, 1, 34, 1);
+    for (x, y) in [(5, 3), (27, 3), (36, 22), (84, 22), (98, 22)] {
+        b.map.set(x, y, CRYS);
+    }
+    b.ent_at(Kind::Gloop, 26.0, 3.0)
+        .ent_at(Kind::Beetle, 42.0, 22.0)
+        .ent_at(Kind::Bat, 62.0, 33.0)
+        .ent_at(Kind::Bat, 74.0, 33.0)
+        .ent_dir(Kind::Glyph, 12.0, 3.0, 0.0)
+        .ent_dir(Kind::Glyph, 28.0, 3.0, 2.0)
+        .ent_dir(Kind::Glyph, 52.0, 22.0, 3.0);
+    b.out(WHISPER_HOLLOW, (3.0, 3.0), None)
+}
+
 fn citadel() -> LevelData {
     let mut b = Builder::new(158, 26, 4);
     b.run(&[
@@ -1993,6 +2068,7 @@ pub fn build_overworld() -> MapData {
             ..pt(PtKind::Tele, 0, 55, 40, 20, secret, false)
         },
         pt(PtKind::Level, GUMDROP_ISLE, 24, 23, 0, 0, false),
+        pt(PtKind::Level, WHISPER_HOLLOW, 41, 28, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -2022,6 +2098,7 @@ pub fn build_overworld() -> MapData {
     path(8, 37, 20, 38);
     path(29, 38, 37, 34);
     path(37, 34, 46, 38);
+    path(37, 34, 41, 28);
     path(46, 38, 53, 27);
     path(46, 38, 51, 30);
     path(53, 18, 33, 15);
@@ -2343,7 +2420,7 @@ mod tests {
                 assert_eq!(q.to, i, "teleporter {i} and {} pair up", p.to);
             }
         }
-        assert_eq!(m.points.len(), 23);
+        assert_eq!(m.points.len(), 24);
     }
 
     /// Indices of the points a walker can reach from tile (x, y) without crossing anything solid.
@@ -2390,7 +2467,10 @@ mod tests {
         let sw = levels(&from(5));
         assert_eq!(sw, vec![MARSHMALLOW_MEADOWS, BONBON_PLAYHOUSE, FUDGE_BOG]);
         let se = levels(&from(10));
-        assert_eq!(se, vec![CAVES, MIRROR_SHAFTS, SUGAR_GLASS_GALLERY]);
+        assert_eq!(
+            se,
+            vec![CAVES, MIRROR_SHAFTS, SUGAR_GLASS_GALLERY, WHISPER_HOLLOW]
+        );
         let ne = levels(&from(15));
         assert_eq!(
             ne,
