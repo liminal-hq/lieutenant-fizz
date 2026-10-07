@@ -129,25 +129,25 @@ export const LEVELS: LevelInfo[] = [
   {
     name: 'Meteor Mesa',
     blurb: 'Biscuit-rock mesas in open sky, with cloud ledges between them.',
-    track: 'crater',
+    track: 'sky',
     cleared: 'The sky is clear all the way to the horizon, and there is more of Zargoth to see.',
   },
   {
     name: 'Zarg Lookout',
     blurb: 'A watchtower of ladders, stairs and one slow lift. The red key is on the roof.',
-    track: 'crater',
+    track: 'tower',
     cleared: 'Ben climbs down with a pocketful of snacks and the whole sky to look at.',
   },
   {
     name: 'Marshmallow Meadows',
     blurb: 'Soft hills, fenced-in marshmallows to bounce off, and a blue key in the clouds.',
-    track: 'crater',
+    track: 'sky',
     cleared: 'Marshmallow fluff clings to Ben’s boots. Somewhere ahead, the music of a playhouse.',
   },
   {
     name: 'Bonbon Playhouse',
     blurb: 'A candy theatre. The walls are only painted flats, so walk right in.',
-    track: 'caves',
+    track: 'theatre',
     cleared: 'The curtain falls on a very sticky stage. Ben takes a bow.',
   },
   {
@@ -167,32 +167,32 @@ export const LEVELS: LevelInfo[] = [
   {
     name: 'Sugar Glass Gallery',
     blurb: 'A long gallery of hidden rooms. Not everything on these walls is decoration.',
-    track: 'caves',
+    track: 'theatre',
     cleared: 'Ben leaves the gallery with a head full of paintings and pockets full of crumbs.',
   },
   {
     name: 'Frosting Flats',
     blurb: 'Long, open stretches of frosted rock, spike runs and hover platforms. Mind the drones.',
-    track: 'crater',
+    track: 'sky',
     cleared: 'A long way across, and not a single frosting stain on Ben’s helmet. Almost.',
   },
   {
     name: 'Frosting Spire',
     blurb: 'The tallest Zarg tower: twelve floors, three lifts, and a key in every colour.',
-    track: 'crater',
+    track: 'tower',
     cleared: 'Twelve floors up and twelve floors down, and Ben’s knees have opinions about it.',
   },
   {
     name: 'Cocoa Foundry',
     blurb: 'Belts, presses and pools of molten metal. Mind the timing, and mind the belts.',
-    track: 'citadel',
+    track: 'foundry',
     cleared:
       'The presses thump on without him. Ben dusts the soot off his helmet and heads for the Citadel.',
   },
   {
     name: 'Gumdrop Isle',
     blurb: 'A secret island, covered in snacks. Nobody was supposed to find this place.',
-    track: 'crater',
+    track: 'secret',
     cleared:
       'Ben leaves the island with a few more lives than he came with, and a very full pocket.',
   },

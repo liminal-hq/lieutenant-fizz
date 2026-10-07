@@ -528,7 +528,20 @@ impl World {
         self.items.clear();
         self.plats.clear();
         self.near = None;
-        let at = self.game.map_pos.unwrap_or(m.start);
+        // A saved position may belong to an older map: if Ben would start inside a river, a tree or
+        // a rock, put him back at the saucer instead.
+        let free = |map: &lf_sim::TileMap, (x, y): (f64, f64)| {
+            [(0.0, 0.0), (0.6, 0.0), (0.0, 0.6), (0.6, 0.6)]
+                .iter()
+                .all(|(dx, dy)| {
+                    !map.solid((x + dx).floor() as i32, (y + dy).floor() as i32, false, 0.0)
+                })
+        };
+        let at = self
+            .game
+            .map_pos
+            .filter(|&p| free(&self.map, p))
+            .unwrap_or(m.start);
         let mut b = Body::new(at.0, at.1, 0.6, 0.6);
         b.px = at.0;
         b.py = at.1;
