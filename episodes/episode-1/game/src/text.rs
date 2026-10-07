@@ -54,6 +54,12 @@ toasts! {
     GlyphVisitors = "A painted wall: a round ship lands, and the little figures wave with four arms each",
     GlyphFizz = "A painted wall: a figure pours something fizzy on a dry crack, and a green sprout bursts out",
     GlyphDeep = "A painted wall: a long stair winds down into the dark, and every step has a small candle",
+    JokePogo = "Thirty bounces. Ben is not a kangaroo, but he is doing a very good impression",
+    JokeMarsh = "Ben has been told that marshmallows are not trampolines. He disagrees",
+    JokeKick = "Ben's knees file a formal complaint about all this wall-kicking",
+    JokeIdle = "Ben whistles a little tune. The level waits politely",
+    CameoBilly = "A chalk drawing of Billy in his helmet. \"FIND ME\", it says, with an arrow pointing at nothing",
+    CameoMortimer = "A chalk drawing of Mortimer McMire. Someone has added a moustache. \"WANTED: FOR STEALING COCOA\"",
     SecretFound = "A mural of the crystal forest — a ring of trees glows in the far north-east",
 }
 

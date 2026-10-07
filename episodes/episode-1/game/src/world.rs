@@ -190,7 +190,23 @@ pub struct Hazard {
     pub w: f64,
 }
 
+/// Counters behind the small jokes: each fires once per level visit.
+#[derive(Clone, Copy, Default)]
+pub struct Fun {
+    pub pogos: u32,
+    pub marsh: u32,
+    pub kicks: u32,
+    pub idle: f64,
+    pub told: u8,
+}
+
+pub const JOKE_POGO: u8 = 1;
+pub const JOKE_MARSH: u8 = 2;
+pub const JOKE_KICK: u8 = 4;
+pub const JOKE_IDLE: u8 = 8;
+
 pub struct World {
+    pub fun: Fun,
     pub mode: Mode,
     pub game: Game,
     pub pogo_height: f64,
@@ -341,6 +357,7 @@ impl World {
             events: EventQueue::new(256),
             spr: vec![SpriteRect::default(); crate::sprites::SPRITE_NAMES.len()],
             out: [0.0; 16],
+            fun: Fun::default(),
         }
     }
 
@@ -397,6 +414,7 @@ impl World {
             events: EventQueue::new(256),
             spr: Vec::new(),
             out: [0.0; 16],
+            fun: self.fun,
         }
     }
 
@@ -413,6 +431,14 @@ impl World {
 
     pub fn cap(&mut self, x: f64, y: f64, c: Cap) {
         self.events.emit(ev::CAPTION, x, y, f64::from(c as u16));
+    }
+
+    /// Shows a one-off joke toast, once per level visit.
+    fn joke(&mut self, bit: u8, t: Toast) {
+        if self.fun.told & bit == 0 {
+            self.fun.told |= bit;
+            self.toast(t);
+        }
     }
 
     fn toast(&mut self, t: Toast) {
@@ -458,6 +484,7 @@ impl World {
         self.has_usb = false;
         self.hacked = false;
         self.won = false;
+        self.fun = Fun::default();
         self.end_timer = None;
         self.shake = 0.0;
         self.near = None;
@@ -860,6 +887,17 @@ impl World {
         }
         if e & POGO != 0 && !self.p.climb {
             self.p.pogo = !self.p.pogo;
+            if !self.p.pogo {
+                self.fun.pogos = 0;
+            }
+        }
+        if h == 0 && self.p.b.on_ground && self.p.dead == 0.0 {
+            self.fun.idle += dt;
+            if self.fun.idle > 20.0 {
+                self.joke(JOKE_IDLE, Toast::JokeIdle);
+            }
+        } else {
+            self.fun.idle = 0.0;
         }
         let ax = f64::from(u8::from(h & RIGHT != 0)) - f64::from(u8::from(h & LEFT != 0));
         let jump_held = h & JUMP != 0;
@@ -912,6 +950,10 @@ impl World {
                 self.p.squash = 0.12;
                 let (x, y) = (self.p.b.x + 0.35, self.p.b.y);
                 self.cap(x, y, Cap::Boing);
+                self.fun.pogos += 1;
+                if self.fun.pogos >= 30 {
+                    self.joke(JOKE_POGO, Toast::JokePogo);
+                }
             } else if e & JUMP != 0 {
                 let (x, y) = (self.p.b.x, self.p.b.y);
                 self.cap(x, y, Cap::Jump);
@@ -931,6 +973,10 @@ impl World {
                 p.cut = false;
                 p.wall_t = WALL_KICK_COOLDOWN;
                 p.kick_side = side;
+                self.fun.kicks += 1;
+                if self.fun.kicks >= 12 {
+                    self.joke(JOKE_KICK, Toast::JokeKick);
+                }
             }
         }
         {
@@ -1126,6 +1172,16 @@ impl World {
                     }
                     continue;
                 }
+                Kind::Cameo => {
+                    if first {
+                        self.toast(if en.dir > 0.0 {
+                            Toast::CameoMortimer
+                        } else {
+                            Toast::CameoBilly
+                        });
+                    }
+                    continue;
+                }
                 Kind::Glyph => {
                     if first {
                         let toast = match en.dir as i32 {
@@ -1151,6 +1207,10 @@ impl World {
                     self.p.b.vy = if self.p.pogo { 26.0 } else { 18.0 };
                     let (x, y) = (self.p.b.x, self.p.b.y);
                     self.cap(x, y, Cap::Sproing);
+                    self.fun.marsh += 1;
+                    if self.fun.marsh >= 8 {
+                        self.joke(JOKE_MARSH, Toast::JokeMarsh);
+                    }
                 } else if first {
                     let diff = self.p.b.x - b.x;
                     self.p.b.vx = sign(if diff == 0.0 { 1.0 } else { diff }) * 12.0;
@@ -1674,7 +1734,8 @@ impl World {
             | Kind::Swivel
             | Kind::CrystalSwitch
             | Kind::Target
-            | Kind::Glyph => {}
+            | Kind::Glyph
+            | Kind::Cameo => {}
         }
     }
 
