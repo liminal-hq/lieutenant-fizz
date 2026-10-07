@@ -56,6 +56,25 @@ describe('master glyphs', () => {
   });
 });
 
+describe('baseline', () => {
+  const master = masterGlyphs();
+  const lastInkRow = (ch: string): number => {
+    const g = master[ch] as number[][];
+    return g.reduce((last, row, y) => (row.some(Boolean) ? y : last), -1);
+  };
+
+  it('rests the period, colon and ellipsis on the baseline (row 8)', () => {
+    expect(lastInkRow('.')).toBe(8);
+    expect(lastInkRow(':')).toBe(8);
+    expect(lastInkRow('…')).toBe(8);
+    expect(lastInkRow('!')).toBe(8);
+  });
+
+  it('keeps capitals on the baseline too', () => {
+    for (const ch of 'ABEHZ') expect(lastInkRow(ch), ch).toBe(8);
+  });
+});
+
 describe('accent composition', () => {
   const master = masterGlyphs();
 
@@ -139,6 +158,13 @@ describe('condensed', () => {
     const master = masterGlyphs();
     for (const ch of 'MWmw1%#*×&+=/…«»—–→←↑↓►◄▸') {
       const g = master[ch] as number[][];
+      expect(width(condense(g, ch)), ch).toBe(width(g));
+    }
+  });
+
+  it('leaves every arrow at its width, including the down-left arrow', () => {
+    for (const ch of '→←↑↓↙►◄▸') {
+      const g = masterGlyphs()[ch] as number[][];
       expect(width(condense(g, ch)), ch).toBe(width(g));
     }
   });
