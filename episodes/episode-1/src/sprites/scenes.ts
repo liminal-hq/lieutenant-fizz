@@ -240,25 +240,22 @@ export function mural(): Grid {
   p.rect(2, 15, 44, 3, 'b');
   p.rect(22, 2, 3, 28, 'b');
   for (let i = 0; i < 40; i++) p.px(4 + ((i * 7) % 40), 4 + ((i * 5) % 24), 'g');
+  // A ring of five trees with a gap on its west side, matching the clearing on the map. They are
+  // spaced so none overlaps another, and drawn in magenta so they stand out from the grass.
   const ring = [
-    [38, 6],
-    [41, 8],
-    [42, 10],
-    [40, 12],
-    [36, 12],
-    [34, 10],
-    [35, 8],
+    [36, 6],
+    [42, 6],
+    [43, 10],
+    [42, 14],
+    [36, 14],
   ] as const;
-  // Each marker is a small tree with a glowing yellow top, to match the clue's "ring of trees".
   for (const [x, y] of ring) {
     p.px(x, y - 4, 'y');
-    p.rect(x - 1, y - 3, 3, 1, 'g');
-    p.rect(x - 2, y - 2, 5, 1, 'G');
-    p.rect(x - 2, y - 1, 5, 1, 'g');
+    p.rect(x - 1, y - 3, 3, 1, 'm');
+    p.rect(x - 2, y - 2, 5, 1, 'm');
+    p.rect(x - 2, y - 1, 5, 1, 'M');
     p.rect(x, y, 1, 1, 'N');
   }
-  p.px(33, 9, 'G');
-  p.px(34, 9, 'G');
   return p.outline();
 }
 

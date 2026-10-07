@@ -25,6 +25,12 @@ pub const MAX_INSTANCES: usize = 120_000;
 /// bottom is then within about a tile of the floor.
 pub const PRESS_DANGER_DROP: f64 = 1.6;
 
+/// How close a bubble must pass to a mirror's centre to bounce off it, and to a crystal switch to
+/// open its gate. A mirror is the larger target: a bubble Ben fires from just beside one still
+/// meets it, so he cannot slip a shot past a mirror by standing against it.
+pub const MIRROR_REACH: f64 = 0.8;
+pub const SWITCH_REACH: f64 = 0.55;
+
 /// Enemies in a hidden room do not move while its front wall is more opaque than this.
 pub const ROOM_DORMANT_ALPHA: f64 = 0.95;
 
@@ -1643,6 +1649,9 @@ impl World {
         while i > 0 {
             i -= 1;
             let mut b = self.shots[i];
+            // Where the bubble was at the start of the tick: a bubble fired from right beside a
+            // mirror is already moving away from it by the time it is first tested.
+            let (ox, oy) = (b.x, b.y);
             if b.g {
                 b.vy -= 20.0 * dt;
             }
@@ -1664,7 +1673,14 @@ impl World {
                     if matches!(e.kind, Kind::Mirror | Kind::Swivel | Kind::CrystalSwitch) {
                         let (kind, dir) = (e.kind, e.dir);
                         let (cx, cy) = (e.b.x + e.b.w / 2.0, e.b.y + e.b.h / 2.0);
-                        if (b.x - cx).abs() < 0.55 && (b.y - cy).abs() < 0.55 {
+                        let reach = if kind == Kind::CrystalSwitch {
+                            SWITCH_REACH
+                        } else {
+                            MIRROR_REACH
+                        };
+                        let near =
+                            |x: f64, y: f64| (x - cx).abs() < reach && (y - cy).abs() < reach;
+                        if near(b.x, b.y) || near(ox, oy) {
                             if kind == Kind::CrystalSwitch {
                                 // The switch's `dir` holds the channel of the gate it opens.
                                 let ch = dir as u8;

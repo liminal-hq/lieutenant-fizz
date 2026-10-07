@@ -28,7 +28,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 | | Bonbon Playhouse | theatre | A candy theatre whose backstage rooms are hidden behind painted flats; the red and blue keys are each in a hidden room |
 | | Fudge Bog (optional) | crater | A harder crater: wide fudge pools on stepping stones, spike runs, three spore pods |
 | **Rock Candy Reach** (north-east) | Crystal Caves | cave | Darker tunnels lit by crystals and Ben's lantern; hover platforms, a bridge switch, bats, blue gumdrop door |
-| | Mirror Shafts | vertical cave | A tall crystal shaft sealed by three gates; fizz bounces off mirrors to reach the crystal switches |
+| | Mirror Shafts | vertical cave | A tall crystal shaft sealed by three gates; fizz bounces off mirrors to reach crystal switches that sit in rock, open only to the mirror's bubble |
 | | Sugar Glass Gallery (optional) | theatre | A long theatre of stacked hidden rooms; one of them is the secret |
 | **Frosting Frontier** (south-east) | Frosting Flats (optional) | open sky | The hardest open-sky level: spike runs, hover chains over long gaps, drones overhead |
 | | Frosting Spire | building | Twelve floors, ladders alternating sides, three lifts and a key in every colour; the green key is on the roof and its door guards the exit at the bottom |
@@ -45,7 +45,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 - **Fizz Blaster:** cream soda bubbles. Stuns enemies for 6 s, never kills. Aim up with ↑, or down with ↓ while in the air. Uses ammo; cream soda cans give +5.
 - **Stomp:** landing on most enemies stuns them for 3 s.
 - **Lives:** start with 3, extra life every 100 snack points. Death returns Ben to the map; game over offers your last save.
-- **Ladders:** Up grabs a ladder, Up and Down move along it at 4.5 tiles/s, Jump lets go with a hop, and Ben can fire sideways while climbing. The top rung is a ledge: Ben stands on it and presses Down to climb back onto the ladder. Pogo is off while climbing.
+- **Ladders:** Up grabs a ladder, Up and Down move along it at 4.5 tiles/s, Jump lets go with a hop (Ben cannot grab the same ladder again until Up and Down are released or he leaves it), and Ben can fire sideways while climbing. The top rung is a ledge: Ben stands on it and presses Down to climb back onto the ladder. Pogo is off while climbing.
 - **Hidden rooms:** in theatre levels, painted flats cover some rooms completely. They fade to about a fifth opaque while Ben is inside and fade back when he leaves; everything inside, from snacks to ambushers, is hidden until then.
 - **Mirrors and crystal switches:** a fizz bubble bounces off a 45-degree mirror (`/` sends an upward bubble right, `\` sends it left). A swivel mirror swings to the other angle after every bounce. A crystal switch opens its own gate when a bubble hits it; each gate has its own switch.
 - **The secret:** one hidden room in the Sugar Glass Gallery counts as the secret. The first time Ben steps inside, the game records it (bit 15 of the saved progress) and toasts a clue pointing at the far north-east of the map.
