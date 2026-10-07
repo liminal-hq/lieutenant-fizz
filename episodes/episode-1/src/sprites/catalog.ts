@@ -146,8 +146,22 @@ export function defineSprites(): SpriteDef[] {
 
   add('owGrass', sc.owGrass(3), true);
   add('owPath', sc.owPath(4), true);
+  add('owGrassMeadow', sc.owGrassMeadow(5), true);
+  add('owGrassCandy', sc.owGrassCandy(6), true);
+  add('owGrassFrost', sc.owGrassFrost(7), true);
+  add('owPuff0', sc.owPuff(0));
+  add('owPuff1', sc.owPuff(1));
+  add('owPuffRock', sc.owPuffRock());
+  add('owCandy0', sc.owCandy(0));
+  add('owCandy1', sc.owCandy(1));
+  add('owCandyRock', sc.owCandyRock());
+  add('owFrost0', sc.owFrost(0));
+  add('owFrost1', sc.owFrost(1));
+  add('owCake', sc.owCake());
   add('owRiver0', sc.owRiver(0), true);
   add('owRiver1', sc.owRiver(1), true);
+  add('owWater0', sc.owWater(0), true);
+  add('owWater1', sc.owWater(1), true);
   add('owTree0', sc.owTree(0));
   add('owTree1', sc.owTree(1));
   add('owRock', sc.owRock());

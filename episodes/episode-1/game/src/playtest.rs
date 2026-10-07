@@ -570,6 +570,18 @@ mod tests {
     }
 
     #[test]
+    fn gumdrop_isle_can_be_finished() {
+        use crate::levels::GUMDROP_ISLE;
+        let route = [exit_of(GUMDROP_ISLE)];
+        let r = play_level(GUMDROP_ISLE, &route, &Options::default());
+        assert!(
+            r.finished,
+            "bot stalled at wp {} after {} ticks; best states {:?}",
+            r.waypoint, r.ticks, r.top
+        );
+    }
+
+    #[test]
     fn meteor_mesa_can_be_finished() {
         let r = play_level(METEOR_MESA, &[exit_of(METEOR_MESA)], &Options::default());
         assert!(

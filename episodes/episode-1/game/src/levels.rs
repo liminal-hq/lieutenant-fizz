@@ -24,15 +24,18 @@ pub const SUGAR_GLASS_GALLERY: u8 = 9;
 pub const FROSTING_FLATS: u8 = 10;
 pub const FROSTING_SPIRE: u8 = 11;
 pub const COCOA_FOUNDRY: u8 = 12;
+pub const GUMDROP_ISLE: u8 = 13;
 
 /// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
-pub const LEVEL_COUNT: u8 = 13;
+pub const LEVEL_COUNT: u8 = 14;
 
 /// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
 pub const AREA_CRATER_FIELDS: u8 = 0;
 pub const AREA_MARSHMALLOW_MEADOWS: u8 = 1;
 pub const AREA_ROCK_CANDY_REACH: u8 = 2;
 pub const AREA_FROSTING_FRONTIER: u8 = 3;
+/// The island in the central lake, home to the secret level.
+pub const AREA_GUMDROP_ISLE: u8 = 4;
 
 /// Static description of one level: how it is built and where it sits on the overworld.
 pub struct LevelDef {
@@ -136,6 +139,13 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
         theme: Theme::Foundry,
         area: AREA_FROSTING_FRONTIER,
         icon: Spr::OwFoundry,
+    },
+    LevelDef {
+        id: GUMDROP_ISLE,
+        build: gumdrop_isle,
+        theme: Theme::OpenSky,
+        area: AREA_GUMDROP_ISLE,
+        icon: Spr::OwMeadow,
     },
 ];
 
@@ -1415,6 +1425,76 @@ fn cocoa_foundry() -> LevelData {
     b.out(COCOA_FOUNDRY, (3.0, 4.0), None)
 }
 
+/// The secret bonus level: a short, snack-dense open-sky course with two caches of twenty-one cookies
+/// (each worth an extra life) and no keys. The platforming is tough, the reward generous.
+fn gumdrop_isle() -> LevelData {
+    let mut b = Builder::new(124, 40, 4);
+    b.run(&[
+        (Flat, 10),
+        (Gap, 3),
+        (Flat, 6),
+        (Gap, 8),
+        (Flat, 6),
+        (Up, 3),
+        (Flat, 5),
+        (Gap, 3),
+        (Flat, 6),
+        (Gap, 10),
+        (Flat, 8),
+        (Down, 3),
+        (Flat, 6),
+        (Gap, 3),
+        (Flat, 8),
+        (Gap, 6),
+        (Flat, 30),
+    ]);
+    b.walls();
+    b.hover(19.0, 3.5, 24.0, 3.5, 0.3);
+    b.hover(50.0, 6.5, 54.0, 6.5, 0.3);
+    b.hover(54.0, 6.5, 58.0, 6.5, 0.3);
+    b.plat(90, 91, 3);
+    // First cache: three rows of seven cookies after the hover chain.
+    b.row(Cookie, 60, 7, 8, 1)
+        .row(Cookie, 60, 7, 9, 1)
+        .row(Cookie, 60, 7, 10, 1);
+    // Second cache: three more rows on the long final flat.
+    b.row(Cookie, 100, 7, 5, 1)
+        .row(Cookie, 100, 7, 6, 1)
+        .row(Cookie, 100, 7, 7, 1);
+    b.row(Cheezie, 2, 7, 6, 1)
+        .row(Choc, 10, 3, 8, 1)
+        .row(Cheezie, 14, 5, 6, 1)
+        .row(Choc, 19, 8, 8, 1)
+        .item(Soda, 30, 6)
+        .row(Cheezie, 28, 5, 8, 1)
+        .row(Choc, 41, 3, 10, 1)
+        .row(Cheezie, 45, 5, 9, 1)
+        .row(Choc, 50, 10, 10, 1)
+        .row(Cheezie, 72, 5, 6, 1)
+        .row(Choc, 77, 3, 7, 1)
+        .row(Cheezie, 81, 6, 6, 1)
+        .row(Choc, 88, 6, 6, 1)
+        .row(Cheezie, 94, 5, 6, 1)
+        .item(Soda, 98, 6)
+        .row(Choc, 110, 6, 5, 1);
+    b.fill(120, 120, 4, 5, EXIT);
+    for x in [6, 16, 30, 46, 64, 82, 100, 116] {
+        b.crys(x);
+    }
+    b.ent(Kind::Gloop, 8.0)
+        .ent(Kind::Gloop, 74.0)
+        .ent(Kind::Gloop, 110.0)
+        .ent(Kind::Hopper, 15.0)
+        .ent(Kind::Hopper, 38.0)
+        .ent(Kind::Hopper, 62.0)
+        .ent(Kind::Hopper, 82.0)
+        .ent(Kind::Pod, 46.0);
+    b.ent_at(Kind::Drone, 28.5, 9.5)
+        .ent_at(Kind::Drone, 48.5, 12.5)
+        .ent_at(Kind::Drone, 100.5, 10.5);
+    b.out(GUMDROP_ISLE, (3.0, 4.0), None)
+}
+
 fn caves() -> LevelData {
     let mut b = Builder::new(176, 26, 5);
     b.run(&[
@@ -1578,14 +1658,125 @@ pub struct MapPoint {
     /// Index of the paired teleporter.
     pub to: usize,
     /// Levels (as `level_bit`s) that must all be cleared before this point works; 0 means none.
+    /// `SECRET_FOUND` can be part of it too.
     pub req: u16,
     pub big: bool,
+    /// Not drawn, and not reachable, until `req` is met.
+    pub hidden: bool,
+}
+
+/// A rectangle of the overworld (inclusive tile coordinates) that belongs to an area.
+#[derive(Clone, Copy, Debug)]
+pub struct AreaRect {
+    pub x0: i32,
+    pub y0: i32,
+    pub x1: i32,
+    pub y1: i32,
+    pub area: u8,
+}
+
+/// How an area looks on the overworld: its own ground, scatter and river.
+#[derive(Clone, Copy, Debug)]
+pub struct AreaTheme {
+    pub grass: Spr,
+    pub trees: [Spr; 2],
+    pub rock: Spr,
+    /// The two frames of the river, and a tint for them.
+    pub river: [Spr; 2],
+    pub river_tint: u32,
+    /// Chance that a free tile gets a tree, and then a rock.
+    pub tree_rate: f64,
+    pub rock_rate: f64,
+}
+
+pub fn area_theme(area: u8) -> AreaTheme {
+    match area {
+        AREA_MARSHMALLOW_MEADOWS => AreaTheme {
+            grass: Spr::OwGrassMeadow,
+            trees: [Spr::OwPuff0, Spr::OwPuff1],
+            rock: Spr::OwPuffRock,
+            river: [Spr::OwRiver0, Spr::OwRiver1],
+            river_tint: 0xffddee,
+            tree_rate: 0.14,
+            rock_rate: 0.03,
+        },
+        AREA_ROCK_CANDY_REACH => AreaTheme {
+            grass: Spr::OwGrassCandy,
+            trees: [Spr::OwCandy0, Spr::OwCandy1],
+            rock: Spr::OwCandyRock,
+            river: [Spr::OwRiver0, Spr::OwRiver1],
+            river_tint: 0xddeeff,
+            tree_rate: 0.17,
+            rock_rate: 0.03,
+        },
+        AREA_FROSTING_FRONTIER => AreaTheme {
+            grass: Spr::OwGrassFrost,
+            trees: [Spr::OwFrost0, Spr::OwFrost1],
+            rock: Spr::OwCake,
+            river: [Spr::OwRiver0, Spr::OwRiver1],
+            river_tint: 0xffffff,
+            tree_rate: 0.13,
+            rock_rate: 0.04,
+        },
+        // The lake and island keep the standard grass but swap chocolate for water.
+        AREA_GUMDROP_ISLE => AreaTheme {
+            grass: Spr::OwGrass,
+            trees: [Spr::OwTree0, Spr::OwTree1],
+            rock: Spr::OwRock,
+            river: [Spr::OwWater0, Spr::OwWater1],
+            river_tint: 0xffffff,
+            tree_rate: 0.0,
+            rock_rate: 0.0,
+        },
+        _ => AreaTheme {
+            grass: Spr::OwGrass,
+            trees: [Spr::OwTree0, Spr::OwTree1],
+            rock: Spr::OwRock,
+            river: [Spr::OwRiver0, Spr::OwRiver1],
+            river_tint: 0xffffff,
+            tree_rate: 0.16,
+            rock_rate: 0.02,
+        },
+    }
 }
 
 pub struct MapData {
     pub map: TileMap,
     pub points: Vec<MapPoint>,
+    pub areas: Vec<AreaRect>,
     pub start: (f64, f64),
+}
+
+impl MapData {
+    /// The area that covers a tile; the first matching rectangle wins, so the lake is listed first.
+    pub fn area_at(&self, x: i32, y: i32) -> u8 {
+        area_at(&self.areas, x, y)
+    }
+}
+
+pub fn area_at(areas: &[AreaRect], x: i32, y: i32) -> u8 {
+    areas
+        .iter()
+        .find(|r| x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1)
+        .map_or(AREA_CRATER_FIELDS, |r| r.area)
+}
+
+/// Overworld areas: the lake and island first, then the four regions the rivers cut out.
+pub fn overworld_areas() -> Vec<AreaRect> {
+    let rect = |x0, y0, x1, y1, area| AreaRect {
+        x0,
+        y0,
+        x1,
+        y1,
+        area,
+    };
+    vec![
+        rect(20, 18, 29, 27, AREA_GUMDROP_ISLE),
+        rect(2, 2, 23, 21, AREA_CRATER_FIELDS),
+        rect(2, 24, 23, 41, AREA_MARSHMALLOW_MEADOWS),
+        rect(26, 24, 57, 41, AREA_ROCK_CANDY_REACH),
+        rect(26, 2, 57, 21, AREA_FROSTING_FRONTIER),
+    ]
 }
 
 pub fn build_overworld() -> MapData {
@@ -1600,13 +1791,25 @@ pub fn build_overworld() -> MapData {
             }
         }
     }
+    // Two rivers cross the map and cut it into four regions; where they meet is a lake with an
+    // island that can only be reached by teleporter.
     for y in 0..h {
         map.set(24, y, RIVER);
         map.set(25, y, RIVER);
     }
-    for x in 24..w {
+    for x in 0..w {
         map.set(x, 22, RIVER);
         map.set(x, 23, RIVER);
+    }
+    for x in 20..=29 {
+        for y in 18..=27 {
+            map.set(x, y, RIVER);
+        }
+    }
+    for x in 23..=26 {
+        for y in 21..=24 {
+            map.set(x, y, GRASS);
+        }
     }
     let req = |id: u8| level_bit(id) as u16;
     let pt = |kind, level, x, y, to, req, big| MapPoint {
@@ -1617,27 +1820,97 @@ pub fn build_overworld() -> MapData {
         to,
         req,
         big,
+        hidden: false,
     };
+    let secret = crate::world::SECRET_FOUND as u16;
+    // Indices matter: each teleporter names its partner by index.
     let points = vec![
         pt(PtKind::Saucer, 0, 8, 10, 0, 0, false),
-        pt(PtKind::Level, CRATER, 12, 30, 0, 0, false),
-        pt(PtKind::Tele, 0, 20, 38, 3, req(CRATER), false),
-        pt(PtKind::Tele, 0, 29, 38, 2, req(CRATER), false),
-        pt(PtKind::Level, CAVES, 46, 35, 0, 0, false),
-        pt(PtKind::Tele, 0, 53, 27, 6, req(CAVES), false),
-        pt(PtKind::Tele, 0, 53, 18, 5, req(CAVES), false),
-        pt(PtKind::Level, CITADEL, 41, 8, 0, 0, true),
-        // Appended last so the teleporter pairs above keep their indices.
-        pt(PtKind::Level, METEOR_MESA, 12, 19, 0, 0, false),
-        pt(PtKind::Level, ZARG_LOOKOUT, 15, 19, 0, 0, false),
-        pt(PtKind::Level, MARSHMALLOW_MEADOWS, 15, 23, 0, 0, false),
-        pt(PtKind::Level, BONBON_PLAYHOUSE, 15, 27, 0, 0, false),
-        pt(PtKind::Level, FUDGE_BOG, 15, 31, 0, 0, false),
-        pt(PtKind::Level, MIRROR_SHAFTS, 15, 35, 0, 0, false),
-        pt(PtKind::Level, SUGAR_GLASS_GALLERY, 15, 39, 0, 0, false),
-        pt(PtKind::Level, FROSTING_FLATS, 19, 31, 0, 0, false),
-        pt(PtKind::Level, FROSTING_SPIRE, 19, 35, 0, 0, false),
-        pt(PtKind::Level, COCOA_FOUNDRY, 19, 39, 0, 0, false),
+        pt(PtKind::Level, CRATER, 14, 6, 0, 0, false),
+        pt(PtKind::Level, METEOR_MESA, 16, 14, 0, 0, false),
+        pt(PtKind::Level, ZARG_LOOKOUT, 6, 16, 0, 0, false),
+        // The three levels of Crater Fields power the way down to the Meadows.
+        pt(
+            PtKind::Tele,
+            0,
+            12,
+            19,
+            5,
+            req(CRATER) | req(METEOR_MESA) | req(ZARG_LOOKOUT),
+            false,
+        ),
+        pt(
+            PtKind::Tele,
+            0,
+            12,
+            26,
+            4,
+            req(CRATER) | req(METEOR_MESA) | req(ZARG_LOOKOUT),
+            false,
+        ),
+        pt(PtKind::Level, MARSHMALLOW_MEADOWS, 5, 30, 0, 0, false),
+        pt(PtKind::Level, FUDGE_BOG, 16, 31, 0, 0, false),
+        pt(PtKind::Level, BONBON_PLAYHOUSE, 8, 37, 0, 0, false),
+        pt(
+            PtKind::Tele,
+            0,
+            20,
+            38,
+            10,
+            req(MARSHMALLOW_MEADOWS) | req(BONBON_PLAYHOUSE),
+            false,
+        ),
+        pt(
+            PtKind::Tele,
+            0,
+            29,
+            38,
+            9,
+            req(MARSHMALLOW_MEADOWS) | req(BONBON_PLAYHOUSE),
+            false,
+        ),
+        pt(PtKind::Level, CAVES, 37, 34, 0, 0, false),
+        pt(PtKind::Level, MIRROR_SHAFTS, 46, 38, 0, 0, false),
+        pt(PtKind::Level, SUGAR_GLASS_GALLERY, 51, 30, 0, 0, false),
+        pt(
+            PtKind::Tele,
+            0,
+            53,
+            27,
+            15,
+            req(CAVES) | req(MIRROR_SHAFTS),
+            false,
+        ),
+        pt(
+            PtKind::Tele,
+            0,
+            53,
+            18,
+            14,
+            req(CAVES) | req(MIRROR_SHAFTS),
+            false,
+        ),
+        pt(PtKind::Level, FROSTING_FLATS, 47, 14, 0, 0, false),
+        pt(PtKind::Level, FROSTING_SPIRE, 33, 15, 0, 0, false),
+        pt(PtKind::Level, COCOA_FOUNDRY, 34, 6, 0, 0, false),
+        // The Citadel stays locked until both Frosting Frontier levels on the way are done.
+        pt(
+            PtKind::Level,
+            CITADEL,
+            44,
+            6,
+            0,
+            req(FROSTING_SPIRE) | req(COCOA_FOUNDRY),
+            true,
+        ),
+        // The secret pair: a pad on the island, always on show, and its hidden partner in a ring
+        // of trees in the far south-east, which appears once the mural has been found.
+        pt(PtKind::Tele, 0, 26, 22, 21, secret, false),
+        MapPoint {
+            hidden: true,
+            ..pt(PtKind::Tele, 0, 55, 40, 20, secret, false)
+        },
+        pt(PtKind::Level, GUMDROP_ISLE, 24, 23, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -1657,11 +1930,23 @@ pub fn build_overworld() -> MapData {
         }
         map.set(x1, y1, PATH);
     };
-    path(8, 9, 12, 30);
-    path(12, 30, 20, 38);
-    path(29, 38, 46, 35);
-    path(46, 35, 53, 27);
-    path(53, 18, 41, 8);
+    path(8, 9, 14, 6);
+    path(14, 6, 16, 14);
+    path(16, 14, 6, 16);
+    path(6, 16, 12, 19);
+    path(12, 26, 5, 30);
+    path(5, 30, 8, 37);
+    path(5, 30, 16, 31);
+    path(8, 37, 20, 38);
+    path(29, 38, 37, 34);
+    path(37, 34, 46, 38);
+    path(46, 38, 53, 27);
+    path(46, 38, 51, 30);
+    path(53, 18, 33, 15);
+    path(47, 18, 47, 14);
+    path(33, 15, 34, 6);
+    path(34, 6, 44, 6);
+    let areas = overworld_areas();
     let mut s: u64 = 99;
     let mut r = move || {
         s = (s * 16807) % 2_147_483_647;
@@ -1688,18 +1973,38 @@ pub fn build_overworld() -> MapData {
                 }
             }
             if !near {
+                let theme = area_theme(area_at(&areas, x, y));
                 let q = r();
-                if q < 0.16 {
+                if q < theme.tree_rate {
                     map.set(x, y, TREE);
-                } else if q < 0.18 {
+                } else if q < theme.tree_rate + theme.rock_rate {
                     map.set(x, y, ROCK);
                 }
             }
         }
     }
+    // The hidden pad's clearing: a ring of trees two tiles out with a single gap to the west.
+    for dx in -2i32..=2 {
+        for dy in -2i32..=2 {
+            let (x, y) = (55 + dx, 40 + dy);
+            let ring = dx.abs() == 2 || dy.abs() == 2;
+            if ring && !(dx == -2 && dy == 0) {
+                map.set(x, y, TREE);
+            } else if map.get(x, y) != GRASS {
+                map.set(x, y, GRASS);
+            }
+        }
+    }
+    // Keep the way in clear: the gap must lead out onto open ground.
+    for x in 50..=53 {
+        if map.get(x, 40) != PATH {
+            map.set(x, 40, GRASS);
+        }
+    }
     MapData {
         map,
         points,
+        areas,
         start: (9.2, 8.2),
     }
 }
@@ -1813,23 +2118,183 @@ mod tests {
     #[test]
     fn overworld_points_are_walkable_and_teleporters_pair_up() {
         let m = build_overworld();
-        for p in &m.points {
+        for (i, p) in m.points.iter().enumerate() {
             let t = m.map.get(p.x as i32, p.y as i32);
             assert!(
                 t == PATH || t == GRASS,
-                "point at {},{} on tile {t}",
+                "point {i} at {},{} on tile {t}",
                 p.x,
                 p.y
             );
             if p.kind == PtKind::Tele {
                 let q = &m.points[p.to];
                 assert_eq!(q.kind, PtKind::Tele);
-                assert_eq!(
-                    q.to,
-                    m.points.iter().position(|z| std::ptr::eq(z, p)).unwrap()
-                );
+                assert_eq!(q.to, i, "teleporter {i} and {} pair up", p.to);
             }
         }
-        assert_eq!(m.points.len(), 18);
+        assert_eq!(m.points.len(), 23);
+    }
+
+    /// Indices of the points a walker can reach from tile (x, y) without crossing anything solid.
+    fn reachable_points(m: &MapData, x: i32, y: i32) -> Vec<usize> {
+        let (w, h) = (m.map.w, m.map.h);
+        let mut seen = vec![false; (w * h) as usize];
+        let mut stack = vec![(x, y)];
+        while let Some((cx, cy)) = stack.pop() {
+            if !m.map.in_bounds(cx, cy) || seen[(cy * w + cx) as usize] {
+                continue;
+            }
+            let t = m.map.get(cx, cy);
+            if t != GRASS && t != PATH {
+                continue;
+            }
+            seen[(cy * w + cx) as usize] = true;
+            stack.extend([(cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)]);
+        }
+        m.points
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| seen[(p.y as i32 * w + p.x as i32) as usize])
+            .map(|(i, _)| i)
+            .collect()
+    }
+
+    #[test]
+    fn each_region_connects_to_the_next_only_through_a_teleporter() {
+        let m = build_overworld();
+        let levels = |ids: &[usize]| -> Vec<u8> {
+            let mut v: Vec<u8> = ids
+                .iter()
+                .filter(|&&i| m.points[i].kind == PtKind::Level)
+                .map(|&i| m.points[i].level)
+                .collect();
+            v.sort_unstable();
+            v
+        };
+        // From the saucer: Crater Fields only.
+        let nw = reachable_points(&m, m.start.0 as i32, m.start.1 as i32);
+        assert_eq!(levels(&nw), vec![CRATER, METEOR_MESA, ZARG_LOOKOUT]);
+        // Each teleporter's far end opens onto the next region and not the previous one.
+        let from = |i: usize| reachable_points(&m, m.points[i].x as i32, m.points[i].y as i32);
+        let sw = levels(&from(5));
+        assert_eq!(sw, vec![MARSHMALLOW_MEADOWS, BONBON_PLAYHOUSE, FUDGE_BOG]);
+        let se = levels(&from(10));
+        assert_eq!(se, vec![CAVES, MIRROR_SHAFTS, SUGAR_GLASS_GALLERY]);
+        let ne = levels(&from(15));
+        assert_eq!(
+            ne,
+            vec![CITADEL, FROSTING_FLATS, FROSTING_SPIRE, COCOA_FOUNDRY]
+        );
+    }
+
+    #[test]
+    fn the_island_cannot_be_reached_on_foot_and_the_hidden_pad_can_be_walked_into() {
+        let m = build_overworld();
+        let island_pad = 20;
+        let hidden_pad = 21;
+        assert_eq!(
+            (m.points[island_pad].x, m.points[island_pad].y),
+            (26.0, 22.0)
+        );
+        let isle = m
+            .points
+            .iter()
+            .position(|p| p.level == GUMDROP_ISLE && p.kind == PtKind::Level)
+            .unwrap();
+        for start in [0usize, 5, 10, 15] {
+            let reach = reachable_points(&m, m.points[start].x as i32, m.points[start].y as i32);
+            assert!(
+                !reach.contains(&island_pad),
+                "island pad reachable from {start}"
+            );
+            assert!(
+                !reach.contains(&isle),
+                "Gumdrop Isle reachable from {start}"
+            );
+        }
+        // The island itself is walkable once there.
+        let there = reachable_points(&m, 26, 22);
+        assert!(there.contains(&isle) && there.contains(&island_pad));
+        // The hidden pad sits in the south-east region and is reached through the ring's gap.
+        assert!(m.points[hidden_pad].hidden);
+        let se = reachable_points(&m, m.points[10].x as i32, m.points[10].y as i32);
+        assert!(
+            se.contains(&hidden_pad),
+            "the ring has a gap a walker can use"
+        );
+        assert_eq!(m.map.get(53, 40), GRASS, "the gap");
+        assert_eq!(
+            m.map.get(57, 40),
+            TREE,
+            "the ring is closed on the far side"
+        );
+    }
+
+    #[test]
+    fn no_path_runs_over_a_river_and_every_tile_belongs_to_an_area() {
+        let m = build_overworld();
+        for x in 0..m.map.w {
+            for y in 0..m.map.h {
+                let on_river_line = x < 2
+                    || y < 2
+                    || x >= m.map.w - 2
+                    || y >= m.map.h - 2
+                    || (24..=25).contains(&x)
+                    || (22..=23).contains(&y);
+                let lake = (20..=29).contains(&x) && (18..=27).contains(&y);
+                let island = (23..=26).contains(&x) && (21..=24).contains(&y);
+                if (on_river_line || lake) && !island {
+                    assert_ne!(m.map.get(x, y), PATH, "path on a river at {x},{y}");
+                }
+            }
+        }
+        assert_eq!(m.area_at(5, 5), AREA_CRATER_FIELDS);
+        assert_eq!(m.area_at(5, 35), AREA_MARSHMALLOW_MEADOWS);
+        assert_eq!(m.area_at(40, 35), AREA_ROCK_CANDY_REACH);
+        assert_eq!(m.area_at(40, 5), AREA_FROSTING_FRONTIER);
+        assert_eq!(m.area_at(24, 23), AREA_GUMDROP_ISLE);
+    }
+
+    #[test]
+    fn every_level_sits_in_the_area_its_point_is_in() {
+        let m = build_overworld();
+        for p in m.points.iter().filter(|p| p.kind == PtKind::Level) {
+            let area = m.area_at(p.x as i32, p.y as i32);
+            assert_eq!(
+                area,
+                LEVELS[usize::from(p.level)].area,
+                "level {} is in area {area} on the map",
+                p.level
+            );
+        }
+    }
+
+    #[test]
+    fn gates_follow_the_plan() {
+        let m = build_overworld();
+        let level = |id: u8| {
+            m.points
+                .iter()
+                .find(|p| p.kind == PtKind::Level && p.level == id)
+                .unwrap()
+        };
+        assert_eq!(
+            level(CITADEL).req,
+            (level_bit(FROSTING_SPIRE) | level_bit(COCOA_FOUNDRY)) as u16
+        );
+        assert_eq!(
+            m.points[4].req,
+            (level_bit(CRATER) | level_bit(METEOR_MESA) | level_bit(ZARG_LOOKOUT)) as u16
+        );
+        assert_eq!(
+            m.points[9].req,
+            (level_bit(MARSHMALLOW_MEADOWS) | level_bit(BONBON_PLAYHOUSE)) as u16
+        );
+        assert_eq!(
+            m.points[14].req,
+            (level_bit(CAVES) | level_bit(MIRROR_SHAFTS)) as u16
+        );
+        assert_eq!(m.points[20].req, crate::world::SECRET_FOUND as u16);
+        assert_eq!(m.points[21].req, crate::world::SECRET_FOUND as u16);
     }
 }

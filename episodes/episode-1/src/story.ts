@@ -189,4 +189,11 @@ export const LEVELS: LevelInfo[] = [
     cleared:
       'The presses thump on without him. Ben dusts the soot off his helmet and heads for the Citadel.',
   },
+  {
+    name: 'Gumdrop Isle',
+    blurb: 'A secret island, covered in snacks. Nobody was supposed to find this place.',
+    track: 'crater',
+    cleared:
+      'Ben leaves the island with a few more lives than he came with, and a very full pocket.',
+  },
 ];

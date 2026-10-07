@@ -446,6 +446,13 @@ export class Game {
         ? { title: 'Teleporter', text: 'Humming and ready.', action: 'Teleport' }
         : { title: 'Teleporter', text: `Quiet for now. Clear ${req} to power it.`, action: null };
     }
+    if (type === 5) {
+      return {
+        title: 'A dormant teleporter',
+        text: 'Humming faintly, and going nowhere. Somewhere, something is hiding its other half.',
+        action: null,
+      };
+    }
     if (type === 3) {
       return {
         title: 'Spaghetti with meatballs flying saucer',

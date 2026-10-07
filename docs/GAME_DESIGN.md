@@ -16,21 +16,28 @@ See `STORY.md` for the full opening cinematic and ending text.
 
 ## Structure
 1. Title screen, then the opening cinematic (8 panels, skippable).
-2. **Overworld:** a top-down crystal forest split by chocolate rivers. Teleporter pairs power up as levels are cleared. Autosaves on every visit.
-3. **Crater Fields:** tutorial biome with slopes, pogo, fizz, chocolate pools, red gumdrop door.
-3a. **Meteor Mesa** (Crater Fields, open sky): daylight biscuit-rock mesas with drifting clouds, gaps bridged by cloud ledges and a hover platform, no ceiling.
-3b. **Zarg Lookout** (Crater Fields, building): a nine-floor watchtower in cutaway. Ladders, two flights of stairs and a slow lift link floors that alternate between full-width halls and small landings; the red key is on the roof and its cookie door guards the exit at the bottom, so Ben climbs up and comes back down. The camera chases quickly and looks neither ahead nor far above.
-3c. **Marshmallow Meadows** (Marshmallow Meadows, open sky): soft hills, marshmallows bouncing in fenced corrals to pogo off, and the blue key at the top of a stack of cloud ledges.
-3d. **Bonbon Playhouse** (Marshmallow Meadows, theatre): a candy theatre whose backstage rooms are hidden behind painted flats. Walk into a room and its front wall fades away, showing what waits inside; the red key and blue key are each in a hidden room, a beetle waits in one on the path, and bats hang under the blue-key room.
-3e. **Fudge Bog** (Marshmallow Meadows, crater, optional): a harder crater with wide fudge pools crossed on stepping stones, spike runs, three spore pods and the red key at the top of a short tower of ledges.
-3f. **Mirror Shafts** (Rock Candy Reach, vertical cave): a tall crystal shaft sealed by three gates. Each gate opens when a fizz bubble hits a crystal switch Ben cannot shoot directly, so he fires up and lets mirrors carry the bubble round the corner: one mirror, two in a chain, and a swivel mirror that sends the first bubble the wrong way and the second the right way. Phantoms, pods and drones guard the ledges.
-3g. **Sugar Glass Gallery** (Rock Candy Reach, theatre, optional): a long theatre of stacked hidden rooms: the red key on one balcony, the blue key on a higher one, a beetle waiting on the path. An alcove reached by ledges over the last pit holds a mural of the crystal forest with a glowing ring of trees in the far south-east. Walking into it is how the player finds the secret.
-3h. **Frosting Flats** (Frosting Frontier, open sky, optional): the hardest open-sky level, with spike runs, a hover platform over an eight-tile gap, a chain of two over a ten-tile one and drones overhead. The red key is two cloud ledges up.
-3i. **Frosting Spire** (Frosting Frontier, building): the tallest tower, twelve floors with ladders alternating sides, three lifts and a key in every colour. A red door splits the fifth floor and a blue door the eighth; the green key is on the roof and its door guards the exit at the bottom, so the climb ends with the whole tower to come down. Sentries hover on the upper floors.
-3j. **Cocoa Foundry** (Frosting Frontier, foundry): conveyor belts that help and hinder, crushing presses to time, pools of molten metal crossed on a hover platform and stepping stones, beetles, phantoms and sentries, and the blue key up a short tower of ledges.
-4. **Crystal Caves:** darker tunnels lit by crystals and Ben's lantern. Hover platforms, a bridge switch, bats, blue gumdrop door.
-5. **Mildred's Citadel:** boulder ramp, sentries, phantoms, then the boss arena, the terminal and Billy's cage.
-6. Ending (4 panels), then the credits (skippable), then a score card. Episode 1 has no post-credits stinger; it belongs to Episode 3.
+2. **Overworld:** a top-down map cut into four regions by chocolate rivers, each with its own ground, trees and levels. Teleporter pairs link the regions and power up once the levels in front of them are cleared; the Citadel stays locked until the two Frosting Frontier levels before it are done. Autosaves on every visit. A lake at the centre holds an island that cannot be walked to (see **The secret**).
+3. **Areas and levels** (14 levels; the `Type` says how a level plays, not where it is):
+
+| Area | Level | Type | Notes |
+|---|---|---|---|
+| **Crater Fields** (north-west, start) | Crater Fields | crater | Tutorial: slopes, pogo, fizz, chocolate pools, red gumdrop door |
+| | Meteor Mesa | open sky | Daylight biscuit-rock mesas with drifting clouds, gaps bridged by cloud ledges and a hover platform, no ceiling |
+| | Zarg Lookout | building | A nine-floor watchtower in cutaway: ladders, two flights of stairs and a slow lift link floors that alternate between full-width halls and small landings. The red key is on the roof and its cookie door guards the exit at the bottom, so Ben climbs up and comes back down |
+| **Marshmallow Meadows** (south-west) | Marshmallow Meadows | open sky | Soft hills, marshmallows bouncing in fenced corrals to pogo off, the blue key at the top of a stack of cloud ledges |
+| | Bonbon Playhouse | theatre | A candy theatre whose backstage rooms are hidden behind painted flats; the red and blue keys are each in a hidden room |
+| | Fudge Bog (optional) | crater | A harder crater: wide fudge pools on stepping stones, spike runs, three spore pods |
+| **Rock Candy Reach** (south-east) | Crystal Caves | cave | Darker tunnels lit by crystals and Ben's lantern; hover platforms, a bridge switch, bats, blue gumdrop door |
+| | Mirror Shafts | vertical cave | A tall crystal shaft sealed by three gates; fizz bounces off mirrors to reach the crystal switches |
+| | Sugar Glass Gallery (optional) | theatre | A long theatre of stacked hidden rooms; one of them is the secret |
+| **Frosting Frontier** (north-east) | Frosting Flats (optional) | open sky | The hardest open-sky level: spike runs, hover chains over long gaps, drones overhead |
+| | Frosting Spire | building | Twelve floors, ladders alternating sides, three lifts and a key in every colour; the green key is on the roof and its door guards the exit at the bottom |
+| | Cocoa Foundry | foundry | Conveyor belts, crushing presses and molten metal |
+| | Mildred's Citadel | citadel | Boulder ramp, sentries, phantoms, then the boss arena, the terminal and Billy's cage |
+| **Gumdrop Isle** (central island, secret) | Gumdrop Isle | open sky | A short, snack-dense bonus course with two caches of cookies that each earn an extra life |
+
+4. **The secret.** The island in the lake, its teleporter pad and its level are visible from the start but cannot be walked to. One hidden room in the Sugar Glass Gallery holds a mural of the crystal forest with a ring of trees glowing in the far south-east. Stepping into it sets the secret-found flag, which makes a hidden teleporter pad appear inside a ring of trees in that corner of the map (the ring has one gap). It pairs with the island pad.
+5. Ending (4 panels), then the credits (skippable), then a score card. Episode 1 has no post-credits stinger; it belongs to Episode 3.
 
 ## Mechanics
 - **Run & jump:** variable-height jump (release early to cut it short), 7 tiles/s top speed, momentum on the ground and in the air.
