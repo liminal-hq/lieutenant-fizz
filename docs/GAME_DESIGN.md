@@ -95,7 +95,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 - UI uses the Liminal HQ design system in the DOM overlay; the world stays strictly pixel art.
 
 ## Audio
-- **Music:** 8 looping tracks (title, intro, map, crater, caves, citadel, boss, ending).
+- **Music:** 16 looping tracks: title, map, boss, ending, four for the opening cinematic (`yard`, `lab`, `launch`, `cine`), and one per level type: `crater`, `caves`, `citadel`, `sky` (open sky), `tower` (buildings), `theatre` (a waltz), `foundry` and `secret` (Gumdrop Isle). Mirror Shafts reuses `caves` and Fudge Bog reuses `crater`.
 - **Sound effects:** about 30, tied to the in-world sound captions.
 - **Implementation:** written for Undertone; see `ENGINE_SPEC.md` §6.
 

@@ -1426,6 +1426,31 @@ fn the_citadel_point_is_locked_until_the_spire_and_the_foundry_are_both_cleared(
 }
 
 #[test]
+fn a_saved_map_position_inside_a_river_snaps_back_to_the_saucer() {
+    let mut w = World::new();
+    w.game_new();
+    // On the old map this was open ground; on the new one it is the vertical river.
+    w.game.map_pos = Some((24.5, 10.0));
+    w.enter_map();
+    let start = crate::levels::build_overworld().start;
+    assert_eq!((w.p.b.x, w.p.b.y), start, "snapped to the saucer");
+    // So does one off the map altogether, which a hand-edited save could hold.
+    for off in [(12.0, -5.0), (-3.0, 10.0), (12.0, 80.0), (90.0, 10.0)] {
+        let mut w = World::new();
+        w.game_new();
+        w.game.map_pos = Some(off);
+        w.enter_map();
+        assert_eq!((w.p.b.x, w.p.b.y), start, "{off:?} snaps to the saucer");
+    }
+    // A position on open ground is kept.
+    let mut w = World::new();
+    w.game_new();
+    w.game.map_pos = Some((12.2, 19.0));
+    w.enter_map();
+    assert_eq!((w.p.b.x, w.p.b.y), (12.2, 19.0));
+}
+
+#[test]
 fn every_teleporter_lands_ben_on_walkable_ground() {
     let mut w = map_world();
     w.game.done = crate::world::PROGRESS_BITS;

@@ -361,6 +361,157 @@ export const MUSIC: Record<string, MusicTrack> = {
       hats('~ ~ white ~', 0.04),
     ],
   },
+  // Open sky: bright, airy C major with a bouncing lead and a sparkle on top.
+  sky: {
+    bpm: 140,
+    parts: [
+      P(
+        '<[e5 g5 c6 g5 e5 g5 a5 g5] [d5 f5 b5 f5 d5 f5 g5 f5] [c5 e5 a5 e5 c5 e5 f5 e5] [d5 g5 b5 g5 a5 g5 f5 d5] [e5 g5 c6 g5 e6 c6 g5 e5] [f5 a5 c6 a5 f6 c6 a5 f5] [d5 f5 b5 d6 b5 g5 f5 d5] [c5 ~ e5 ~ g5 ~ c6 ~]>',
+        { w: 'square', g: 0.06, lpf: 2600, d: 0.09 },
+      ),
+      bell(
+        '<[c6 ~ e6 ~ g6 ~ e6 ~] [b5 ~ d6 ~ g6 ~ d6 ~] [a5 ~ c6 ~ e6 ~ c6 ~] [a5 ~ c6 ~ f6 ~ c6 ~]>',
+        {
+          g: 0.04,
+          delay: 0.35,
+        },
+      ),
+      pad(
+        '<[c4,e4,g4] [g3,b3,d4] [a3,c4,e4] [f3,a3,c4] [c4,e4,g4] [f3,a3,c4] [g3,b3,d4] [c4,e4,g4]>',
+        {
+          g: 0.045,
+          room: 0.4,
+        },
+      ),
+      P(
+        '<[c2 ~ g2 ~] [g1 ~ d2 ~] [a1 ~ e2 ~] [f1 ~ c2 ~] [c2 ~ g2 ~] [f1 ~ c2 ~] [g1 ~ d2 ~] [c2 g1 c2 ~]>',
+        {
+          g: 0.3,
+          s: 0.5,
+        },
+      ),
+      kick('c1 ~ c1 ~', 0.5),
+      hats('~ white ~ white', 0.06),
+    ],
+  },
+  // Towers: a climbing D-minor ostinato that never quite stops rising.
+  tower: {
+    bpm: 128,
+    parts: [
+      P(
+        '<[d4 f4 a4 d5 a4 f4 d4 f4] [d4 f4 a4 d5 a4 f4 d4 f4] [e4 g4 b4 e5 b4 g4 e4 g4] [f4 a4 c5 f5 c5 a4 f4 a4] [g4 b4 d5 g5 d5 b4 g4 b4] [a4 c#5 e5 a5 e5 c#5 a4 c#5] [d5 f5 a5 d6 a5 f5 d5 f5] [e5 g5 b5 e6 b5 g5 e5 g5]>',
+        { w: 'square', g: 0.055, lpf: 2200, d: 0.08 },
+      ),
+      P('<[a5 ~ ~ f5 ~ ~ d5 ~] [a5 ~ ~ f5 ~ ~ d5 ~] [b5 ~ ~ g5 ~ ~ e5 ~] [c6 ~ ~ a5 ~ ~ f5 ~]>', {
+        w: 'triangle',
+        g: 0.05,
+        d: 0.12,
+        delay: 0.3,
+      }),
+      pad(
+        '<[d3,f3,a3] [d3,f3,a3] [e3,g3,b3] [f3,a3,c4] [g3,b3,d4] [a3,c#4,e4] [d3,f3,a3] [e3,g3,b3]>',
+        {
+          g: 0.04,
+        },
+      ),
+      P(
+        '<[d2 d2 d3 d2] [d2 d2 d3 d2] [e2 e2 e3 e2] [f2 f2 f3 f2] [g2 g2 g3 g2] [a1 a1 a2 a1] [d2 d2 d3 d2] [e2 e2 e3 e2]>',
+        {
+          g: 0.28,
+          s: 0.45,
+        },
+      ),
+      kick('c1 ~ c1 ~', 0.5),
+      snare('~ white ~ white', 0.2),
+      hats('white*8', 0.05),
+    ],
+  },
+  // The theatre: a waltz, six steps to the bar, with a wheezy lead.
+  theatre: {
+    bpm: 108,
+    parts: [
+      P(
+        '<[e5 ~ g5 e5 c5 ~] [d5 ~ f5 d5 b4 ~] [c5 ~ e5 c5 a4 ~] [d5 ~ g5 f5 d5 ~] [e5 ~ g5 c6 g5 e5] [f5 ~ a5 c6 a5 f5] [g5 ~ b5 d6 b5 g5] [c6 ~ ~ g5 ~ ~]>',
+        { w: 'sawtooth', g: 0.05, lpf: 1800, a: 0.02, d: 0.14, s: 0.4 },
+      ),
+      P(
+        '<[~ ~ [c4,e4,g4] ~ [c4,e4,g4] ~] [~ ~ [g3,b3,d4] ~ [g3,b3,d4] ~] [~ ~ [a3,c4,e4] ~ [a3,c4,e4] ~] [~ ~ [g3,b3,d4] ~ [g3,b3,d4] ~]>',
+        { w: 'square', g: 0.035, lpf: 1500, d: 0.08, s: 0 },
+      ),
+      P('<[c2 ~ ~ ~ ~ ~] [g1 ~ ~ ~ ~ ~] [a1 ~ ~ ~ ~ ~] [g1 ~ ~ ~ ~ ~]>', { g: 0.3, s: 0.5 }),
+      hats('[white ~ white white ~ white]', 0.05),
+      kick('c1 ~ ~ ~ ~ ~', 0.4),
+    ],
+  },
+  // The foundry: heavy, mechanical E minor, with metallic clanks off the beat.
+  foundry: {
+    bpm: 132,
+    parts: [
+      P(
+        '<[e1 e1 ~ e1 e1 ~ g1 ~] [e1 e1 ~ e1 e1 ~ b1 ~] [c2 c2 ~ c2 c2 ~ e2 ~] [d2 d2 ~ d2 d2 ~ b1 ~]>',
+        {
+          w: 'sawtooth',
+          g: 0.2,
+          lpf: 600,
+          s: 0.5,
+        },
+      ),
+      P('<[~ e5 ~ ~ ~ e5 ~ ~] [~ g5 ~ ~ ~ g5 ~ ~] [~ e5 ~ ~ ~ a5 ~ ~] [~ f#5 ~ ~ ~ b5 ~ ~]>', {
+        w: 'square',
+        g: 0.045,
+        lpf: 3200,
+        d: 0.05,
+        s: 0,
+        delay: 0.15,
+      }),
+      P('<[e3,g3,b3] [e3,g3,b3] [c3,e3,g3] [d3,f#3,a3]>', {
+        w: 'sawtooth',
+        g: 0.035,
+        lpf: 900,
+        a: 0.1,
+        s: 0.7,
+      }),
+      kick('c1 ~ c1 c1 c1 ~ c1 ~', 0.7),
+      snare('~ ~ white ~ ~ ~ white white', 0.26),
+      hats('[white white]*4', 0.07),
+      P('[white ~ ~ ~ ~ ~ white ~]', {
+        noise: true,
+        d: 0.18,
+        s: 0,
+        r: 0.1,
+        g: 0.06,
+        lpf: 5000,
+        hpf: 2500,
+      }),
+    ],
+  },
+  // The secret: a short, playful music box in C major.
+  secret: {
+    bpm: 150,
+    parts: [
+      bell(
+        '<[g5 e5 c5 e5 g5 c6 ~ g5] [a5 f5 c5 f5 a5 c6 ~ a5] [g5 e5 c5 e5 g5 e6 d6 c6] [d6 b5 g5 b5 d6 g6 ~ ~]>',
+        {
+          g: 0.09,
+          d: 0.2,
+          delay: 0.25,
+        },
+      ),
+      P('<[c3 ~ g3 ~] [f2 ~ c3 ~] [c3 ~ g3 ~] [g2 ~ d3 ~]>', { g: 0.22, s: 0.4 }),
+      P(
+        '<[~ [c4,e4,g4] ~ [c4,e4,g4]] [~ [a3,c4,f4] ~ [a3,c4,f4]] [~ [c4,e4,g4] ~ [c4,e4,g4]] [~ [g3,b3,d4] ~ [g3,b3,d4]]>',
+        {
+          w: 'square',
+          g: 0.03,
+          lpf: 1800,
+          d: 0.06,
+          s: 0,
+        },
+      ),
+      kick('c1 ~ ~ ~', 0.3),
+      hats('~ white ~ white', 0.04),
+    ],
+  },
   // Mildred's Citadel: menacing G-minor march with organ chords.
   citadel: {
     bpm: 124,
