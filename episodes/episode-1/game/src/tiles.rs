@@ -8,6 +8,9 @@ use lf_sim::tilemap::{
     SLOPE_R22B, SLOPE_R45, SOLID, SWITCHED,
 };
 
+/// Switch channel that gates use; channel 0 belongs to the bridge.
+pub const GATE_CHANNEL: u8 = 1;
+
 pub const EMPTY: u8 = 0;
 pub const FILL: u8 = 1;
 pub const BLOCK: u8 = 2;
@@ -30,6 +33,11 @@ pub const PATH: u8 = 21;
 pub const RIVER: u8 = 22;
 pub const TREE: u8 = 23;
 pub const ROCK: u8 = 24;
+/// Gates block a shaft while their switch channel is on; a crystal switch turns it off. Each gate
+/// has its own channel, so a level can hold several independent puzzles.
+pub const GATE: u8 = 32;
+pub const GATE_2: u8 = 33;
+pub const GATE_3: u8 = 34;
 /// Painted flat that hides a room (see `levels::Room`); fades out while Ben is inside it.
 pub const FACADE: u8 = 31;
 /// Decorative interior wall behind a building's rooms, stairs and ladders (not solid).
@@ -46,6 +54,10 @@ pub fn props() -> TileProps {
         p.set_flags(t, SOLID);
     }
     p.set_flags(PLAT, ONEWAY);
+    for (t, ch) in [(GATE, GATE_CHANNEL), (GATE_2, 2), (GATE_3, 3)] {
+        p.set_flags(t, SWITCHED);
+        p.set_channel(t, ch);
+    }
     p.set_flags(RUNG, LADDER_FLAG);
     p.set_flags(RUNG_TOP, LADDER_FLAG | ONEWAY);
     p.set_flags(BRIDGE, SWITCHED);

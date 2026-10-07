@@ -877,6 +877,178 @@ fn flats_are_drawn_after_ben_so_they_cover_him_until_they_fade() {
     assert!(faded.count() > 0, "flats in Ben's room are translucent");
 }
 
+fn shafts() -> World {
+    let mut w = level(crate::levels::MIRROR_SHAFTS);
+    // Keep only the puzzle pieces, so a stray phantom cannot interfere.
+    w.ents
+        .retain(|e| matches!(e.kind, Kind::Mirror | Kind::Swivel | Kind::CrystalSwitch));
+    w
+}
+
+fn bubble(x: f64, y: f64, vx: f64, vy: f64) -> crate::ents::Shot {
+    crate::ents::Shot {
+        x,
+        y,
+        vx,
+        vy,
+        ben: true,
+        life: 1.1,
+        sprite: crate::sprites::Spr::Bubble as u16,
+        g: false,
+        last: -1,
+    }
+}
+
+fn find(w: &World, kind: Kind, x: f64) -> usize {
+    w.ents
+        .iter()
+        .position(|e| e.kind == kind && (e.b.x - x).abs() < 0.01)
+        .expect("entity at x")
+}
+
+#[test]
+fn a_mirror_turns_an_upward_bubble_sideways_exactly_once() {
+    let mut w = shafts();
+    // The first puzzle's `/` mirror is at (18, 26).
+    w.shots.clear();
+    w.shots.push(bubble(18.5, 24.0, 0.0, 16.0));
+    let mut turned = None;
+    for _ in 0..60 {
+        w.step(0);
+        if let Some(s) = w.shots.first() {
+            if s.vy == 0.0 {
+                turned = Some(*s);
+                break;
+            }
+        }
+    }
+    let s = turned.expect("the bubble turned");
+    assert_eq!(s.vx, 16.0, "`/` sends an up bubble right");
+    assert_eq!(
+        s.last,
+        find(&w, Kind::Mirror, 18.0) as i32,
+        "remembers the mirror"
+    );
+    // It keeps going right instead of bouncing off the same mirror again.
+    run(&mut w, 5, 0);
+    let s = w.shots.first().expect("still flying");
+    assert_eq!((s.vx, s.vy), (16.0, 0.0));
+}
+
+#[test]
+fn a_back_slash_mirror_sends_an_upward_bubble_left() {
+    let mut w = shafts();
+    let i = find(&w, Kind::Mirror, 18.0);
+    w.ents[i].dir = -1.0;
+    w.shots.clear();
+    w.shots.push(bubble(18.5, 24.0, 0.0, 16.0));
+    run(&mut w, 30, 0);
+    let s = w.shots.first().expect("flying");
+    assert_eq!((s.vx, s.vy), (-16.0, 0.0));
+}
+
+#[test]
+fn a_crystal_switch_opens_only_its_own_gate() {
+    let mut w = shafts();
+    assert!(
+        w.map.switch(1) && w.map.switch(2) && w.map.switch(3),
+        "all gates start shut"
+    );
+    assert!(w.map.solid(10, 30, false, 0.0), "gate one blocks the shaft");
+    w.shots.clear();
+    // Straight at the first switch at (28, 26).
+    w.shots.push(bubble(22.0, 26.5, 16.0, 0.0));
+    run(&mut w, 30, 0);
+    assert!(!w.map.switch(1), "gate one is open");
+    assert!(w.map.switch(2) && w.map.switch(3), "the others stay shut");
+    assert!(!w.map.solid(10, 30, false, 0.0));
+    assert!(w.map.solid(10, 66, false, 0.0), "gate two still blocks");
+    assert!(!w.map.switch(0), "the bridge channel is untouched");
+}
+
+#[test]
+fn a_swivel_mirror_sends_the_first_bubble_one_way_and_the_second_the_other() {
+    let mut w = shafts();
+    let i = find(&w, Kind::Swivel, 18.0);
+    assert_eq!(w.ents[i].dir, 1.0);
+    w.shots.clear();
+    w.shots.push(bubble(18.5, 80.0, 0.0, 16.0));
+    run(&mut w, 25, 0);
+    assert_eq!(
+        w.shots.first().map(|s| (s.vx, s.vy)),
+        Some((16.0, 0.0)),
+        "first goes right"
+    );
+    assert_eq!(w.ents[i].dir, -1.0, "and the mirror swings round");
+    w.shots.clear();
+    w.shots.push(bubble(18.5, 80.0, 0.0, 16.0));
+    run(&mut w, 25, 0);
+    assert_eq!(
+        w.shots.first().map(|s| (s.vx, s.vy)),
+        Some((-16.0, 0.0)),
+        "second goes left"
+    );
+}
+
+#[test]
+fn the_second_shot_through_the_swivel_reaches_the_switch() {
+    let mut w = shafts();
+    for _ in 0..2 {
+        w.shots.clear();
+        w.shots.push(bubble(18.5, 80.0, 0.0, 16.0));
+        run(&mut w, 75, 0);
+    }
+    assert!(!w.map.switch(3), "gate three opened by the second bubble");
+    assert!(w.map.switch(2), "gate two is not involved");
+}
+
+#[test]
+fn every_gate_tile_is_drawn_and_fades_when_its_gate_opens() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = level(crate::levels::MIRROR_SHAFTS);
+    w.ents.clear();
+    w.spr[Spr::Gate as usize] = SpriteRect {
+        u: 0.4,
+        v: 0.4,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h: 16.0,
+    };
+    // Every instance of the gate sprite, as (faint, opaque); drawing is not culled in this call,
+    // so all three gates (30 tiles wide, two rows each) are in the buffer.
+    let counts = |w: &mut World| {
+        w.render(0.5, 0);
+        let data = w.inst.as_slice();
+        let gates: Vec<f32> = (0..w.inst.len())
+            .filter(|&i| data[i * STRIDE + 16] == 0.4)
+            .map(|i| data[i * STRIDE + 19])
+            .collect();
+        let faint = gates.iter().filter(|&&a| a < 0.5).count();
+        (faint, gates.len() - faint)
+    };
+    assert_eq!(
+        counts(&mut w),
+        (0, 180),
+        "all three gates drawn and opaque while shut"
+    );
+    w.map.set_switch(1, false);
+    assert_eq!(
+        counts(&mut w),
+        (60, 120),
+        "gate one faint, the others opaque"
+    );
+    w.map.set_switch(2, false);
+    assert_eq!(counts(&mut w), (120, 60), "gate two faint as well");
+    w.map.set_switch(3, false);
+    assert_eq!(
+        counts(&mut w),
+        (180, 0),
+        "all faint once all three are open"
+    );
+}
+
 #[test]
 fn enemies_in_a_hidden_room_wait_there_until_ben_walks_in() {
     let mut w = level(crate::levels::BONBON_PLAYHOUSE);
@@ -947,6 +1119,26 @@ fn jumping_off_a_ladder_with_up_held_does_not_grab_it_again() {
     assert!(w.p.climb, "a new press of Up grabs it");
 }
 
+#[test]
+fn a_bubble_fired_from_beside_a_mirror_still_bounces_off_it() {
+    let mut w = shafts();
+    w.shots.clear();
+    // Fired left from Ben's usual muzzle offset (0.6 in front of him) with Ben against the right
+    // edge of the swivel's column (centre 0.35 right of the cell's left edge), so the bubble starts
+    // 0.75 left of the mirror's centre and moves away from it.
+    let i = find(&w, Kind::Swivel, 18.0);
+    let (mx, my) = (w.ents[i].b.x + 0.5, w.ents[i].b.y + 0.5);
+    w.shots.push(bubble(mx - 0.75, my, -16.0, 0.0));
+    w.step(0);
+    let s = w.shots.first().expect("the bubble is still flying");
+    assert_ne!(
+        (s.vx, s.vy),
+        (-16.0, 0.0),
+        "it was turned by the mirror, not left to fly on into the corridor"
+    );
+    assert_eq!(s.last, i as i32);
+}
+
 fn ladder_world() -> World {
     let mut w = level(CRATER);
     w.ents.clear();
@@ -1012,6 +1204,7 @@ fn enemies_ignore_lift_trays_and_are_not_carried_off() {
         kind: Kind::Gloop,
         x: 8.0,
         y: 6.6,
+        dir: -1.0,
     });
     w.ents.push(g);
     run(&mut w, 120, 0);
@@ -1030,6 +1223,7 @@ fn an_enemy_found_far_from_its_floor_is_sent_home() {
         kind: Kind::Gloop,
         x: 12.0,
         y: 4.0,
+        dir: -1.0,
     });
     let home = (g.b.x, g.b.y);
     w.ents.push(g);

@@ -74,6 +74,7 @@ pub enum Theme {
     OpenSky,
     Building,
     Theatre,
+    Shaft,
 }
 
 /// How the camera follows Ben.
@@ -88,7 +89,7 @@ pub enum CamMode {
 impl Theme {
     pub const fn cam(self) -> CamMode {
         match self {
-            Theme::Building => CamMode::Tower,
+            Theme::Building | Theme::Shaft => CamMode::Tower,
             _ => CamMode::Side,
         }
     }
@@ -97,7 +98,7 @@ impl Theme {
     pub const fn tiles(self) -> u8 {
         match self {
             Theme::Crater => 0,
-            Theme::Caves => 1,
+            Theme::Caves | Theme::Shaft => 1,
             Theme::Citadel => 2,
             Theme::OpenSky => 3,
             Theme::Building => 4,
@@ -120,7 +121,7 @@ pub struct LevelTheme {
 
 pub fn theme(t: Theme) -> LevelTheme {
     match t {
-        Theme::Caves => LevelTheme {
+        Theme::Caves | Theme::Shaft => LevelTheme {
             clear: 0x000000,
             amb: [0.85, 0.85, 0.95],
             night: [0.14, 0.12, 0.24],
@@ -694,6 +695,11 @@ impl World {
                     }
                     DOOR_R => Spr::DoorRed as u16,
                     DOOR_B => Spr::DoorBlue as u16,
+                    GATE | GATE_2 | GATE_3 => {
+                        let on = self.map.switch(self.map.props.channel(tt));
+                        op.alpha = if on { 1.0 } else { 0.18 };
+                        Spr::Gate as u16
+                    }
                     BRIDGE => {
                         op.alpha = if self.map.switch(0) { 1.0 } else { 0.22 };
                         Spr::Bridge as u16
@@ -864,6 +870,19 @@ impl World {
                         Spr::Boss1
                     } else {
                         Spr::Boss0
+                    }
+                }
+                Kind::Mirror | Kind::Swivel => {
+                    op = em;
+                    op.flip = e.dir < 0.0;
+                    Spr::Mirror
+                }
+                Kind::CrystalSwitch => {
+                    op = em;
+                    if self.map.switch(e.dir as u8) {
+                        Spr::CrysSwitchOff
+                    } else {
+                        Spr::CrysSwitchOn
                     }
                 }
                 Kind::Switch => {

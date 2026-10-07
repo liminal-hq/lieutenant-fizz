@@ -152,6 +152,8 @@ export const CAPTION_SFX: Record<string, string> = {
   'ding! extra life': 'life',
   vworp: 'vworp',
   clink: 'click',
+  ting: 'plink',
+  chime: 'key',
   'zap zap zap': 'zap',
   brrrt: 'zap',
   THOOM: 'thoom',

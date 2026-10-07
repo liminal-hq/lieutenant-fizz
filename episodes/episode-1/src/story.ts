@@ -150,4 +150,18 @@ export const LEVELS: LevelInfo[] = [
     track: 'caves',
     cleared: 'The curtain falls on a very sticky stage. Ben takes a bow.',
   },
+  {
+    name: 'Fudge Bog',
+    blurb: 'Wide pools of hot fudge, stepping stones and three very puffy spore pods.',
+    track: 'crater',
+    cleared: 'Ben wipes fudge off his boots. That was the hard way round, and he knows it.',
+  },
+  {
+    name: 'Mirror Shafts',
+    blurb:
+      'A tall crystal shaft sealed by gates. Bounce fizz off the mirrors to reach the switches.',
+    track: 'caves',
+    cleared:
+      'The last gate slides open and the shaft hums. Ben has never seen so many reflections of himself.',
+  },
 ];

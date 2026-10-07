@@ -18,9 +18,11 @@ pub const METEOR_MESA: u8 = 3;
 pub const ZARG_LOOKOUT: u8 = 4;
 pub const MARSHMALLOW_MEADOWS: u8 = 5;
 pub const BONBON_PLAYHOUSE: u8 = 6;
+pub const FUDGE_BOG: u8 = 7;
+pub const MIRROR_SHAFTS: u8 = 8;
 
 /// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
-pub const LEVEL_COUNT: u8 = 7;
+pub const LEVEL_COUNT: u8 = 9;
 
 /// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
 pub const AREA_CRATER_FIELDS: u8 = 0;
@@ -88,6 +90,20 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
         theme: Theme::Theatre,
         area: AREA_MARSHMALLOW_MEADOWS,
         icon: Spr::OwPlayhouse,
+    },
+    LevelDef {
+        id: FUDGE_BOG,
+        build: fudge_bog,
+        theme: Theme::Crater,
+        area: AREA_MARSHMALLOW_MEADOWS,
+        icon: Spr::OwCrater,
+    },
+    LevelDef {
+        id: MIRROR_SHAFTS,
+        build: mirror_shafts,
+        theme: Theme::Shaft,
+        area: AREA_ROCK_CANDY_REACH,
+        icon: Spr::OwShaft,
     },
 ];
 
@@ -266,12 +282,28 @@ impl Builder {
 
     fn ent(&mut self, kind: Kind, x: f64) -> &mut Self {
         let y = self.ground_at(x);
-        self.spawns.push(Spawn { kind, x, y });
+        self.spawns.push(Spawn {
+            kind,
+            x,
+            y,
+            dir: -1.0,
+        });
         self
     }
 
     fn ent_at(&mut self, kind: Kind, x: f64, y: f64) -> &mut Self {
-        self.spawns.push(Spawn { kind, x, y });
+        self.spawns.push(Spawn {
+            kind,
+            x,
+            y,
+            dir: -1.0,
+        });
+        self
+    }
+
+    /// A spawn with an explicit orientation, such as a `/` mirror (`dir` = 1).
+    fn ent_dir(&mut self, kind: Kind, x: f64, y: f64, dir: f64) -> &mut Self {
+        self.spawns.push(Spawn { kind, x, y, dir });
         self
     }
 
@@ -775,6 +807,188 @@ fn bonbon_playhouse() -> LevelData {
     b.out(BONBON_PLAYHOUSE, (3.0, 4.0), None)
 }
 
+/// A harder crater: wide fudge pools crossed on stepping-stone ledges, spikes, three spore pods and a
+/// red key at the top of a short tower of ledges.
+fn fudge_bog() -> LevelData {
+    let mut b = Builder::new(190, 28, 4);
+    b.run(&[
+        (Flat, 12),
+        (Pool, 3),
+        (Flat, 8),
+        (Up, 2),
+        (Flat, 6),
+        (Pool, 5),
+        (Flat, 10),
+        (Spikes, 3),
+        (Flat, 8),
+        (Down, 2),
+        (Pool, 3),
+        (Flat, 12),
+        (Up22, 2),
+        (Flat, 8),
+        (Pool, 6),
+        (Flat, 10),
+        (Spikes, 3),
+        (Flat, 9),
+        (Pool, 3),
+        (Flat, 10),
+        (Up, 3),
+        (Flat, 14),
+        (Down, 3),
+        (Pool, 4),
+        (Flat, 39),
+    ]);
+    b.walls();
+    // Stepping stones over the wide pools, level with the ground on either side.
+    b.plat(32, 33, 5).plat(88, 89, 5).plat(148, 149, 5);
+    // The red key: two ledges, each three tiles above the last.
+    b.plat(134, 136, 11).plat(138, 140, 14);
+    b.item(KeyRed, 139, 15);
+    b.fill(165, 165, 6, 7, DOOR_R).fill(165, 165, 8, 27, BLOCK);
+    b.fill(185, 185, 6, 7, EXIT);
+    b.row(Cheezie, 4, 6, 6, 1)
+        .row(Choc, 12, 3, 8, 1)
+        .row(Cheezie, 26, 5, 8, 1)
+        .row(Choc, 31, 5, 9, 1)
+        .row(Cheezie, 37, 6, 8, 1)
+        .row(Cheezie, 46, 3, 9, 1)
+        .item(Soda, 52, 8)
+        .row(Choc, 59, 3, 7, 1)
+        .row(Cheezie, 64, 8, 6, 1)
+        .item(Cookie, 80, 9)
+        .row(Choc, 86, 6, 9, 1)
+        .row(Cheezie, 94, 6, 8, 1)
+        .row(Cheezie, 102, 3, 9, 1)
+        .item(Soda, 108, 8)
+        .row(Cheezie, 117, 8, 8, 1)
+        .item(Cookie, 135, 12)
+        .item(Cookie, 140, 15)
+        .row(Choc, 147, 4, 8, 1)
+        .row(Cheezie, 152, 6, 8, 1)
+        .row(Cookie, 172, 4, 8, 3);
+    for x in [6, 20, 40, 66, 82, 96, 120, 136, 156, 176] {
+        b.crys(x);
+    }
+    b.ent(Kind::Pod, 18.0)
+        .ent(Kind::Pod, 67.0)
+        .ent(Kind::Pod, 121.0);
+    b.ent(Kind::Gloop, 28.0)
+        .ent(Kind::Gloop, 96.0)
+        .ent(Kind::Gloop, 155.0)
+        .ent(Kind::Gloop, 175.0)
+        .ent(Kind::Hopper, 40.0)
+        .ent(Kind::Hopper, 82.0)
+        .ent(Kind::Hopper, 133.0)
+        .ent(Kind::Beetle, 109.0);
+    b.ent_at(Kind::Drone, 60.5, 9.5)
+        .ent_at(Kind::Drone, 125.5, 11.5)
+        .ent_at(Kind::Drone, 170.5, 11.5);
+    b.out(FUDGE_BOG, (3.0, 4.0), None)
+}
+
+/// A tall crystal shaft sealed by three gates. Each gate opens when a fizz bubble hits a crystal
+/// switch Ben cannot shoot directly, so he fires up and lets mirrors carry the bubble round the
+/// corner: a single mirror, then two in a chain, then a swivel mirror that sends the first bubble
+/// the wrong way and the second one right. A bubble flies about 17 tiles, which every route fits.
+/// A ledge hugs the underside of each gate, so Ben can only climb on once it opens.
+fn mirror_shafts() -> LevelData {
+    const W: i32 = 36;
+    const H: i32 = 100;
+    let mut b = Builder::new(W, H, 3);
+    b.fill(0, W - 1, 0, 2, FILL)
+        .fill(0, 2, 0, H - 1, FILL)
+        .fill(W - 3, W - 1, 0, H - 1, FILL);
+    // Ledges, written as (standing row, first column, last column).
+    let ledges: [(i32, i32, i32); 30] = [
+        (6, 4, 12),
+        (9, 10, 18),
+        (12, 16, 24),
+        (15, 22, 26),
+        (18, 16, 24),
+        (21, 10, 26),
+        (24, 4, 12),
+        (27, 8, 16),
+        (30, 12, 20),
+        (33, 6, 16),
+        (36, 12, 22),
+        (39, 18, 28),
+        (42, 12, 22),
+        (45, 6, 16),
+        (48, 10, 20),
+        (51, 6, 14),
+        (54, 6, 14),
+        (57, 12, 17),
+        (60, 19, 25),
+        (63, 24, 30),
+        (66, 18, 28),
+        (69, 14, 24),
+        (72, 12, 22),
+        (75, 18, 28),
+        (78, 12, 24),
+        (81, 24, 32),
+        (84, 18, 26),
+        (87, 18, 26),
+        (90, 14, 24),
+        (93, 16, 24),
+    ];
+    for (stand, x0, x1) in ledges {
+        b.plat(x0, x1, stand - 1);
+    }
+    // Three gates, each on its own switch channel and closed to start with.
+    b.fill(3, 32, 30, 31, GATE)
+        .fill(3, 32, 66, 67, GATE_2)
+        .fill(3, 32, 87, 88, GATE_3);
+    for ch in [GATE_CHANNEL, 2, 3] {
+        b.map.set_switch(ch, true);
+    }
+    // Puzzle 1: fire up from the wide ledge at row 21; one mirror turns the bubble right.
+    b.ent_dir(Kind::Mirror, 18.0, 26.0, 1.0)
+        .ent_dir(Kind::CrystalSwitch, 28.0, 26.0, 1.0);
+    // Puzzle 2: two mirrors in a chain, right and then up.
+    b.ent_dir(Kind::Mirror, 10.0, 58.0, 1.0)
+        .ent_dir(Kind::Mirror, 17.0, 58.0, 1.0)
+        .ent_dir(Kind::CrystalSwitch, 17.0, 62.0, 2.0);
+    // Puzzle 3: the swivel mirror sends the first bubble right into the wall and swings round to
+    // send the second left, to the switch.
+    b.ent_dir(Kind::Swivel, 18.0, 82.0, 1.0)
+        .ent_dir(Kind::CrystalSwitch, 8.0, 82.0, 3.0);
+    // Shield the switches. Each bubble reaches its switch along a short corridor of rock that is
+    // open only where the mirror sends the bubble in, so nobody can reach a switch by jumping and
+    // firing sideways from a ledge: puzzle one's and three's switches sit at the end of a
+    // corridor, puzzle two's in a niche the bubble enters from below.
+    b.fill(19, 28, 25, 25, FILL).fill(19, 28, 27, 27, FILL);
+    b.fill(16, 16, 61, 63, FILL).fill(18, 18, 61, 63, FILL);
+    b.fill(4, 17, 81, 81, FILL).fill(4, 17, 83, 83, FILL);
+    b.fill(20, 20, 93, 94, EXIT);
+    // Soda by each firing spot, so a few wasted bubbles never strand Ben.
+    b.item(Soda, 13, 21)
+        .item(Soda, 8, 54)
+        .item(Soda, 21, 78)
+        .item(Soda, 12, 6);
+    for (stand, x0, x1) in ledges {
+        // The ledges under gates 1 and 2 have the gate's own rows at head height: no snacks there.
+        if stand % 6 == 0 && stand != 30 && stand != 66 {
+            b.row(Cheezie, x0 + 1, (x1 - x0 - 1).min(5), stand, 1);
+        }
+    }
+    b.row(Choc, 12, 3, 22, 2)
+        .item(Cookie, 22, 40)
+        .item(Cookie, 24, 61)
+        .item(Cookie, 22, 76)
+        .row(Choc, 18, 3, 91, 2);
+    for (x, y) in [(10, 8), (24, 17), (20, 41), (12, 50), (26, 74), (20, 91)] {
+        b.map.set(x, y, CRYS);
+    }
+    b.ent_at(Kind::Phantom, 26.0, 15.0)
+        .ent_at(Kind::Phantom, 22.0, 39.0)
+        .ent_at(Kind::Phantom, 16.0, 72.0)
+        .ent_at(Kind::Pod, 14.0, 48.0)
+        .ent_at(Kind::Pod, 24.0, 75.0)
+        .ent_at(Kind::Drone, 20.5, 36.5)
+        .ent_at(Kind::Drone, 14.5, 68.5);
+    b.out(MIRROR_SHAFTS, (6.0, 3.0), None)
+}
+
 fn caves() -> LevelData {
     let mut b = Builder::new(176, 26, 5);
     b.run(&[
@@ -992,6 +1206,8 @@ pub fn build_overworld() -> MapData {
         pt(PtKind::Level, ZARG_LOOKOUT, 15, 19, 0, 0, false),
         pt(PtKind::Level, MARSHMALLOW_MEADOWS, 15, 23, 0, 0, false),
         pt(PtKind::Level, BONBON_PLAYHOUSE, 15, 27, 0, 0, false),
+        pt(PtKind::Level, FUDGE_BOG, 15, 31, 0, 0, false),
+        pt(PtKind::Level, MIRROR_SHAFTS, 15, 35, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -1153,6 +1369,100 @@ mod tests {
         assert_eq!(l.theme, Theme::OpenSky);
     }
 
+    /// Whether a bubble fired from anywhere Ben can stand or jump to reaches a crystal switch
+    /// before a mirror or a wall turns or stops it: straight up from the ground, or sideways at any
+    /// height of an ordinary jump (3.4 tiles; the pogo goes higher and is not guarded). A bubble
+    /// flies about 17 tiles. Returns where the shot started and which switch it hit.
+    fn switch_in_straight_line(l: &LevelData) -> Option<(f64, f64, f64, f64)> {
+        let cells = |kinds: &[Kind]| -> Vec<(f64, f64)> {
+            l.spawns
+                .iter()
+                .filter(|s| kinds.contains(&s.kind))
+                .map(|s| (s.x + 0.5, s.y + 0.5))
+                .collect()
+        };
+        let switches = cells(&[Kind::CrystalSwitch]);
+        let mirrors = cells(&[Kind::Mirror, Kind::Swivel]);
+        // Follows a bubble from (x, y) in direction (dx, dy) and returns the switch it hits, if
+        // nothing solid or a mirror gets in the way first.
+        let ray = |x: f64, y: f64, dx: f64, dy: f64| -> Option<(f64, f64)> {
+            let (mut px, mut py) = (x, y);
+            for _ in 0..352 {
+                if l.map
+                    .solid(px.floor() as i32, py.floor() as i32, false, 0.0)
+                {
+                    return None;
+                }
+                if mirrors.iter().any(|m| {
+                    (m.0 - px).abs() < crate::world::MIRROR_REACH
+                        && (m.1 - py).abs() < crate::world::MIRROR_REACH
+                }) {
+                    return None;
+                }
+                if let Some(s) = switches.iter().find(|s| {
+                    (s.0 - px).abs() < crate::world::SWITCH_REACH
+                        && (s.1 - py).abs() < crate::world::SWITCH_REACH
+                }) {
+                    return Some(*s);
+                }
+                px += dx * 0.05;
+                py += dy * 0.05;
+            }
+            None
+        };
+        for x in 0..l.map.w {
+            for y in 0..l.map.h - 2 {
+                let t = l.map.get(x, y);
+                let floor = t == PLAT || l.map.is_solid_tile(t);
+                // He needs room to stand: the two tiles above must be free (he is 1.4 tall).
+                let free = |yy: i32| matches!(l.map.get(x, yy), EMPTY | WALLBG);
+                if !floor || !free(y + 1) || !free(y + 2) {
+                    continue;
+                }
+                let stand = f64::from(y + 1);
+                // Ben's centre can be anywhere that leaves part of his 0.7-wide body on the tile.
+                let mut cx = f64::from(x) - 0.3;
+                while cx < f64::from(x) + 1.3 {
+                    if let Some(s) = ray(cx, stand + 1.5, 0.0, 1.0) {
+                        return Some((cx, stand + 1.5, s.0, s.1));
+                    }
+                    // Sideways, at every height of a jump from this spot (a shot leaves 0.6 tiles
+                    // in front of him, at 0.85 above his feet).
+                    let mut feet = stand;
+                    while feet <= stand + 3.4 {
+                        // His body must fit in open space at this height.
+                        let fits = (((cx - 0.35).floor() as i32)..=((cx + 0.34).floor() as i32))
+                            .all(|bx| {
+                                (feet.floor() as i32..=(feet + 1.39).floor() as i32)
+                                    .all(|by| !l.map.is_solid_tile(l.map.get(bx, by)))
+                            });
+                        if !fits {
+                            break;
+                        }
+                        for dir in [-1.0, 1.0] {
+                            if let Some(s) = ray(cx + dir * 0.6, feet + 0.85, dir, 0.0) {
+                                return Some((cx, feet + 0.85, s.0, s.1));
+                            }
+                        }
+                        feet += 0.1;
+                    }
+                    cx += 0.05;
+                }
+            }
+        }
+        None
+    }
+
+    #[test]
+    fn no_crystal_switch_can_be_shot_directly_from_a_ledge() {
+        let l = build_level(MIRROR_SHAFTS);
+        assert_eq!(
+            switch_in_straight_line(&l),
+            None,
+            "a switch can be shot directly from somewhere Ben can stand or jump: (x, y, switch)"
+        );
+    }
+
     #[test]
     fn progress_bits_cover_every_level() {
         for id in 0..LEVEL_COUNT {
@@ -1194,6 +1504,6 @@ mod tests {
                 );
             }
         }
-        assert_eq!(m.points.len(), 12);
+        assert_eq!(m.points.len(), 14);
     }
 }

@@ -121,6 +121,10 @@ export function defineSprites(): SpriteDef[] {
   add('exitTop', t.exitTile(true));
   add('exitBot', t.exitTile(false));
   add('bridge', t.bridgeTile());
+  add('gate', t.gateTile(), true);
+  add('mirror', t.mirrorTile());
+  add('crysSwitchOff', t.crystalSwitch(false));
+  add('crysSwitchOn', t.crystalSwitch(true));
   add('hover0', t.hoverPlat(0));
   add('hover1', t.hoverPlat(1));
   add('switchOff', t.switchTile(false));
@@ -140,6 +144,7 @@ export function defineSprites(): SpriteDef[] {
   add('owTower', sc.owTower());
   add('owPlayhouse', sc.owPlayhouse());
   add('owMeadow', sc.owMeadow());
+  add('owShaft', sc.owShaft());
   add('owCave', sc.owCave());
   add('owCastle', sc.owCastle());
   add('owTele0', sc.owTele(0));
