@@ -1,11 +1,11 @@
 // Builds the Fizz font family into packages/engine/assets/fonts as OTF and WOFF2 files.
 //
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // Usage: bun scripts/build-font.ts [--check] [--specimen <file.html>]
 //   --check     rebuild in memory and fail if the committed files differ (used by validate)
 //   --specimen  also write a standalone HTML specimen sheet to the given path
-//
-// (c) Copyright 2026 Liminal HQ, Scott Morris
-// SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
