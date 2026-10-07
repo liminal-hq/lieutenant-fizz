@@ -160,8 +160,6 @@ export function defineSprites(): SpriteDef[] {
   add('owCake', sc.owCake());
   add('owRiver0', sc.owRiver(0), true);
   add('owRiver1', sc.owRiver(1), true);
-  add('owWater0', sc.owWater(0), true);
-  add('owWater1', sc.owWater(1), true);
   add('owTree0', sc.owTree(0));
   add('owTree1', sc.owTree(1));
   add('owRock', sc.owRock());
