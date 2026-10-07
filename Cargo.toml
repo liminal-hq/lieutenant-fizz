@@ -15,3 +15,7 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+# The playtest bot searches thousands of simulated ticks per level, which takes minutes unoptimised.
+[profile.test]
+opt-level = 2

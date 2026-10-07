@@ -1138,6 +1138,31 @@ fn the_mural_stays_drawn_while_only_part_of_it_is_on_screen() {
 }
 
 #[test]
+fn the_green_gumdrop_is_collected_and_opens_only_the_green_door() {
+    let mut w = level(crate::levels::FROSTING_SPIRE);
+    w.ents.clear();
+    assert!(!w.keys_green);
+    w.p.b.x = 30.0;
+    w.p.b.y = 102.0;
+    run(&mut w, 10, 0);
+    assert!(w.keys_green, "picked up the green gumdrop");
+    assert!(!w.keys_red && !w.keys_blue);
+    // Ben is carried to the ground floor and walks into the green door.
+    w.p.b.x = 34.5;
+    w.p.b.y = 3.0;
+    w.p.b.vy = 0.0;
+    w.p.face = 1.0;
+    run(&mut w, 40, RIGHT);
+    assert!(!w.keys_green, "the key is used up");
+    assert_eq!(
+        w.map.get(36, 5),
+        WALLBG,
+        "the green door is gone, leaving interior wall"
+    );
+    assert_ne!(w.map.get(21, 49), 0, "the red door is untouched");
+}
+
+#[test]
 fn enemies_in_a_hidden_room_wait_there_until_ben_walks_in() {
     let mut w = level(crate::levels::BONBON_PLAYHOUSE);
     // The tutorial room on the path holds a gloop that would otherwise pace out of it.

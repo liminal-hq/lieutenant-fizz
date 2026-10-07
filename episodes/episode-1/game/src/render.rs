@@ -675,6 +675,7 @@ impl World {
                             || self.map.is_slope(up)
                             || up == DOOR_R
                             || up == DOOR_B
+                            || up == DOOR_G
                         {
                             tileset_tile(b, BT_FILL)
                         } else {
@@ -708,6 +709,7 @@ impl World {
                     }
                     DOOR_R => Spr::DoorRed as u16,
                     DOOR_B => Spr::DoorBlue as u16,
+                    DOOR_G => Spr::DoorGreen as u16,
                     GATE | GATE_2 | GATE_3 => {
                         let on = self.map.switch(self.map.props.channel(tt));
                         op.alpha = if on { 1.0 } else { 0.18 };
@@ -769,6 +771,7 @@ impl World {
                 ItemKind::Soda => Spr::Soda,
                 ItemKind::KeyRed => Spr::KeyRed,
                 ItemKind::KeyBlue => Spr::KeyBlue,
+                ItemKind::KeyGreen => Spr::KeyGreen,
                 ItemKind::Usb => Spr::Usb,
             };
             let scale = if it.kind == ItemKind::Usb { 1.2 } else { 1.0 };
@@ -1128,11 +1131,12 @@ impl World {
                 ItemKind::Soda => [0.15, 0.75, 0.9],
                 ItemKind::KeyRed => [1.1, 0.3, 0.3],
                 ItemKind::KeyBlue => [0.3, 0.4, 1.2],
+                ItemKind::KeyGreen => [0.3, 1.1, 0.4],
                 ItemKind::Usb => [1.2, 1.1, 0.4],
             };
             let r = if matches!(
                 it.kind,
-                ItemKind::Usb | ItemKind::KeyRed | ItemKind::KeyBlue
+                ItemKind::Usb | ItemKind::KeyRed | ItemKind::KeyBlue | ItemKind::KeyGreen
             ) {
                 3.2
             } else {

@@ -170,4 +170,16 @@ export const LEVELS: LevelInfo[] = [
     track: 'caves',
     cleared: 'Ben leaves the gallery with a head full of paintings and pockets full of crumbs.',
   },
+  {
+    name: 'Frosting Flats',
+    blurb: 'Long, open stretches of frosted rock, spike runs and hover platforms. Mind the drones.',
+    track: 'crater',
+    cleared: 'A long way across, and not a single frosting stain on Ben’s helmet. Almost.',
+  },
+  {
+    name: 'Frosting Spire',
+    blurb: 'The tallest Zarg tower: twelve floors, three lifts, and a key in every colour.',
+    track: 'crater',
+    cleared: 'Twelve floors up and twelve floors down, and Ben’s knees have opinions about it.',
+  },
 ];

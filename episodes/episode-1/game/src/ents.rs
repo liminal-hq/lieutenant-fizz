@@ -213,6 +213,7 @@ pub enum ItemKind {
     Soda,
     KeyRed,
     KeyBlue,
+    KeyGreen,
     Usb,
 }
 

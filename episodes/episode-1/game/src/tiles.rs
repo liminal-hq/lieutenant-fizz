@@ -25,6 +25,8 @@ pub const L22A: u8 = 10;
 pub const L22B: u8 = 11;
 pub const DOOR_R: u8 = 12;
 pub const DOOR_B: u8 = 13;
+/// Green cookie door, opened by the green gumdrop (Frosting Spire).
+pub const DOOR_G: u8 = 35;
 pub const BRIDGE: u8 = 14;
 pub const CRYS: u8 = 16;
 pub const EXIT: u8 = 17;
@@ -53,7 +55,7 @@ pub const RUNG_TOP: u8 = 29;
 /// Collision behaviour for every Episode 1 tile id.
 pub fn props() -> TileProps {
     let mut p = TileProps::default();
-    for t in [FILL, BLOCK, DOOR_R, DOOR_B, RIVER, TREE, ROCK] {
+    for t in [FILL, BLOCK, DOOR_R, DOOR_B, DOOR_G, RIVER, TREE, ROCK] {
         p.set_flags(t, SOLID);
     }
     p.set_flags(PLAT, ONEWAY);

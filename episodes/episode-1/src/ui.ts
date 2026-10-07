@@ -21,6 +21,7 @@ export interface HudState {
   ammo: number;
   red: boolean;
   blue: boolean;
+  green: boolean;
   usb: boolean;
 }
 
@@ -328,6 +329,7 @@ export class Ui {
       <div class="badges"><span class="lbl">Next life at ${(Math.floor(s.score / 100) + 1) * 100}</span>
       ${s.red ? '<span class="badge" style="color:#ff5555">Red gumdrop</span>' : ''}
       ${s.blue ? '<span class="badge" style="color:#8888ff">Blue gumdrop</span>' : ''}
+      ${s.green ? '<span class="badge" style="color:#55ff55">Green gumdrop</span>' : ''}
       ${s.usb ? '<span class="badge" style="color:#ffff55">Gold USB</span>' : ''}</div>`;
   }
 

@@ -64,6 +64,7 @@ export function defineSprites(): SpriteDef[] {
   add('soda', it.soda());
   add('keyRed', it.gumdrop('r', 'R'));
   add('keyBlue', it.gumdrop('b', 'B'));
+  add('keyGreen', it.gumdrop('g', 'G'));
   add('usb', it.usb());
 
   let seed = 10;
@@ -118,6 +119,7 @@ export function defineSprites(): SpriteDef[] {
   add('chocDeep1', t.chocDeep(1), true);
   add('doorRed', t.doorTile('r'));
   add('doorBlue', t.doorTile('b'));
+  add('doorGreen', t.doorTile('g'));
   add('exitTop', t.exitTile(true));
   add('exitBot', t.exitTile(false));
   add('bridge', t.bridgeTile());

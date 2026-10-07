@@ -21,9 +21,11 @@ pub const BONBON_PLAYHOUSE: u8 = 6;
 pub const FUDGE_BOG: u8 = 7;
 pub const MIRROR_SHAFTS: u8 = 8;
 pub const SUGAR_GLASS_GALLERY: u8 = 9;
+pub const FROSTING_FLATS: u8 = 10;
+pub const FROSTING_SPIRE: u8 = 11;
 
 /// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
-pub const LEVEL_COUNT: u8 = 10;
+pub const LEVEL_COUNT: u8 = 12;
 
 /// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
 pub const AREA_CRATER_FIELDS: u8 = 0;
@@ -112,6 +114,20 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
         theme: Theme::Theatre,
         area: AREA_ROCK_CANDY_REACH,
         icon: Spr::OwPlayhouse,
+    },
+    LevelDef {
+        id: FROSTING_FLATS,
+        build: frosting_flats,
+        theme: Theme::OpenSky,
+        area: AREA_FROSTING_FRONTIER,
+        icon: Spr::OwMesa,
+    },
+    LevelDef {
+        id: FROSTING_SPIRE,
+        build: frosting_spire,
+        theme: Theme::Building,
+        area: AREA_FROSTING_FRONTIER,
+        icon: Spr::OwTower,
     },
 ];
 
@@ -1111,6 +1127,192 @@ fn sugar_glass_gallery() -> LevelData {
     b.out(SUGAR_GLASS_GALLERY, (3.0, 4.0), None)
 }
 
+/// The hardest open-sky level: spike runs, a hover platform over an eight-tile gap and a chain of
+/// two over a ten-tile one, with drones overhead. The red key is at the top of a pair of cloud
+/// ledges, and the way on is behind a cookie door.
+fn frosting_flats() -> LevelData {
+    let mut b = Builder::new(190, 36, 4);
+    b.run(&[
+        (Flat, 12),
+        (Gap, 3),
+        (Flat, 8),
+        (Up, 3),
+        (Flat, 6),
+        (Gap, 8),
+        (Flat, 8),
+        (Spikes, 3),
+        (Flat, 6),
+        (Down, 3),
+        (Flat, 8),
+        (Gap, 3),
+        (Flat, 10),
+        (Up22, 2),
+        (Flat, 8),
+        (Gap, 10),
+        (Flat, 10),
+        (Spikes, 3),
+        (Flat, 5),
+        (Gap, 3),
+        (Flat, 12),
+        (Down22, 1),
+        (Flat, 8),
+        (Gap, 6),
+        (Flat, 38),
+    ]);
+    b.walls();
+    // A cloud ledge across the six-tile gap, level with the ground.
+    b.plat(148, 149, 4);
+    // One hover over the eight-tile gap; two in a chain over the ten-tile gap, the second one
+    // half a lap ahead so Ben can hop from one to the other.
+    b.hover(32.0, 6.5, 38.0, 6.5, 0.3);
+    b.hover(93.0, 5.5, 97.0, 5.5, 0.3);
+    b.hover(97.0, 5.5, 101.0, 5.5, 0.3);
+    // The red key, two cloud ledges up.
+    b.plat(126, 128, 8).plat(130, 132, 11);
+    b.item(KeyRed, 131, 12);
+    b.fill(160, 160, 5, 6, DOOR_R).fill(160, 160, 7, 35, BLOCK);
+    b.fill(182, 182, 5, 6, EXIT);
+    b.row(Cheezie, 4, 6, 6, 1)
+        .row(Choc, 12, 3, 8, 1)
+        .row(Cheezie, 16, 6, 6, 1)
+        .row(Cheezie, 26, 5, 9, 1)
+        .item(Soda, 30, 10)
+        .row(Choc, 34, 4, 10, 2)
+        .row(Cheezie, 41, 6, 9, 1)
+        .row(Cheezie, 48, 3, 10, 1)
+        .row(Cheezie, 61, 6, 6, 1)
+        .row(Choc, 68, 3, 7, 1)
+        .item(Cookie, 76, 7)
+        .row(Cheezie, 86, 6, 8, 1)
+        .row(Choc, 94, 8, 9, 1)
+        .row(Cheezie, 104, 8, 8, 1)
+        .row(Cheezie, 113, 3, 9, 1)
+        .item(Soda, 118, 8)
+        .item(Cookie, 127, 9)
+        .item(Cookie, 131, 13)
+        .row(Cheezie, 138, 6, 7, 1)
+        .row(Choc, 146, 6, 6, 1)
+        .row(Cheezie, 154, 5, 7, 1)
+        .row(Cookie, 168, 4, 8, 3);
+    for x in [8, 28, 44, 62, 76, 88, 108, 130, 142, 164, 178] {
+        b.crys(x);
+    }
+    b.ent(Kind::Gloop, 25.0)
+        .ent(Kind::Gloop, 88.0)
+        .ent(Kind::Gloop, 118.0)
+        .ent(Kind::Gloop, 172.0)
+        .ent(Kind::Hopper, 18.0)
+        .ent(Kind::Hopper, 64.0)
+        .ent(Kind::Hopper, 106.0)
+        .ent(Kind::Hopper, 130.0)
+        .ent(Kind::Hopper, 165.0)
+        .ent(Kind::Pod, 74.0)
+        .ent(Kind::Pod, 141.0);
+    b.ent_at(Kind::Drone, 20.5, 10.5)
+        .ent_at(Kind::Drone, 60.5, 10.5)
+        .ent_at(Kind::Drone, 108.5, 12.5)
+        .ent_at(Kind::Drone, 170.5, 11.5);
+    b.out(FROSTING_FLATS, (3.0, 4.0), None)
+}
+
+/// Twelve floors of the tallest Zarg tower, with all three key colours. Ladders alternate sides up
+/// the tower and three lifts carry Ben between floors. A red door splits the fifth floor and a blue
+/// door the eighth, so he fetches those keys on the way up; the green key is on the roof and its
+/// door guards the exit at the bottom, so the climb ends with the whole tower to come down.
+fn frosting_spire() -> LevelData {
+    const W: i32 = 44;
+    const H: i32 = 112;
+    let y = |k: i32| 3 + 9 * k;
+    // Even connectors have their ladder on the left, odd ones on the right.
+    let ladder_x = |k: i32| if k % 2 == 0 { 6 } else { 38 };
+    let mut b = Builder::new(W, H, 3);
+    b.fill(0, W - 1, 0, 2, FILL)
+        .fill(0, 0, 0, 108, BLOCK)
+        .fill(W - 1, W - 1, 0, 108, BLOCK);
+    for k in 1..=11 {
+        b.fill(1, W - 2, y(k) - 1, y(k) - 1, FILL);
+    }
+    for k in 0..=10 {
+        if matches!(k, 2 | 6 | 9) {
+            b.fill(20, 22, y(k + 1) - 1, y(k + 1) - 1, EMPTY);
+            b.plats.push(
+                Platform::new(
+                    20.0,
+                    f64::from(y(k)) - 0.5,
+                    20.0,
+                    f64::from(y(k + 1)) - 0.5,
+                    0.14,
+                )
+                .sized(3.0, 0.5)
+                .with_dwell(1.5),
+            );
+        } else {
+            b.ladder(ladder_x(k), y(k), y(k + 1) - 1);
+        }
+    }
+    b.wall_behind(1, W - 2, 3, y(11) - 1);
+    // Doors: red splits floor 5, blue splits floor 8, green seals the ground-floor exit closet.
+    b.fill(21, 21, y(5), y(5) + 7, DOOR_R)
+        .fill(21, 21, y(8), y(8) + 7, DOOR_B)
+        .fill(36, 36, 3, 10, DOOR_G)
+        .fill(42, 42, 3, 4, EXIT);
+    b.item(KeyRed, 14, y(3))
+        .item(KeyBlue, 14, y(7))
+        .item(KeyGreen, 30, y(11));
+    for k in 0..=11 {
+        b.row(Cheezie, if k % 2 == 0 { 10 } else { 26 }, 5, y(k), 1);
+    }
+    b.item(Soda, 12, y(1))
+        .item(Soda, 30, y(4))
+        .item(Soda, 12, y(9))
+        .item(Cookie, 30, y(2))
+        .item(Cookie, 14, y(6))
+        .item(Cookie, 28, y(10))
+        .row(Choc, 24, 3, y(5), 2)
+        .row(Choc, 24, 3, y(8), 2);
+    for (x, k) in [
+        (14, 0),
+        (28, 1),
+        (10, 3),
+        (30, 4),
+        (14, 5),
+        (30, 7),
+        (10, 9),
+        (26, 11),
+    ] {
+        b.map.set(x, y(k), CRYS);
+    }
+    for (x, k, kind) in [
+        (14, 0, Kind::Gloop),
+        (24, 0, Kind::Hopper),
+        (20, 1, Kind::Gloop),
+        (30, 2, Kind::Hopper),
+        (24, 3, Kind::Gloop),
+        (30, 3, Kind::Beetle),
+        (14, 4, Kind::Gloop),
+        (14, 6, Kind::Hopper),
+        (28, 6, Kind::Gloop),
+        (12, 7, Kind::Beetle),
+        (32, 8, Kind::Gloop),
+        (20, 9, Kind::Hopper),
+        (14, 10, Kind::Gloop),
+        (36, 11, Kind::Hopper),
+    ] {
+        b.ent_at(kind, f64::from(x), f64::from(y(k)));
+    }
+    // Sentries hover on the floors that follow each door and on the way to the roof.
+    for k in [5, 8, 10] {
+        b.ent_at(Kind::Sentry, 30.0, f64::from(y(k)) + 2.5);
+    }
+    b.ent_at(Kind::Phantom, 30.0, f64::from(y(6)))
+        .ent_at(Kind::Phantom, 12.0, f64::from(y(9)));
+    // Bats hang under the slab above floors 1, 4 and 7.
+    for (x, k) in [(14, 1), (30, 4), (14, 7), (30, 9)] {
+        b.ent_at(Kind::Bat, f64::from(x), f64::from(y(k)) + 7.3);
+    }
+    b.out(FROSTING_SPIRE, (3.0, 3.0), None)
+}
+
 fn caves() -> LevelData {
     let mut b = Builder::new(176, 26, 5);
     b.run(&[
@@ -1331,6 +1533,8 @@ pub fn build_overworld() -> MapData {
         pt(PtKind::Level, FUDGE_BOG, 15, 31, 0, 0, false),
         pt(PtKind::Level, MIRROR_SHAFTS, 15, 35, 0, 0, false),
         pt(PtKind::Level, SUGAR_GLASS_GALLERY, 15, 39, 0, 0, false),
+        pt(PtKind::Level, FROSTING_FLATS, 19, 31, 0, 0, false),
+        pt(PtKind::Level, FROSTING_SPIRE, 19, 35, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -1627,6 +1831,6 @@ mod tests {
                 );
             }
         }
-        assert_eq!(m.points.len(), 15);
+        assert_eq!(m.points.len(), 17);
     }
 }

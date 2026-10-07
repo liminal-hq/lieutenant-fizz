@@ -484,6 +484,7 @@ export class Game {
       ammo: s.get(State.AMMO),
       red: s.get(State.KEY_RED) === 1,
       blue: s.get(State.KEY_BLUE) === 1,
+      green: s.get(State.KEY_GREEN) === 1,
       usb: s.get(State.HAS_USB) === 1,
     };
     this.hud = hud;

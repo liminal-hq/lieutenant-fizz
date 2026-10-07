@@ -141,6 +141,7 @@ export const CAPTION_SFX: Record<string, string> = {
   fsssht: 'soda',
   'red gumdrop': 'key',
   'blue gumdrop': 'key',
+  'green gumdrop': 'key',
   'gold USB drive': 'usb',
   fizzled: 'stun',
   plink: 'plink',

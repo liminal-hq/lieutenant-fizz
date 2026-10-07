@@ -202,6 +202,7 @@ pub struct World {
     pub p: Player,
     pub keys_red: bool,
     pub keys_blue: bool,
+    pub keys_green: bool,
     pub has_usb: bool,
     pub hacked: bool,
     pub won: bool,
@@ -297,6 +298,7 @@ impl World {
             p: Player::level(0.0, 0.0),
             keys_red: false,
             keys_blue: false,
+            keys_green: false,
             has_usb: false,
             hacked: false,
             won: false,
@@ -351,6 +353,7 @@ impl World {
             p: self.p.clone(),
             keys_red: self.keys_red,
             keys_blue: self.keys_blue,
+            keys_green: self.keys_green,
             has_usb: self.has_usb,
             hacked: self.hacked,
             won: self.won,
@@ -425,6 +428,7 @@ impl World {
         self.fx.clear();
         self.keys_red = false;
         self.keys_blue = false;
+        self.keys_green = false;
         self.has_usb = false;
         self.hacked = false;
         self.won = false;
@@ -919,8 +923,12 @@ impl World {
                 }
             }
         }
-        for (tt, red) in [(DOOR_R, true), (DOOR_B, false)] {
-            let has = if red { self.keys_red } else { self.keys_blue };
+        for (tt, colour) in [(DOOR_R, 0u8), (DOOR_B, 1), (DOOR_G, 2)] {
+            let has = match colour {
+                0 => self.keys_red,
+                1 => self.keys_blue,
+                _ => self.keys_green,
+            };
             if !has {
                 continue;
             }
@@ -941,14 +949,18 @@ impl World {
                         *v = open;
                     }
                 }
-                if red {
-                    self.keys_red = false;
-                } else {
-                    self.keys_blue = false;
+                match colour {
+                    0 => self.keys_red = false,
+                    1 => self.keys_blue = false,
+                    _ => self.keys_green = false,
                 }
                 self.cap(f64::from(cx) + 0.5, py + 2.0, Cap::Clunk);
                 self.hud();
-                self.toast(if red { Toast::RedDoor } else { Toast::BlueDoor });
+                self.toast(match colour {
+                    0 => Toast::RedDoor,
+                    1 => Toast::BlueDoor,
+                    _ => Toast::GreenDoor,
+                });
             }
         }
         if die {
@@ -989,6 +1001,10 @@ impl World {
                 ItemKind::KeyBlue => {
                     self.keys_blue = true;
                     self.cap(it.x, it.y + 0.6, Cap::BlueGumdrop);
+                }
+                ItemKind::KeyGreen => {
+                    self.keys_green = true;
+                    self.cap(it.x, it.y + 0.6, Cap::GreenGumdrop);
                 }
                 ItemKind::Usb => {
                     self.has_usb = true;
