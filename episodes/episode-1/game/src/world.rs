@@ -118,6 +118,9 @@ pub struct Player {
     pub look_up: f64,
     /// Holding a ladder: gravity and running are off and Up/Down move Ben along it.
     pub climb: bool,
+    /// Set when Ben jumps off a ladder: he cannot grab one again until he lets go of Up and Down or
+    /// leaves the ladder, so jumping with Up held does not snap him straight back onto it.
+    pub no_grab: bool,
     pub rot: f64,
     pub hidden: bool,
 }
@@ -138,6 +141,7 @@ impl Player {
             look_down: 0.0,
             look_up: 0.0,
             climb: false,
+            no_grab: false,
             rot: 0.0,
             hidden: false,
         }
@@ -1142,6 +1146,13 @@ impl World {
         let cx = self.p.b.centre_x().floor() as i32;
         let chest = (self.p.b.y + 0.5).floor() as i32;
         if !self.p.climb {
+            if self.p.no_grab {
+                if (!up && !down) || !self.map.has_ladder(cx, chest) {
+                    self.p.no_grab = false;
+                } else {
+                    return;
+                }
+            }
             if up == down {
                 return;
             }
@@ -1168,6 +1179,7 @@ impl World {
         if e & JUMP != 0 {
             let p = &mut self.p;
             p.climb = false;
+            p.no_grab = true;
             p.b.vy = 12.0;
             p.b.vx = ax * 5.0;
             p.cut = true;
