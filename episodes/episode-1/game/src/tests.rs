@@ -1253,3 +1253,30 @@ fn the_secret_mural_is_covered_by_the_flat_until_ben_walks_in() {
         }
     }
 }
+
+#[test]
+fn jumping_off_a_ladder_with_up_held_does_not_grab_it_again() {
+    let mut w = lookout();
+    w.p.b.x = 17.8;
+    w.p.b.y = 3.0;
+    run(&mut w, 40, UP);
+    assert!(w.p.climb);
+    // Up stays held through the jump, which is the natural way to leap while climbing.
+    w.step(UP | JUMP);
+    assert!(!w.p.climb, "let go");
+    let y0 = w.p.b.y;
+    run(&mut w, 8, UP | JUMP);
+    assert!(!w.p.climb, "still not on the ladder with Up held");
+    assert!(
+        w.p.b.y > y0 + 0.8,
+        "the hop carried him up and away, y {} -> {}",
+        y0,
+        w.p.b.y
+    );
+    // Letting go of Up lifts the lock, so a fresh press grabs the ladder again.
+    w.p.b.x = 17.8;
+    w.p.b.vy = 0.0;
+    run(&mut w, 2, 0);
+    run(&mut w, 3, UP);
+    assert!(w.p.climb, "a new press of Up grabs it");
+}
