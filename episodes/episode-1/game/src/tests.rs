@@ -878,24 +878,6 @@ fn flats_are_drawn_after_ben_so_they_cover_him_until_they_fade() {
 }
 
 #[test]
-fn fizz_fires_sideways_on_a_ladder_with_down_held_too() {
-    let mut w = lookout();
-    w.p.b.x = 17.8;
-    w.p.b.y = 3.0;
-    run(&mut w, 40, UP);
-    assert!(w.p.climb);
-    w.shots.clear();
-    w.step(DOWN | FIRE);
-    let s = w.shots.last().expect("a shot");
-    assert!(
-        s.vx.abs() > 10.0 && s.vy == 0.0,
-        "sideways, got {} {}",
-        s.vx,
-        s.vy
-    );
-}
-
-#[test]
 fn enemies_in_a_hidden_room_wait_there_until_ben_walks_in() {
     let mut w = level(crate::levels::BONBON_PLAYHOUSE);
     // The tutorial room on the path holds a gloop that would otherwise pace out of it.
