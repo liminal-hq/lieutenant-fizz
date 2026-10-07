@@ -190,6 +190,9 @@ export function defineSprites(): SpriteDef[] {
   add('ladder', sc.ladder(), true);
   add('ladderTop', sc.ladderTop(), true);
   add('vine', sc.vine(), true);
+  add('cracked', sc.cracked(), true);
+  add('target', sc.target());
+  add('glyph', sc.glyph());
   add('lift0', sc.liftTray(0));
   add('lift1', sc.liftTray(1));
   add('lamp', sc.lamp());

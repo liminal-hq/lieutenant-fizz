@@ -1875,6 +1875,96 @@ fn a_single_wall_cannot_be_climbed_by_kicking_but_two_facing_walls_can() {
 const VINE_SPEED_FOR_TEST: f64 = crate::world::VINE_SPEED;
 
 #[test]
+fn a_fizz_shot_brings_down_a_cracked_wall_and_its_cracked_neighbours() {
+    let mut w = arena();
+    for y in 2..6 {
+        w.map.set(10, y, CRACKED);
+    }
+    w.map.set(10, 6, FILL);
+    w.map.set(11, 2, FILL);
+    w.p.b.x = 6.0;
+    w.p.b.y = 2.0;
+    w.p.face = 1.0;
+    w.step(FIRE);
+    run(&mut w, 40, 0);
+    for y in 2..6 {
+        assert_eq!(w.map.get(10, y), EMPTY, "cracked tile at row {y} crumbled");
+    }
+    assert_eq!(w.map.get(10, 6), FILL, "plain rock is untouched");
+    assert_eq!(w.map.get(11, 2), FILL);
+    // A bubble that is not Ben's leaves it alone.
+    w.map.set(20, 2, CRACKED);
+    w.shots.push(crate::ents::Shot {
+        x: 19.0,
+        y: 2.5,
+        vx: 10.0,
+        vy: 0.0,
+        ben: false,
+        life: 2.0,
+        sprite: 0,
+        g: false,
+        last: -1,
+    });
+    run(&mut w, 30, 0);
+    assert_eq!(w.map.get(20, 2), CRACKED);
+}
+
+#[test]
+fn a_cracked_wall_blocks_ben_until_it_is_shot() {
+    let mut w = arena();
+    for y in 2..8 {
+        w.map.set(10, y, CRACKED);
+    }
+    w.p.b.x = 6.0;
+    run(&mut w, 120, RIGHT);
+    assert!(w.p.b.x < 10.0, "held at the wall, at {:.1}", w.p.b.x);
+}
+
+#[test]
+fn shooting_a_lantern_pops_it_into_snacks() {
+    let mut w = arena();
+    let t = crate::ents::Spawn {
+        kind: Kind::Target,
+        x: 12.0,
+        y: 3.0,
+        dir: 4.0,
+    };
+    let e = w.init_ent(&t);
+    w.ents.push(e);
+    w.p.b.x = 6.0;
+    w.p.b.y = 2.0;
+    w.p.face = 1.0;
+    w.step(FIRE);
+    run(&mut w, 40, 0);
+    assert!(w.ents[0].dead, "popped");
+    assert_eq!(w.items.len(), 4);
+    assert!(w.items.iter().all(|i| i.kind == ItemKind::Cheezie));
+}
+
+#[test]
+fn a_wall_painting_shows_its_line_once_per_visit() {
+    use crate::text::Toast;
+    let mut w = arena();
+    let g = crate::ents::Spawn {
+        kind: Kind::Glyph,
+        x: 8.0,
+        y: 2.0,
+        dir: 2.0,
+    };
+    let e = w.init_ent(&g);
+    w.ents.push(e);
+    let count = |w: &World| {
+        events_of(w, ev::TOAST)
+            .iter()
+            .filter(|e| e.a == Toast::GlyphFizz as u16 as f32)
+            .count()
+    };
+    w.p.b.x = 8.2;
+    run(&mut w, 30, 0);
+    assert_eq!(count(&w), 1, "read once while standing in front");
+}
+
+#[test]
 fn jumping_off_a_vine_beside_a_wall_hops_instead_of_kicking() {
     let mut w = arena();
     for y in 2..20 {

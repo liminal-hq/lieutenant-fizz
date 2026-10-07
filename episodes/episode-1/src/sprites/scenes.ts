@@ -580,6 +580,57 @@ export function ladder(): Grid {
   return p;
 }
 
+/** A rock wall tile veined with cracks: a fizz shot will bring it down. */
+export function cracked(): Grid {
+  const p = new Pen(16, 16);
+  p.rect(0, 0, 16, 16, 'D');
+  p.rect(0, 0, 16, 1, 'L');
+  p.fn((x, y) => ((x * 7 + y * 3) % 11 === 0 ? 'N' : undefined));
+  for (const [x, y] of [
+    [8, 0],
+    [8, 3],
+    [7, 5],
+    [6, 7],
+    [7, 9],
+    [9, 11],
+    [9, 13],
+    [8, 15],
+    [10, 8],
+    [11, 7],
+    [4, 11],
+    [5, 10],
+  ] as const) {
+    p.px(x, y, 'k');
+  }
+  return p;
+}
+
+/** A hanging candy lantern: shoot it and it pops into snacks. */
+export function target(): Grid {
+  const p = new Pen(16, 16);
+  p.rect(7, 0, 2, 4, 'L');
+  p.ell(8, 9, 5, 5, 'y');
+  p.ell(8, 9, 3, 3, 'r');
+  p.rect(4, 8, 8, 1, 'k');
+  p.px(6, 7, 'W');
+  return p.outline();
+}
+
+/** Cave painting: a pale sun over small figures, drawn with a rough hand. */
+export function glyph(): Grid {
+  const p = new Pen(24, 20);
+  p.rect(0, 0, 24, 20, 'D');
+  p.rect(1, 1, 22, 18, 'N');
+  p.ell(12, 6, 3, 3, 'y');
+  for (const x of [5, 10, 15, 19] as const) {
+    p.rect(x, 12, 1, 4, 'W');
+    p.rect(x - 1, 13, 3, 1, 'W');
+    p.px(x, 11, 'W');
+  }
+  p.rect(2, 17, 20, 1, 'L');
+  return p;
+}
+
 /** A hanging vine: a twisted green stem with leaves, climbable anywhere along its length. */
 export function vine(): Grid {
   const p = new Pen(16, 16);

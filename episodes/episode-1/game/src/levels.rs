@@ -1582,6 +1582,12 @@ fn caves() -> LevelData {
     b.ent(Kind::Gloop, 102.0)
         .ent(Kind::Pod, 108.0)
         .ent_at(Kind::Drone, 124.5, 8.5);
+    // Cave paintings and a hanging candy lantern, for anyone who stops to look.
+    let g = |x: f64| b.ground_at(x);
+    let (g0, g1, g2) = (g(20.5), g(104.5), g(131.5));
+    b.ent_dir(Kind::Glyph, 20.0, g0, 0.0)
+        .ent_dir(Kind::Glyph, 104.0, g1, 1.0)
+        .ent_dir(Kind::Target, 131.0, g2 + 0.9, 5.0);
     b.out(CAVES, (3.0, 5.0), None)
 }
 

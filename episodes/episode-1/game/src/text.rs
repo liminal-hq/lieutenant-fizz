@@ -29,6 +29,7 @@ captions! {
     Clang = ("CLANG — dome open!", 0xffff55), Zzzap = ("ZZZAP", 0x55ffff), Plink = ("plink", 0xaaaaaa),
     Blorp = ("blorp", 0xaaaaaa), Fizzled = ("fizzled", 0x55ffff), Poof = ("poof", 0xffffff), Vworp = ("vworp", 0x55ffff),
     Clink = ("clink", 0xaaaaaa), Kick = ("kick", 0xffffff), Heave = ("heave", 0xaaaaaa), Ting = ("ting", 0x55ffff), Chime = ("chime", 0x55ffff),
+    Crumble = ("crumble", 0xaaaaaa), Pop = ("pop!", 0xffff55),
 }
 
 macro_rules! toasts {
@@ -49,6 +50,10 @@ toasts! {
     BridgeOn = "Somewhere ahead, a bridge rumbles into place",
     BridgeOff = "The bridge folds away",
     GateOpen = "A crystal chimes, and the gate above slides open",
+    GlyphGrowth = "A painted wall: tiny figures tend rows of glowing crystals, and a sun with two faces looks down",
+    GlyphVisitors = "A painted wall: a round ship lands, and the little figures wave with four arms each",
+    GlyphFizz = "A painted wall: a figure pours something fizzy on a dry crack, and a green sprout bursts out",
+    GlyphDeep = "A painted wall: a long stair winds down into the dark, and every step has a small candle",
     SecretFound = "A mural of the crystal forest — a ring of trees glows in the far north-east",
 }
 
