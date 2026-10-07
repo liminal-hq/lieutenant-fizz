@@ -4,7 +4,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { layoutVars, watchResize } from './layout';
+import {
+  captionAnimation,
+  captionPosition,
+  creditsTransform,
+  layoutVars,
+  watchResize,
+} from './layout';
 
 const SIZES: [number, number][] = [
   [1280, 720],
@@ -89,5 +95,36 @@ describe('watchResize', () => {
     expect(calls).toBe(1);
     stop();
     expect(handlers.has('resize')).toBe(false);
+  });
+});
+
+describe('creditsTransform', () => {
+  it('moves the roll in whole CSS pixels', () => {
+    expect(creditsTransform(615, 100.4)).toBe('translateY(515px)');
+    expect(creditsTransform(615, 100.6)).toBe('translateY(514px)');
+    for (let off = 0; off < 40; off += 0.37) {
+      expect(creditsTransform(601, off)).toMatch(/^translateY\(-?\d+px\)$/);
+    }
+  });
+});
+
+describe('captions', () => {
+  it('rises in whole pixels with no scaling, so the pixel font is never resampled', () => {
+    const { keyframes, options } = captionAnimation();
+    const text = JSON.stringify(keyframes);
+    expect(text).not.toMatch(/scale/);
+    for (const f of keyframes) expect(String(f['transform'])).toMatch(/^translateY\(-?\d+px\)$/);
+    expect(String(options.easing)).toMatch(/^steps\(\d+, end\)$/);
+  });
+
+  it('steps once per pixel risen', () => {
+    const { keyframes, options } = captionAnimation();
+    const rise = Math.abs(parseInt(String(keyframes.at(-1)?.['transform']).replace(/\D/g, ''), 10));
+    expect(options.easing).toBe(`steps(${rise}, end)`);
+  });
+
+  it('centres a caption on a whole pixel', () => {
+    expect(captionPosition(100.5, 50.5, 33, 27)).toEqual({ left: 84, top: 37 });
+    expect(captionPosition(10, 10, 20, 20)).toEqual({ left: 0, top: 0 });
   });
 });

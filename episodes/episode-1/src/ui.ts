@@ -8,7 +8,13 @@ import { hintText, keycap } from '@lieutenant-fizz/engine/font/tokens';
 import { EGA } from '@lieutenant-fizz/engine/palette';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import type { StingerContent, StingerPhase } from '@lieutenant-fizz/engine/stinger';
-import { applyLayout, watchResize } from './layout';
+import {
+  applyLayout,
+  captionAnimation,
+  captionPosition,
+  creditsTransform,
+  watchResize,
+} from './layout';
 import './ui.css';
 
 export interface MenuItem {
@@ -586,8 +592,7 @@ export class Ui {
     need(root, '.act').textContent = act;
     if (!v.reduced && this.creditsTrack && v.offset !== this.creditsOffset) {
       this.creditsOffset = v.offset;
-      const y = root.clientHeight - v.offset;
-      this.creditsTrack.style.transform = `translateY(${y.toFixed(1)}px)`;
+      this.creditsTrack.style.transform = creditsTransform(root.clientHeight, v.offset);
     }
     if (v.reduced && this.creditsTrack) {
       this.creditsTrack.style.transform = 'none';
@@ -651,18 +656,13 @@ export class Ui {
   caption(x: number, y: number, text: string, colour: string): void {
     const d = el('div', { class: 'cap' });
     d.textContent = text;
-    d.style.left = `${x}px`;
-    d.style.top = `${y}px`;
     d.style.color = colour;
     this.fx.append(d);
-    const a = d.animate(
-      [
-        { transform: 'translate(-50%,-50%) scale(0.8)', opacity: 1 },
-        { transform: 'translate(-50%,-60%) scale(1.05)', opacity: 1, offset: 0.2 },
-        { transform: 'translate(-50%,-180%)', opacity: 0 },
-      ],
-      { duration: 950, easing: 'ease-out' },
-    );
+    const at = captionPosition(x, y, d.offsetWidth, d.offsetHeight);
+    d.style.left = `${at.left}px`;
+    d.style.top = `${at.top}px`;
+    const { keyframes, options } = captionAnimation();
+    const a = d.animate(keyframes, options);
     a.onfinish = () => d.remove();
   }
 

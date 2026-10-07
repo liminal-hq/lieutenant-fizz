@@ -620,7 +620,6 @@ body {
 .cap {
   --n: var(--lf-n-hint);
   position: absolute;
-  transform: translate(-50%, -50%);
   font-family: var(--lf-font);
   font-weight: 700;
   font-style: italic;

@@ -48,3 +48,35 @@ export function watchResize(
   target.addEventListener('resize', onChange);
   return () => target.removeEventListener('resize', onChange);
 }
+
+/** The credits roll's transform for a given distance travelled, in whole CSS pixels. */
+export const creditsTransform = (viewport: number, offset: number): string =>
+  `translateY(${Math.round(viewport - offset)}px)`;
+
+/** How far a sound caption floats up, in pixels. */
+const CAPTION_RISE = 24;
+
+/**
+ * A sound caption's animation: it rises one pixel at a time and fades, with no scaling, so the
+ * pixel font is never resampled to a fractional size or position.
+ */
+export function captionAnimation(): { keyframes: Keyframe[]; options: KeyframeAnimationOptions } {
+  return {
+    keyframes: [
+      { transform: 'translateY(0px)', opacity: 1 },
+      { transform: `translateY(-${CAPTION_RISE}px)`, opacity: 0 },
+    ],
+    options: { duration: 950, easing: `steps(${CAPTION_RISE}, end)` },
+  };
+}
+
+/** The top-left corner, in whole pixels, that centres a caption of this size on a point. */
+export const captionPosition = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): { left: number; top: number } => ({
+  left: Math.round(x - width / 2),
+  top: Math.round(y - height / 2),
+});
