@@ -1908,7 +1908,7 @@ pub fn build_overworld() -> MapData {
             true,
         ),
         // The secret pair: a pad on the island, always on show, and its hidden partner in a ring
-        // of trees in the far south-east, which appears once the mural has been found.
+        // of trees in the far north-east, which appears once the mural has been found.
         pt(PtKind::Tele, 0, 26, 22, 21, secret, false),
         MapPoint {
             hidden: true,
@@ -2254,7 +2254,7 @@ mod tests {
         // The island itself is walkable once there.
         let there = reachable_points(&m, 26, 22);
         assert!(there.contains(&isle) && there.contains(&island_pad));
-        // The hidden pad sits in the south-east region and is reached through the ring's gap.
+        // The hidden pad sits in the Rock Candy Reach region and is reached through the ring's gap.
         assert!(m.points[hidden_pad].hidden);
         let se = reachable_points(&m, m.points[10].x as i32, m.points[10].y as i32);
         assert!(

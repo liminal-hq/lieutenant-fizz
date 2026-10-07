@@ -231,29 +231,30 @@ export function owShaft(): Grid {
   return p.outline();
 }
 
-/** A painted map of the crystal forest: rivers, grass and a ring of crystals in the south-east. */
+/** A painted map of the crystal forest: rivers, grass and a ring of crystals in the north-east,
+ * matching where the hidden pad sits on the map (the map is drawn with north up). */
 export function mural(): Grid {
   const p = new Pen(48, 32);
   p.rect(0, 0, 48, 32, 'N');
   p.rect(2, 2, 44, 28, 'G');
-  p.rect(2, 12, 44, 3, 'b');
+  p.rect(2, 15, 44, 3, 'b');
   p.rect(22, 2, 3, 28, 'b');
   for (let i = 0; i < 40; i++) p.px(4 + ((i * 7) % 40), 4 + ((i * 5) % 24), 'g');
   const ring = [
-    [38, 22],
-    [41, 24],
-    [42, 27],
-    [40, 29],
-    [36, 29],
-    [34, 27],
-    [35, 24],
+    [38, 6],
+    [41, 8],
+    [42, 10],
+    [40, 12],
+    [36, 12],
+    [34, 10],
+    [35, 8],
   ] as const;
   for (const [x, y] of ring) {
     p.rect(x - 1, y - 2, 3, 3, 'y');
     p.rect(x, y - 1, 1, 2, 'c');
   }
-  p.px(34, 25, 'G');
-  p.px(34, 26, 'G');
+  p.px(33, 9, 'G');
+  p.px(34, 9, 'G');
   return p.outline();
 }
 

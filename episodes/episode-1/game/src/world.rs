@@ -752,8 +752,10 @@ impl World {
                 let to = self.points[pt.to];
                 let (px, py) = (self.p.b.x, self.p.b.y);
                 self.cap(px, py + 1.0, Cap::Vworp);
+                // Land on the pad's own tile: a 0.6-tile body there covers one tile of ground, which
+                // is always walkable, whatever the scenery is like around the pad.
                 self.p.b.x = to.x + 0.2;
-                self.p.b.y = to.y - 1.2;
+                self.p.b.y = to.y + 0.1;
                 self.p.b.px = self.p.b.x;
                 self.p.b.py = self.p.b.y;
                 self.cam_x = self.p.b.x;

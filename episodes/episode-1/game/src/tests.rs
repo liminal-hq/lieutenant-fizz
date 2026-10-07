@@ -1423,7 +1423,7 @@ fn the_hidden_pad_is_neither_drawn_nor_usable_until_the_secret_is_found() {
     w.step(JUMP);
     let isle = w.points[20];
     assert!(
-        (w.p.b.x - (isle.x + 0.2)).abs() < 0.5 && (w.p.b.y - (isle.y - 1.2)).abs() < 0.5,
+        (w.p.b.x - (isle.x + 0.2)).abs() < 0.5 && (w.p.b.y - (isle.y + 0.1)).abs() < 0.5,
         "carried to the island pad at {:.1},{:.1}",
         w.p.b.x,
         w.p.b.y
@@ -1455,4 +1455,53 @@ fn the_citadel_point_is_locked_until_the_spire_and_the_foundry_are_both_cleared(
     w.step(JUMP);
     assert_eq!(w.mode, Mode::Level);
     assert_eq!(w.level_id, CITADEL);
+}
+
+#[test]
+fn every_teleporter_lands_ben_on_walkable_ground() {
+    let mut w = map_world();
+    w.game.done = crate::world::PROGRESS_BITS;
+    let teles: Vec<usize> = w
+        .points
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.kind == crate::levels::PtKind::Tele)
+        .map(|(i, _)| i)
+        .collect();
+    assert!(teles.len() >= 8);
+    for i in teles {
+        let from = w.points[i];
+        stand_on(&mut w, i);
+        w.step(0);
+        w.step(JUMP);
+        let to = w.points[from.to];
+        // Ben's 0.6 by 0.6 body covers only grass or path at the other end.
+        for (dx, dy) in [(0.0, 0.0), (0.6, 0.0), (0.0, 0.6), (0.6, 0.6)] {
+            let t = w
+                .map
+                .get((w.p.b.x + dx).floor() as i32, (w.p.b.y + dy).floor() as i32);
+            assert!(
+                t == GRASS || t == PATH,
+                "pad {i} lands Ben on tile {t} at {:.1},{:.1}",
+                w.p.b.x + dx,
+                w.p.b.y + dy
+            );
+        }
+        assert!(
+            (w.p.b.x - (to.x + 0.2)).abs() < 0.01,
+            "pad {i} lands at its partner"
+        );
+        // And he is not wedged: some direction lets him move.
+        let (x0, y0) = (w.p.b.x, w.p.b.y);
+        let mut moved = false;
+        for dir in [LEFT, RIGHT, UP, DOWN] {
+            let mut v = map_world();
+            v.game.done = w.game.done;
+            v.p.b.x = x0;
+            v.p.b.y = y0;
+            run(&mut v, 12, dir);
+            moved |= (v.p.b.x - x0).abs() + (v.p.b.y - y0).abs() > 0.5;
+        }
+        assert!(moved, "pad {i}: Ben is stuck after landing");
+    }
 }
