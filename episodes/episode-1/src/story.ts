@@ -132,4 +132,10 @@ export const LEVELS: LevelInfo[] = [
     track: 'crater',
     cleared: 'The sky is clear all the way to the horizon, and there is more of Zargoth to see.',
   },
+  {
+    name: 'Zarg Lookout',
+    blurb: 'A watchtower of ladders, stairs and one slow lift. The red key is on the roof.',
+    track: 'crater',
+    cleared: 'Ben climbs down with a pocketful of snacks and the whole sky to look at.',
+  },
 ];

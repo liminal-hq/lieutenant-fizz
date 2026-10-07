@@ -15,9 +15,10 @@ pub const CRATER: u8 = 0;
 pub const CAVES: u8 = 1;
 pub const CITADEL: u8 = 2;
 pub const METEOR_MESA: u8 = 3;
+pub const ZARG_LOOKOUT: u8 = 4;
 
 /// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
-pub const LEVEL_COUNT: u8 = 4;
+pub const LEVEL_COUNT: u8 = 5;
 
 /// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
 pub const AREA_CRATER_FIELDS: u8 = 0;
@@ -64,6 +65,13 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
         theme: Theme::OpenSky,
         area: AREA_CRATER_FIELDS,
         icon: Spr::OwMesa,
+    },
+    LevelDef {
+        id: ZARG_LOOKOUT,
+        build: zarg_lookout,
+        theme: Theme::Building,
+        area: AREA_CRATER_FIELDS,
+        icon: Spr::OwTower,
     },
 ];
 
@@ -250,6 +258,45 @@ impl Builder {
         self
     }
 
+    /// A ladder from standing row `y0` up to the ledge at row `y1`: rungs below, a standable top.
+    fn ladder(&mut self, x: i32, y0: i32, y1: i32) -> &mut Self {
+        self.fill(x, x, y0, y1 - 1, RUNG);
+        self.map.set(x, y1, RUNG_TOP);
+        self
+    }
+
+    /// `n` columns of stairs rising to the right from standing row `y`; the last column's slope
+    /// tile sits on row `y + n - 1`, so the walkable floor above begins at `y + n`.
+    fn stairs_right(&mut self, x0: i32, y: i32, n: i32) -> &mut Self {
+        for i in 0..n {
+            self.fill(x0 + i, x0 + i, y, y + i - 1, FILL);
+            self.map.set(x0 + i, y + i, R45);
+        }
+        self
+    }
+
+    /// The mirror image: stairs rising to the left.
+    fn stairs_left(&mut self, x0: i32, y: i32, n: i32) -> &mut Self {
+        for i in 0..n {
+            let h = n - 1 - i;
+            self.fill(x0 + i, x0 + i, y, y + h - 1, FILL);
+            self.map.set(x0 + i, y + h, L45);
+        }
+        self
+    }
+
+    /// Fills every empty cell in the rectangle with interior wall.
+    fn wall_behind(&mut self, x0: i32, x1: i32, y0: i32, y1: i32) -> &mut Self {
+        for x in x0..=x1 {
+            for y in y0..=y1 {
+                if self.map.get(x, y) == EMPTY {
+                    self.map.set(x, y, WALLBG);
+                }
+            }
+        }
+        self
+    }
+
     fn crys(&mut self, x: i32) -> &mut Self {
         let y = self.ground_at(f64::from(x)).ceil() as i32;
         self.map.set(x, y, CRYS);
@@ -420,6 +467,90 @@ fn meteor_mesa() -> LevelData {
     b.ent_at(Kind::Drone, 84.5, 11.5)
         .ent_at(Kind::Drone, 141.0, 12.5);
     b.out(METEOR_MESA, (3.0, 4.0), None)
+}
+
+/// Nine floors of a Zarg watchtower, 9 tiles apart: climb ladders, stairs and a lift to the roof for
+/// the red key, then come back down to the cookie door that guards the exit.
+///
+/// A flight of stairs lands beyond the end of its run, so each one delivers Ben to a small pocket of
+/// floor that holds the next ladder. Floors that no connector reaches have no slab, which leaves
+/// tall atriums instead of rooms nobody can enter.
+fn zarg_lookout() -> LevelData {
+    const W: i32 = 40;
+    const H: i32 = 84;
+    // Standing row of floor `k`; the slab under it is the row below.
+    let y = |k: i32| 3 + 9 * k;
+    let mut b = Builder::new(W, H, 3);
+    b.fill(0, W - 1, 0, 2, FILL);
+    b.fill(0, 0, 0, 80, BLOCK).fill(W - 1, W - 1, 0, 80, BLOCK);
+    // Slabs: whole floors for 1, 3, 5, 6 and the roof; pockets for 2, 4 and 7.
+    for k in [1, 3, 5, 6, 8] {
+        b.fill(1, W - 2, y(k) - 1, y(k) - 1, FILL);
+    }
+    b.fill(33, 38, y(2) - 1, y(2) - 1, FILL)
+        .fill(1, 5, y(4) - 1, y(4) - 1, FILL)
+        .fill(35, 38, y(7) - 1, y(7) - 1, FILL);
+    // Ground to floor 1: a ladder, with the cookie door sealing the exit closet at the far end.
+    b.ladder(18, y(0), y(1) - 1);
+    b.fill(36, 36, 3, y(1) - 2, DOOR_R).fill(38, 38, 3, 4, EXIT);
+    // Floor 1 to the floor 2 pocket: stairs rising to the right, then a ladder from the pocket.
+    b.stairs_right(24, y(1), 9);
+    b.ladder(36, y(2), y(3) - 1);
+    // Floor 3 to the floor 4 pocket on the left: stairs rising to the left, then a ladder.
+    b.stairs_left(6, y(3), 9);
+    b.ladder(3, y(4), y(5) - 1);
+    // Floor 5 to floor 6: a lift in the middle that waits two seconds at each end.
+    b.fill(18, 20, y(6) - 1, y(6) - 1, EMPTY);
+    b.plats.push(
+        Platform::new(
+            18.0,
+            f64::from(y(5)) - 0.5,
+            18.0,
+            f64::from(y(6)) - 0.5,
+            0.1,
+        )
+        .sized(3.0, 0.5)
+        .with_dwell(2.0),
+    );
+    // Floor 6 to the floor 7 pocket: stairs rising to the right, then the last ladder, to the roof.
+    b.stairs_right(26, y(6), 9);
+    b.ladder(37, y(7), y(8) - 1);
+    b.wall_behind(1, W - 2, 3, y(8) - 1);
+    // Snacks along the floors, with bigger prizes at the connectors.
+    b.row(Cheezie, 6, 6, y(0), 1)
+        .row(Cheezie, 8, 6, y(1), 2)
+        .row(Cheezie, 34, 4, y(2), 1)
+        .row(Cheezie, 12, 8, y(3), 2)
+        .row(Cheezie, 12, 6, y(5), 2)
+        .row(Cheezie, 22, 3, y(6), 1)
+        .row(Cheezie, 36, 3, y(7), 1)
+        .row(Cheezie, 8, 6, y(8), 2)
+        .item(Soda, 14, y(1))
+        .item(Soda, 24, y(5))
+        .item(Cookie, 20, y(3))
+        .item(Cookie, 30, y(5))
+        .item(Cookie, 28, y(8))
+        .row(Choc, 3, 3, y(4), 1)
+        .row(Choc, 8, 3, y(6), 2)
+        .item(KeyRed, 19, y(8));
+    for (x, k) in [(14, 0), (26, 1), (22, 3), (12, 5), (30, 6)] {
+        b.map.set(x, y(k), CRYS);
+    }
+    b.ent_at(Kind::Gloop, 14.0, f64::from(y(0)))
+        .ent_at(Kind::Hopper, 24.0, f64::from(y(0)))
+        .ent_at(Kind::Gloop, 12.0, f64::from(y(1)))
+        .ent_at(Kind::Gloop, 20.0, f64::from(y(3)))
+        .ent_at(Kind::Hopper, 30.0, f64::from(y(3)))
+        .ent_at(Kind::Gloop, 28.0, f64::from(y(5)))
+        .ent_at(Kind::Pod, 8.0, f64::from(y(6)))
+        .ent_at(Kind::Gloop, 14.0, f64::from(y(6)))
+        .ent_at(Kind::Gloop, 14.0, f64::from(y(8)))
+        .ent_at(Kind::Hopper, 26.0, f64::from(y(8)));
+    // Bats hang from the slab above the fifth floor.
+    for x in [10, 14, 28, 33] {
+        b.ent_at(Kind::Bat, f64::from(x), f64::from(y(5)) + 7.3);
+    }
+    b.out(ZARG_LOOKOUT, (3.0, 3.0), None)
 }
 
 fn caves() -> LevelData {
@@ -636,6 +767,7 @@ pub fn build_overworld() -> MapData {
         pt(PtKind::Level, CITADEL, 41, 8, 0, 0, true),
         // Appended last so the teleporter pairs above keep their indices.
         pt(PtKind::Level, METEOR_MESA, 12, 19, 0, 0, false),
+        pt(PtKind::Level, ZARG_LOOKOUT, 15, 19, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -828,6 +960,6 @@ mod tests {
                 );
             }
         }
-        assert_eq!(m.points.len(), 9);
+        assert_eq!(m.points.len(), 10);
     }
 }

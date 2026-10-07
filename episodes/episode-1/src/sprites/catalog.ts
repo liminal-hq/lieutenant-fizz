@@ -16,7 +16,17 @@ export function defineSprites(): SpriteDef[] {
   const add = (name: string, grid: SpriteDef['grid'], tile = false): void => {
     d.push({ name, grid, tile });
   };
-  for (const pose of ['stand', 'run1', 'run2', 'jump', 'shoot', 'pogo', 'pogo2'] as BenPose[]) {
+  for (const pose of [
+    'stand',
+    'run1',
+    'run2',
+    'jump',
+    'shoot',
+    'pogo',
+    'pogo2',
+    'climb1',
+    'climb2',
+  ] as BenPose[]) {
     add(`ben_${pose}`, ben(pose));
   }
   add('benMap0', benMap(0));
@@ -126,6 +136,7 @@ export function defineSprites(): SpriteDef[] {
   add('owRock', sc.owRock());
   add('owCrater', sc.owCrater());
   add('owMesa', sc.owMesa());
+  add('owTower', sc.owTower());
   add('owCave', sc.owCave());
   add('owCastle', sc.owCastle());
   add('owTele0', sc.owTele(0));
@@ -144,6 +155,9 @@ export function defineSprites(): SpriteDef[] {
   add('bench', sc.bench());
   add('pad', sc.launchPad());
   add('ladder', sc.ladder(), true);
+  add('ladderTop', sc.ladderTop(), true);
+  add('lift0', sc.liftTray(0));
+  add('lift1', sc.liftTray(1));
   add('lamp', sc.lamp());
   add('hillTop', sc.hillTop());
   add('mtnTop', sc.mtnTop());

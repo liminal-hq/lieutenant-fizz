@@ -73,6 +73,21 @@ export function owMesa(): Grid {
   return p.outline();
 }
 
+export function owTower(): Grid {
+  const p = new Pen(16, 16);
+  p.rect(4, 3, 8, 12, 'D');
+  p.rect(3, 1, 10, 3, 'L');
+  p.rect(3, 1, 2, 1, 'k');
+  p.rect(7, 1, 2, 1, 'k');
+  p.rect(11, 1, 2, 1, 'k');
+  for (const y of [6, 9, 12] as const) {
+    p.rect(6, y, 2, 2, 'y');
+    p.rect(9, y, 2, 2, 'c');
+  }
+  p.rect(7, 13, 2, 2, 'N');
+  return p.outline();
+}
+
 export function owCave(): Grid {
   const p = new Pen(16, 16);
   p.ell(8, 11, 7.5, 8, 'D', (_i, j) => j < 16);
@@ -388,6 +403,31 @@ export function ladder(): Grid {
   p.rect(5, 7, 6, 1, 'L');
   p.rect(5, 8, 6, 1, 'D');
   p.rect(5, 15, 6, 1, 'L');
+  return p;
+}
+
+/** A ladder whose top rung is a standable ledge: Ben can stand on it and climb down. */
+export function ladderTop(): Grid {
+  const p = new Pen(16, 16);
+  p.rect(3, 3, 2, 13, 'L');
+  p.rect(11, 3, 2, 13, 'L');
+  p.rect(5, 10, 6, 1, 'L');
+  p.rect(5, 11, 6, 1, 'D');
+  p.rect(0, 0, 16, 2, 'y');
+  p.rect(0, 2, 16, 1, 'N');
+  return p;
+}
+
+/** A three-tile lift tray: striped deck, guide rails, a lamp under each end. */
+export function liftTray(f: 0 | 1): Grid {
+  const p = new Pen(48, 8);
+  p.rect(0, 1, 48, 4, 'D');
+  p.rect(0, 0, 48, 1, 'y');
+  for (let x = 2; x < 46; x += 6) p.rect(x, 1, 3, 4, 'N');
+  p.rect(0, 5, 48, 1, 'k');
+  for (const x of [3, 43] as const) {
+    p.rect(x, 6, 2, 2, f ? 'y' : 'r');
+  }
   return p;
 }
 

@@ -20,6 +20,7 @@ macro_rules! sprites {
 sprites! {
     BenStand = "ben_stand", BenRun1 = "ben_run1", BenRun2 = "ben_run2", BenJump = "ben_jump",
     BenShoot = "ben_shoot", BenPogo = "ben_pogo", BenPogo2 = "ben_pogo2",
+    BenClimb1 = "ben_climb1", BenClimb2 = "ben_climb2",
     BenMap0 = "benMap0", BenMap1 = "benMap1", BillyCage = "billyCage", Billy = "billy",
     Gloop0 = "gloop0", Gloop1 = "gloop1", Hopper0 = "hopper0", Hopper1 = "hopper1",
     Marsh0 = "marsh0", Marsh1 = "marsh1", Beetle0 = "beetle0", Beetle1 = "beetle1",
@@ -42,14 +43,18 @@ sprites! {
     SkyTop = "skyTop", SkyFill = "skyFill", SkyR45 = "skyR45", SkyL45 = "skyL45",
     SkyR22A = "skyR22A", SkyR22B = "skyR22B", SkyL22A = "skyL22A", SkyL22B = "skyL22B",
     SkyPlat = "skyPlat", SkyBlock = "skyBlock", SkyBack = "skyBack",
+    BuildingTop = "buildingTop", BuildingFill = "buildingFill", BuildingR45 = "buildingR45", BuildingL45 = "buildingL45",
+    BuildingR22A = "buildingR22A", BuildingR22B = "buildingR22B", BuildingL22A = "buildingL22A", BuildingL22B = "buildingL22B",
+    BuildingPlat = "buildingPlat", BuildingBlock = "buildingBlock", BuildingBack = "buildingBack",
     CrysC = "crysC", CrysM = "crysM", SpikeTile = "spike",
     ChocTop0 = "chocTop0", ChocTop1 = "chocTop1", ChocDeep0 = "chocDeep0", ChocDeep1 = "chocDeep1",
     DoorRed = "doorRed", DoorBlue = "doorBlue", ExitTop = "exitTop", ExitBot = "exitBot",
-    Bridge = "bridge", Hover0 = "hover0", Hover1 = "hover1", SwitchOff = "switchOff", SwitchOn = "switchOn",
+    Bridge = "bridge", Hover0 = "hover0", Hover1 = "hover1", Lift0 = "lift0", Lift1 = "lift1",
+    Ladder = "ladder", LadderTop = "ladderTop", SwitchOff = "switchOff", SwitchOn = "switchOn",
     Terminal0 = "terminal0", Terminal1 = "terminal1",
     OwGrass = "owGrass", OwPath = "owPath", OwRiver0 = "owRiver0", OwRiver1 = "owRiver1",
     OwTree0 = "owTree0", OwTree1 = "owTree1", OwRock = "owRock", OwCrater = "owCrater",
-    OwCave = "owCave", OwMesa = "owMesa", OwCastle = "owCastle", OwTele0 = "owTele0", OwTele1 = "owTele1", OwFlag = "owFlag",
+    OwCave = "owCave", OwMesa = "owMesa", OwTower = "owTower", OwCastle = "owCastle", OwTele0 = "owTele0", OwTele1 = "owTele1", OwFlag = "owFlag",
     Saucer = "saucer", HillTop = "hillTop", MtnTop = "mtnTop", Fill = "fill", Star = "star", Cloud = "cloud",
 }
 
@@ -87,6 +92,14 @@ mod tests {
         );
         assert_eq!(SPRITE_NAMES[tileset_tile(3, BT_TOP) as usize], "skyTop");
         assert_eq!(SPRITE_NAMES[tileset_tile(3, BT_BACK) as usize], "skyBack");
+        assert_eq!(
+            SPRITE_NAMES[tileset_tile(4, BT_TOP) as usize],
+            "buildingTop"
+        );
+        assert_eq!(
+            SPRITE_NAMES[tileset_tile(4, BT_BACK) as usize],
+            "buildingBack"
+        );
         assert_eq!(SPRITE_NAMES[Spr::BenStand as usize], "ben_stand");
         assert_eq!(SPRITE_NAMES[Spr::Star as usize], "star");
         let mut sorted: Vec<_> = SPRITE_NAMES.to_vec();
