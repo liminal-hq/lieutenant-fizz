@@ -52,7 +52,7 @@ The derivations are pure functions in `packages/engine/src/font/derive.ts`, each
 - A–Z, a–z, 0–9, and the punctuation `. , : ; ! ? ' " - ( ) [ ] { } < > / \ & + = # % * @ $ ^ _ | ~ ``.
 - ‽, curly quotes ‘ ’ “ ”, em dash —, en dash –, middle dot ·, ellipsis …, guillemets « », ×.
 - Canadian French accents é è ê ë à â ç ô û ù î ï É È Ê À Ç Ô, and the dotless ı.
-- Arrows → ← ↑ ↓ ► ◄ ▸, and the note ♪.
+- Arrows → ← ↑ ↓ ↙ ► ◄ ▸, the note ♪, the dots ● ○ and the block cursor ▌.
 - Box drawing: ─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼ and the double set ═ ║ ╔ ╗ ╚ ╝ ╠ ╣ ╦ ╩ ╬.
 - The 24 pictures at their real code points: 🙂 😀 😉 😮 😢 😠 😎 ❤ ⭐ ✓ ✗ 👍 🍁 👽 🛸 🥤 ☕ 💾 🎮 🔊 🔇 🔒 ⚡ 🏆. They are plain single-colour outlines for now; a colour (COLR) version is a possible later addition.
 

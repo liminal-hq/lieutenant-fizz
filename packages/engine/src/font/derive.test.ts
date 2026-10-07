@@ -50,7 +50,7 @@ describe('master glyphs', () => {
   });
 
   it('has the glyphs the brief asks for beyond the basic letters', () => {
-    for (const ch of '‽“”‘’—–·…«»×→←↑↓►◄▸♪{}<>@$^_|~`\\') expect(master[ch], ch).toBeDefined();
+    for (const ch of '‽“”‘’—–·…«»×→←↑↓↙►◄▸♪●○▌{}<>@$^_|~`\\') expect(master[ch], ch).toBeDefined();
     for (const ch of '🙂😀😉😮😢😠😎❤⭐✓✗👍🍁👽🛸🥤☕💾🎮🔊🔇🔒⚡🏆')
       expect(master[ch], ch).toBeDefined();
   });
