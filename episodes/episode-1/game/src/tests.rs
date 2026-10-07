@@ -1084,3 +1084,46 @@ fn every_gate_tile_is_drawn_and_fades_when_its_gate_opens() {
         "all faint once all three are open"
     );
 }
+
+#[test]
+fn enemies_in_a_hidden_room_wait_there_until_ben_walks_in() {
+    let mut w = level(crate::levels::BONBON_PLAYHOUSE);
+    // The tutorial room on the path holds a gloop that would otherwise pace out of it.
+    let room = w
+        .rooms
+        .iter()
+        .position(|r| r.contains(24, 6))
+        .expect("tutorial room");
+    let g = w
+        .ents
+        .iter()
+        .position(|e| e.kind == Kind::Gloop && w.rooms[room].contains(e.b.x as i32, e.b.y as i32))
+        .expect("a gloop in the room");
+    let x0 = w.ents[g].b.x;
+    // Ben waits far away, well past the 4 seconds a gloop needs to leave the room.
+    w.p.inv = 1e9;
+    w.p.b.x = 5.0;
+    w.p.b.y = 4.0;
+    run(&mut w, 360, 0);
+    assert_eq!(w.ents[g].b.x, x0, "the ambusher has not moved");
+    assert!(w.rooms[room].contains(w.ents[g].b.x as i32, w.ents[g].b.y as i32));
+    // Once Ben is inside and the flat has faded, it moves like any other gloop.
+    w.p.b.x = 18.0;
+    w.p.b.y = 6.0;
+    run(&mut w, 90, 0);
+    assert!(w.room_alpha[room] < 0.9, "revealed");
+    assert!((w.ents[g].b.x - x0).abs() > 0.2, "and awake now");
+}
+
+#[test]
+fn enemies_outside_hidden_rooms_are_not_held_back() {
+    let mut w = level(crate::levels::BONBON_PLAYHOUSE);
+    let g = w
+        .ents
+        .iter()
+        .position(|e| e.kind == Kind::Gloop && e.b.x < 12.0)
+        .expect("the first gloop is outside any room");
+    let x0 = w.ents[g].b.x;
+    run(&mut w, 120, 0);
+    assert!((w.ents[g].b.x - x0).abs() > 0.5, "it paces as usual");
+}
