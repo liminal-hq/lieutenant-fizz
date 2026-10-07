@@ -428,6 +428,29 @@ impl Builder {
     }
 
     /// A ladder from standing row `y0` up to the ledge at row `y1`: rungs below, a standable top.
+    /// A hidden room reached by a vine: a vine climbs from `foot` to a rock shelf at row `shelf`
+    /// (Ben stands on it at that height), a two-tile pocket runs away from the vine in direction
+    /// `dir`, and a cracked wall two tiles tall closes it off from a room `depth` tiles deep and
+    /// `h` tall. Carved out of whatever solid rock is already there, so the caller fills the mass
+    /// first and leaves at least a row of rock above `shelf + h`.
+    fn vine_nook(
+        &mut self,
+        vx: i32,
+        foot: i32,
+        shelf: i32,
+        dir: i32,
+        depth: i32,
+        h: i32,
+    ) -> &mut Self {
+        let far = vx + dir * (3 + depth);
+        let (x0, x1) = (vx.min(far), vx.max(far));
+        self.fill(x0, x1, shelf - 2, shelf - 1, FILL);
+        self.fill(x0, x1, shelf, shelf + h - 1, EMPTY);
+        let cx = vx + dir * 3;
+        self.fill(cx, cx, shelf, shelf + 1, CRACKED);
+        self.fill(vx, vx, foot, shelf + 1, VINE)
+    }
+
     fn ladder(&mut self, x: i32, y0: i32, y1: i32) -> &mut Self {
         self.fill(x, x, y0, y1 - 1, RUNG);
         self.map.set(x, y1, RUNG_TOP);
@@ -963,6 +986,15 @@ fn fudge_bog() -> LevelData {
     b.ent_at(Kind::Drone, 60.5, 9.5)
         .ent_at(Kind::Drone, 125.5, 11.5)
         .ent_at(Kind::Drone, 170.5, 11.5);
+    // A rock outcrop over the first stretch of dry land hides a room: climb the vine, then shoot
+    // the cracked wall at the end of the pocket.
+    b.fill(37, 45, 10, 18, FILL);
+    let foot = b.ground_at(36.5) as i32;
+    b.vine_nook(36, foot, 12, 1, 5, 4);
+    b.item(Cookie, 41, 12)
+        .item(Cookie, 43, 12)
+        .item(Soda, 40, 12)
+        .ent_dir(Kind::Glyph, 34.0, f64::from(foot), 3.0);
     b.out(FUDGE_BOG, (3.0, 4.0), None)
 }
 
@@ -1040,6 +1072,18 @@ fn mirror_shafts() -> LevelData {
     b.fill(16, 16, 61, 63, FILL).fill(18, 18, 61, 63, FILL);
     b.fill(4, 17, 81, 81, FILL).fill(4, 17, 83, 83, FILL);
     b.fill(20, 20, 93, 94, EXIT);
+    // A deliberate shortcut past gate 2: from the ledge under it, a cracked wall in the right-hand
+    // rock opens onto a vine that climbs inside the wall and comes out on top of the gate. Two
+    // cookies pay for finding it.
+    b.plat(31, 32, 62);
+    b.fill(33, 34, 63, 64, EMPTY)
+        .fill(34, 34, 63, 69, EMPTY)
+        .fill(33, 33, 68, 69, EMPTY)
+        .fill(33, 33, 63, 64, CRACKED)
+        .fill(34, 34, 63, 69, VINE)
+        .item(Cookie, 34, 65)
+        .item(Cookie, 34, 68)
+        .ent_dir(Kind::Glyph, 26.0, 63.0, 2.0);
     // Soda by each firing spot, so a few wasted bubbles never strand Ben.
     b.item(Soda, 13, 21)
         .item(Soda, 8, 54)
@@ -1582,6 +1626,16 @@ fn caves() -> LevelData {
     b.ent(Kind::Gloop, 102.0)
         .ent(Kind::Pod, 108.0)
         .ent_at(Kind::Drone, 124.5, 8.5);
+    // A hidden room in the ceiling: a vine climbs to a shelf, and a cracked wall hides the room.
+    let vx = 89;
+    let foot = b.ground_at(f64::from(vx)) as i32;
+    b.vine_nook(vx, foot, 13, -1, 8, 4);
+    // The room's far wall: the ceiling steps down here, so close the gap above the old step.
+    b.fill(77, 77, 13, 14, FILL);
+    b.row(Cookie, 79, 2, 14, 3)
+        .row(Choc, 81, 3, 14, 1)
+        .item(Soda, 84, 14)
+        .ent_dir(Kind::Glyph, 91.0, f64::from(foot), 2.0);
     // Cave paintings and a hanging candy lantern, for anyone who stops to look.
     let g = |x: f64| b.ground_at(x);
     let (g0, g1, g2) = (g(20.5), g(104.5), g(131.5));

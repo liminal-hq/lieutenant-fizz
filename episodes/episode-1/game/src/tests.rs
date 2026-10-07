@@ -1995,3 +1995,97 @@ fn a_wall_painting_shows_its_line_once_per_visit() {
     run(&mut w, 30, 0);
     assert_eq!(count(&w), 1, "read once while standing in front");
 }
+
+/// Plays a scripted visit to a vine nook: walk to the vine, climb to the shelf, step off towards
+/// the cracked wall, shoot it, and walk into the room. Returns where Ben ends up.
+fn visit_nook(id: u8, start: (f64, f64), vx: i32, shelf: i32, dir: f64) -> (f64, f64) {
+    let mut w = level(id);
+    w.ents.retain(|e| e.kind == Kind::Glyph);
+    w.p.b.x = start.0;
+    w.p.b.y = start.1;
+    w.p.inv = 1e9;
+    w.game.ammo = 5;
+    let (toward, away) = if dir > 0.0 {
+        (RIGHT, LEFT)
+    } else {
+        (LEFT, RIGHT)
+    };
+    // Walk under the vine (it is on the side opposite the direction of the pocket).
+    let vine_x = f64::from(vx) + 0.5;
+    for _ in 0..600 {
+        let dx = vine_x - (w.p.b.x + w.p.b.w / 2.0);
+        if dx.abs() < 0.15 {
+            break;
+        }
+        w.step(if dx > 0.0 { RIGHT } else { LEFT });
+    }
+    let _ = away;
+    // Climb until level with the shelf, then step off.
+    for _ in 0..600 {
+        w.step(UP);
+        if w.p.b.y >= f64::from(shelf) + 0.3 {
+            break;
+        }
+    }
+    for _ in 0..90 {
+        w.step(toward);
+    }
+    assert!(
+        w.p.b.on_ground,
+        "standing on the shelf, at {:.1},{:.1}",
+        w.p.b.x, w.p.b.y
+    );
+    w.step(toward | FIRE);
+    run(&mut w, 60, 0);
+    run(&mut w, 150, toward);
+    (w.p.b.x, w.p.b.y)
+}
+
+#[test]
+fn the_caves_hidden_room_can_be_reached_by_vine() {
+    let (x, y) = visit_nook(crate::levels::CAVES, (91.5, 8.0), 89, 13, -1.0);
+    assert!(x < 85.0 && y >= 13.0, "inside the room, at {x:.1},{y:.1}");
+}
+
+#[test]
+fn the_bogs_hidden_room_can_be_reached_by_vine() {
+    let (x, y) = visit_nook(crate::levels::FUDGE_BOG, (40.0, 7.0), 36, 12, 1.0);
+    assert!(x > 40.0 && y >= 12.0, "inside the room, at {x:.1},{y:.1}");
+}
+
+#[test]
+fn mirror_shafts_has_a_vine_shortcut_past_the_second_gate_that_pays_in_cookies() {
+    let mut w = level(crate::levels::MIRROR_SHAFTS);
+    w.ents.retain(|e| e.kind == Kind::Glyph);
+    // On the wide ledge under gate two, facing the right-hand wall.
+    w.p.b.x = 29.0;
+    w.p.b.y = 63.0;
+    w.p.face = 1.0;
+    w.p.inv = 1e9;
+    w.game.ammo = 5;
+    run(&mut w, 10, 0);
+    assert!(w.p.b.on_ground, "standing on the ledge at {:.1}", w.p.b.y);
+    assert!(w.map.switch(2), "gate two is closed");
+    w.step(RIGHT | FIRE);
+    run(&mut w, 40, 0);
+    assert_eq!(w.map.get(33, 63), EMPTY, "the cracked wall crumbled");
+    // Into the wall, up the vine, and out on top of the gate.
+    let score = w.game.score;
+    run(&mut w, 60, RIGHT);
+    for _ in 0..400 {
+        w.step(UP);
+        if w.p.b.y >= 68.3 {
+            break;
+        }
+    }
+    run(&mut w, 60, LEFT);
+    assert!(
+        w.p.b.on_ground && w.p.b.y >= 68.0,
+        "on top of the gate at {:.1},{:.1}",
+        w.p.b.x,
+        w.p.b.y
+    );
+    assert!(w.p.b.x < 33.0, "back in the shaft, at {:.1}", w.p.b.x);
+    assert!(w.map.switch(2), "gate two never opened");
+    assert!(w.game.score > score, "the cookies paid out");
+}
