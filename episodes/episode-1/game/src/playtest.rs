@@ -572,4 +572,17 @@ mod tests {
             r.best_x, r.best_y, r.ticks
         );
     }
+
+    #[test]
+    fn a_win_does_not_count_while_a_waypoint_before_the_exit_is_unreached() {
+        // The exit is easy to reach, but the first waypoint is in mid-air above the start where
+        // nobody can stand: the bot may touch the exit and still must not be called finished.
+        let route = [wp(12.5, 25.0), exit_of(METEOR_MESA)];
+        let o = Options {
+            max_ticks: 2500,
+            ..Options::default()
+        };
+        let r = play_level(METEOR_MESA, &route, &o);
+        assert!(!r.finished, "a skipped waypoint must not pass");
+    }
 }
