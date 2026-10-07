@@ -1878,12 +1878,12 @@ pub fn area_theme(area: u8) -> AreaTheme {
             tree_rate: 0.13,
             rock_rate: 0.04,
         },
-        // The lake and island keep the standard grass but swap chocolate for water.
+        // The lake is chocolate too; the island keeps the standard grass.
         AREA_GUMDROP_ISLE => AreaTheme {
             grass: Spr::OwGrass,
             trees: [Spr::OwTree0, Spr::OwTree1],
             rock: Spr::OwRock,
-            river: [Spr::OwWater0, Spr::OwWater1],
+            river: [Spr::OwRiver0, Spr::OwRiver1],
             river_tint: 0xffffff,
             tree_rate: 0.0,
             rock_rate: 0.0,

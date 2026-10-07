@@ -694,24 +694,6 @@ fn up_and_down_do_nothing_away_from_a_ladder() {
 }
 
 #[test]
-fn fizz_fires_sideways_while_climbing_even_with_up_held() {
-    let mut w = lookout();
-    w.p.b.x = 17.8;
-    w.p.b.y = 3.0;
-    run(&mut w, 40, UP);
-    assert!(w.p.climb);
-    w.shots.clear();
-    w.step(UP | FIRE);
-    let s = w.shots.last().expect("a shot");
-    assert!(
-        s.vx.abs() > 10.0 && s.vy == 0.0,
-        "sideways, got {} {}",
-        s.vx,
-        s.vy
-    );
-}
-
-#[test]
 fn climbing_ignores_the_pogo_toggle() {
     let mut w = lookout();
     w.p.b.x = 17.8;
@@ -1076,24 +1058,6 @@ fn the_secret_bit_survives_loading_a_save() {
 }
 
 #[test]
-fn fizz_fires_sideways_on_a_ladder_with_down_held_too() {
-    let mut w = lookout();
-    w.p.b.x = 17.8;
-    w.p.b.y = 3.0;
-    run(&mut w, 40, UP);
-    assert!(w.p.climb);
-    w.shots.clear();
-    w.step(DOWN | FIRE);
-    let s = w.shots.last().expect("a shot");
-    assert!(
-        s.vx.abs() > 10.0 && s.vy == 0.0,
-        "sideways, got {} {}",
-        s.vx,
-        s.vy
-    );
-}
-
-#[test]
 fn every_gate_tile_is_drawn_and_fades_when_its_gate_opens() {
     use crate::sprites::Spr;
     use lf_sim::{SpriteRect, STRIDE};
@@ -1190,7 +1154,11 @@ fn the_green_gumdrop_is_collected_and_opens_only_the_green_door() {
     w.p.face = 1.0;
     run(&mut w, 40, RIGHT);
     assert!(!w.keys_green, "the key is used up");
-    assert_eq!(w.map.get(36, 5), 0, "the green door is gone");
+    assert_eq!(
+        w.map.get(36, 5),
+        WALLBG,
+        "the green door is gone, leaving interior wall"
+    );
     assert_ne!(w.map.get(21, 49), 0, "the red door is untouched");
 }
 
@@ -2242,4 +2210,116 @@ fn nothing_gets_past_a_hidden_rooms_cracked_wall_without_a_shot() {
     assert!(x > 86.0, "stopped at the wall, at {x:.1}");
     let (x, _) = visit_nook(crate::levels::FUDGE_BOG, (40.0, 7.0), 36, 12, 1.0, false);
     assert!(x < 39.0, "stopped at the wall, at {x:.1}");
+}
+
+fn ladder_world() -> World {
+    let mut w = level(CRATER);
+    w.ents.clear();
+    for y in 4..14 {
+        w.map.set(10, y, RUNG);
+    }
+    w.p.b.x = 10.15;
+    w.p.b.y = 8.0;
+    w.p.b.vx = 0.0;
+    w.p.b.vy = 0.0;
+    w.p.b.on_ground = false;
+    w.game.ammo = 9;
+    run(&mut w, 2, UP);
+    assert!(w.p.climb, "on the ladder");
+    w
+}
+
+#[test]
+fn firing_on_a_ladder_goes_where_up_or_down_points() {
+    let mut w = ladder_world();
+    w.step(DOWN | FIRE);
+    assert!(w.shots.last().unwrap().vy < 0.0, "fired down");
+    assert_eq!(w.shots.last().unwrap().vx, 0.0);
+    let mut w = ladder_world();
+    w.step(UP | FIRE);
+    assert!(w.shots.last().unwrap().vy > 0.0, "fired up");
+    let mut w = ladder_world();
+    w.p.face = 1.0;
+    w.step(FIRE);
+    let s = w.shots.last().unwrap();
+    assert!(s.vx > 0.0 && s.vy == 0.0, "sideways when neither is held");
+}
+
+#[test]
+fn an_opened_cookie_door_in_a_tower_shows_the_interior_wall_not_the_sky() {
+    let mut w = level(crate::levels::ZARG_LOOKOUT);
+    w.ents.clear();
+    let (dx, dy) = (0..w.map.w)
+        .flat_map(|x| (0..w.map.h).map(move |y| (x, y)))
+        .find(|&(x, y)| w.map.get(x, y) == DOOR_R)
+        .expect("a red door");
+    w.keys_red = true;
+    w.p.b.x = f64::from(dx) - 0.85;
+    w.p.b.y = f64::from(dy);
+    w.p.face = 1.0;
+    run(&mut w, 3, 0);
+    run(&mut w, 20, RIGHT);
+    assert_eq!(
+        w.map.get(dx, dy),
+        WALLBG,
+        "the gap is backed by interior wall"
+    );
+}
+
+#[test]
+fn enemies_ignore_lift_trays_and_are_not_carried_off() {
+    use lf_sim::Platform;
+    let mut w = level(CRATER);
+    w.ents.clear();
+    // A tray hanging just above the ground, right over where a gloop walks.
+    w.plats = vec![Platform::new(7.0, 6.0, 7.0, 12.0, 1.0).sized(3.0, 0.5)];
+    let g = w.init_ent(&crate::ents::Spawn {
+        kind: Kind::Gloop,
+        x: 8.0,
+        y: 6.6,
+        dir: -1.0,
+    });
+    w.ents.push(g);
+    run(&mut w, 120, 0);
+    assert!(
+        w.ents[0].b.y < 5.0,
+        "fell through the tray to the ground, at {:.1}",
+        w.ents[0].b.y
+    );
+}
+
+#[test]
+fn an_enemy_found_far_from_its_floor_is_sent_home() {
+    let mut w = level(CRATER);
+    w.ents.clear();
+    let g = w.init_ent(&crate::ents::Spawn {
+        kind: Kind::Gloop,
+        x: 12.0,
+        y: 4.0,
+        dir: -1.0,
+    });
+    let home = (g.b.x, g.b.y);
+    w.ents.push(g);
+    w.ents[0].b.y += 12.0;
+    w.ents[0].b.on_ground = false;
+    // Keep it up there (as if on a ledge) for a few seconds.
+    let mut sent_home_after = 0;
+    for t in 0..400 {
+        if w.ents[0].b.y > home.1 + 6.0 {
+            w.ents[0].b.y = home.1 + 12.0;
+            w.ents[0].b.vy = 0.0;
+        } else {
+            sent_home_after = t;
+            break;
+        }
+        w.step(0);
+    }
+    assert!(
+        (170..200).contains(&sent_home_after),
+        "sent home after about three seconds, at tick {sent_home_after}"
+    );
+    assert!(
+        (w.ents[0].b.x - home.0).abs() < 4.0 && (w.ents[0].b.y - home.1).abs() < 1.0,
+        "back home"
+    );
 }
