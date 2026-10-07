@@ -863,6 +863,7 @@ impl World {
         }
         let ax = f64::from(u8::from(h & RIGHT != 0)) - f64::from(u8::from(h & LEFT != 0));
         let jump_held = h & JUMP != 0;
+        let was_climbing = self.p.climb;
         self.tick_climb(h, e, ax);
         {
             let p = &mut self.p;
@@ -919,7 +920,12 @@ impl World {
                 self.p.cut = true;
                 self.p.b.on_ground = false;
             }
-        } else if e & JUMP != 0 && !self.p.climb && !self.p.pogo && self.p.wall_t <= 0.0 {
+        } else if e & JUMP != 0
+            && !was_climbing
+            && !self.p.climb
+            && !self.p.pogo
+            && self.p.wall_t <= 0.0
+        {
             // In the air against a wall, Jump kicks off it: up and away.
             if let Some(side) = self.wall_side().filter(|&s| s != self.p.kick_side) {
                 let (x, y) = (self.p.b.x + 0.35, self.p.b.y + 0.7);
