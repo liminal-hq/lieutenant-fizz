@@ -4,15 +4,21 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { CreditsContent } from '@lieutenant-fizz/engine/credits';
+import { hintText, keycap } from '@lieutenant-fizz/engine/font/tokens';
 import { EGA } from '@lieutenant-fizz/engine/palette';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import type { StingerContent, StingerPhase } from '@lieutenant-fizz/engine/stinger';
+import { applyLayout } from './layout';
 import './ui.css';
 
 export interface MenuItem {
   label: string;
   value?: string;
   disabled?: boolean;
+  /** `meter` shows `meter` of 8 blocks; `choice` shows `◄ value ►` while selected. */
+  kind?: 'meter' | 'choice';
+  /** Filled blocks, 0 to 8, for a `meter` row. */
+  meter?: number;
 }
 
 export interface HudState {
@@ -115,6 +121,7 @@ export class Ui {
   private readonly title: HTMLElement;
   private readonly menuEl: HTMLElement;
   private readonly controls: HTMLElement;
+  private readonly backMenu: HTMLElement;
   private readonly overlay: HTMLElement;
   private readonly overlayMenu: HTMLElement;
   private readonly overlayNote: HTMLElement;
@@ -132,6 +139,8 @@ export class Ui {
   private readonly err: HTMLElement;
   private readonly loading: HTMLElement;
   private toastTimer = 0;
+  private bulletUrl = '';
+  private large = false;
   private panelOpen = false;
   private panelVisibleAllowed = true;
   private readonly toggles = new Map<OptionKey, HTMLButtonElement>();
@@ -153,26 +162,26 @@ export class Ui {
     this.toastEl = el('div', { id: 'toast', class: 'lf lf-panel', hidden: '' });
 
     this.title = el('div', { id: 'title', class: 'lf screen', hidden: '' });
-    this.title.innerHTML = `<div class="head"><h1 class="wordmark"><span class="kicker">Ben Blaze in</span><span class="hero">Lieutenant Fizz</span></h1>
+    this.title.innerHTML = `<div class="head"><h1 class="wordmark"><span class="kicker">Ben Blaze in</span><span class="hero"><span class="w">Lieutenant</span> <span class="w">Fizz</span></span></h1>
       <p class="episode">Episode 1 · The Cocoa Caper</p></div>`;
     this.menuEl = el('div', { class: 'menu' });
     this.controls = el('div', { id: 'controls', hidden: '' });
+    const row = (action: string, keen: string, modern: string, pad: string): string =>
+      `<tr><td>${action}</td><td>${hintText(keen)}</td><td>${hintText(modern)}</td><td>${hintText(pad)}</td></tr>`;
     this.controls.innerHTML = `<table>
       <tr><th>Action</th><th>Keen-style</th><th>Modern</th><th>Gamepad</th></tr>
-      <tr><td>Move</td><td>← →</td><td>← → / A D</td><td>D-pad / stick</td></tr>
-      <tr><td>Jump</td><td>Ctrl</td><td>Z</td><td>A</td></tr>
-      <tr><td>Pogo (toggle)</td><td>Alt</td><td>X</td><td>B / Y</td></tr>
-      <tr><td>Fizz</td><td>Space</td><td>C</td><td>X / RT</td></tr>
-      <tr><td>Menu</td><td>Esc</td><td>Esc / P</td><td>Start</td></tr>
-      <tr><td>Save / Load</td><td>F5 / F9</td><td>F5 / F9</td><td>Pause menu</td></tr>
+      ${row('Move', '{[←]} {[→]}', '{[←]} {[→]} {[A]} {[D]}', 'D-pad / stick')}
+      ${row('Jump', '{Ctrl}', '{[Z]}', '{A}')}
+      ${row('Pogo (toggle)', '{Alt}', '{[X]}', '{B} {Y}')}
+      ${row('Fizz', '{Space}', '{[C]}', '{X} {RT}')}
+      ${row('Menu', '{Esc}', '{Esc} {[P]}', '{Start}')}
+      ${row('Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu')}
     </table>
-    <p class="note">Hold jump while pogoing for a high bounce. Aim fizz up with ↑, or down with ↓ in the air.</p>`;
-    const back = el('button', { class: 'back' }, 'Back');
-    back.addEventListener('click', () => h.backFromControls());
-    this.controls.append(back);
-    const keys = el('div', { class: 'keys' });
-    keys.innerHTML = `<span><kbd>↑ ↓</kbd>Choose</span><span><kbd>Enter</kbd><kbd>A</kbd>Select</span>`;
-    this.title.append(this.menuEl, this.controls, keys);
+    <p class="note">${hintText('Hold jump while pogoing for a high bounce. Aim fizz up with {[↑]}, or down with {[↓]} in the air.')}</p>`;
+    this.backMenu = el('div', { class: 'menu' });
+    this.renderMenu(this.backMenu, [{ label: 'Back' }], 0, () => h.backFromControls());
+    this.controls.append(this.backMenu);
+    this.title.append(this.menuEl, this.controls, this.keysBar());
 
     this.overlay = el('div', { id: 'overlay', class: 'lf screen', hidden: '' });
     const box = el('div', { class: 'box' });
@@ -180,7 +189,7 @@ export class Ui {
     this.overlayMenu = el('div', { class: 'menu' });
     this.overlayNote = el('p', { class: 'note' });
     box.append(this.overlayMenu, this.overlayNote);
-    this.overlay.append(box);
+    this.overlay.append(box, this.keysBar());
 
     this.letterbox = el('div', { id: 'letterbox', class: 'lf', hidden: '' });
     this.letterbox.innerHTML = `<div class="bar"><span class="place"></span><button class="btn ghost skip">Skip</button></div>
@@ -201,8 +210,8 @@ export class Ui {
       <div class="name"></div><span class="sound" hidden></span>
       <div class="box"><div class="in"><span class="place"></span>
         <span class="line"><span class="shown"></span><span class="hidden-text"></span></span>
-        <div class="hints"><button class="hint skip"><kbd>Esc</kbd>Skip</button>
-          <span class="hint go"><span class="cursor">▌</span><kbd>Jump</kbd>Continue</span></div></div></div>`;
+        <div class="hints"><button class="hint skip">${hintText('{Esc}')} Skip</button>
+          <span class="hint go"><span class="cursor">▌</span>${keycap('Jump')} Continue</span></div></div></div>`;
     this.stinger.addEventListener('click', () => h.stingerPress());
     need(this.stinger, '.skip').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -243,6 +252,38 @@ export class Ui {
       this.loading,
       this.err,
     );
+    this.relayout();
+    window.addEventListener('resize', () => this.relayout());
+  }
+
+  /** Sizes the overlay's pixel text from the window. Called on resize and when text size changes. */
+  private relayout(): void {
+    applyLayout(document.documentElement, window.innerWidth, window.innerHeight, this.large);
+  }
+
+  /** Switches between normal and large text (one step up), for Options › Text size. */
+  setTextLarge(large: boolean): void {
+    this.large = large;
+    this.relayout();
+  }
+
+  /** Freezes the menu plate cycle and bullet bob, for reduced motion. */
+  setReducedMotion(on: boolean): void {
+    this.root.classList.toggle('rm', on);
+  }
+
+  /** Sets the menu bullet sprite: drawn once to a canvas and shown as a pixelated image. */
+  setBullet(grid: Grid): void {
+    const c = document.createElement('canvas');
+    this.paintGrid(c, grid);
+    this.bulletUrl = c.toDataURL();
+    this.renderMenu(this.backMenu, [{ label: 'Back' }], 0, () => this.h.backFromControls());
+  }
+
+  private keysBar(): HTMLElement {
+    const keys = el('div', { class: 'keys' });
+    keys.innerHTML = `<span>${hintText('{[↑↓]} Choose')}</span><span>${hintText('{Enter} {A} Select')}</span>`;
+    return keys;
   }
 
   private buildPanel(): void {
@@ -359,21 +400,35 @@ export class Ui {
 
   // ----- Menus -----
 
-  private renderMenu(into: HTMLElement, items: MenuItem[], sel: number): void {
+  private renderMenu(
+    into: HTMLElement,
+    items: MenuItem[],
+    sel: number,
+    onClick: (i: number) => void = (i) => this.h.menuClick(i),
+  ): void {
     into.replaceChildren();
     items.forEach((it, i) => {
+      const selected = i === sel && !it.disabled;
       const b = el('button', {
-        class: `${i === sel && !it.disabled ? 'sel' : ''} ${it.disabled ? 'dis' : ''}`,
+        class: `${selected ? 'sel' : ''} ${it.disabled ? 'dis' : ''}`.trim(),
       });
-      const l = el('span');
+      const gut = el('span', { class: 'gut' });
+      if (this.bulletUrl) gut.append(el('img', { class: 'bullet', alt: '', src: this.bulletUrl }));
+      const plate = el('span', { class: 'plate' });
+      const l = el('span', { class: 'lbl' });
       l.textContent = it.label;
-      b.append(l);
-      if (it.value) {
+      plate.append(l);
+      if (it.kind === 'meter') {
+        const m = el('span', { class: 'meter' });
+        for (let k = 0; k < 8; k++) m.append(el('i', { class: k < (it.meter ?? 0) ? 'on' : '' }));
+        plate.append(m);
+      } else if (it.value) {
         const v = el('span', { class: 'val' });
-        v.textContent = it.value;
-        b.append(v);
+        v.textContent = it.kind === 'choice' && selected ? `◄ ${it.value} ►` : it.value;
+        plate.append(v);
       }
-      b.addEventListener('click', () => this.h.menuClick(i));
+      b.append(gut, plate);
+      b.addEventListener('click', () => onClick(i));
       b.addEventListener('mouseenter', () => this.h.menuHover(i));
       into.append(b);
     });
@@ -482,8 +537,7 @@ export class Ui {
       stars.append(d);
     }
     const foot = el('div', { class: 'foot' });
-    foot.innerHTML =
-      '<button class="hint skip"><kbd>Esc</kbd>Skip credits</button><span class="hint go"><kbd>Jump</kbd><span class="act"></span></span>';
+    foot.innerHTML = `<button class="hint skip">${hintText('{Esc}')} Skip credits</button><span class="hint go">${keycap('Jump')} <span class="act"></span></span>`;
     need(foot, '.skip').addEventListener('click', (e) => {
       e.stopPropagation();
       this.h.creditsSkip();

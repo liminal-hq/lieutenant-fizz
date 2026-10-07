@@ -128,6 +128,7 @@ export class Game {
     this.sim = sim;
     this.atlas = atlas;
     this.ui = ui;
+    ui.setReducedMotion(this.reducedMotion);
     this.renderer = renderer;
     this.input = new InputManager(ui.stage);
     this.audio = new GameAudio(PATTERNS);
@@ -157,7 +158,10 @@ export class Game {
     });
     try {
       const [sim] = await Promise.all([Sim.load(simUrl)]);
-      const atlas = buildAtlas(defineSprites());
+      const sprites = defineSprites();
+      const soda = sprites.find((d) => d.name === 'soda');
+      if (soda) ui.setBullet(soda.grid);
+      const atlas = buildAtlas(sprites);
       sim.setSprites(atlas.rects);
       const renderer = new InstancedRenderer(ui.gl, atlas);
       game = new Game(sim, atlas, ui, renderer, options);
@@ -969,7 +973,8 @@ export class Game {
   private syncUi(): void {
     const s = this.screen;
     const ui = this.ui;
-    const hudScreens: Screen[] = ['play', 'pause', 'dialogue', 'card'];
+    // The pause and card screens fill the viewport with a left-aligned column, so the HUD steps aside.
+    const hudScreens: Screen[] = ['play', 'dialogue'];
     ui.setHud(hudScreens.includes(s) ? this.hud : null);
     ui.setBoss(this.bossHp !== null && this.bossHp > 0 && s === 'play' ? this.bossHp : null);
     ui.setPrompt(s === 'play' ? this.prompt : null);
