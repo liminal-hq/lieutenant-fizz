@@ -239,11 +239,21 @@ describe('mono cell', () => {
     expect(p.adv).toBe(6);
   });
 
-  it('never moves a glyph wider than the cell to the left', () => {
+  it('gives a glyph wider than the cell a whole number of cells, centred, never moved left', () => {
     const g = cutGlyph('🙂', master['🙂'] as number[][], 'regular');
     const p = monoPlace('🙂', g, 5);
-    expect(p.ox).toBe(0);
-    expect(p.adv).toBe(8);
+    expect(p.adv).toBe(12);
+    expect(p.adv % 6).toBe(0);
+    expect(p.ox).toBe(2);
+    expect(p.ox).toBeGreaterThanOrEqual(0);
+  });
+
+  it('keeps every glyph on a multiple of the cell advance', () => {
+    for (const [ch, rows] of Object.entries(master)) {
+      const p = monoPlace(ch, cutGlyph(ch, rows, 'regular'), 5);
+      expect(p.adv % 6, ch).toBe(0);
+      expect(p.ox + width(p.rows), ch).toBeLessThanOrEqual(p.adv);
+    }
   });
 
   it('trims blank columns', () => {

@@ -250,6 +250,17 @@ describe('committed font files', () => {
 });
 
 describe('mono advances', () => {
+  it('puts every glyph on a whole number of mono cells, so columns line up', () => {
+    for (const file of ['fizz-mono-regular', 'fizz-mono-bold']) {
+      const spec = face(file);
+      const cell = parse(spec).charToGlyph('A').advanceWidth as number;
+      // Keycap ends and whole keycaps are built to fit a label, not a cell, so they are left out.
+      for (const e of faceEntries(spec).filter((x) => !x.name.startsWith('key.'))) {
+        expect((e.placed.adv * PIXEL) % cell, `${file} ${e.name}`).toBe(0);
+      }
+    }
+  });
+
   it('gives box-drawing glyphs the full mono advance so columns stay aligned', () => {
     for (const file of ['fizz-mono-regular', 'fizz-mono-bold']) {
       const m = parse(face(file));

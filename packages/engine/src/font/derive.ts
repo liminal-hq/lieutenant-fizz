@@ -324,5 +324,9 @@ export function monoPlace(ch: string, p: Placed, cell: number): Placed {
   }
   const t = trim(p.rows);
   const tw = width(t);
-  return { rows: t, ox: Math.max(0, Math.floor((cell - tw) / 2)), adv: Math.max(cell, tw) + 1 };
+  // A glyph wider than one cell takes a whole number of cells, like a full-width character in a
+  // terminal, so columns after it still line up. It is centred in the cells it takes.
+  const unit = cell + 1;
+  const adv = Math.max(1, Math.ceil((tw + 1) / unit)) * unit;
+  return { rows: t, ox: Math.max(0, Math.floor((adv - 1 - tw) / 2)), adv };
 }

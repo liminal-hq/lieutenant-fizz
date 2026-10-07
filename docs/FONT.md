@@ -45,7 +45,7 @@ The derivations are pure functions in `packages/engine/src/font/derive.ts`, each
 - **Bold.** Each ink pixel also fills the pixel to its right, unless that would close a one-pixel gap between two strokes. A bold glyph is one pixel wider.
 - **Oblique.** One pixel of shear for every three rows above the baseline. The advance stays the unslanted width; the slant reaches into the neighbour's space, so the left bearing can be negative.
 - **Condensed.** Five-wide glyphs lose a column by merging the middle three (`[a, b|c, c|d, e]`). `M W m w 1 % # * × & + = / … « » — –`, the arrows and the pictures keep their width.
-- **Mono.** The cell is the widest trimmed letter or digit (not M, W, m, w) in that cut: 5 for Regular, 6 for Bold. Each glyph is trimmed and centred; wider glyphs keep their width and are never pushed left.
+- **Mono.** The cell is the widest trimmed letter or digit (not M, W, m, w) in that cut: 5 for Regular, 6 for Bold. Each glyph is trimmed and centred in one cell. A glyph wider than a cell (a picture, an em dash) takes a whole number of cells, centred, so columns after it still line up. Keycap ends and whole keycaps are the exception: they are sized to their label.
 
 ## Characters
 
