@@ -1,4 +1,4 @@
-// Melting Adventures engine. JS stands in for the Rust/WASM core: fixed-step f64 simulation writes
+// Lieutenant Fizz engine. JS stands in for the Rust/WASM core: fixed-step f64 simulation writes
 // straight into one pre-allocated Float32Array (20 floats/instance) that Three.js draws in a single call.
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { buildAtlas } from './sprites.js';
