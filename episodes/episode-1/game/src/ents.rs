@@ -201,6 +201,8 @@ pub struct Ent {
     pub puff: bool,
     pub touch: bool,
     pub dead: bool,
+    /// Seconds spent far from the home floor.
+    pub stray: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
