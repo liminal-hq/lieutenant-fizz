@@ -143,7 +143,7 @@ pub fn theme(t: Theme) -> LevelTheme {
                     tint: 0xffffff,
                     nt: 0x3a3a68,
                     f: 0.08,
-                    base: 11.0,
+                    base: 6.5,
                     spread: 10.0,
                     speed: 0.25,
                     alpha: 0.9,
