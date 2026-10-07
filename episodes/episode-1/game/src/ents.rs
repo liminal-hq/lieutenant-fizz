@@ -21,6 +21,12 @@ pub enum Kind {
     Switch,
     Terminal,
     Cage,
+    /// Fixed 45-degree mirror: bounces fizz. `dir` > 0 is `/`, `dir` < 0 is `\`.
+    Mirror,
+    /// A mirror that swings to the other angle after every bounce.
+    Swivel,
+    /// Opens the gate on switch channel 1 when a fizz bubble hits it.
+    CrystalSwitch,
 }
 
 /// Static per-kind traits (size and how the player may interact).
@@ -142,6 +148,13 @@ pub fn info(k: Kind) -> Info {
             prop: true,
             ..D
         },
+        Kind::Mirror | Kind::Swivel | Kind::CrystalSwitch => Info {
+            w: 1.0,
+            h: 1.0,
+            harmless: true,
+            prop: true,
+            ..D
+        },
     }
 }
 
@@ -165,6 +178,8 @@ pub struct Spawn {
     pub kind: Kind,
     pub x: f64,
     pub y: f64,
+    /// Facing or orientation: -1 or 1. Mirrors use it for `\` and `/`.
+    pub dir: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -218,6 +233,8 @@ pub struct Shot {
     pub sprite: u16,
     /// Falls under gravity (boss globs).
     pub g: bool,
+    /// Index of the mirror this shot last bounced off, so it cannot bounce off it twice in a row.
+    pub last: i32,
 }
 
 #[derive(Clone, Copy, Debug)]

@@ -27,7 +27,7 @@ captions! {
     Brrrt = ("brrrt", 0xff5555), Splorp = ("splorp", 0xaa5500), Thoom = ("THOOM", 0xffffff),
     Clang = ("CLANG — dome open!", 0xffff55), Zzzap = ("ZZZAP", 0x55ffff), Plink = ("plink", 0xaaaaaa),
     Blorp = ("blorp", 0xaaaaaa), Fizzled = ("fizzled", 0x55ffff), Poof = ("poof", 0xffffff), Vworp = ("vworp", 0x55ffff),
-    Clink = ("clink", 0xaaaaaa),
+    Clink = ("clink", 0xaaaaaa), Ting = ("ting", 0x55ffff), Chime = ("chime", 0x55ffff),
 }
 
 macro_rules! toasts {
@@ -46,6 +46,7 @@ toasts! {
     UsbFound = "Gold USB drive! Find the security terminal.",
     BridgeOn = "Somewhere ahead, a bridge rumbles into place",
     BridgeOff = "The bridge folds away",
+    GateOpen = "A crystal chimes, and the gate above slides open",
 }
 
 /// Event kinds shared with the shell (`events.ts` mirrors these).

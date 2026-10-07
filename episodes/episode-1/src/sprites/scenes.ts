@@ -110,6 +110,21 @@ export function owMeadow(): Grid {
   return p.outline();
 }
 
+export function owShaft(): Grid {
+  const p = new Pen(16, 16);
+  for (const [x, top, w] of [
+    [2, 8, 4],
+    [6, 1, 5],
+    [11, 6, 3],
+  ] as const) {
+    for (let y = top; y < 15; y++) {
+      for (let i = 0; i < w; i++) p.px(x + i, y, i === 0 ? 'W' : i === w - 1 ? 'C' : 'c');
+    }
+  }
+  p.rect(1, 14, 14, 1, 'D');
+  return p.outline();
+}
+
 export function owCave(): Grid {
   const p = new Pen(16, 16);
   p.ell(8, 11, 7.5, 8, 'D', (_i, j) => j < 16);

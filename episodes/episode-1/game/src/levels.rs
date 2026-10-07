@@ -19,9 +19,10 @@ pub const ZARG_LOOKOUT: u8 = 4;
 pub const MARSHMALLOW_MEADOWS: u8 = 5;
 pub const BONBON_PLAYHOUSE: u8 = 6;
 pub const FUDGE_BOG: u8 = 7;
+pub const MIRROR_SHAFTS: u8 = 8;
 
 /// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
-pub const LEVEL_COUNT: u8 = 8;
+pub const LEVEL_COUNT: u8 = 9;
 
 /// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
 pub const AREA_CRATER_FIELDS: u8 = 0;
@@ -96,6 +97,13 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
         theme: Theme::Crater,
         area: AREA_MARSHMALLOW_MEADOWS,
         icon: Spr::OwCrater,
+    },
+    LevelDef {
+        id: MIRROR_SHAFTS,
+        build: mirror_shafts,
+        theme: Theme::Shaft,
+        area: AREA_ROCK_CANDY_REACH,
+        icon: Spr::OwShaft,
     },
 ];
 
@@ -272,12 +280,28 @@ impl Builder {
 
     fn ent(&mut self, kind: Kind, x: f64) -> &mut Self {
         let y = self.ground_at(x);
-        self.spawns.push(Spawn { kind, x, y });
+        self.spawns.push(Spawn {
+            kind,
+            x,
+            y,
+            dir: -1.0,
+        });
         self
     }
 
     fn ent_at(&mut self, kind: Kind, x: f64, y: f64) -> &mut Self {
-        self.spawns.push(Spawn { kind, x, y });
+        self.spawns.push(Spawn {
+            kind,
+            x,
+            y,
+            dir: -1.0,
+        });
+        self
+    }
+
+    /// A spawn with an explicit orientation, such as a `/` mirror (`dir` = 1).
+    fn ent_dir(&mut self, kind: Kind, x: f64, y: f64, dir: f64) -> &mut Self {
+        self.spawns.push(Spawn { kind, x, y, dir });
         self
     }
 
@@ -859,6 +883,101 @@ fn fudge_bog() -> LevelData {
     b.out(FUDGE_BOG, (3.0, 4.0), None)
 }
 
+/// A tall crystal shaft sealed by three gates. Each gate opens when a fizz bubble hits a crystal
+/// switch Ben cannot shoot directly, so he fires up and lets mirrors carry the bubble round the
+/// corner: a single mirror, then two in a chain, then a swivel mirror that sends the first bubble
+/// the wrong way and the second one right. A bubble flies about 17 tiles, which every route fits.
+/// A ledge hugs the underside of each gate, so Ben can only climb on once it opens.
+fn mirror_shafts() -> LevelData {
+    const W: i32 = 36;
+    const H: i32 = 100;
+    let mut b = Builder::new(W, H, 3);
+    b.fill(0, W - 1, 0, 2, FILL)
+        .fill(0, 2, 0, H - 1, FILL)
+        .fill(W - 3, W - 1, 0, H - 1, FILL);
+    // Ledges, written as (standing row, first column, last column).
+    let ledges: [(i32, i32, i32); 30] = [
+        (6, 4, 12),
+        (9, 10, 18),
+        (12, 16, 24),
+        (15, 22, 30),
+        (18, 16, 24),
+        (21, 10, 26),
+        (24, 4, 12),
+        (27, 8, 16),
+        (30, 12, 20),
+        (33, 6, 16),
+        (36, 12, 22),
+        (39, 18, 28),
+        (42, 12, 22),
+        (45, 6, 16),
+        (48, 10, 20),
+        (51, 6, 14),
+        (54, 6, 14),
+        (57, 20, 28),
+        (60, 22, 30),
+        (63, 24, 30),
+        (66, 18, 28),
+        (69, 14, 24),
+        (72, 12, 22),
+        (75, 18, 28),
+        (78, 12, 24),
+        (81, 24, 32),
+        (84, 18, 26),
+        (87, 18, 26),
+        (90, 14, 24),
+        (93, 16, 24),
+    ];
+    for (stand, x0, x1) in ledges {
+        b.plat(x0, x1, stand - 1);
+    }
+    // Three gates, each on its own switch channel and closed to start with.
+    b.fill(3, 32, 30, 31, GATE)
+        .fill(3, 32, 66, 67, GATE_2)
+        .fill(3, 32, 88, 89, GATE_3);
+    for ch in [GATE_CHANNEL, 2, 3] {
+        b.map.set_switch(ch, true);
+    }
+    // Puzzle 1: fire up from the wide ledge at row 21; one mirror turns the bubble right.
+    b.ent_dir(Kind::Mirror, 18.0, 26.0, 1.0)
+        .ent_dir(Kind::CrystalSwitch, 28.0, 26.0, 1.0);
+    // Puzzle 2: two mirrors in a chain, right and then up.
+    b.ent_dir(Kind::Mirror, 10.0, 58.0, 1.0)
+        .ent_dir(Kind::Mirror, 18.0, 58.0, 1.0)
+        .ent_dir(Kind::CrystalSwitch, 18.0, 62.0, 2.0);
+    // Puzzle 3: the swivel mirror sends the first bubble right into the wall and swings round to
+    // send the second left, to the switch.
+    b.ent_dir(Kind::Swivel, 18.0, 82.0, 1.0)
+        .ent_dir(Kind::CrystalSwitch, 8.0, 82.0, 3.0);
+    b.fill(20, 20, 93, 94, EXIT);
+    // Soda by each firing spot, so a few wasted bubbles never strand Ben.
+    b.item(Soda, 13, 21)
+        .item(Soda, 8, 54)
+        .item(Soda, 21, 78)
+        .item(Soda, 12, 6);
+    for (stand, x0, x1) in ledges {
+        if stand % 6 == 0 {
+            b.row(Cheezie, x0 + 1, (x1 - x0 - 1).min(5), stand, 1);
+        }
+    }
+    b.row(Choc, 12, 3, 22, 2)
+        .item(Cookie, 22, 40)
+        .item(Cookie, 24, 61)
+        .item(Cookie, 22, 76)
+        .row(Choc, 18, 3, 91, 2);
+    for (x, y) in [(10, 8), (24, 17), (20, 41), (12, 50), (26, 74), (20, 91)] {
+        b.map.set(x, y, CRYS);
+    }
+    b.ent_at(Kind::Phantom, 26.0, 15.0)
+        .ent_at(Kind::Phantom, 22.0, 39.0)
+        .ent_at(Kind::Phantom, 16.0, 72.0)
+        .ent_at(Kind::Pod, 14.0, 48.0)
+        .ent_at(Kind::Pod, 24.0, 75.0)
+        .ent_at(Kind::Drone, 20.5, 36.5)
+        .ent_at(Kind::Drone, 14.5, 68.5);
+    b.out(MIRROR_SHAFTS, (6.0, 3.0), None)
+}
+
 fn caves() -> LevelData {
     let mut b = Builder::new(176, 26, 5);
     b.run(&[
@@ -1077,6 +1196,7 @@ pub fn build_overworld() -> MapData {
         pt(PtKind::Level, MARSHMALLOW_MEADOWS, 15, 23, 0, 0, false),
         pt(PtKind::Level, BONBON_PLAYHOUSE, 15, 27, 0, 0, false),
         pt(PtKind::Level, FUDGE_BOG, 15, 31, 0, 0, false),
+        pt(PtKind::Level, MIRROR_SHAFTS, 15, 35, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -1269,6 +1389,6 @@ mod tests {
                 );
             }
         }
-        assert_eq!(m.points.len(), 13);
+        assert_eq!(m.points.len(), 14);
     }
 }

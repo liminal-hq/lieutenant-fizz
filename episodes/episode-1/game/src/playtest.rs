@@ -75,12 +75,42 @@ const CLIMB: [Act; 4] = [
     },
 ];
 
+/// Extra macros for levels where fizz is part of the puzzle.
+const SHOOT: [Act; 3] = [
+    Act {
+        mask: UP | FIRE,
+        ticks: 3,
+    },
+    Act {
+        mask: FIRE,
+        ticks: 3,
+    },
+    Act { mask: 0, ticks: 4 },
+];
+
 /// A spot Ben must stand on, in tile coordinates (his feet at `y`); the last one is normally the
 /// exit, which also ends the search once it is touched.
 #[derive(Clone, Copy)]
 pub struct Waypoint {
     pub x: f64,
     pub y: f64,
+    /// When set, the waypoint is reached once that switch channel is off (a gate has opened),
+    /// wherever Ben is; `x` and `y` then say where he should be while he works on it.
+    pub gate: Option<u8>,
+}
+
+impl Waypoint {
+    pub fn stand(x: f64, y: f64) -> Self {
+        Waypoint { x, y, gate: None }
+    }
+
+    pub fn gate(channel: u8, x: f64, y: f64) -> Self {
+        Waypoint {
+            x,
+            y,
+            gate: Some(channel),
+        }
+    }
 }
 
 pub struct Options {
@@ -89,6 +119,8 @@ pub struct Options {
     pub per_bucket: usize,
     pub max_ticks: u32,
     pub climb: bool,
+    /// Add fizz shots (straight up, and sideways) to the moves, for levels with mirrors and switches.
+    pub fire: bool,
     /// Keep enemies (the default removes everything hostile).
     pub keep_enemies: bool,
 }
@@ -100,6 +132,7 @@ impl Default for Options {
             per_bucket: 4,
             max_ticks: 6000,
             climb: false,
+            fire: false,
             keep_enemies: false,
         }
     }
@@ -123,6 +156,9 @@ struct Node {
 }
 
 fn reached(w: &World, p: Waypoint) -> bool {
+    if let Some(ch) = p.gate {
+        return !w.map.switch(ch);
+    }
     w.p.b.on_ground && (w.p.b.centre_x() - p.x).abs() < 0.9 && (w.p.b.y - p.y).abs() < 0.3
 }
 
@@ -130,8 +166,17 @@ fn dist(w: &World, p: Waypoint) -> f64 {
     (w.p.b.centre_x() - p.x).abs() + 1.5 * (w.p.b.y - p.y).abs()
 }
 
-fn key(n: &Node) -> (i32, i32, i8, i8, bool, bool, usize) {
+type Key = (i32, i32, i8, i8, bool, bool, usize, u32, i32, u8);
+
+fn key(n: &Node) -> Key {
     let b = &n.w.p.b;
+    // Switches, ammo and mirror angles are part of the state: two Bens in the same spot are not the
+    // same if one has already swung a mirror round.
+    let swivels =
+        n.w.ents
+            .iter()
+            .filter(|e| e.kind == Kind::Swivel)
+            .fold(0u8, |a, e| (a << 1) | u8::from(e.dir > 0.0));
     (
         (b.x * 3.0).round() as i32,
         (b.y * 3.0).round() as i32,
@@ -140,6 +185,9 @@ fn key(n: &Node) -> (i32, i32, i8, i8, bool, bool, usize) {
         b.on_ground,
         n.w.p.pogo,
         n.wp,
+        n.w.map.switches,
+        n.w.game.ammo,
+        swivels,
     )
 }
 
@@ -160,13 +208,22 @@ fn play(w: &mut World, a: Act) -> bool {
 /// Searches for an input sequence that visits every waypoint in order and wins the level.
 pub fn solve(mut start: World, route: &[Waypoint], o: &Options) -> Outcome {
     if !o.keep_enemies {
-        start
-            .ents
-            .retain(|e| matches!(e.kind, Kind::Switch | Kind::Terminal | Kind::Cage));
+        start.ents.retain(|e| {
+            matches!(
+                e.kind,
+                Kind::Switch
+                    | Kind::Terminal
+                    | Kind::Cage
+                    | Kind::Mirror
+                    | Kind::Swivel
+                    | Kind::CrystalSwitch
+            )
+        });
     }
     let acts: Vec<Act> = WALK
         .iter()
         .chain(if o.climb { CLIMB.iter() } else { [].iter() })
+        .chain(if o.fire { SHOOT.iter() } else { [].iter() })
         .copied()
         .collect();
     let mut beam = vec![Node { w: start, wp: 0 }];
@@ -263,10 +320,7 @@ mod tests {
         for x in 0..l.map.w {
             for y in 0..l.map.h {
                 if l.map.get(x, y) == EXIT {
-                    return Waypoint {
-                        x: f64::from(x) + 0.5,
-                        y: f64::from(y),
-                    };
+                    return Waypoint::stand(f64::from(x) + 0.5, f64::from(y));
                 }
             }
         }
@@ -274,7 +328,7 @@ mod tests {
     }
 
     fn wp(x: f64, y: f64) -> Waypoint {
-        Waypoint { x, y }
+        Waypoint::stand(x, y)
     }
 
     #[test]
@@ -383,6 +437,31 @@ mod tests {
         use crate::levels::FUDGE_BOG;
         let route = [wp(139.5, 15.0), exit_of(FUDGE_BOG)];
         let r = play_level(FUDGE_BOG, &route, &Options::default());
+        assert!(
+            r.finished,
+            "bot stalled at wp {} after {} ticks; best states {:?}",
+            r.waypoint, r.ticks, r.top
+        );
+    }
+
+    #[test]
+    fn mirror_shafts_can_be_finished_by_bouncing_fizz_off_the_mirrors() {
+        use crate::levels::MIRROR_SHAFTS;
+        let route = [
+            wp(18.5, 21.0),
+            Waypoint::gate(1, 18.5, 21.0),
+            wp(10.5, 54.0),
+            Waypoint::gate(2, 10.5, 54.0),
+            wp(18.5, 78.0),
+            Waypoint::gate(3, 18.5, 78.0),
+            exit_of(MIRROR_SHAFTS),
+        ];
+        let o = Options {
+            fire: true,
+            max_ticks: 16_000,
+            ..Options::default()
+        };
+        let r = play_level(MIRROR_SHAFTS, &route, &o);
         assert!(
             r.finished,
             "bot stalled at wp {} after {} ticks; best states {:?}",

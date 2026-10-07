@@ -53,12 +53,12 @@ sprites! {
     CrysC = "crysC", CrysM = "crysM", SpikeTile = "spike",
     ChocTop0 = "chocTop0", ChocTop1 = "chocTop1", ChocDeep0 = "chocDeep0", ChocDeep1 = "chocDeep1",
     DoorRed = "doorRed", DoorBlue = "doorBlue", ExitTop = "exitTop", ExitBot = "exitBot",
-    Bridge = "bridge", Hover0 = "hover0", Hover1 = "hover1", Lift0 = "lift0", Lift1 = "lift1",
+    Bridge = "bridge", Gate = "gate", Mirror = "mirror", CrysSwitchOff = "crysSwitchOff", CrysSwitchOn = "crysSwitchOn", Hover0 = "hover0", Hover1 = "hover1", Lift0 = "lift0", Lift1 = "lift1",
     Ladder = "ladder", LadderTop = "ladderTop", SwitchOff = "switchOff", SwitchOn = "switchOn",
     Terminal0 = "terminal0", Terminal1 = "terminal1",
     OwGrass = "owGrass", OwPath = "owPath", OwRiver0 = "owRiver0", OwRiver1 = "owRiver1",
     OwTree0 = "owTree0", OwTree1 = "owTree1", OwRock = "owRock", OwCrater = "owCrater",
-    OwCave = "owCave", OwMesa = "owMesa", OwTower = "owTower", OwPlayhouse = "owPlayhouse", OwMeadow = "owMeadow", OwCastle = "owCastle", OwTele0 = "owTele0", OwTele1 = "owTele1", OwFlag = "owFlag",
+    OwCave = "owCave", OwMesa = "owMesa", OwTower = "owTower", OwPlayhouse = "owPlayhouse", OwMeadow = "owMeadow", OwShaft = "owShaft", OwCastle = "owCastle", OwTele0 = "owTele0", OwTele1 = "owTele1", OwFlag = "owFlag",
     Saucer = "saucer", HillTop = "hillTop", MtnTop = "mtnTop", Fill = "fill", Star = "star", Cloud = "cloud",
 }
 

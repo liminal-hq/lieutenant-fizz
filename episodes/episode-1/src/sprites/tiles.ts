@@ -121,6 +121,44 @@ export function platTile(bio: Biome): Grid {
   );
 }
 
+/** A 45-degree glass mirror in a frame; the `/` orientation, flipped in the sim for `\\`. */
+export function mirrorTile(): Grid {
+  return new Pen(16, 16).fn((x, y) => {
+    const d = Math.abs(x + y - 15);
+    if (d <= 1) return 'c';
+    if (d === 2) return x + y < 15 ? 'D' : 'L';
+    if (d === 3 && (x + y) % 2 === 0) return 'W';
+    return (x < 2 && y > 13) || (x > 13 && y < 2) ? 'D' : null;
+  });
+}
+
+/** A crystal on a stone base that opens the gate when a bubble hits it. */
+export function crystalSwitch(on: boolean): Grid {
+  const p = new Pen(16, 16);
+  p.rect(3, 13, 10, 3, 'D');
+  p.rect(4, 12, 8, 1, 'L');
+  const [a, b, c] = on ? (['c', 'W', 'C'] as const) : (['D', 'L', 'k'] as const);
+  for (const [x, top, w] of [
+    [4, 6, 3],
+    [7, 2, 3],
+    [10, 5, 3],
+  ] as const) {
+    for (let y = top; y < 12; y++) {
+      for (let i = 0; i < w; i++) p.px(x + i, y, i === 0 ? b : i === w - 1 ? c : a);
+    }
+  }
+  return p.outline();
+}
+
+/** A portcullis: iron bars with two cross rails. Drawn translucent once it is open. */
+export function gateTile(): Grid {
+  return new Pen(16, 16).fn((x, y) => {
+    if (y === 2 || y === 3 || y === 12 || y === 13) return 'L';
+    if (x % 4 === 1 || x % 4 === 2) return x % 4 === 1 ? 'W' : 'D';
+    return null;
+  });
+}
+
 /** Painted backstage flat: planks and nails. Drawn over a room to hide it until Ben walks in. */
 export function facadeTile(): Grid {
   return new Pen(16, 16).fn((x, y) => {

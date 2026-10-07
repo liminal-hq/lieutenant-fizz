@@ -467,7 +467,7 @@ impl World {
         let mut e = Ent {
             kind: s.kind,
             b: Body::new(s.x - d.w / 2.0 + 0.5, s.y, d.w, d.h),
-            dir: -1.0,
+            dir: s.dir,
             stun: 0.0,
             t: hashf(s.x as i32, 7) * 10.0,
             cd: 0.0,
@@ -1164,6 +1164,7 @@ impl World {
             life: 1.1,
             sprite: Spr::Bubble as u16,
             g: false,
+            last: -1,
         });
         self.p.shoot_t = 0.25;
         self.cap(sx, sy + 0.5, Cap::Fzzt);
@@ -1358,6 +1359,7 @@ impl World {
                             life: 3.0,
                             sprite: Spr::Zshot as u16,
                             g: false,
+                            last: -1,
                         });
                     }
                     let (x, y) = (e.b.x + 0.4, e.b.y + 2.0);
@@ -1412,6 +1414,7 @@ impl World {
                             life: 2.5,
                             sprite: Spr::Zshot as u16,
                             g: false,
+                            last: -1,
                         });
                     }
                     let (x, y) = (e.b.x + 0.7, e.b.y + 1.4);
@@ -1422,7 +1425,13 @@ impl World {
                 e.b.x = e.ax + 2.6 * (e.t * 1.6).sin();
                 e.b.y = e.ay + 1.4 * (e.t * 3.2).sin();
             }
-            Kind::Boss | Kind::Switch | Kind::Terminal | Kind::Cage => {}
+            Kind::Boss
+            | Kind::Switch
+            | Kind::Terminal
+            | Kind::Cage
+            | Kind::Mirror
+            | Kind::Swivel
+            | Kind::CrystalSwitch => {}
         }
     }
 
@@ -1459,6 +1468,7 @@ impl World {
                         life: 4.0,
                         sprite: Spr::Glob as u16,
                         g: true,
+                        last: -1,
                     });
                     let (x, y) = (e.b.x + 1.4, e.b.y - 0.3);
                     self.cap(x, y, Cap::Splorp);
@@ -1570,7 +1580,51 @@ impl World {
                 for j in 0..self.ents.len() {
                     let e = &self.ents[j];
                     let d = info(e.kind);
-                    if e.dead || d.prop {
+                    if e.dead {
+                        continue;
+                    }
+                    if matches!(e.kind, Kind::Mirror | Kind::Swivel | Kind::CrystalSwitch) {
+                        let (kind, dir) = (e.kind, e.dir);
+                        let (cx, cy) = (e.b.x + e.b.w / 2.0, e.b.y + e.b.h / 2.0);
+                        if (b.x - cx).abs() < 0.55 && (b.y - cy).abs() < 0.55 {
+                            if kind == Kind::CrystalSwitch {
+                                // The switch's `dir` holds the channel of the gate it opens.
+                                let ch = dir as u8;
+                                if self.map.switch(ch) {
+                                    self.map.set_switch(ch, false);
+                                    self.toast(Toast::GateOpen);
+                                }
+                                self.cap(cx, cy + 0.7, Cap::Chime);
+                                gone = true;
+                                break;
+                            }
+                            if b.last != j as i32 {
+                                // A 45 degree mirror swaps the shot's axes: `/` sends up to the right,
+                                // `\` sends up to the left.
+                                (b.vx, b.vy) = if dir > 0.0 {
+                                    (b.vy, b.vx)
+                                } else {
+                                    (-b.vy, -b.vx)
+                                };
+                                (b.x, b.y) = (cx, cy);
+                                b.life = 1.1;
+                                b.last = j as i32;
+                                if kind == Kind::Swivel {
+                                    self.ents[j].dir = -dir;
+                                }
+                                self.cap(cx, cy + 0.7, Cap::Ting);
+                                self.fx.push(Fx {
+                                    x: cx,
+                                    y: cy,
+                                    t: 0.0,
+                                    life: 0.2,
+                                    tint: 0x55ffff,
+                                });
+                            }
+                        }
+                        continue;
+                    }
+                    if d.prop {
                         continue;
                     }
                     let (ex, ey, ew, eh) = (e.b.x, e.b.y, e.b.w, e.b.h);
