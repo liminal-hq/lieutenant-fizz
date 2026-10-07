@@ -446,6 +446,13 @@ export class Game {
         ? { title: 'Teleporter', text: 'Humming and ready.', action: 'Teleport' }
         : { title: 'Teleporter', text: `Quiet for now. Clear ${req} to power it.`, action: null };
     }
+    if (type === 5) {
+      return {
+        title: 'A dormant teleporter',
+        text: 'Humming faintly, and going nowhere. Somewhere, something is hiding its other half.',
+        action: null,
+      };
+    }
     if (type === 3) {
       return {
         title: 'Spaghetti with meatballs flying saucer',
@@ -736,7 +743,7 @@ export class Game {
 
   skipCine(): void {
     this.enterMap();
-    this.ui.toast('Find Billy. Start at the Crater Fields, up the path to the north.');
+    this.ui.toast('Find Billy. Start at the Crater Fields, along the path to the east.');
   }
 
   /** Starts (or returns to) the overworld and autosaves progress. */

@@ -390,23 +390,28 @@ impl World {
             for x in tx0..=tx1 {
                 let tt = self.map.get(x, y);
                 let (fx, fy) = (f64::from(x) + 0.5, f64::from(y) + 0.5);
+                let theme = crate::levels::area_theme(crate::levels::area_at(&self.areas, x, y));
                 if tt == RIVER {
                     let s = if (i64::from(x) + i64::from(y) + rf) & 1 != 0 {
-                        Spr::OwRiver0
+                        theme.river[0]
                     } else {
-                        Spr::OwRiver1
+                        theme.river[1]
                     };
-                    self.push(fx, fy, s, &em);
+                    self.push(
+                        fx,
+                        fy,
+                        s,
+                        &PushOpts {
+                            tint: theme.river_tint,
+                            ..em
+                        },
+                    );
                     continue;
                 }
                 self.push(
                     fx,
                     fy,
-                    if tt == PATH {
-                        Spr::OwPath
-                    } else {
-                        Spr::OwGrass
-                    },
+                    if tt == PATH { Spr::OwPath } else { theme.grass },
                     &em,
                 );
                 if tt == TREE {
@@ -414,20 +419,23 @@ impl World {
                         fx,
                         fy,
                         if hashf(x, y) < 0.5 {
-                            Spr::OwTree0
+                            theme.trees[0]
                         } else {
-                            Spr::OwTree1
+                            theme.trees[1]
                         },
                         &em,
                     );
                 }
                 if tt == ROCK {
-                    self.push(fx, fy, Spr::OwRock, &em);
+                    self.push(fx, fy, theme.rock, &em);
                 }
             }
         }
         for i in 0..self.points.len() {
             let pt = self.points[i];
+            if pt.hidden && !self.met(pt.req) {
+                continue;
+            }
             let (x, y) = (pt.x + 0.5, pt.y + 0.5);
             match pt.kind {
                 crate::levels::PtKind::Saucer => self.push(x, y, Spr::Saucer, &em),

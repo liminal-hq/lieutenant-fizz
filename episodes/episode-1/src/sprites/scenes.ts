@@ -15,6 +15,103 @@ export function owGrass(seed: number): Grid {
   });
 }
 
+/** Marshmallow Meadows ground: pale pink with white fluff. */
+export function owGrassMeadow(seed: number): Grid {
+  const r = spriteRng(seed);
+  return new Pen(16, 16).fn(() => {
+    const q = r();
+    return q < 0.1 ? 'W' : q < 0.14 ? 'M' : 'm';
+  });
+}
+
+/** Rock Candy Reach ground: teal rock with glints. */
+export function owGrassCandy(seed: number): Grid {
+  const r = spriteRng(seed);
+  return new Pen(16, 16).fn(() => {
+    const q = r();
+    return q < 0.07 ? 'c' : q < 0.09 ? 'W' : 'C';
+  });
+}
+
+/** Frosting Frontier ground: white icing with sprinkles. */
+export function owGrassFrost(seed: number): Grid {
+  const r = spriteRng(seed);
+  return new Pen(16, 16).fn(() => {
+    const q = r();
+    return q < 0.05 ? 'm' : q < 0.08 ? 'y' : q < 0.11 ? 'c' : 'W';
+  });
+}
+
+/** A fluffy marshmallow bush. */
+export function owPuff(v: number): Grid {
+  const p = new Pen(16, 16);
+  p.ell(8, 10, 6.2, 4.6, 'W');
+  p.ell(v ? 5 : 11, 8.5, 3.2, 3, 'W');
+  p.ell(8, 11.5, 5, 2.2, 'L');
+  p.px(v ? 4 : 10, 8, 'm');
+  p.px(8, 9, 'm');
+  return p.outline();
+}
+
+export function owPuffRock(): Grid {
+  const p = new Pen(16, 16);
+  p.ell(8, 11, 5.5, 3.6, 'W');
+  p.ell(7, 10, 3.5, 2.4, 'm');
+  p.px(5, 9, 'W');
+  return p.outline();
+}
+
+/** A spire of rock candy. */
+export function owCandy(v: number): Grid {
+  const p = new Pen(16, 16);
+  const [a, b, top] = v ? ([6, 11, 3] as const) : ([5, 12, 1] as const);
+  for (let y = top; y < 15; y++) {
+    const w = Math.min(y - top + 1, 4);
+    for (let x = -w; x <= w; x++) {
+      const px = Math.floor((a + b) / 2) + x;
+      p.px(px, y, x < -w / 3 ? 'W' : x < w / 3 ? 'c' : 'C');
+    }
+  }
+  p.rect(6, 14, 5, 1, 'D');
+  return p.outline();
+}
+
+export function owCandyRock(): Grid {
+  const p = new Pen(16, 16);
+  p.ell(8, 10, 6, 4.5, 'B');
+  p.ell(7, 9, 4, 3, 'b');
+  p.px(5, 8, 'W');
+  p.px(10, 10, 'c');
+  return p.outline();
+}
+
+/** A sprinkle tree: a cone of pink frosting with a white swirl. */
+export function owFrost(v: number): Grid {
+  const p = new Pen(16, 16);
+  p.rect(7, 12, 2, 3, 'N');
+  p.fn((x, y) => {
+    if (y > 12 || y < 1) return undefined;
+    const w = (y - 0.5) * 0.55;
+    const d = x + 0.5 - 8;
+    if (Math.abs(d) > w) return undefined;
+    return (y + (v ? 1 : 0)) % 4 === 0 ? 'W' : d < 0 ? 'm' : 'M';
+  });
+  p.px(v ? 6 : 9, 6, 'y');
+  p.px(v ? 9 : 6, 9, 'c');
+  return p.outline();
+}
+
+/** A slice of cake: sponge with white icing on top. */
+export function owCake(): Grid {
+  const p = new Pen(16, 16);
+  p.rect(3, 7, 10, 7, 'N');
+  p.rect(3, 6, 10, 2, 'W');
+  p.rect(3, 10, 10, 1, 'R');
+  p.px(8, 4, 'r');
+  p.rect(8, 5, 1, 2, 'W');
+  return p.outline();
+}
+
 export function owPath(seed: number): Grid {
   const r = spriteRng(seed);
   return new Pen(16, 16).fn(() => {
@@ -125,22 +222,23 @@ export function owShaft(): Grid {
   return p.outline();
 }
 
-/** A painted map of the crystal forest: rivers, grass and a ring of trees in the south-east. */
+/** A painted map of the crystal forest: rivers, grass and a ring of trees in the north-east,
+ * matching where the hidden pad sits on the map (the map is drawn with north up). */
 export function mural(): Grid {
   const p = new Pen(48, 32);
   p.rect(0, 0, 48, 32, 'N');
   p.rect(2, 2, 44, 28, 'G');
-  p.rect(2, 12, 44, 3, 'b');
+  p.rect(2, 15, 44, 3, 'b');
   p.rect(22, 2, 3, 28, 'b');
   for (let i = 0; i < 40; i++) p.px(4 + ((i * 7) % 40), 4 + ((i * 5) % 24), 'g');
   // A ring of five trees with a gap on its west side, matching the clearing on the map. They are
   // spaced so none overlaps another, and drawn in magenta so they stand out from the grass.
   const ring = [
-    [36, 20],
-    [42, 20],
-    [43, 25],
-    [42, 29],
-    [36, 29],
+    [36, 6],
+    [42, 6],
+    [43, 10],
+    [42, 14],
+    [36, 14],
   ] as const;
   for (const [x, y] of ring) {
     p.px(x, y - 4, 'y');

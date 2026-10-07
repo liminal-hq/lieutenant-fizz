@@ -18,7 +18,7 @@ const progress: Progress = {
 describe('save', () => {
   it('round-trips progress', () => {
     const parsed = parseSave(serialise(progress, 123));
-    expect(parsed).toEqual({ v: 1, at: 123, progress });
+    expect(parsed).toEqual({ v: 2, at: 123, progress });
   });
 
   it('accepts the whole level range and the secret flag, and loads three-level saves', () => {
@@ -30,7 +30,7 @@ describe('save', () => {
   it('rejects malformed, tampered or out-of-range saves', () => {
     expect(parseSave(null)).toBeNull();
     expect(parseSave('not json')).toBeNull();
-    expect(parseSave('{"v":2,"at":1,"progress":{}}')).toBeNull();
+    expect(parseSave('{"v":3,"at":1,"progress":{}}')).toBeNull();
     expect(parseSave(serialise({ ...progress, lives: -1 }))).toBeNull();
     expect(parseSave(serialise({ ...progress, lives: 1e9 }))).toBeNull();
     expect(parseSave(serialise({ ...progress, doneMask: 0x10000 }))).toBeNull();
@@ -40,8 +40,23 @@ describe('save', () => {
     ).toBeNull();
   });
 
+  it('loads a version 1 save but drops its map position, which belongs to the old map', () => {
+    const old = JSON.stringify({ v: 1, at: 9, progress });
+    const parsed = parseSave(old);
+    expect(parsed?.v).toBe(2);
+    expect(parsed?.progress.doneMask).toBe(progress.doneMask);
+    expect(parsed?.progress.lives).toBe(progress.lives);
+    expect(parsed?.progress.map).toBeUndefined();
+  });
+
+  it('writes version 2 and keeps the map position of a version 2 save', () => {
+    const parsed = parseSave(serialise(progress, 5));
+    expect(parsed?.v).toBe(2);
+    expect(parsed?.progress.map).toEqual(progress.map);
+  });
+
   it('drops an invalid map position but keeps the rest', () => {
-    const json = JSON.stringify({ v: 1, at: 1, progress: { ...progress, map: { x: 'a', y: 2 } } });
+    const json = JSON.stringify({ v: 2, at: 1, progress: { ...progress, map: { x: 'a', y: 2 } } });
     const p = parseSave(json)?.progress;
     expect(p).toBeDefined();
     expect(p?.map).toBeUndefined();

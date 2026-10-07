@@ -217,6 +217,8 @@ pub struct World {
     pub room_alpha: Vec<f64>,
     pub solid_count: usize,
     pub points: Vec<MapPoint>,
+    /// Which overworld area each part of the map belongs to (map scene only).
+    pub areas: Vec<levels::AreaRect>,
     pub near: Option<usize>,
 
     // Output buffers shared with the shell
@@ -312,6 +314,7 @@ impl World {
             room_alpha: vec![],
             solid_count: 0,
             points: vec![],
+            areas: vec![],
             near: None,
             inst: InstanceBuffer::new(MAX_INSTANCES),
             lights: LightPool::new(256),
@@ -367,6 +370,7 @@ impl World {
             room_alpha: self.room_alpha.clone(),
             solid_count: self.solid_count,
             points: self.points.clone(),
+            areas: self.areas.clone(),
             near: self.near,
             inst: InstanceBuffer::new(1),
             lights: LightPool::new(1),
@@ -545,6 +549,7 @@ impl World {
         let m = levels::build_overworld();
         self.map = m.map;
         self.points = m.points;
+        self.areas = m.areas;
         self.mode = Mode::Map;
         self.t = 0.0;
         self.fx.clear();
@@ -684,6 +689,9 @@ impl World {
         }
         let mut near = None;
         for (i, pt) in self.points.iter().enumerate() {
+            if pt.hidden && !self.met(pt.req) {
+                continue;
+            }
             let d = (self.p.b.x + 0.3 - (pt.x + 0.5)).hypot(self.p.b.y + 0.3 - (pt.y + 0.5));
             if d < if pt.big { 1.6 } else { 0.95 } {
                 near = Some(i);
@@ -713,6 +721,10 @@ impl World {
                                 f64::from(pt.level),
                                 f64::from(u8::from(done)),
                             );
+                        }
+                        PtKind::Tele if !self.met(pt.req) && pt.req & SECRET_FOUND as u16 != 0 => {
+                            // The island pad: nothing on the map tells Ben how to wake it.
+                            self.events.emit(ev::MAP_PROMPT, 5.0, 0.0, 0.0);
                         }
                         PtKind::Tele => {
                             let done = self.met(pt.req);
@@ -758,8 +770,10 @@ impl World {
                 let to = self.points[pt.to];
                 let (px, py) = (self.p.b.x, self.p.b.y);
                 self.cap(px, py + 1.0, Cap::Vworp);
+                // Land on the pad's own tile: a 0.6-tile body there covers one tile of ground, which
+                // is always walkable, whatever the scenery is like around the pad.
                 self.p.b.x = to.x + 0.2;
-                self.p.b.y = to.y - 1.2;
+                self.p.b.y = to.y + 0.1;
                 self.p.b.px = self.p.b.x;
                 self.p.b.py = self.p.b.y;
                 self.cam_x = self.p.b.x;

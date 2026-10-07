@@ -1309,6 +1309,171 @@ fn presses_are_staggered_deterministically() {
     );
 }
 
+fn map_world() -> World {
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    w.events.clear();
+    w
+}
+
+fn stand_on(w: &mut World, i: usize) {
+    let pt = w.points[i];
+    w.p.b.x = pt.x + 0.2;
+    w.p.b.y = pt.y + 0.2;
+    w.near = None;
+}
+
+#[test]
+fn the_island_pad_is_dormant_and_says_nothing_helpful_until_the_secret_is_found() {
+    let mut w = map_world();
+    stand_on(&mut w, 20);
+    w.step(0);
+    let p = events_of(&w, ev::MAP_PROMPT).pop().expect("a prompt");
+    assert_eq!(p.a, 5.0, "dormant-teleporter prompt");
+    w.step(JUMP);
+    assert!(
+        (w.p.b.x - (w.points[20].x + 0.2)).abs() < 0.3,
+        "a dormant pad does not move Ben"
+    );
+}
+
+#[test]
+fn the_hidden_pad_is_neither_drawn_nor_usable_until_the_secret_is_found() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = map_world();
+    let rect = |u: f32| SpriteRect {
+        u,
+        v: u,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h: 16.0,
+    };
+    w.spr[Spr::OwTele0 as usize] = rect(0.2);
+    w.spr[Spr::OwTele1 as usize] = rect(0.2);
+    w.half_w = 40.0;
+    w.half_h = 30.0;
+    w.cam_x = 30.0;
+    w.cam_y = 22.0;
+    w.pcx = 30.0;
+    w.pcy = 22.0;
+    let pads = |w: &mut World| {
+        w.render(0.5, 0);
+        let data = w.inst.as_slice();
+        (0..w.inst.len())
+            .filter(|&i| data[i * STRIDE + 16] == 0.2)
+            .count()
+    };
+    let before = pads(&mut w);
+    // Stand on the hidden pad: no prompt appears, because nothing is there yet.
+    stand_on(&mut w, 21);
+    w.events.clear();
+    w.step(0);
+    assert!(
+        events_of(&w, ev::MAP_PROMPT).is_empty(),
+        "nothing to prompt about"
+    );
+    w.game.done |= crate::world::SECRET_FOUND;
+    let after = pads(&mut w);
+    assert_eq!(
+        after,
+        before + 1,
+        "the hidden pad appears once the secret is found"
+    );
+    // Now it prompts, and the pair carry Ben across the lake and back.
+    stand_on(&mut w, 21);
+    w.events.clear();
+    w.step(0);
+    let p = events_of(&w, ev::MAP_PROMPT).pop().expect("a prompt");
+    assert_eq!((p.a, p.c), (2.0, 1.0), "a powered teleporter");
+    w.step(JUMP);
+    let isle = w.points[20];
+    assert!(
+        (w.p.b.x - (isle.x + 0.2)).abs() < 0.5 && (w.p.b.y - (isle.y + 0.1)).abs() < 0.5,
+        "carried to the island pad at {:.1},{:.1}",
+        w.p.b.x,
+        w.p.b.y
+    );
+}
+
+#[test]
+fn the_citadel_point_is_locked_until_the_spire_and_the_foundry_are_both_cleared() {
+    let mut w = map_world();
+    let i = w
+        .points
+        .iter()
+        .position(|p| p.kind == crate::levels::PtKind::Level && p.level == CITADEL)
+        .unwrap();
+    stand_on(&mut w, i);
+    w.step(0);
+    let p = events_of(&w, ev::MAP_PROMPT).pop().unwrap();
+    assert_eq!(p.a, 4.0, "locked");
+    w.step(JUMP);
+    assert_eq!(w.mode, Mode::Map);
+    w.game.set_done(crate::levels::FROSTING_SPIRE);
+    stand_on(&mut w, i);
+    w.step(0);
+    w.step(JUMP);
+    assert_eq!(w.mode, Mode::Map, "one of two is not enough");
+    w.game.set_done(crate::levels::COCOA_FOUNDRY);
+    stand_on(&mut w, i);
+    w.step(0);
+    w.step(JUMP);
+    assert_eq!(w.mode, Mode::Level);
+    assert_eq!(w.level_id, CITADEL);
+}
+
+#[test]
+fn every_teleporter_lands_ben_on_walkable_ground() {
+    let mut w = map_world();
+    w.game.done = crate::world::PROGRESS_BITS;
+    let teles: Vec<usize> = w
+        .points
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.kind == crate::levels::PtKind::Tele)
+        .map(|(i, _)| i)
+        .collect();
+    assert!(teles.len() >= 8);
+    for i in teles {
+        let from = w.points[i];
+        stand_on(&mut w, i);
+        w.step(0);
+        w.step(JUMP);
+        let to = w.points[from.to];
+        // Ben's 0.6 by 0.6 body covers only grass or path at the other end.
+        for (dx, dy) in [(0.0, 0.0), (0.6, 0.0), (0.0, 0.6), (0.6, 0.6)] {
+            let t = w
+                .map
+                .get((w.p.b.x + dx).floor() as i32, (w.p.b.y + dy).floor() as i32);
+            assert!(
+                t == GRASS || t == PATH,
+                "pad {i} lands Ben on tile {t} at {:.1},{:.1}",
+                w.p.b.x + dx,
+                w.p.b.y + dy
+            );
+        }
+        assert!(
+            (w.p.b.x - (to.x + 0.2)).abs() < 0.01,
+            "pad {i} lands at its partner"
+        );
+        // And he is not wedged: some direction lets him move.
+        let (x0, y0) = (w.p.b.x, w.p.b.y);
+        let mut moved = false;
+        for dir in [LEFT, RIGHT, UP, DOWN] {
+            let mut v = map_world();
+            v.game.done = w.game.done;
+            v.p.b.x = x0;
+            v.p.b.y = y0;
+            run(&mut v, 12, dir);
+            moved |= (v.p.b.x - x0).abs() + (v.p.b.y - y0).abs() > 0.5;
+        }
+        assert!(moved, "pad {i}: Ben is stuck after landing");
+    }
+}
+
 #[test]
 fn enemies_in_a_hidden_room_wait_there_until_ben_walks_in() {
     let mut w = level(crate::levels::BONBON_PLAYHOUSE);

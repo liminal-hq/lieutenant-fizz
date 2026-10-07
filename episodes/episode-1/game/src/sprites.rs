@@ -63,7 +63,10 @@ sprites! {
     Ladder = "ladder", LadderTop = "ladderTop", SwitchOff = "switchOff", SwitchOn = "switchOn",
     Terminal0 = "terminal0", Terminal1 = "terminal1",
     OwGrass = "owGrass", OwPath = "owPath", OwRiver0 = "owRiver0", OwRiver1 = "owRiver1",
-    OwTree0 = "owTree0", OwTree1 = "owTree1", OwRock = "owRock", OwCrater = "owCrater",
+    OwTree0 = "owTree0", OwTree1 = "owTree1", OwRock = "owRock",
+    OwGrassMeadow = "owGrassMeadow", OwPuff0 = "owPuff0", OwPuff1 = "owPuff1", OwPuffRock = "owPuffRock",
+    OwGrassCandy = "owGrassCandy", OwCandy0 = "owCandy0", OwCandy1 = "owCandy1", OwCandyRock = "owCandyRock",
+    OwGrassFrost = "owGrassFrost", OwFrost0 = "owFrost0", OwFrost1 = "owFrost1", OwCake = "owCake", OwCrater = "owCrater",
     OwCave = "owCave", OwMesa = "owMesa", OwTower = "owTower", OwPlayhouse = "owPlayhouse", OwMeadow = "owMeadow", OwShaft = "owShaft", OwFoundry = "owFoundry", OwCastle = "owCastle", OwTele0 = "owTele0", OwTele1 = "owTele1", OwFlag = "owFlag",
     Saucer = "saucer", HillTop = "hillTop", MtnTop = "mtnTop", Fill = "fill", Star = "star", Cloud = "cloud", Mural = "mural",
 }
