@@ -53,7 +53,11 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 
 ### 4.4 Save state — Proven
 - Autosave (meta progress) on every overworld visit.
-- Quick-save is progress-level in the Rust port: it stores lives, score, ammo, cleared levels and map position in `localStorage`. F5 saves, F9 loads. The prototype serialised the full simulation (tile map, entities, items, shots, keys, platforms); restoring that in the port needs a serialisable world in Rust and is **Planned**.
+- Saves are progress-level in the Rust port: lives, score, ammo, cleared levels, map position and time played, in `localStorage`. The prototype serialised the full simulation (tile map, entities, items, shots, keys, platforms); restoring that in the port needs a serialisable world in Rust and is **Planned**.
+- **Slots:** the autosave keeps the original key (`lf-ep1-save-v1`) and is read-only in the save screen; four manual slots live under `lf-ep1-slot-1` to `lf-ep1-slot-4`. Each stores `{ v, at, progress }`. F5 saves to the most recently used manual slot (Slot 1 if none), F9 and Continue load the newest save of any slot, and the pause menu's Save game and Load game open the slot screen.
+- **Versions:** the save version is 3, which adds `played` (seconds). Version 1 and 2 saves still load: version 1 loses its map position (it belongs to the old map) and both start with no time played.
+- **Options:** music and sound volume (8 blocks each), captions, controls layout, text size and motion are saved separately under `lf-ep1-options-v1`; missing or invalid fields fall back to their defaults.
+- **Slot thumbnails** are not stored. The sim exports the overworld as one byte per tile (`thumb_ptr`, `thumb_w`, `thumb_h`: grass with its area, river, or a level node) and `area_of`; the shell paints the mini map at 1 pixel per tile from those and the saved cleared levels and map position.
 
 ## 5. Visuals
 ### 5.1 Lighting — Proven

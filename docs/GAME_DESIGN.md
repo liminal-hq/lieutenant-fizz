@@ -102,6 +102,11 @@ See `STORY.md` for the full opening cinematic and ending text.
 | Menu | Esc | Esc / P | Start |
 | Save / Load | F5 / F9 | F5 / F9 | Pause menu |
 
+- **Menus:** the title menu is New Game, Continue (it names the newest save), Load game, Options and Controls. The pause menu is Resume, Save game, Load game, Options, Leave level (in a level) and Quit to title.
+- **Options:** Music and Sound are 8-block volume meters; Captions is On or Off; Controls picks which keyboard column the hints and the Controls table show (Keen-style or Modern; both layouts always work); Text size is Normal or Large (one scale step up); Motion is System, Reduced or Full. Left and right change a value, and Enter steps it. They are saved on this device.
+- **Save slots:** the autosave (read-only) plus four slots. Each shows a mini overworld with Ben's position, the area, a pip per level cleared, lives, score, time played and the date. Esc or B goes back from any screen opened over a menu.
+- **Hints:** keycap and button hints along the bottom of each screen follow the last input used: pressing a key shows keyboard hints, touching the gamepad (or connecting one) shows button hints, and unplugging the last pad goes back to the keyboard.
+
 ## Art direction
 - 16-colour EGA palette; bright and fun, in the style of *Goodbye, Galaxy!* and *Aliens Ate My Babysitter*.
 - Daylight by default, with Last Light's lighting effects layered on top. A night variant is supported (§5.1 of the engine spec).
