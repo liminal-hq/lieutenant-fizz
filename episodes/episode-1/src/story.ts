@@ -106,6 +106,9 @@ export interface LevelInfo {
   cleared: string;
 }
 
+/** Id of the saucer walk-through: a level with no goal, so it never shows a cleared card. */
+export const SAUCER_ID = 15;
+
 /** Indexed by level id, matching the `LEVELS` table in the Rust sim. */
 export const LEVELS: LevelInfo[] = [
   {
@@ -206,5 +209,11 @@ export const LEVELS: LevelInfo[] = [
     track: 'caves',
     cleared:
       'Ben’s arms ache and his boots are scuffed. The old paintings never mentioned the climb, but somebody grew those vines on purpose.',
+  },
+  {
+    name: 'The Saucer',
+    blurb: 'Ben’s own flying saucer, parked and steaming. Nothing to clear; just a look around.',
+    track: 'secret',
+    cleared: '',
   },
 ];

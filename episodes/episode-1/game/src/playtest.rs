@@ -448,6 +448,23 @@ mod tests {
     }
 
     #[test]
+    fn the_saucer_can_be_walked_through_to_the_bridge_and_back_out() {
+        use crate::levels::SAUCER;
+        let route = [wp(50.5, 9.0), exit_of(SAUCER)];
+        let o = Options {
+            climb: true,
+            max_ticks: 9_000,
+            ..Options::default()
+        };
+        let r = play_level(SAUCER, &route, &o);
+        assert!(
+            r.finished,
+            "bot stalled at wp {} after {} ticks; best states {:?}",
+            r.waypoint, r.ticks, r.top
+        );
+    }
+
+    #[test]
     fn whisper_hollow_can_be_finished_by_climbing() {
         use crate::levels::WHISPER_HOLLOW;
         let route = [exit_of(WHISPER_HOLLOW)];
