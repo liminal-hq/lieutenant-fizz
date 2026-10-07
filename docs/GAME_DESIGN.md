@@ -105,7 +105,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 ## Art direction
 - 16-colour EGA palette; bright and fun, in the style of *Goodbye, Galaxy!* and *Aliens Ate My Babysitter*.
 - Daylight by default, with Last Light's lighting effects layered on top. A night variant is supported (§5.1 of the engine spec).
-- UI uses the Liminal HQ design system in the DOM overlay; the world stays strictly pixel art.
+- UI uses the Liminal HQ design system's colours, scrims and panels in the DOM overlay, set in the Fizz pixel font at whole-pixel sizes (`docs/FONT.md`); the world stays strictly pixel art. The title and pause menus are left-aligned lists over a scrim, with a soda-can bullet and an orange stepped plate on the selected row, and the pause and card screens hide the HUD.
 
 ## Audio
 - **Music:** 16 looping tracks: title, map, boss, ending, four for the opening cinematic (`yard`, `lab`, `launch`, `cine`), and one per level type: `crater`, `caves`, `citadel`, `sky` (open sky), `tower` (buildings), `theatre` (a waltz), `foundry` and `secret` (Gumdrop Isle). Mirror Shafts reuses `caves` and Fudge Bog reuses `crater`.
