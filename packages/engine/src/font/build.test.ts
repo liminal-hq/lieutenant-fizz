@@ -248,3 +248,35 @@ describe('committed font files', () => {
     }
   });
 });
+
+describe('mono advances', () => {
+  it('gives box-drawing glyphs the full mono advance so columns stay aligned', () => {
+    for (const file of ['fizz-mono-regular', 'fizz-mono-bold']) {
+      const m = parse(face(file));
+      const cell = m.charToGlyph('A').advanceWidth as number;
+      for (const ch of '─│┌┐└┘├┤┬┴┼═║╔╗╚╝╠╣╦╩╬') {
+        expect(m.charToGlyph(ch).advanceWidth, `${file} ${ch}`).toBe(cell);
+      }
+    }
+  });
+
+  it('keeps a box line joined to the next cell after widening it', () => {
+    const m = parse(face('fizz-mono-bold'));
+    const box = m.charToGlyph('─').getBoundingBox();
+    expect(box.x1).toBe(0);
+    expect(box.x2).toBe(7 * PIXEL);
+  });
+});
+
+describe('name table platforms', () => {
+  it('writes the typographic names to every platform', () => {
+    const n = parse(face('fizz-bold-oblique')).names as unknown as Record<
+      string,
+      Record<string, Record<string, string>>
+    >;
+    for (const platform of ['windows', 'unicode', 'macintosh']) {
+      expect(n[platform]?.['preferredFamily']?.['en'], platform).toBe('Fizz');
+      expect(n[platform]?.['preferredSubfamily']?.['en'], platform).toBe('Bold Oblique');
+    }
+  });
+});

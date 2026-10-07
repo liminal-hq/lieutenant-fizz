@@ -222,10 +222,14 @@ export function buildFace(spec: FaceSpec): Uint8Array {
     glyphs,
   });
   // Oblique faces share the family "Fizz" and carry "Oblique" as their typographic subfamily.
-  const names = font.names as unknown as { windows: Record<string, { en: string }> };
-  names.windows['preferredFamily'] = { en: spec.family };
-  names.windows['preferredSubfamily'] = { en: spec.style };
-  names.windows['uniqueID'] = { en: `Liminal HQ: ${full}: ${VERSION}` };
+  const names = font.names as unknown as Record<string, Record<string, { en: string }>>;
+  for (const platform of ['windows', 'unicode', 'macintosh']) {
+    const map = names[platform];
+    if (!map) continue;
+    map['preferredFamily'] = { en: spec.family };
+    map['preferredSubfamily'] = { en: spec.style };
+    map['uniqueID'] = { en: `Liminal HQ: ${full}: ${VERSION}` };
+  }
   for (const l of ligaturesFor(cmap)) font.substitution.addLigature('liga', l);
   return finishFont(new Uint8Array(font.toArrayBuffer()), TIMESTAMP, LINE_GAP);
 }

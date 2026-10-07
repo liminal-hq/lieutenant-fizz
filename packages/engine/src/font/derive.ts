@@ -310,7 +310,18 @@ export function monoCell(master: Record<string, Grid>, cut: Cut): number {
 
 /** Centres a glyph in a fixed cell. Joiners are left alone so lines still meet. */
 export function monoPlace(ch: string, p: Placed, cell: number): Placed {
-  if (JOINERS.has(ch)) return p;
+  if (JOINERS.has(ch)) {
+    // Widen a joiner to the mono advance by repeating its last column, so its lines still reach the
+    // next cell and every glyph keeps the same advance.
+    const want = cell + 1;
+    if (p.adv >= want) return p;
+    const rows = p.rows.map((r) => {
+      const out = r.slice();
+      while (out.length < want) out.push(r[r.length - 1] ?? 0);
+      return out;
+    });
+    return { rows, ox: p.ox, adv: want };
+  }
   const t = trim(p.rows);
   const tw = width(t);
   return { rows: t, ox: Math.max(0, Math.floor((cell - tw) / 2)), adv: Math.max(cell, tw) + 1 };
