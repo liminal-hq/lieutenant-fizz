@@ -123,7 +123,16 @@ function audit(): Report {
 
 async function show(page: Page, screen: Screen): Promise<void> {
   await page.goto('/?debug');
-  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf);
+  // Fail at once, with the reason, if the browser cannot draw the game's WebGL2 canvas.
+  const gl = await page.evaluate(() => !!document.createElement('canvas').getContext('webgl2'));
+  if (!gl) {
+    throw new Error(
+      'This Chromium has no WebGL2. Try LF_CHROMIUM_ARGS="--use-angle=gl-egl" or another software GL flag.',
+    );
+  }
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+    timeout: 20_000,
+  });
   await page.evaluate(
     (s) => (window as unknown as { __lf: { debugShow(s: string): void } }).__lf.debugShow(s),
     screen,

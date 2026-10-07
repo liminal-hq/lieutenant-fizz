@@ -6,7 +6,9 @@ import { defineConfig } from '@playwright/test';
 // `--use-angle=gl-egl` on a machine where SwiftShader is not available.
 export default defineConfig({
   testDir: 'e2e',
-  timeout: 60_000,
+  timeout: 45_000,
+  // Without WebGL every test fails the same way, so stop after a few instead of running them all.
+  maxFailures: process.env.CI ? 3 : 0,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
