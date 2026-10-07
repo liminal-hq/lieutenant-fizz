@@ -5,10 +5,12 @@
 
 import { Pen, type Grid } from '@lieutenant-fizz/engine/pen';
 
-export type BenPose = 'stand' | 'run1' | 'run2' | 'jump' | 'shoot' | 'pogo' | 'pogo2';
+export type BenPose =
+  'stand' | 'run1' | 'run2' | 'jump' | 'shoot' | 'pogo' | 'pogo2' | 'climb1' | 'climb2';
 
 /** Ben "Lieutenant Fizz" Blaze: bicycle helmet, red shirt, 16x24 (16x32 on the pogo stick). */
 export function ben(pose: BenPose): Grid {
+  if (pose === 'climb1' || pose === 'climb2') return benClimb(pose === 'climb2');
   const pogo = pose.startsWith('pogo');
   const H = pogo ? 32 : 24;
   const p = new Pen(16, H);
@@ -87,6 +89,29 @@ export function ben(pose: BenPose): Grid {
     R(9, 22, 4, 2, 'R');
     P(5, 18, 'b');
   }
+  return p.outline();
+}
+
+/** Ben seen from behind on a ladder: helmet and shirt back, one arm and the opposite leg raised. */
+function benClimb(f: boolean): Grid {
+  const p = new Pen(16, 24);
+  p.ell(8, 5, 5.5, 4.6, 'g', (_i, j) => j <= 6);
+  p.rect(3, 5, 10, 2, 'G');
+  p.rect(6, 2, 4, 1, 'W');
+  p.rect(5, 7, 6, 3, 'R');
+  p.rect(4, 10, 8, 6, 'r');
+  p.rect(4, 15, 8, 1, 'R');
+  p.rect(7, 11, 2, 3, 'R');
+  // Arms reach for rungs, alternating; legs follow the opposite side.
+  p.rect(f ? 3 : 3, f ? 5 : 9, 2, 5, 'r');
+  p.rect(11, f ? 9 : 5, 2, 5, 'r');
+  p.px(f ? 3 : 3, f ? 4 : 8, 'W');
+  p.px(11, f ? 8 : 4, 'W');
+  p.rect(5, 16, 6, 2, 'B');
+  p.rect(5, f ? 18 : 19, 2, f ? 4 : 3, 'B');
+  p.rect(9, f ? 19 : 18, 2, f ? 3 : 4, 'B');
+  p.rect(4, f ? 22 : 22, 4, 2, 'R');
+  p.rect(9, 22, 4, 2, 'R');
   return p.outline();
 }
 

@@ -113,6 +113,8 @@ pub struct Outcome {
     pub waypoint: usize,
     pub best_x: f64,
     pub best_y: f64,
+    /// Where the best few states ended up (`x`, `y`, `grounded`), for diagnosing a stall.
+    pub top: Vec<(f64, f64, bool)>,
 }
 
 struct Node {
@@ -174,6 +176,7 @@ pub fn solve(mut start: World, route: &[Waypoint], o: &Options) -> Outcome {
         waypoint: 0,
         best_x: 0.0,
         best_y: 0.0,
+        top: Vec::new(),
     };
     while !beam.is_empty() && beam[0].w.tick_count < o.max_ticks {
         let mut next: Vec<Node> = Vec::new();
@@ -239,6 +242,11 @@ pub fn solve(mut start: World, route: &[Waypoint], o: &Options) -> Outcome {
         if let Some(n) = next.first() {
             best.waypoint = n.wp;
             best.ticks = n.w.tick_count;
+            best.top = next
+                .iter()
+                .take(6)
+                .map(|n| (n.w.p.b.x, n.w.p.b.y, n.w.p.b.on_ground))
+                .collect();
         }
         beam = next;
     }
@@ -308,6 +316,51 @@ mod tests {
             r.finished,
             "bot stalled at x={:.1} y={:.1} wp {} after {} ticks",
             r.best_x, r.best_y, r.waypoint, r.ticks
+        );
+    }
+
+    #[test]
+    fn zarg_lookout_can_be_finished_via_the_roof_key() {
+        use crate::levels::ZARG_LOOKOUT;
+        // Standing spots up the tower (floor `k` stands on row 3 + 9k), then the key, then the exit.
+        let route = [
+            wp(18.5, 12.0), // ladder, ground to floor 1
+            wp(23.5, 12.0), // foot of the stairs
+            wp(34.5, 21.0), // floor 2 pocket
+            wp(36.5, 30.0), // ladder, floor 2 to 3
+            wp(15.5, 30.0), // foot of the stairs
+            wp(2.5, 39.0),  // floor 4 pocket
+            wp(3.5, 48.0),  // ladder, floor 4 to 5
+            wp(22.5, 57.0), // floor 6, off the lift
+            wp(25.5, 57.0), // foot of the stairs
+            wp(36.5, 66.0), // floor 7 pocket
+            wp(37.5, 75.0), // roof
+            wp(19.5, 75.0), // the key
+            // And back down, floor by floor.
+            wp(37.5, 75.0),
+            wp(36.5, 66.0),
+            wp(25.5, 57.0),
+            wp(12.0, 48.0), // dropped down the lift shaft
+            wp(3.5, 48.0),
+            wp(2.5, 39.0),
+            wp(15.5, 30.0),
+            wp(36.5, 30.0),
+            wp(34.5, 21.0),
+            wp(23.5, 12.0),
+            wp(18.5, 12.0),
+            wp(18.5, 3.0),
+            exit_of(ZARG_LOOKOUT),
+        ];
+        let o = Options {
+            climb: true,
+            max_ticks: 14_000,
+            ..Options::default()
+        };
+        let r = play_level(ZARG_LOOKOUT, &route, &o);
+        assert!(
+            r.finished,
+            "bot stalled at wp {} after {} ticks; best states {:?}",
+            r.waypoint, r.ticks, r.top
         );
     }
 

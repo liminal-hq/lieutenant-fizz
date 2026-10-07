@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use lf_sim::tilemap::{
-    TileProps, ONEWAY, SLOPE_L22A, SLOPE_L22B, SLOPE_L45, SLOPE_R22A, SLOPE_R22B, SLOPE_R45, SOLID,
-    SWITCHED,
+    TileProps, LADDER as LADDER_FLAG, ONEWAY, SLOPE_L22A, SLOPE_L22B, SLOPE_L45, SLOPE_R22A,
+    SLOPE_R22B, SLOPE_R45, SOLID, SWITCHED,
 };
 
 pub const EMPTY: u8 = 0;
@@ -30,6 +30,12 @@ pub const PATH: u8 = 21;
 pub const RIVER: u8 = 22;
 pub const TREE: u8 = 23;
 pub const ROCK: u8 = 24;
+/// Decorative interior wall behind a building's rooms, stairs and ladders (not solid).
+pub const WALLBG: u8 = 30;
+/// Climbable rung (not solid).
+pub const RUNG: u8 = 28;
+/// Top rung of a ladder: climbable, and a one-way ledge Ben can stand on.
+pub const RUNG_TOP: u8 = 29;
 
 /// Collision behaviour for every Episode 1 tile id.
 pub fn props() -> TileProps {
@@ -38,6 +44,8 @@ pub fn props() -> TileProps {
         p.set_flags(t, SOLID);
     }
     p.set_flags(PLAT, ONEWAY);
+    p.set_flags(RUNG, LADDER_FLAG);
+    p.set_flags(RUNG_TOP, LADDER_FLAG | ONEWAY);
     p.set_flags(BRIDGE, SWITCHED);
     for (t, s) in [
         (R45, SLOPE_R45),

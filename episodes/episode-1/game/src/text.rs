@@ -27,6 +27,7 @@ captions! {
     Brrrt = ("brrrt", 0xff5555), Splorp = ("splorp", 0xaa5500), Thoom = ("THOOM", 0xffffff),
     Clang = ("CLANG — dome open!", 0xffff55), Zzzap = ("ZZZAP", 0x55ffff), Plink = ("plink", 0xaaaaaa),
     Blorp = ("blorp", 0xaaaaaa), Fizzled = ("fizzled", 0x55ffff), Poof = ("poof", 0xffffff), Vworp = ("vworp", 0x55ffff),
+    Clink = ("clink", 0xaaaaaa),
 }
 
 macro_rules! toasts {

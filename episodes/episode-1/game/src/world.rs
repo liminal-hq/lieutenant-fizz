@@ -9,16 +9,24 @@
 
 use crate::ents::*;
 use crate::levels::{self, Arena, MapPoint, PtKind};
-use crate::render::Theme;
+use crate::render::{CamMode, Theme};
 use crate::sprites::Spr;
 use crate::text::{ev, Cap, Toast};
 use crate::tiles::*;
+use lf_sim::tilemap::ONEWAY;
 use lf_sim::{
     hashf, Body, EventQueue, InstanceBuffer, LightPool, Platform, Rng, SpriteRect, TileMap,
     GRAVITY, STEP,
 };
 
 pub const MAX_INSTANCES: usize = 120_000;
+
+/// Ladder climbing speed in tiles per second.
+pub const CLIMB_SPEED: f64 = 4.5;
+
+/// How far from its home floor (in tiles) an enemy may be, and for how long, before it is sent home.
+pub const STRAY_HEIGHT: f64 = 4.0;
+pub const STRAY_SECS: f64 = 3.0;
 
 /// Input bits passed to `step`.
 pub mod input {
@@ -101,6 +109,12 @@ pub struct Player {
     pub inv: f64,
     pub squash: f64,
     pub look_down: f64,
+    pub look_up: f64,
+    /// Holding a ladder: gravity and running are off and Up/Down move Ben along it.
+    pub climb: bool,
+    /// Set when Ben jumps off a ladder: he cannot grab one again until he lets go of Up and Down or
+    /// leaves the ladder, so jumping with Up held does not snap him straight back onto it.
+    pub no_grab: bool,
     pub rot: f64,
     pub hidden: bool,
 }
@@ -119,6 +133,9 @@ impl Player {
             inv: 0.0,
             squash: 0.0,
             look_down: 0.0,
+            look_up: 0.0,
+            climb: false,
+            no_grab: false,
             rot: 0.0,
             hidden: false,
         }
@@ -449,7 +466,7 @@ impl World {
         }
     }
 
-    fn init_ent(&self, s: &Spawn) -> Ent {
+    pub(crate) fn init_ent(&self, s: &Spawn) -> Ent {
         let d = info(s.kind);
         let mut e = Ent {
             kind: s.kind,
@@ -469,6 +486,7 @@ impl World {
             puff: false,
             touch: false,
             dead: false,
+            stray: 0.0,
         };
         e.ax = e.b.x;
         e.ay = e.b.y;
@@ -543,7 +561,7 @@ impl World {
         match self.mode {
             Mode::Map => {
                 self.tick_map(dt);
-                self.follow(dt, 0.0, 0.0);
+                self.follow(dt, 0.0, 0.0, 3.5);
             }
             Mode::Attract => {
                 let w = f64::from(self.map.w);
@@ -570,20 +588,37 @@ impl World {
                 if self.shake > 0.0 {
                     self.shake = (self.shake - dt * 2.0).max(0.0);
                 }
-                let up = if self.p.look_down > 0.2 { -3.6 } else { 1.6 };
-                self.follow(dt, self.p.face * 1.5, up);
+                let p = &self.p;
+                match self.theme.cam() {
+                    CamMode::Side => {
+                        let up = if p.look_down > 0.2 { -3.6 } else { 1.6 };
+                        self.follow(dt, p.face * 1.5, up, 3.5);
+                    }
+                    CamMode::Tower => {
+                        // Tall levels: no look-ahead, a low aim point and a quick vertical chase so
+                        // a long fall or a lift ride never leaves Ben off screen.
+                        let up = if p.look_down > 0.2 {
+                            -3.6
+                        } else if p.look_up > 0.2 {
+                            3.6
+                        } else {
+                            0.8
+                        };
+                        self.follow(dt, 0.0, up, 8.0);
+                    }
+                }
             }
             Mode::None => {}
         }
     }
 
-    fn follow(&mut self, dt: f64, look: f64, up: f64) {
+    fn follow(&mut self, dt: f64, look: f64, up: f64, rate_y: f64) {
         let (hw, hh) = (self.half_w, self.half_h);
         if self.p.dead == 0.0 {
             let tx = self.p.b.x + self.p.b.w / 2.0 + look;
             let ty = self.p.b.y + up;
             self.cam_x += (tx - self.cam_x) * (5.0 * dt).min(1.0);
-            self.cam_y += (ty - self.cam_y) * (3.5 * dt).min(1.0);
+            self.cam_y += (ty - self.cam_y) * (rate_y * dt).min(1.0);
         }
         let (w, h) = (f64::from(self.map.w), f64::from(self.map.h));
         self.cam_x = if hw * 2.0 < w {
@@ -738,18 +773,25 @@ impl World {
             self.p.b.x += dx;
             self.p.b.y += dy;
         }
-        if e & POGO != 0 {
+        if e & POGO != 0 && !self.p.climb {
             self.p.pogo = !self.p.pogo;
         }
         let ax = f64::from(u8::from(h & RIGHT != 0)) - f64::from(u8::from(h & LEFT != 0));
         let jump_held = h & JUMP != 0;
+        self.tick_climb(h, e, ax);
         {
             let p = &mut self.p;
             if ax != 0.0 {
                 p.face = ax;
             }
-            p.look_down = if h & DOWN != 0 && h & UP == 0 && p.b.on_ground && !p.pogo && ax == 0.0 {
+            let idle = p.b.on_ground && !p.pogo && !p.climb && ax == 0.0;
+            p.look_down = if h & DOWN != 0 && h & UP == 0 && idle {
                 p.look_down + dt
+            } else {
+                0.0
+            };
+            p.look_up = if h & UP != 0 && h & DOWN == 0 && idle {
+                p.look_up + dt
             } else {
                 0.0
             };
@@ -807,6 +849,11 @@ impl World {
             }
             p.b.vy = (p.b.vy - GRAVITY * dt).max(-22.0);
         }
+        if self.p.climb {
+            let dir = f64::from(u8::from(h & UP != 0)) - f64::from(u8::from(h & DOWN != 0));
+            self.p.b.vx = 0.0;
+            self.p.b.vy = CLIMB_SPEED * dir;
+        }
         if e & FIRE != 0 {
             self.fire();
         }
@@ -814,7 +861,11 @@ impl World {
         if self.p.b.bonk && self.p.pogo {
             self.p.b.vy = 0.0;
         }
-        self.p.anim += self.p.b.vx.abs() * dt;
+        self.p.anim += if self.p.climb {
+            self.p.b.vy.abs()
+        } else {
+            self.p.b.vx.abs()
+        } * dt;
 
         // Hazards, doors, exit.
         let (px, py, pw, ph) = (self.p.b.x, self.p.b.y, self.p.b.w, self.p.b.h);
@@ -857,9 +908,15 @@ impl World {
                 (px - 0.1).floor() as i32
             };
             if self.map.get(cx, (py + 0.2).floor() as i32) == tt {
+                // In a building the gap shows the interior wall, not the sky behind it.
+                let open = if self.theme == Theme::Building {
+                    WALLBG
+                } else {
+                    0
+                };
                 for v in self.map.data.iter_mut() {
                     if *v == tt {
-                        *v = 0;
+                        *v = open;
                     }
                 }
                 if red {
@@ -1018,6 +1075,70 @@ impl World {
         }
     }
 
+    /// Grabs, moves along and lets go of ladders. Up grabs a ladder at chest height; Down grabs the
+    /// ladder under a ledge Ben stands on. Jump lets go with a hop; running out of ladder lets go.
+    fn tick_climb(&mut self, h: u32, e: u32, ax: f64) {
+        let (up, down) = (h & UP != 0, h & DOWN != 0);
+        let cx = self.p.b.centre_x().floor() as i32;
+        let chest = (self.p.b.y + 0.5).floor() as i32;
+        if !self.p.climb {
+            if self.p.no_grab {
+                if (!up && !down) || !self.map.has_ladder(cx, chest) {
+                    self.p.no_grab = false;
+                } else {
+                    return;
+                }
+            }
+            if up == down {
+                return;
+            }
+            let from_top = down
+                && self.p.b.on_ground
+                && self.map.has_ladder(cx, (self.p.b.y - 0.1).floor() as i32);
+            if !(up && self.map.has_ladder(cx, chest)) && !from_top {
+                return;
+            }
+            let b = &mut self.p.b;
+            b.x = f64::from(cx) + 0.5 - b.w / 2.0;
+            if from_top {
+                b.y = f64::from((b.y - 0.1).floor() as i32) + 0.45;
+            }
+            b.vx = 0.0;
+            b.vy = 0.0;
+            b.on_ground = false;
+            self.p.pogo = false;
+            self.p.climb = true;
+            let (x, y) = (self.p.b.x, self.p.b.y);
+            self.cap(x, y + 1.0, Cap::Clink);
+            return;
+        }
+        if e & JUMP != 0 {
+            let p = &mut self.p;
+            p.climb = false;
+            p.no_grab = true;
+            p.b.vy = 12.0;
+            p.b.vx = ax * 5.0;
+            p.cut = true;
+            p.b.on_ground = false;
+            return;
+        }
+        if !self.map.has_ladder(cx, chest) {
+            // Off the top of the ladder: settle onto its ledge rather than dropping past it.
+            let below = chest - 1;
+            let ledge = self.map.props.flags(self.map.get(cx, below)) & ONEWAY != 0;
+            if self.p.b.vy > 0.0 && self.map.has_ladder(cx, below) && ledge {
+                self.p.b.y = f64::from(below) + 1.0;
+                self.p.b.vy = 0.0;
+                self.p.b.on_ground = true;
+            }
+            self.p.climb = false;
+            return;
+        }
+        if self.p.b.on_ground && down {
+            self.p.climb = false;
+        }
+    }
+
     fn fire(&mut self) {
         let (px, py) = (self.p.b.x, self.p.b.y);
         if self.game.ammo <= 0 {
@@ -1031,7 +1152,7 @@ impl World {
         let (mut sx, mut sy) = (p.b.x + p.b.w / 2.0 + p.face * 0.6, p.b.y + 0.85);
         if self.held & UP != 0 {
             (vx, vy, sx, sy) = (0.0, 16.0, p.b.x + p.b.w / 2.0, p.b.y + 1.5);
-        } else if self.held & DOWN != 0 && !p.b.on_ground {
+        } else if self.held & DOWN != 0 && (!p.b.on_ground || p.climb) {
             (vx, vy, sx, sy) = (0.0, -16.0, p.b.x + p.b.w / 2.0, p.b.y);
         }
         self.shots.push(Shot {
@@ -1096,6 +1217,33 @@ impl World {
                 continue;
             }
             self.ai(&mut e, dt);
+            if matches!(
+                e.kind,
+                Kind::Gloop | Kind::Hopper | Kind::Beetle | Kind::Marsh
+            ) {
+                // An enemy that has ended up on another floor for a few seconds goes back home.
+                if (e.b.y - e.ay).abs() > STRAY_HEIGHT {
+                    e.stray += dt;
+                } else {
+                    e.stray = 0.0;
+                }
+                if e.stray > STRAY_SECS {
+                    let (x, y) = (e.b.x + e.b.w / 2.0, e.b.y + 0.5);
+                    self.fx.push(Fx {
+                        x,
+                        y,
+                        t: 0.0,
+                        life: 0.6,
+                        tint: 0xffffff,
+                    });
+                    self.cap(x, y + 0.8, Cap::Poof);
+                    (e.b.x, e.b.y, e.b.vx, e.b.vy) = (e.ax, e.ay, 0.0, 0.0);
+                    (e.b.px, e.b.py) = (e.ax, e.ay);
+                    e.stray = 0.0;
+                    e.stun = 0.0;
+                    e.dir = -1.0;
+                }
+            }
             self.ents[i] = e;
         }
     }
@@ -1107,7 +1255,7 @@ impl World {
             if !d.fly {
                 e.b.vx = 0.0;
                 e.b.fall(dt, 20.0);
-                e.b.phys(&self.map, &self.plats, dt);
+                e.b.phys(&self.map, &[], dt);
             } else if e.kind == Kind::Bat {
                 e.b.move_y(&self.map, -4.0 * dt);
             }
@@ -1121,7 +1269,7 @@ impl World {
             Kind::Gloop => {
                 e.b.vx = e.dir * 1.5;
                 e.b.fall(dt, 20.0);
-                e.b.phys(&self.map, &self.plats, dt);
+                e.b.phys(&self.map, &[], dt);
                 if e.b.hit_x || (e.b.on_ground && !ground_ahead(&self.map, e)) {
                     e.dir *= -1.0;
                 }
@@ -1139,12 +1287,12 @@ impl World {
                         e.cd = 0.55;
                     }
                 }
-                e.b.phys(&self.map, &self.plats, dt);
+                e.b.phys(&self.map, &[], dt);
             }
             Kind::Marsh => {
                 e.b.vx = e.dir * 2.2;
                 e.b.fall(dt, 20.0);
-                e.b.phys(&self.map, &self.plats, dt);
+                e.b.phys(&self.map, &[], dt);
                 if e.b.on_ground {
                     e.b.vy = 11.0;
                 }
@@ -1157,7 +1305,7 @@ impl World {
                 if e.state == St::Charge {
                     e.b.vx = e.dir * 9.0;
                     e.st -= dt;
-                    e.b.phys(&self.map, &self.plats, dt);
+                    e.b.phys(&self.map, &[], dt);
                     if e.b.hit_x {
                         e.state = St::Idle;
                         e.stun = 1.2;
@@ -1169,7 +1317,7 @@ impl World {
                     }
                 } else {
                     e.b.vx = 0.0;
-                    e.b.phys(&self.map, &self.plats, dt);
+                    e.b.phys(&self.map, &[], dt);
                     if ben && dy.abs() < 1.2 && dx.abs() < 11.0 {
                         e.state = St::Charge;
                         e.dir = sign_or1(dx);
@@ -1217,7 +1365,7 @@ impl World {
             Kind::Phantom => {
                 e.b.fall(dt, 20.0);
                 e.b.vx = 0.0;
-                e.b.phys(&self.map, &self.plats, dt);
+                e.b.phys(&self.map, &[], dt);
                 e.dir = sign_or1(dx);
                 e.cd -= dt;
                 e.fire_t -= dt;
@@ -1262,7 +1410,7 @@ impl World {
                 }
                 e.b.vx = e.b.vx.clamp(-8.5, 8.5);
                 let vx = e.b.vx;
-                e.b.phys(&self.map, &self.plats, dt);
+                e.b.phys(&self.map, &[], dt);
                 if e.b.hit_x {
                     e.b.vx = -vx * 0.6;
                     let s = sign(e.b.vx);

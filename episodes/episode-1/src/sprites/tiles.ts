@@ -6,7 +6,7 @@
 import { Pen, spriteRng, type Grid } from '@lieutenant-fizz/engine/pen';
 import type { Colour } from '@lieutenant-fizz/engine/palette';
 
-export type Biome = 'crater' | 'caves' | 'citadel' | 'sky';
+export type Biome = 'crater' | 'caves' | 'citadel' | 'sky' | 'building';
 
 interface BiomeColours {
   top: Colour;
@@ -46,6 +46,16 @@ export const BIOMES: Record<Biome, BiomeColours> = {
     plat: ['y', 'N', 'R'],
     block: ['N', 'R', 'y'],
   },
+  // A Zarg tower: carpeted floors, concrete slabs, stepped stairs, panelled walls.
+  building: {
+    top: 'r',
+    top2: 'r',
+    fill: 'D',
+    fill2: 'D',
+    fleck: 'L',
+    plat: ['y', 'N', 'R'],
+    block: ['L', 'D', 'W'],
+  },
   // Sun-baked biscuit rock with cloud ledges, for the daylight mesa levels.
   sky: {
     top: 'y',
@@ -64,7 +74,9 @@ export function ground(bio: Biome, surf: (x: number) => number, seed: number): G
   const r = spriteRng(seed);
   return new Pen(16, 16).fn((x, y) => {
     const hb = 16 - y - 0.5;
-    const s = surf(x + 0.5);
+    // Slopes in a building are stairs: step the surface every four pixels.
+    const raw = surf(x + 0.5);
+    const s = bio === 'building' && Number.isFinite(raw) ? Math.round(raw / 4) * 4 : raw;
     if (hb > s) return null;
     const d = s - hb;
     const q = r();
@@ -132,6 +144,10 @@ export function blockTile(bio: Biome): Grid {
 export function backTile(bio: Biome, seed: number): Grid {
   const r = spriteRng(seed);
   const p = new Pen(16, 16);
+  if (bio === 'building') {
+    // Panelled interior wall: a rail every eight rows and a stud in each panel.
+    return p.fn((x, y) => (y % 8 === 0 ? 'D' : y % 8 === 4 && x % 8 === 3 ? 'D' : 'L'));
+  }
   if (bio === 'citadel') {
     return p
       .fn((x, y) => {

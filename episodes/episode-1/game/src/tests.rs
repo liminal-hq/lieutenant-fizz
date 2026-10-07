@@ -624,3 +624,296 @@ fn an_unknown_level_id_builds_the_first_level_and_cannot_set_stray_bits() {
     w.game.set_done(w.level_id);
     assert_eq!(w.game.done, 1, "only the first level's bit");
 }
+
+fn lookout() -> World {
+    let mut w = level(crate::levels::ZARG_LOOKOUT);
+    w.ents.clear();
+    w
+}
+
+#[test]
+fn ben_climbs_a_ladder_with_up_and_hops_off_with_jump() {
+    let mut w = lookout();
+    // The ground-floor ladder is at x = 18; stand at its foot.
+    w.p.b.x = 17.8;
+    w.p.b.y = 3.0;
+    run(&mut w, 2, 0);
+    assert!(!w.p.climb);
+    run(&mut w, 30, UP);
+    assert!(w.p.climb, "Up grabs the ladder");
+    assert!(!w.p.b.on_ground);
+    let y0 = w.p.b.y;
+    run(&mut w, 30, UP);
+    let rate = (w.p.b.y - y0) / 0.5;
+    assert!(
+        (rate - 4.5).abs() < 0.3,
+        "climbs at 4.5 tiles/s, got {rate}"
+    );
+    assert!(
+        (w.p.b.centre_x() - 18.5).abs() < 0.01,
+        "snapped to the rungs"
+    );
+    run(&mut w, 1, UP | JUMP);
+    assert!(!w.p.climb, "Jump lets go");
+    assert!(w.p.b.vy > 10.0, "and hops, vy = {}", w.p.b.vy);
+}
+
+#[test]
+fn a_ladder_top_is_a_ledge_and_down_goes_back_onto_the_ladder() {
+    let mut w = lookout();
+    w.p.b.x = 17.8;
+    w.p.b.y = 3.0;
+    run(&mut w, 200, UP);
+    assert!(!w.p.climb, "ran out of ladder");
+    assert!(w.p.b.on_ground);
+    assert!(
+        (w.p.b.y - 12.0).abs() < 0.01,
+        "settled on the ledge, y = {}",
+        w.p.b.y
+    );
+    run(&mut w, 15, DOWN);
+    assert!(w.p.climb, "Down from the ledge grabs the ladder");
+    run(&mut w, 200, DOWN);
+    assert!(
+        (w.p.b.y - 3.0).abs() < 0.05,
+        "back on the ground, y = {}",
+        w.p.b.y
+    );
+    assert!(!w.p.climb, "and let go at the bottom");
+}
+
+#[test]
+fn up_and_down_do_nothing_away_from_a_ladder() {
+    let mut w = lookout();
+    w.p.b.x = 5.0;
+    w.p.b.y = 3.0;
+    run(&mut w, 30, UP);
+    assert!(!w.p.climb);
+    run(&mut w, 30, DOWN);
+    assert!(!w.p.climb);
+}
+
+#[test]
+fn climbing_ignores_the_pogo_toggle() {
+    let mut w = lookout();
+    w.p.b.x = 17.8;
+    w.p.b.y = 3.0;
+    run(&mut w, 40, UP);
+    w.step(UP | POGO);
+    assert!(!w.p.pogo && w.p.climb);
+}
+
+#[test]
+fn the_tower_camera_keeps_ben_in_view_through_a_long_fall() {
+    let mut w = lookout();
+    w.half_h = 6.5;
+    // Knock a one-tile shaft through every floor and the roof at x = 5 so Ben falls the whole
+    // tower, about 72 tiles, instead of landing on the roof he starts on.
+    for y in 3..75 {
+        w.map.set(5, y, 0);
+    }
+    w.p.b.x = 5.2;
+    w.p.b.y = 75.0;
+    w.cam_y = 78.0;
+    w.pcy = 78.0;
+    let mut ticks = 0;
+    for t in 0..600 {
+        w.step(0);
+        if w.p.b.on_ground {
+            break;
+        }
+        ticks = t;
+        assert!(
+            (w.p.b.y - w.cam_y).abs() < w.half_h - 1.0,
+            "tick {t}: Ben at {:.1}, camera at {:.1}",
+            w.p.b.y,
+            w.cam_y
+        );
+    }
+    assert!(
+        ticks > 150,
+        "a long fall, not a one-tick landing: {ticks} ticks"
+    );
+    assert!(w.p.b.on_ground, "landed");
+    assert!(w.p.b.y < 4.0, "all the way down, y = {}", w.p.b.y);
+}
+
+#[test]
+fn the_tower_camera_looks_down_and_up_on_request_while_standing() {
+    let mut w = lookout();
+    // Floor 3 is far enough from the map's bottom and top that the camera is never clamped.
+    w.p.b.x = 5.0;
+    w.p.b.y = 30.0;
+    w.cam_y = 31.0;
+    w.pcy = 31.0;
+    run(&mut w, 90, 0);
+    let rest = w.cam_y;
+    run(&mut w, 90, DOWN);
+    assert!(w.cam_y < rest - 1.0, "looks down");
+    run(&mut w, 120, 0);
+    run(&mut w, 120, UP);
+    assert!(w.cam_y > rest + 1.0, "looks up, {} vs {rest}", w.cam_y);
+}
+
+#[test]
+fn the_lift_carries_ben_up_and_waits_at_each_end() {
+    let mut w = lookout();
+    let lift = &w.plats[0];
+    let (bottom, top) = (lift.ay + lift.h, lift.by + lift.h);
+    w.p.b.x = 18.9;
+    w.p.b.y = bottom;
+    let mut rose = false;
+    let mut waited = 0;
+    for _ in 0..1800 {
+        w.step(0);
+        if w.p.b.on_plat.is_some() && w.p.b.y > bottom + 4.0 {
+            rose = true;
+        }
+        if w.plats[0].dy == 0.0 && w.plats[0].wait > 0.0 {
+            waited += 1;
+        }
+    }
+    assert!(rose, "rode the lift, y = {}", w.p.b.y);
+    assert!(
+        waited > 100,
+        "the lift rests at its ends, waited {waited} ticks"
+    );
+    assert!(w.p.b.y <= top + 0.5);
+}
+
+#[test]
+fn jumping_off_a_ladder_with_up_held_does_not_grab_it_again() {
+    let mut w = lookout();
+    w.p.b.x = 17.8;
+    w.p.b.y = 3.0;
+    run(&mut w, 40, UP);
+    assert!(w.p.climb);
+    // Up stays held through the jump, which is the natural way to leap while climbing.
+    w.step(UP | JUMP);
+    assert!(!w.p.climb, "let go");
+    let y0 = w.p.b.y;
+    run(&mut w, 8, UP | JUMP);
+    assert!(!w.p.climb, "still not on the ladder with Up held");
+    assert!(
+        w.p.b.y > y0 + 0.8,
+        "the hop carried him up and away, y {} -> {}",
+        y0,
+        w.p.b.y
+    );
+    // Letting go of Up lifts the lock, so a fresh press grabs the ladder again.
+    w.p.b.x = 17.8;
+    w.p.b.vy = 0.0;
+    run(&mut w, 2, 0);
+    run(&mut w, 3, UP);
+    assert!(w.p.climb, "a new press of Up grabs it");
+}
+
+fn ladder_world() -> World {
+    let mut w = level(CRATER);
+    w.ents.clear();
+    for y in 4..14 {
+        w.map.set(10, y, RUNG);
+    }
+    w.p.b.x = 10.15;
+    w.p.b.y = 8.0;
+    w.p.b.vx = 0.0;
+    w.p.b.vy = 0.0;
+    w.p.b.on_ground = false;
+    w.game.ammo = 9;
+    run(&mut w, 2, UP);
+    assert!(w.p.climb, "on the ladder");
+    w
+}
+
+#[test]
+fn firing_on_a_ladder_goes_where_up_or_down_points() {
+    let mut w = ladder_world();
+    w.step(DOWN | FIRE);
+    assert!(w.shots.last().unwrap().vy < 0.0, "fired down");
+    assert_eq!(w.shots.last().unwrap().vx, 0.0);
+    let mut w = ladder_world();
+    w.step(UP | FIRE);
+    assert!(w.shots.last().unwrap().vy > 0.0, "fired up");
+    let mut w = ladder_world();
+    w.p.face = 1.0;
+    w.step(FIRE);
+    let s = w.shots.last().unwrap();
+    assert!(s.vx > 0.0 && s.vy == 0.0, "sideways when neither is held");
+}
+
+#[test]
+fn an_opened_cookie_door_in_a_tower_shows_the_interior_wall_not_the_sky() {
+    let mut w = level(crate::levels::ZARG_LOOKOUT);
+    w.ents.clear();
+    let (dx, dy) = (0..w.map.w)
+        .flat_map(|x| (0..w.map.h).map(move |y| (x, y)))
+        .find(|&(x, y)| w.map.get(x, y) == DOOR_R)
+        .expect("a red door");
+    w.keys_red = true;
+    w.p.b.x = f64::from(dx) - 0.85;
+    w.p.b.y = f64::from(dy);
+    w.p.face = 1.0;
+    run(&mut w, 3, 0);
+    run(&mut w, 20, RIGHT);
+    assert_eq!(
+        w.map.get(dx, dy),
+        WALLBG,
+        "the gap is backed by interior wall"
+    );
+}
+
+#[test]
+fn enemies_ignore_lift_trays_and_are_not_carried_off() {
+    use lf_sim::Platform;
+    let mut w = level(CRATER);
+    w.ents.clear();
+    // A tray hanging just above the ground, right over where a gloop walks.
+    w.plats = vec![Platform::new(7.0, 6.0, 7.0, 12.0, 1.0).sized(3.0, 0.5)];
+    let g = w.init_ent(&crate::ents::Spawn {
+        kind: Kind::Gloop,
+        x: 8.0,
+        y: 6.6,
+    });
+    w.ents.push(g);
+    run(&mut w, 120, 0);
+    assert!(
+        w.ents[0].b.y < 5.0,
+        "fell through the tray to the ground, at {:.1}",
+        w.ents[0].b.y
+    );
+}
+
+#[test]
+fn an_enemy_found_far_from_its_floor_is_sent_home() {
+    let mut w = level(CRATER);
+    w.ents.clear();
+    let g = w.init_ent(&crate::ents::Spawn {
+        kind: Kind::Gloop,
+        x: 12.0,
+        y: 4.0,
+    });
+    let home = (g.b.x, g.b.y);
+    w.ents.push(g);
+    w.ents[0].b.y += 12.0;
+    w.ents[0].b.on_ground = false;
+    // Keep it up there (as if on a ledge) for a few seconds.
+    let mut sent_home_after = 0;
+    for t in 0..400 {
+        if w.ents[0].b.y > home.1 + 6.0 {
+            w.ents[0].b.y = home.1 + 12.0;
+            w.ents[0].b.vy = 0.0;
+        } else {
+            sent_home_after = t;
+            break;
+        }
+        w.step(0);
+    }
+    assert!(
+        (170..200).contains(&sent_home_after),
+        "sent home after about three seconds, at tick {sent_home_after}"
+    );
+    assert!(
+        (w.ents[0].b.x - home.0).abs() < 4.0 && (w.ents[0].b.y - home.1).abs() < 1.0,
+        "back home"
+    );
+}

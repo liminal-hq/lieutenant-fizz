@@ -72,9 +72,26 @@ pub enum Theme {
     Caves,
     Citadel,
     OpenSky,
+    Building,
+}
+
+/// How the camera follows Ben.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CamMode {
+    /// Look ahead sideways, with a modest vertical chase.
+    Side,
+    /// Tall levels: no look-ahead and a fast vertical chase.
+    Tower,
 }
 
 impl Theme {
+    pub const fn cam(self) -> CamMode {
+        match self {
+            Theme::Building => CamMode::Tower,
+            _ => CamMode::Side,
+        }
+    }
+
     /// Index of this theme's tile set for `tileset_tile`.
     pub const fn tiles(self) -> u8 {
         match self {
@@ -82,6 +99,7 @@ impl Theme {
             Theme::Caves => 1,
             Theme::Citadel => 2,
             Theme::OpenSky => 3,
+            Theme::Building => 4,
         }
     }
 }
@@ -177,6 +195,28 @@ pub fn theme(t: Theme) -> LevelTheme {
             ],
             crys: Spr::CrysM,
             lc: [1.0, 0.85, 0.5],
+        },
+        Theme::Building => LevelTheme {
+            clear: 0x55ffff,
+            amb: [1.0, 0.97, 0.9],
+            night: [0.3, 0.28, 0.4],
+            lm: 0.6,
+            lantern: true,
+            layers: vec![
+                Layer::Stars,
+                Layer::Clouds {
+                    s: Spr::Cloud,
+                    tint: 0xffffff,
+                    nt: 0x3a3a68,
+                    f: 0.1,
+                    base: 78.0,
+                    spread: 8.0,
+                    speed: 0.25,
+                    alpha: 0.9,
+                },
+            ],
+            crys: Spr::CrysM,
+            lc: [1.0, 0.8, 0.45],
         },
         Theme::Crater => LevelTheme {
             clear: 0x5555ff,
@@ -596,6 +636,17 @@ impl World {
                     FILL
                 };
                 let mut op = PushOpts::default();
+                if self.theme == Theme::Building
+                    && (tt == RUNG || tt == RUNG_TOP || tt == CRYS || self.map.is_slope(tt))
+                {
+                    // These tiles have see-through corners and sit against the interior wall.
+                    self.push(
+                        f64::from(x) + 0.5,
+                        f64::from(y) + 0.5,
+                        tileset_tile(b, BT_BACK),
+                        &op,
+                    );
+                }
                 let sp: u16 = match tt {
                     FILL => {
                         if up == FILL
@@ -611,6 +662,9 @@ impl World {
                     }
                     BLOCK => tileset_tile(b, BT_BLOCK),
                     PLAT => tileset_tile(b, BT_PLAT),
+                    WALLBG => tileset_tile(b, BT_BACK),
+                    RUNG => Spr::Ladder as u16,
+                    RUNG_TOP => Spr::LadderTop as u16,
                     SPIKE => Spr::SpikeTile as u16,
                     CHOC => {
                         op.emissive = true;
@@ -652,11 +706,17 @@ impl World {
         for i in 0..self.plats.len() {
             let pl = &self.plats[i];
             if vis(pl.x, pl.y, 2.0) {
-                let (x, y) = (pl.x + 1.0, pl.y + 0.25);
+                let (x, y) = (pl.x + pl.w / 2.0, pl.y + pl.h / 2.0);
+                let lift = pl.w > 2.5;
                 self.push(
                     x,
                     y,
-                    if fr != 0 { Spr::Hover1 } else { Spr::Hover0 },
+                    match (lift, fr != 0) {
+                        (false, false) => Spr::Hover0,
+                        (false, true) => Spr::Hover1,
+                        (true, false) => Spr::Lift0,
+                        (true, true) => Spr::Lift1,
+                    },
                     &PushOpts::default(),
                 );
             }
@@ -876,6 +936,12 @@ impl World {
                         Spr::BenPogo2
                     } else {
                         Spr::BenPogo
+                    }
+                } else if p.climb {
+                    if ((p.anim * 1.6).floor() as i64) & 1 != 0 {
+                        Spr::BenClimb2
+                    } else {
+                        Spr::BenClimb1
                     }
                 } else if p.shoot_t > 0.0 {
                     Spr::BenShoot
