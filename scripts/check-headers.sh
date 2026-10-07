@@ -21,8 +21,9 @@ while IFS= read -r file; do
     *) continue ;;
   esac
   offset=0
-  if [ "$c" = '#' ] && head -n 1 "$file" | grep -q '^#!'; then offset=1; fi
-  header="$(tail -n +"$((offset + 1))" "$file" | head -n 4)"
+  if [ "$c" = '#' ] && [[ "$(sed -n 1p "$file")" == '#!'* ]]; then offset=1; fi
+  # `sed` reads only what it needs; a `tail | head` pipe can die of SIGPIPE under `pipefail`.
+  header="$(sed -n "$((offset + 1)),$((offset + 4))p" "$file")"
   summary="$(sed -n 1p <<<"$header")"
   if ! [[ "$summary" == "$c "*. ]] ||
     [ "$(sed -n 2p <<<"$header")" != "$c" ] ||
