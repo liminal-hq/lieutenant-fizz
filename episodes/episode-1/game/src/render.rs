@@ -9,7 +9,7 @@
 use crate::ents::*;
 use crate::sprites::*;
 use crate::tiles::*;
-use crate::world::{Mode, World};
+use crate::world::{Mode, Player, World};
 use lf_sim::{hashf, PushOpts};
 
 pub mod flags {
@@ -1066,41 +1066,7 @@ impl World {
             let py = p.b.py + (p.b.y - p.b.py) * alpha;
             let blink = p.inv > 0.0 && ((t * 12.0).floor() as i64) & 1 != 0;
             if !blink {
-                let sp = if p.dead > 0.0 {
-                    Spr::BenJump
-                } else if p.pogo {
-                    if p.squash > 0.0 {
-                        Spr::BenPogo2
-                    } else {
-                        Spr::BenPogo
-                    }
-                } else if p.climb {
-                    if ((p.anim * 1.6).floor() as i64) & 1 != 0 {
-                        Spr::BenClimb2
-                    } else {
-                        Spr::BenClimb1
-                    }
-                } else if p.shoot_t > 0.0 {
-                    match p.aim {
-                        1 => Spr::BenAimUp,
-                        -1 => Spr::BenAimDown,
-                        _ => Spr::BenShoot,
-                    }
-                } else if !p.b.on_ground {
-                    Spr::BenJump
-                } else if p.b.vx.abs() > 0.5 {
-                    if ((p.anim * 1.4).floor() as i64) & 1 != 0 {
-                        Spr::BenRun2
-                    } else {
-                        Spr::BenRun1
-                    }
-                } else if p.look_up > 0.0 {
-                    Spr::BenLookUp
-                } else if p.look_down > 0.0 {
-                    Spr::BenLookDown
-                } else {
-                    Spr::BenStand
-                };
+                let sp = ben_sprite(p);
                 let (flip, rot) = (p.face < 0.0, if p.dead > 0.0 { p.rot as f32 } else { 0.0 });
                 let ph = self.sprite_h(sp as u16);
                 self.push(
@@ -1240,5 +1206,45 @@ impl World {
         let mul = if night { 1.0 } else { bio.lm };
         self.lights
             .select(mul, &mut self.lights_pos, &mut self.lights_col)
+    }
+}
+
+/// Picks Ben's sprite from his current state.
+pub(crate) fn ben_sprite(p: &Player) -> Spr {
+    if p.dead > 0.0 {
+        Spr::BenJump
+    } else if p.pogo {
+        if p.squash > 0.0 {
+            Spr::BenPogo2
+        } else {
+            Spr::BenPogo
+        }
+    } else if p.climb && !(p.shoot_t > 0.0 && p.aim != 0) {
+        // Firing up or down along a ladder shows the aim pose instead of the climb frames.
+        if ((p.anim * 1.6).floor() as i64) & 1 != 0 {
+            Spr::BenClimb2
+        } else {
+            Spr::BenClimb1
+        }
+    } else if p.shoot_t > 0.0 {
+        match p.aim {
+            1 => Spr::BenAimUp,
+            -1 => Spr::BenAimDown,
+            _ => Spr::BenShoot,
+        }
+    } else if !p.b.on_ground {
+        Spr::BenJump
+    } else if p.b.vx.abs() > 0.5 {
+        if ((p.anim * 1.4).floor() as i64) & 1 != 0 {
+            Spr::BenRun2
+        } else {
+            Spr::BenRun1
+        }
+    } else if p.look_up > 0.0 {
+        Spr::BenLookUp
+    } else if p.look_down > 0.0 {
+        Spr::BenLookDown
+    } else {
+        Spr::BenStand
     }
 }
