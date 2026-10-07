@@ -99,7 +99,7 @@ body {
   line-height: calc(var(--lf-line) * var(--n));
 }
 
-#ui button {
+:where(#ui button) {
   font-family: inherit;
   font-weight: inherit;
   color: inherit;
