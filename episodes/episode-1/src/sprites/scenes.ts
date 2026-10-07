@@ -580,6 +580,21 @@ export function ladder(): Grid {
   return p;
 }
 
+/** A hanging vine: a twisted green stem with leaves, climbable anywhere along its length. */
+export function vine(): Grid {
+  const p = new Pen(16, 16);
+  p.fn((x, y) =>
+    x === 7 + (y % 8 < 4 ? 0 : 1) || x === 8 + (y % 8 < 4 ? 0 : 1) ? 'g' : undefined,
+  );
+  for (const y of [2, 9] as const) {
+    p.rect(9, y, 3, 1, 'g');
+    p.rect(10, y + 1, 2, 1, 'g');
+    p.rect(4, y + 4, 3, 1, 'g');
+    p.rect(4, y + 5, 2, 1, 'g');
+  }
+  return p;
+}
+
 /** A ladder whose top rung is a standable ledge: Ben can stand on it and climb down. */
 export function ladderTop(): Grid {
   const p = new Pen(16, 16);

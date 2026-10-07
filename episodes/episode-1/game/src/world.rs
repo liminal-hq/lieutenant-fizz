@@ -37,6 +37,18 @@ pub const ROOM_DORMANT_ALPHA: f64 = 0.95;
 /// How opaque a room's front wall is while Ben stands inside it.
 pub const ROOM_SEEN_ALPHA: f64 = 0.22;
 
+/// Vine climbing speed up and down, and across, in tiles per second.
+pub const VINE_SPEED: f64 = 3.5;
+pub const VINE_SIDE_SPEED: f64 = 3.0;
+
+/// How high above his feet a wall's top edge can be for Ben to pull himself up onto it.
+pub const MANTLE_REACH: f64 = 0.95;
+
+/// A kick off a wall: how fast it sends Ben up and away, and how long before the next one.
+pub const WALL_KICK_UP: f64 = 19.0;
+pub const WALL_KICK_AWAY: f64 = 6.0;
+pub const WALL_KICK_COOLDOWN: f64 = 0.25;
+
 /// Ladder climbing speed in tiles per second.
 pub const CLIMB_SPEED: f64 = 4.5;
 
@@ -131,6 +143,13 @@ pub struct Player {
     /// Set when Ben jumps off a ladder: he cannot grab one again until he lets go of Up and Down or
     /// leaves the ladder, so jumping with Up held does not snap him straight back onto it.
     pub no_grab: bool,
+    /// Climbing a vine rather than a ladder: free movement in every direction.
+    pub wall: bool,
+    /// Seconds before Ben can kick off a wall again.
+    pub wall_t: f64,
+    /// Which wall he last kicked off (-1 left, 1 right, 0 none yet). He cannot kick the same side
+    /// twice running, so a single wall cannot be climbed; only two walls facing each other can.
+    pub kick_side: f64,
     pub rot: f64,
     pub hidden: bool,
 }
@@ -152,6 +171,9 @@ impl Player {
             look_up: 0.0,
             climb: false,
             no_grab: false,
+            wall: false,
+            wall_t: 0.0,
+            kick_side: 0.0,
             rot: 0.0,
             hidden: false,
         }
@@ -830,6 +852,12 @@ impl World {
         if self.p.shoot_t > 0.0 {
             self.p.shoot_t -= dt;
         }
+        if self.p.wall_t > 0.0 {
+            self.p.wall_t -= dt;
+        }
+        if self.p.b.on_ground || self.p.climb {
+            self.p.kick_side = 0.0;
+        }
         if let Some(i) = self.p.b.on_plat {
             let (dx, dy) = (self.plats[i].dx, self.plats[i].dy);
             self.p.b.x += dx;
@@ -840,6 +868,7 @@ impl World {
         }
         let ax = f64::from(u8::from(h & RIGHT != 0)) - f64::from(u8::from(h & LEFT != 0));
         let jump_held = h & JUMP != 0;
+        let was_climbing = self.p.climb;
         self.tick_climb(h, e, ax);
         {
             let p = &mut self.p;
@@ -896,6 +925,24 @@ impl World {
                 self.p.cut = true;
                 self.p.b.on_ground = false;
             }
+        } else if e & JUMP != 0
+            && !was_climbing
+            && !self.p.climb
+            && !self.p.pogo
+            && self.p.wall_t <= 0.0
+        {
+            // In the air against a wall, Jump kicks off it: up and away.
+            if let Some(side) = self.wall_side().filter(|&s| s != self.p.kick_side) {
+                let (x, y) = (self.p.b.x + 0.35, self.p.b.y + 0.7);
+                self.cap(x, y, Cap::Kick);
+                let p = &mut self.p;
+                p.b.vy = WALL_KICK_UP;
+                p.b.vx = -side * WALL_KICK_AWAY;
+                p.face = -side;
+                p.cut = false;
+                p.wall_t = WALL_KICK_COOLDOWN;
+                p.kick_side = side;
+            }
         }
         {
             let p = &mut self.p;
@@ -913,8 +960,14 @@ impl World {
         }
         if self.p.climb {
             let dir = f64::from(u8::from(h & UP != 0)) - f64::from(u8::from(h & DOWN != 0));
-            self.p.b.vx = 0.0;
-            self.p.b.vy = CLIMB_SPEED * dir;
+            if self.p.wall {
+                // A vine can be crossed sideways as well as climbed, more slowly than a ladder.
+                self.p.b.vx = VINE_SIDE_SPEED * ax;
+                self.p.b.vy = VINE_SPEED * dir;
+            } else {
+                self.p.b.vx = 0.0;
+                self.p.b.vy = CLIMB_SPEED * dir;
+            }
         }
         if e & FIRE != 0 {
             self.fire();
@@ -924,10 +977,11 @@ impl World {
             self.p.b.vy = 0.0;
         }
         self.p.anim += if self.p.climb {
-            self.p.b.vy.abs()
+            self.p.b.vy.abs() + self.p.b.vx.abs()
         } else {
             self.p.b.vx.abs()
         } * dt;
+        self.tick_mantle(ax);
 
         // Hazards, doors, exit.
         let (px, py, pw, ph) = (self.p.b.x, self.p.b.y, self.p.b.w, self.p.b.h);
@@ -1174,15 +1228,82 @@ impl World {
         self.rooms.iter().position(|r| r.contains(x, y))
     }
 
-    /// Grabs, moves along and lets go of ladders. Up grabs a ladder at chest height; Down grabs the
+    /// Which side a solid wall touches Ben on at chest height: -1 on his left, 1 on his right.
+    pub(crate) fn wall_side(&self) -> Option<f64> {
+        let b = &self.p.b;
+        let row = (b.y + 0.7).floor() as i32;
+        let solid = |x: f64| self.map.is_solid_tile(self.map.get(x.floor() as i32, row));
+        if solid(b.x - 0.08) {
+            Some(-1.0)
+        } else if solid(b.x + b.w + 0.08) {
+            Some(1.0)
+        } else {
+            None
+        }
+    }
+
+    /// Pulls Ben up onto a ledge he nearly made: in the air, pressing towards a wall whose top edge
+    /// is just above his feet, with room to stand on it, he mantles onto the top.
+    fn tick_mantle(&mut self, ax: f64) {
+        let p = &self.p;
+        if ax == 0.0 || p.b.on_ground || p.climb || p.pogo || p.dead > 0.0 || !p.b.hit_x {
+            return;
+        }
+        let b = &p.b;
+        let wx = if ax > 0.0 {
+            (b.x + b.w + 0.1).floor() as i32
+        } else {
+            (b.x - 0.1).floor() as i32
+        };
+        // The wall's top edge: the highest solid tile in the column whose feet-to-top gap is in
+        // reach and which has two free tiles above it.
+        for r in (b.y.floor() as i32 - 1)..=((b.y + MANTLE_REACH).floor() as i32) {
+            let top = f64::from(r + 1);
+            let solid = |x: i32, y: i32| self.map.is_solid_tile(self.map.get(x, y));
+            if !solid(wx, r) || solid(wx, r + 1) || solid(wx, r + 2) {
+                continue;
+            }
+            let rise = top - b.y;
+            if !(0.1..=MANTLE_REACH).contains(&rise) {
+                continue;
+            }
+            let nx = if ax > 0.0 {
+                f64::from(wx) + 0.1
+            } else {
+                f64::from(wx) + 1.0 - b.w - 0.1
+            };
+            // The spot he lands on must be clear for his whole body.
+            let free = (nx.floor() as i32..=(nx + b.w - 1e-4).floor() as i32).all(|cx| {
+                (top.floor() as i32..=(top + b.h - 1e-4).floor() as i32)
+                    .all(|cy| !self.map.solid(cx, cy, false, 0.0))
+            });
+            if !free {
+                continue;
+            }
+            let (cx, cy) = (nx + b.w / 2.0, top + 1.0);
+            let b = &mut self.p.b;
+            b.x = nx;
+            b.y = top;
+            b.vx = 0.0;
+            b.vy = 0.0;
+            b.on_ground = true;
+            self.p.cut = false;
+            self.cap(cx, cy, Cap::Heave);
+            return;
+        }
+    }
+
+    /// Grabs, moves along and lets go of ladders and vines. Up grabs a ladder at chest height; Down grabs the
     /// ladder under a ledge Ben stands on. Jump lets go with a hop; running out of ladder lets go.
     fn tick_climb(&mut self, h: u32, e: u32, ax: f64) {
         let (up, down) = (h & UP != 0, h & DOWN != 0);
         let cx = self.p.b.centre_x().floor() as i32;
         let chest = (self.p.b.y + 0.5).floor() as i32;
+        let ladder = self.map.has_ladder(cx, chest);
+        let vine = self.map.has_climb(cx, chest);
         if !self.p.climb {
             if self.p.no_grab {
-                if (!up && !down) || !self.map.has_ladder(cx, chest) {
+                if (!up && !down) || !(ladder || vine) {
                     self.p.no_grab = false;
                 } else {
                     return;
@@ -1194,11 +1315,17 @@ impl World {
             let from_top = down
                 && self.p.b.on_ground
                 && self.map.has_ladder(cx, (self.p.b.y - 0.1).floor() as i32);
-            if !(up && self.map.has_ladder(cx, chest)) && !from_top {
+            if !(up && (ladder || vine)) && !from_top {
                 return;
             }
+            // A ladder wins where both are present; a vine alone is climbed freely, without
+            // snapping Ben to its column.
+            self.p.wall = vine && !ladder && !from_top;
+            let free = self.p.wall;
             let b = &mut self.p.b;
-            b.x = f64::from(cx) + 0.5 - b.w / 2.0;
+            if !free {
+                b.x = f64::from(cx) + 0.5 - b.w / 2.0;
+            }
             if from_top {
                 b.y = f64::from((b.y - 0.1).floor() as i32) + 0.45;
             }
@@ -1214,6 +1341,7 @@ impl World {
         if e & JUMP != 0 {
             let p = &mut self.p;
             p.climb = false;
+            p.wall = false;
             p.no_grab = true;
             p.b.vy = 12.0;
             p.b.vx = ax * 5.0;
@@ -1221,20 +1349,25 @@ impl World {
             p.b.on_ground = false;
             return;
         }
-        if !self.map.has_ladder(cx, chest) {
-            // Off the top of the ladder: settle onto its ledge rather than dropping past it.
-            let below = chest - 1;
-            let ledge = self.map.props.flags(self.map.get(cx, below)) & ONEWAY != 0;
-            if self.p.b.vy > 0.0 && self.map.has_ladder(cx, below) && ledge {
-                self.p.b.y = f64::from(below) + 1.0;
-                self.p.b.vy = 0.0;
-                self.p.b.on_ground = true;
+        let here = if self.p.wall { ladder || vine } else { ladder };
+        if !here {
+            if !self.p.wall {
+                // Off the top of the ladder: settle onto its ledge rather than dropping past it.
+                let below = chest - 1;
+                let ledge = self.map.props.flags(self.map.get(cx, below)) & ONEWAY != 0;
+                if self.p.b.vy > 0.0 && self.map.has_ladder(cx, below) && ledge {
+                    self.p.b.y = f64::from(below) + 1.0;
+                    self.p.b.vy = 0.0;
+                    self.p.b.on_ground = true;
+                }
             }
             self.p.climb = false;
+            self.p.wall = false;
             return;
         }
         if self.p.b.on_ground && down {
             self.p.climb = false;
+            self.p.wall = false;
         }
     }
 

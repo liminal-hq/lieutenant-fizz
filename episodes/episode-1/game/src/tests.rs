@@ -1627,6 +1627,278 @@ fn a_bubble_fired_from_beside_a_mirror_still_bounces_off_it() {
     assert_eq!(s.last, i as i32);
 }
 
+/// A bare arena: a floor two tiles thick, open sky, no enemies or items. Walls and vines are added
+/// by each test. Ben starts standing at (4, 2).
+fn arena() -> World {
+    let mut w = level(CRATER);
+    w.ents.clear();
+    w.items.clear();
+    w.plats.clear();
+    w.map = lf_sim::TileMap::new(40, 40, props());
+    for x in 0..40 {
+        for y in 0..2 {
+            w.map.set(x, y, FILL);
+        }
+    }
+    w.p.b.x = 4.0;
+    w.p.b.y = 2.0;
+    w.p.b.vx = 0.0;
+    w.p.b.vy = 0.0;
+    w.p.inv = 1e9;
+    w.cam_x = 10.0;
+    w.cam_y = 10.0;
+    run(&mut w, 5, 0);
+    w
+}
+
+#[test]
+fn ben_free_climbs_a_vine_in_every_direction_and_lets_go_when_it_runs_out() {
+    let mut w = arena();
+    // A patch of vine, five wide and eight tall.
+    for x in 10..15 {
+        for y in 2..10 {
+            w.map.set(x, y, VINE);
+        }
+    }
+    w.p.b.x = 11.65;
+    w.p.b.y = 2.0;
+    run(&mut w, 2, 0);
+    run(&mut w, 20, UP);
+    assert!(
+        w.p.climb && w.p.wall,
+        "Up grabs the vine and he climbs it freely"
+    );
+    let (x0, y0) = (w.p.b.x, w.p.b.y);
+    run(&mut w, 30, UP);
+    let rate = (w.p.b.y - y0) / 0.5;
+    assert!(
+        (rate - VINE_SPEED_FOR_TEST).abs() < 0.4,
+        "climbs at the vine speed, got {rate}"
+    );
+    assert!(
+        (w.p.b.x - x0).abs() < 0.01,
+        "a plain climb does not drift sideways"
+    );
+    // Sideways, and diagonally, across the vine.
+    run(&mut w, 30, RIGHT);
+    let moved = w.p.b.x - x0;
+    assert!(moved > 1.2, "crosses the vine sideways, moved {moved}");
+    let y1 = w.p.b.y;
+    run(&mut w, 20, UP | LEFT);
+    assert!(
+        w.p.b.y > y1 + 0.8 && w.p.b.x < x0 + moved - 0.6,
+        "up and left at once"
+    );
+    // Out the top: no vine left, so he lets go and falls.
+    run(&mut w, 200, UP);
+    assert!(!w.p.climb, "ran out of vine");
+}
+
+#[test]
+fn a_ladder_still_snaps_to_its_column_where_a_vine_does_not() {
+    let mut w = arena();
+    for y in 2..10 {
+        w.map.set(10, y, RUNG);
+        w.map.set(14, y, VINE);
+    }
+    w.p.b.x = 9.8;
+    run(&mut w, 2, 0);
+    run(&mut w, 10, UP);
+    assert!(w.p.climb && !w.p.wall, "a ladder is not a vine");
+    assert!(
+        (w.p.b.centre_x() - 10.5).abs() < 0.01,
+        "snapped to the rung"
+    );
+    let mut v = arena();
+    for y in 2..10 {
+        v.map.set(14, y, VINE);
+    }
+    v.p.b.x = 14.1;
+    run(&mut v, 2, 0);
+    run(&mut v, 10, UP);
+    assert!(v.p.wall);
+    assert!((v.p.b.x - 14.1).abs() < 0.01, "not snapped to the column");
+}
+
+#[test]
+fn a_jump_off_a_vine_hops_clear_and_does_not_regrab_with_up_held() {
+    let mut w = arena();
+    for x in 10..15 {
+        for y in 2..12 {
+            w.map.set(x, y, VINE);
+        }
+    }
+    w.p.b.x = 11.65;
+    run(&mut w, 2, 0);
+    run(&mut w, 30, UP);
+    assert!(w.p.climb);
+    w.step(UP | JUMP);
+    assert!(!w.p.climb && !w.p.wall);
+    run(&mut w, 6, UP | JUMP);
+    assert!(!w.p.climb, "no immediate re-grab with Up held");
+}
+
+#[test]
+fn ben_pulls_himself_up_onto_a_ledge_he_nearly_made() {
+    let mut w = arena();
+    // A wall four tiles tall: a plain jump (about 3.4) falls just short of its top.
+    for x in 12..30 {
+        for y in 2..6 {
+            w.map.set(x, y, FILL);
+        }
+    }
+    w.p.b.x = 10.5;
+    run(&mut w, 2, 0);
+    run(&mut w, 6, RIGHT);
+    w.step(RIGHT | JUMP);
+    run(&mut w, 40, RIGHT | JUMP);
+    assert!(w.p.b.on_ground, "ended up standing");
+    assert!(
+        (w.p.b.y - 6.0).abs() < 0.01,
+        "on top of the wall, y = {}",
+        w.p.b.y
+    );
+    assert!(w.p.b.x >= 12.0, "over the wall, x = {}", w.p.b.x);
+}
+
+#[test]
+fn a_ledge_that_is_too_high_or_too_cramped_is_not_mantled() {
+    // Too high: a six-tile wall.
+    let mut w = arena();
+    for y in 2..8 {
+        w.map.set(12, y, FILL);
+    }
+    w.p.b.x = 10.5;
+    run(&mut w, 2, 0);
+    run(&mut w, 6, RIGHT);
+    w.step(RIGHT | JUMP);
+    run(&mut w, 60, RIGHT | JUMP);
+    assert!(
+        w.p.b.y < 3.0,
+        "a six-tile wall is not pulled up, y = {}",
+        w.p.b.y
+    );
+    // Too cramped: the same four-tile wall under a ceiling with no room to stand on top.
+    let mut c = arena();
+    for y in 2..6 {
+        c.map.set(12, y, FILL);
+    }
+    for x in 12..16 {
+        c.map.set(x, 7, FILL);
+    }
+    c.p.b.x = 10.5;
+    run(&mut c, 2, 0);
+    run(&mut c, 6, RIGHT);
+    c.step(RIGHT | JUMP);
+    run(&mut c, 40, RIGHT | JUMP);
+    assert!(
+        c.p.b.y < 3.0,
+        "no pull-up into a spot he cannot fit, y = {}",
+        c.p.b.y
+    );
+}
+
+#[test]
+fn ben_kicks_off_a_wall_up_and_away_once_per_side() {
+    let mut w = arena();
+    for y in 2..30 {
+        w.map.set(12, y, FILL);
+    }
+    // Airborne against the left face of the wall.
+    w.p.b.x = 11.28;
+    w.p.b.y = 8.0;
+    w.p.b.vy = 0.0;
+    w.p.b.on_ground = false;
+    w.step(RIGHT);
+    w.step(RIGHT | JUMP);
+    assert!(w.p.b.vy > 15.0, "kicked upwards, vy {}", w.p.b.vy);
+    assert!(w.p.b.vx < -3.0, "and away from the wall, vx {}", w.p.b.vx);
+    assert_eq!(w.p.kick_side, 1.0);
+    // Back against the same wall: a second kick on the same side is refused.
+    w.p.b.x = 11.28;
+    w.p.b.y = 15.0;
+    w.p.b.vy = 0.0;
+    w.p.b.vx = 0.0;
+    w.p.wall_t = 0.0;
+    w.step(RIGHT);
+    let before = w.p.b.vy;
+    w.step(RIGHT | JUMP);
+    assert!(
+        w.p.b.vy <= before + 0.1,
+        "no second kick off the same wall, vy {}",
+        w.p.b.vy
+    );
+}
+
+#[test]
+fn a_single_wall_cannot_be_climbed_by_kicking_but_two_facing_walls_can() {
+    let climb = |both: bool| {
+        let mut w = arena();
+        for y in 2..38 {
+            w.map.set(12, y, FILL);
+            if both {
+                w.map.set(16, y, FILL);
+            }
+        }
+        // Between the walls (a gap three tiles wide) or beside one, kicking whenever he touches one.
+        w.p.b.x = if both { 14.0 } else { 11.28 };
+        w.p.b.y = 3.0;
+        let mut top = 0.0_f64;
+        for t in 0..420 {
+            // Head for the next wall, tap Jump (every other tick) while he touches one, so each kick is a
+            // fresh press.
+            let towards = if !both || w.p.b.vx >= 0.0 {
+                RIGHT
+            } else {
+                LEFT
+            };
+            let jump = if w.wall_side().is_some() && t % 2 == 0 {
+                JUMP
+            } else {
+                0
+            };
+            w.step(towards | jump);
+            top = top.max(w.p.b.y);
+        }
+        top
+    };
+    let single = climb(false);
+    let double = climb(true);
+    assert!(single < 9.0, "one wall gives one kick, reached {single}");
+    assert!(
+        double > single + 4.0,
+        "two walls chain kicks: {double} vs {single}"
+    );
+}
+
+/// The vine speed the tests expect (kept in step with `VINE_SPEED`).
+const VINE_SPEED_FOR_TEST: f64 = crate::world::VINE_SPEED;
+
+#[test]
+fn jumping_off_a_vine_beside_a_wall_hops_instead_of_kicking() {
+    let mut w = arena();
+    for y in 2..20 {
+        w.map.set(12, y, FILL);
+        w.map.set(13, y, VINE);
+    }
+    w.p.b.x = 13.02;
+    w.p.b.y = 6.0;
+    w.p.b.on_ground = false;
+    w.step(UP);
+    assert!(w.p.climb, "holding the vine");
+    w.step(RIGHT | JUMP);
+    assert!(
+        (w.p.b.vy - 12.0).abs() < 2.0,
+        "a hop, not a kick, vy {}",
+        w.p.b.vy
+    );
+    assert!(
+        w.p.b.vx >= 0.0,
+        "pressed away from the wall, vx {}",
+        w.p.b.vx
+    );
+}
+
 fn ladder_world() -> World {
     let mut w = level(CRATER);
     w.ents.clear();

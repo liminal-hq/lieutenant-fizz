@@ -53,7 +53,7 @@ describe('Episode 1 sprites', () => {
     const atlas = buildAtlas(defs);
     expect(Object.keys(atlas.rects)).toHaveLength(defs.length);
     const lowest = Math.max(...Object.values(atlas.rects).map((r) => 1 - r.v));
-    expect(lowest).toBeLessThan(0.6);
+    expect(lowest).toBeLessThan(0.65);
   });
 
   const wasmPath = fileURLToPath(new URL('../wasm/sim.wasm', import.meta.url));
