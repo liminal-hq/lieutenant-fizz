@@ -75,6 +75,7 @@ export const State = {
   TICK: 16,
   LEVEL_ID: 17,
   WON: 18,
+  KEY_GREEN: 19,
 } as const;
 
 /** Sim modes returned by `mode()`. */

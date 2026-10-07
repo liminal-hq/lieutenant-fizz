@@ -20,6 +20,7 @@ captions! {
     NoFizz = ("click — no fizz", 0xaaaaaa), Whoa = ("whoa!", 0xff5555), TaDa = ("ta-da!", 0x55ff55),
     Clunk = ("clunk", 0xffffff), Crunch = ("crunch", 0xffff55), ExtraLife = ("ding! extra life", 0x55ff55),
     Fsssht = ("fsssht", 0x55ffff), RedGumdrop = ("red gumdrop", 0xff5555), BlueGumdrop = ("blue gumdrop", 0x5555ff),
+    GreenGumdrop = ("green gumdrop", 0x55ff55),
     GoldUsb = ("gold USB drive", 0xffff55), ClickClack = ("click-clack", 0xaaaaaa), BeepBoop = ("beep boop", 0x55ff55),
     NeedsDrive = ("needs a drive", 0xaaaaaa), Sproing = ("sproing", 0xff55ff), Bwomp = ("bwomp", 0xff55ff),
     Bonk = ("bonk", 0xffffff), Pfff = ("pfff", 0xff55ff), Thunk = ("thunk", 0xffffff), Snort = ("snort", 0xff5555),
@@ -42,6 +43,7 @@ macro_rules! toasts {
 toasts! {
     RedDoor = "The red cookie door swings open",
     BlueDoor = "The blue cookie door swings open",
+    GreenDoor = "The green cookie door swings open",
     ExtraLife = "Extra life! Every 100 snack points earns one.",
     UsbFound = "Gold USB drive! Find the security terminal.",
     BridgeOn = "Somewhere ahead, a bridge rumbles into place",

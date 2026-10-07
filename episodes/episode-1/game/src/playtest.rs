@@ -88,8 +88,9 @@ const SHOOT: [Act; 3] = [
     Act { mask: 0, ticks: 4 },
 ];
 
-/// A spot Ben must stand on, in tile coordinates (his feet at `y`); the last one is normally the
-/// exit, which also ends the search once it is touched.
+/// A spot Ben must stand on, in tile coordinates (his feet at `y`, within half a tile of `x`, so a
+/// key placed there is always picked up); the last one is normally the exit, which also ends the
+/// search once it is touched.
 #[derive(Clone, Copy)]
 pub struct Waypoint {
     pub x: f64,
@@ -148,6 +149,8 @@ pub struct Outcome {
     pub best_y: f64,
     /// Where the best few states ended up (`x`, `y`, `grounded`), for diagnosing a stall.
     pub top: Vec<(f64, f64, bool)>,
+    /// Which keys the best state holds (red, blue, green).
+    pub keys: [bool; 3],
 }
 
 struct Node {
@@ -159,7 +162,7 @@ fn reached(w: &World, p: Waypoint) -> bool {
     if let Some(ch) = p.gate {
         return !w.map.switch(ch);
     }
-    w.p.b.on_ground && (w.p.b.centre_x() - p.x).abs() < 0.9 && (w.p.b.y - p.y).abs() < 0.3
+    w.p.b.on_ground && (w.p.b.centre_x() - p.x).abs() < 0.45 && (w.p.b.y - p.y).abs() < 0.3
 }
 
 fn dist(w: &World, p: Waypoint) -> f64 {
@@ -234,6 +237,7 @@ pub fn solve(mut start: World, route: &[Waypoint], o: &Options) -> Outcome {
         best_x: 0.0,
         best_y: 0.0,
         top: Vec::new(),
+        keys: [false; 3],
     };
     while !beam.is_empty() && beam[0].w.tick_count < o.max_ticks {
         let mut next: Vec<Node> = Vec::new();
@@ -289,6 +293,7 @@ pub fn solve(mut start: World, route: &[Waypoint], o: &Options) -> Outcome {
         if let Some(n) = next.first() {
             best.waypoint = n.wp;
             best.ticks = n.w.tick_count;
+            best.keys = [n.w.keys_red, n.w.keys_blue, n.w.keys_green];
             best.top = next
                 .iter()
                 .take(6)
@@ -483,6 +488,72 @@ mod tests {
             r.finished,
             "bot stalled at wp {} after {} ticks; best states {:?}",
             r.waypoint, r.ticks, r.top
+        );
+    }
+
+    #[test]
+    fn frosting_flats_can_be_finished_via_the_red_key() {
+        use crate::levels::FROSTING_FLATS;
+        let route = [wp(131.5, 12.0), exit_of(FROSTING_FLATS)];
+        let r = play_level(FROSTING_FLATS, &route, &Options::default());
+        assert!(
+            r.finished,
+            "bot stalled at wp {} after {} ticks; best states {:?}",
+            r.waypoint, r.ticks, r.top
+        );
+    }
+
+    #[test]
+    fn frosting_spire_can_be_finished_with_all_three_keys() {
+        use crate::levels::FROSTING_SPIRE;
+        // Floor `k` stands on row 3 + 9k. Ladders alternate sides (left for even connectors,
+        // right for odd ones); connectors 2, 6 and 9 are lifts.
+        let route = [
+            wp(6.5, 12.0),   // up: floor 1
+            wp(38.5, 21.0),  // floor 2
+            wp(21.5, 30.0),  // floor 3, by lift
+            wp(14.5, 30.0),  // the red key
+            wp(38.5, 39.0),  // floor 4
+            wp(6.5, 48.0),   // floor 5
+            wp(38.5, 57.0),  // floor 6, past the red door
+            wp(21.5, 66.0),  // floor 7, by lift
+            wp(14.5, 66.0),  // the blue key
+            wp(38.5, 75.0),  // floor 8
+            wp(6.5, 84.0),   // floor 9, past the blue door
+            wp(21.5, 93.0),  // floor 10, by lift
+            wp(6.5, 102.0),  // the roof
+            wp(30.5, 102.0), // the green key
+            // And down again.
+            wp(6.5, 93.0),
+            wp(16.0, 84.0), // dropped down the lift shaft
+            wp(6.5, 84.0),
+            wp(6.5, 75.0),
+            wp(38.5, 75.0),
+            wp(38.5, 66.0),
+            wp(28.0, 57.0), // dropped down the lift shaft
+            wp(38.5, 57.0),
+            wp(38.5, 48.0),
+            wp(6.5, 48.0),
+            wp(6.5, 39.0),
+            wp(38.5, 39.0),
+            wp(38.5, 30.0),
+            wp(28.0, 21.0), // dropped down the lift shaft
+            wp(38.5, 21.0),
+            wp(38.5, 12.0),
+            wp(6.5, 12.0),
+            wp(6.5, 3.0),
+            exit_of(FROSTING_SPIRE),
+        ];
+        let o = Options {
+            climb: true,
+            max_ticks: 40_000,
+            ..Options::default()
+        };
+        let r = play_level(FROSTING_SPIRE, &route, &o);
+        assert!(
+            r.finished,
+            "bot stalled at wp {} after {} ticks; keys {:?}; best states {:?}",
+            r.waypoint, r.ticks, r.keys, r.top
         );
     }
 

@@ -203,6 +203,7 @@ pub mod state {
     pub const TICK: u32 = 16;
     pub const LEVEL_ID: u32 = 17;
     pub const WON: u32 = 18;
+    pub const KEY_GREEN: u32 = 19;
 }
 
 #[no_mangle]
@@ -221,6 +222,7 @@ pub extern "C" fn state_get(i: u32) -> f64 {
         HAS_MAP_POS => b(s.game.map_pos.is_some()),
         KEY_RED => b(s.keys_red),
         KEY_BLUE => b(s.keys_blue),
+        KEY_GREEN => b(s.keys_green),
         HAS_USB => b(s.has_usb),
         BOSS_HP => s
             .ents

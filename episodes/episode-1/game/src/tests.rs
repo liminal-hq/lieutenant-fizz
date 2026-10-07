@@ -1048,3 +1048,24 @@ fn the_secret_bit_survives_a_save_round_trip() {
     v.game.done = (mask as u32) & crate::world::PROGRESS_BITS;
     assert_eq!(v.game.done, w.game.done);
 }
+
+#[test]
+fn the_green_gumdrop_is_collected_and_opens_only_the_green_door() {
+    let mut w = level(crate::levels::FROSTING_SPIRE);
+    w.ents.clear();
+    assert!(!w.keys_green);
+    w.p.b.x = 30.0;
+    w.p.b.y = 102.0;
+    run(&mut w, 10, 0);
+    assert!(w.keys_green, "picked up the green gumdrop");
+    assert!(!w.keys_red && !w.keys_blue);
+    // Ben is carried to the ground floor and walks into the green door.
+    w.p.b.x = 34.5;
+    w.p.b.y = 3.0;
+    w.p.b.vy = 0.0;
+    w.p.face = 1.0;
+    run(&mut w, 40, RIGHT);
+    assert!(!w.keys_green, "the key is used up");
+    assert_eq!(w.map.get(36, 5), 0, "the green door is gone");
+    assert_ne!(w.map.get(21, 49), 0, "the red door is untouched");
+}
