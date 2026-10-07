@@ -30,7 +30,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 - **Fizz Blaster:** cream soda bubbles. Stuns enemies for 6 s, never kills. Aim up with ↑, or down with ↓ while in the air. Uses ammo; cream soda cans give +5.
 - **Stomp:** landing on most enemies stuns them for 3 s.
 - **Lives:** start with 3, extra life every 100 snack points. Death returns Ben to the map; game over offers your last save.
-- **Ladders:** Up grabs a ladder, Up and Down move along it at 4.5 tiles/s, Jump lets go with a hop, and Ben can fire sideways while climbing. The top rung is a ledge: Ben stands on it and presses Down to climb back onto the ladder. Pogo is off while climbing.
+- **Ladders:** Up grabs a ladder, Up and Down move along it at 4.5 tiles/s, Jump lets go with a hop (Ben cannot grab the same ladder again until Up and Down are released or he leaves it), and Ben can fire sideways while climbing. The top rung is a ledge: Ben stands on it and presses Down to climb back onto the ladder. Pogo is off while climbing.
 - **Keys:** red and blue gumdrops open matching cookie doors.
 
 ## Collectibles
