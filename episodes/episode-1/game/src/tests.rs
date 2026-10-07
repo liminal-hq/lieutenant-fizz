@@ -575,6 +575,35 @@ fn a_locked_level_point_refuses_entry_until_its_requirement_is_met() {
 }
 
 #[test]
+fn a_locked_level_point_prompts_as_locked_and_names_what_is_missing() {
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    let i = w
+        .points
+        .iter()
+        .position(|p| p.kind == crate::levels::PtKind::Level && p.level == CAVES)
+        .unwrap();
+    w.points[i].req = crate::levels::level_bit(CRATER) as u16;
+    let pt = w.points[i];
+    w.p.b.x = pt.x + 0.2;
+    w.p.b.y = pt.y + 0.2;
+    w.events.clear();
+    w.step(0);
+    let prompt = events_of(&w, ev::MAP_PROMPT).pop().expect("a prompt");
+    assert_eq!(prompt.a, 4.0, "locked level prompt type");
+    assert_eq!(prompt.b, f32::from(CRATER), "names the first missing level");
+    assert_eq!(prompt.c, f32::from(CAVES), "carries the locked level's id");
+    w.game.set_done(CRATER);
+    w.near = None;
+    w.events.clear();
+    w.step(0);
+    let prompt = events_of(&w, ev::MAP_PROMPT).pop().expect("a prompt");
+    assert_eq!(prompt.a, 1.0, "unlocked once the requirement is cleared");
+    assert_eq!(prompt.b, f32::from(CAVES));
+}
+
+#[test]
 fn loading_progress_drops_bits_that_mean_nothing() {
     let mut w = World::new();
     w.game.done = (1 << 20) | crate::world::SECRET_FOUND | 0b101;
