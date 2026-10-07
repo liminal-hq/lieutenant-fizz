@@ -427,10 +427,9 @@ impl Builder {
         self
     }
 
-    /// A ladder from standing row `y0` up to the ledge at row `y1`: rungs below, a standable top.
     /// A hidden room reached by a vine: a vine climbs from `foot` to a rock shelf at row `shelf`
     /// (Ben stands on it at that height), a two-tile pocket runs away from the vine in direction
-    /// `dir`, and a cracked wall two tiles tall closes it off from a room `depth` tiles deep and
+    /// `dir`, and a cracked wall as tall as the room closes it off from a room `depth` tiles deep and
     /// `h` tall. Carved out of whatever solid rock is already there, so the caller fills the mass
     /// first and leaves at least a row of rock above `shelf + h`.
     fn vine_nook(
@@ -447,10 +446,11 @@ impl Builder {
         self.fill(x0, x1, shelf - 2, shelf - 1, FILL);
         self.fill(x0, x1, shelf, shelf + h - 1, EMPTY);
         let cx = vx + dir * 3;
-        self.fill(cx, cx, shelf, shelf + 1, CRACKED);
+        self.fill(cx, cx, shelf, shelf + h - 1, CRACKED);
         self.fill(vx, vx, foot, shelf + 1, VINE)
     }
 
+    /// A ladder from standing row `y0` up to the ledge at row `y1`: rungs below, a standable top.
     fn ladder(&mut self, x: i32, y0: i32, y1: i32) -> &mut Self {
         self.fill(x, x, y0, y1 - 1, RUNG);
         self.map.set(x, y1, RUNG_TOP);
@@ -994,7 +994,7 @@ fn fudge_bog() -> LevelData {
     b.item(Cookie, 41, 12)
         .item(Cookie, 43, 12)
         .item(Soda, 40, 12)
-        .ent_dir(Kind::Glyph, 34.0, f64::from(foot), 3.0);
+        .ent_dir(Kind::Glyph, 38.0, f64::from(foot), 3.0);
     b.out(FUDGE_BOG, (3.0, 4.0), None)
 }
 
@@ -1633,7 +1633,7 @@ fn caves() -> LevelData {
     // The room's far wall: the ceiling steps down here, so close the gap above the old step.
     b.fill(77, 77, 13, 14, FILL);
     b.row(Cookie, 79, 2, 14, 3)
-        .row(Choc, 81, 3, 14, 1)
+        .row(Choc, 80, 2, 14, 1)
         .item(Soda, 84, 14)
         .ent_dir(Kind::Glyph, 91.0, f64::from(foot), 2.0);
     // Cave paintings and a hanging candy lantern, for anyone who stops to look.

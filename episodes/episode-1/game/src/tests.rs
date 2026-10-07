@@ -1998,7 +1998,7 @@ fn a_wall_painting_shows_its_line_once_per_visit() {
 
 /// Plays a scripted visit to a vine nook: walk to the vine, climb to the shelf, step off towards
 /// the cracked wall, shoot it, and walk into the room. Returns where Ben ends up.
-fn visit_nook(id: u8, start: (f64, f64), vx: i32, shelf: i32, dir: f64) -> (f64, f64) {
+fn visit_nook(id: u8, start: (f64, f64), vx: i32, shelf: i32, dir: f64, fire: bool) -> (f64, f64) {
     let mut w = level(id);
     w.ents.retain(|e| e.kind == Kind::Glyph);
     w.p.b.x = start.0;
@@ -2035,21 +2035,28 @@ fn visit_nook(id: u8, start: (f64, f64), vx: i32, shelf: i32, dir: f64) -> (f64,
         "standing on the shelf, at {:.1},{:.1}",
         w.p.b.x, w.p.b.y
     );
-    w.step(toward | FIRE);
-    run(&mut w, 60, 0);
-    run(&mut w, 150, toward);
+    if fire {
+        w.step(toward | FIRE);
+        run(&mut w, 60, 0);
+        run(&mut w, 150, toward);
+    } else {
+        // Without a shot, try everything: run at the wall, jumping again and again.
+        for t in 0..300 {
+            w.step(toward | if t % 25 < 12 { JUMP } else { 0 });
+        }
+    }
     (w.p.b.x, w.p.b.y)
 }
 
 #[test]
 fn the_caves_hidden_room_can_be_reached_by_vine() {
-    let (x, y) = visit_nook(crate::levels::CAVES, (91.5, 8.0), 89, 13, -1.0);
+    let (x, y) = visit_nook(crate::levels::CAVES, (91.5, 8.0), 89, 13, -1.0, true);
     assert!(x < 85.0 && y >= 13.0, "inside the room, at {x:.1},{y:.1}");
 }
 
 #[test]
 fn the_bogs_hidden_room_can_be_reached_by_vine() {
-    let (x, y) = visit_nook(crate::levels::FUDGE_BOG, (40.0, 7.0), 36, 12, 1.0);
+    let (x, y) = visit_nook(crate::levels::FUDGE_BOG, (40.0, 7.0), 36, 12, 1.0, true);
     assert!(x > 40.0 && y >= 12.0, "inside the room, at {x:.1},{y:.1}");
 }
 
@@ -2113,4 +2120,12 @@ fn jumping_off_a_vine_beside_a_wall_hops_instead_of_kicking() {
         "pressed away from the wall, vx {}",
         w.p.b.vx
     );
+}
+
+#[test]
+fn nothing_gets_past_a_hidden_rooms_cracked_wall_without_a_shot() {
+    let (x, _) = visit_nook(crate::levels::CAVES, (91.5, 8.0), 89, 13, -1.0, false);
+    assert!(x > 86.0, "stopped at the wall, at {x:.1}");
+    let (x, _) = visit_nook(crate::levels::FUDGE_BOG, (40.0, 7.0), 36, 12, 1.0, false);
+    assert!(x < 39.0, "stopped at the wall, at {x:.1}");
 }
