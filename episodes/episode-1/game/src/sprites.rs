@@ -21,7 +21,7 @@ sprites! {
     BenStand = "ben_stand", BenRun1 = "ben_run1", BenRun2 = "ben_run2", BenJump = "ben_jump",
     BenShoot = "ben_shoot", BenPogo = "ben_pogo", BenPogo2 = "ben_pogo2",
     BenClimb1 = "ben_climb1", BenClimb2 = "ben_climb2",
-    BenMap0 = "benMap0", BenMap1 = "benMap1", BillyCage = "billyCage", Billy = "billy",
+    BenMap0 = "benMap0", BenMap1 = "benMap1", BillyCage = "billyCage", Billy = "billy", BillyAlt = "billyAlt",
     Gloop0 = "gloop0", Gloop1 = "gloop1", Hopper0 = "hopper0", Hopper1 = "hopper1",
     Marsh0 = "marsh0", Marsh1 = "marsh1", Beetle0 = "beetle0", Beetle1 = "beetle1",
     Bat0 = "bat0", Bat1 = "bat1", Pod0 = "pod0", Pod1 = "pod1",

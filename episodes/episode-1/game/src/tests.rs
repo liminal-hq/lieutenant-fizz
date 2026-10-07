@@ -2065,6 +2065,120 @@ fn mirror_shafts_has_a_vine_shortcut_past_the_second_gate_that_pays_in_cookies()
     assert!(w.game.score > score, "the cookies paid out");
 }
 
+/// Ben bounces on a pogo (Jump held) or hops (Jump tapped) under `x`, and reports whether the
+/// cookie on the ledge there got taken.
+fn takes_cache_cookie(id: u8, x: f64, pogo: bool) -> bool {
+    let mut w = level(id);
+    w.ents.clear();
+    w.p.inv = 1e9;
+    w.p.b.x = x;
+    w.p.b.y = 5.5;
+    run(&mut w, 120, 0);
+    w.p.b.x = x;
+    if pogo {
+        w.step(POGO);
+    }
+    for t in 0..600 {
+        let jump = if pogo || t % 12 < 8 { JUMP } else { 0 };
+        w.step(jump);
+        if w.items
+            .iter()
+            .any(|i| i.kind == ItemKind::Cookie && i.taken && (i.x - x).abs() < 3.0)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+#[test]
+fn each_pogo_cache_needs_a_pogo_bounce() {
+    use crate::levels::{CAVES, CRATER, FUDGE_BOG};
+    for (id, x) in [(CRATER, 9.2), (FUDGE_BOG, 19.2), (CAVES, 6.2)] {
+        assert!(
+            takes_cache_cookie(id, x, true),
+            "level {id}: pogo reaches the cache"
+        );
+        assert!(
+            !takes_cache_cookie(id, x, false),
+            "level {id}: a plain jump does not"
+        );
+    }
+}
+
+#[test]
+fn rare_actions_earn_a_joke_once() {
+    use crate::text::Toast;
+    let count = |w: &World, t: Toast| {
+        events_of(w, ev::TOAST)
+            .iter()
+            .filter(|e| e.a == t as u16 as f32)
+            .count()
+    };
+    // Standing around.
+    let mut w = arena();
+    run(&mut w, 60 * 25, 0);
+    assert_eq!(count(&w, Toast::JokeIdle), 1);
+    // Thirty pogo bounces.
+    let mut w = arena();
+    w.step(POGO);
+    run(&mut w, 60 * 30, 0);
+    assert_eq!(
+        count(&w, Toast::JokePogo),
+        1,
+        "pogo joke fires exactly once"
+    );
+    // Wall-kicking back and forth.
+    let mut w = arena();
+    for y in 2..38 {
+        w.map.set(12, y, FILL);
+        w.map.set(16, y, FILL);
+    }
+    w.p.b.x = 14.0;
+    w.p.b.y = 3.0;
+    for t in 0..900 {
+        let towards = if w.p.b.vx >= 0.0 { RIGHT } else { LEFT };
+        let jump = if w.wall_side().is_some() && t % 2 == 0 {
+            JUMP
+        } else {
+            0
+        };
+        w.step(towards | jump);
+        if w.p.b.y > 30.0 {
+            w.p.b.y = 3.0;
+            w.p.b.vy = 0.0;
+        }
+    }
+    assert_eq!(count(&w, Toast::JokeKick), 1);
+}
+
+#[test]
+fn chalk_drawings_of_billy_and_mortimer_have_their_say() {
+    use crate::text::Toast;
+    let mut w = arena();
+    for (x, dir, toast) in [
+        (8.0, 0.0, Toast::CameoBilly),
+        (20.0, 1.0, Toast::CameoMortimer),
+    ] {
+        let e = w.init_ent(&crate::ents::Spawn {
+            kind: Kind::Cameo,
+            x,
+            y: 2.0,
+            dir,
+        });
+        w.ents.push(e);
+        w.p.b.x = x + 0.1;
+        w.p.b.y = 2.0;
+        run(&mut w, 20, 0);
+        assert!(
+            events_of(&w, ev::TOAST)
+                .iter()
+                .any(|e| e.a == toast as u16 as f32),
+            "{toast:?} shown"
+        );
+    }
+}
+
 #[test]
 fn jumping_off_a_vine_beside_a_wall_hops_instead_of_kicking() {
     let mut w = arena();

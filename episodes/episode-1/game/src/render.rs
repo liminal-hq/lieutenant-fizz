@@ -971,6 +971,14 @@ impl World {
                     op = em;
                     Spr::Target
                 }
+                Kind::Cameo => {
+                    op = PushOpts::default();
+                    if e.dir > 0.0 {
+                        Spr::BillyAlt
+                    } else {
+                        Spr::Billy
+                    }
+                }
                 Kind::Glyph => {
                     op = PushOpts::default();
                     Spr::Glyph

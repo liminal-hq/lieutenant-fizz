@@ -33,6 +33,8 @@ pub enum Kind {
     Target,
     /// Painted wall art: touching it shows a line of lore, chosen by `dir`.
     Glyph,
+    /// A chalk drawing of a familiar face: `dir` > 0 is Mortimer, otherwise Billy.
+    Cameo,
 }
 
 /// Static per-kind traits (size and how the player may interact).
@@ -163,6 +165,13 @@ pub fn info(k: Kind) -> Info {
         Kind::Target => Info {
             w: 0.8,
             h: 0.8,
+            harmless: true,
+            prop: true,
+            ..D
+        },
+        Kind::Cameo => Info {
+            w: 1.0,
+            h: 1.5,
             harmless: true,
             prop: true,
             ..D

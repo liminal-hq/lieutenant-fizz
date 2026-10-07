@@ -458,6 +458,17 @@ impl Builder {
         self.fill(vx, vx, foot, shelf + 1, VINE)
     }
 
+    /// A snack cache on a small ledge `rise` tiles above the ground at `x0`: a pogo bounce with
+    /// Jump held lifts Ben about six and a half tiles (enough to knock the cookie loose), an ordinary
+    /// jump only about three and a half.
+    fn pogo_cache(&mut self, x0: i32, x1: i32, rise: i32) -> &mut Self {
+        let stand = self.ground_at(f64::from(x0)) as i32 + rise;
+        self.plat(x0, x1, stand - 1)
+            .item(Cookie, x0 + 1, stand)
+            .item(Cheezie, x0, stand)
+            .item(Cheezie, x1, stand)
+    }
+
     /// A ladder from standing row `y0` up to the ledge at row `y1`: rungs below, a standable top.
     fn ladder(&mut self, x: i32, y0: i32, y1: i32) -> &mut Self {
         self.fill(x, x, y0, y1 - 1, RUNG);
@@ -590,6 +601,7 @@ fn crater() -> LevelData {
         .ent(Kind::Pod, 136.0);
     b.ent_at(Kind::Drone, 88.5, 7.5)
         .ent_at(Kind::Drone, 165.5, 7.5);
+    b.pogo_cache(8, 10, 7);
     b.out(CRATER, (3.0, 4.0), None)
 }
 
@@ -950,6 +962,7 @@ fn fudge_bog() -> LevelData {
         (Flat, 39),
     ]);
     b.walls();
+    b.pogo_cache(18, 20, 7);
     // Stepping stones over the wide pools, level with the ground on either side.
     b.plat(32, 33, 5).plat(88, 89, 5).plat(148, 149, 5);
     // The red key: two ledges, each three tiles above the last.
@@ -1002,7 +1015,8 @@ fn fudge_bog() -> LevelData {
     b.item(Cookie, 41, 12)
         .item(Cookie, 43, 12)
         .item(Soda, 40, 12)
-        .ent_dir(Kind::Glyph, 38.0, f64::from(foot), 3.0);
+        .ent_dir(Kind::Glyph, 38.0, f64::from(foot), 3.0)
+        .ent_dir(Kind::Cameo, 44.0, 12.0, 1.0);
     b.out(FUDGE_BOG, (3.0, 4.0), None)
 }
 
@@ -1634,6 +1648,7 @@ fn caves() -> LevelData {
     b.ent(Kind::Gloop, 102.0)
         .ent(Kind::Pod, 108.0)
         .ent_at(Kind::Drone, 124.5, 8.5);
+    b.pogo_cache(5, 7, 7);
     // A hidden room in the ceiling: a vine climbs to a shelf, and a cracked wall hides the room.
     let vx = 89;
     let foot = b.ground_at(f64::from(vx)) as i32;
@@ -1643,7 +1658,8 @@ fn caves() -> LevelData {
     b.row(Cookie, 79, 2, 14, 3)
         .row(Choc, 80, 2, 14, 1)
         .item(Soda, 84, 14)
-        .ent_dir(Kind::Glyph, 91.0, f64::from(foot), 2.0);
+        .ent_dir(Kind::Glyph, 91.0, f64::from(foot), 2.0)
+        .ent_dir(Kind::Cameo, 82.0, 13.0, 0.0);
     // Cave paintings and a hanging candy lantern, for anyone who stops to look.
     let g = |x: f64| b.ground_at(x);
     let (g0, g1, g2) = (g(20.5), g(104.5), g(131.5));
