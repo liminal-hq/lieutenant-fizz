@@ -1075,10 +1075,14 @@ impl World {
         if !self.rooms.is_empty() {
             for y in ty0..=ty1 {
                 for x in tx0..=tx1 {
-                    if self.map.get(x, y) != FACADE {
+                    let room = self.room_at(x, y);
+                    let t = self.map.get(x, y);
+                    // The flat also covers a mural hung in the room: it is a tile, not an empty
+                    // cell, so no flat was laid there, yet it must stay hidden with the rest.
+                    if t != FACADE && !(room.is_some() && (t == MURAL || t == MURAL_PART)) {
                         continue;
                     }
-                    let a = self.room_at(x, y).map_or(1.0, |i| self.room_alpha[i]);
+                    let a = room.map_or(1.0, |i| self.room_alpha[i]);
                     if a < 0.02 {
                         continue;
                     }

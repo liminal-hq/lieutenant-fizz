@@ -1340,3 +1340,84 @@ fn presses_are_staggered_deterministically() {
         "not all in step"
     );
 }
+
+#[test]
+fn enemies_in_a_hidden_room_wait_there_until_ben_walks_in() {
+    let mut w = level(crate::levels::BONBON_PLAYHOUSE);
+    // The tutorial room on the path holds a gloop that would otherwise pace out of it.
+    let room = w
+        .rooms
+        .iter()
+        .position(|r| r.contains(24, 6))
+        .expect("tutorial room");
+    let g = w
+        .ents
+        .iter()
+        .position(|e| e.kind == Kind::Gloop && w.rooms[room].contains(e.b.x as i32, e.b.y as i32))
+        .expect("a gloop in the room");
+    let x0 = w.ents[g].b.x;
+    // Ben waits far away, well past the 4 seconds a gloop needs to leave the room.
+    w.p.inv = 1e9;
+    w.p.b.x = 5.0;
+    w.p.b.y = 4.0;
+    run(&mut w, 360, 0);
+    assert_eq!(w.ents[g].b.x, x0, "the ambusher has not moved");
+    assert!(w.rooms[room].contains(w.ents[g].b.x as i32, w.ents[g].b.y as i32));
+    // Once Ben is inside and the flat has faded, it moves like any other gloop.
+    w.p.b.x = 18.0;
+    w.p.b.y = 6.0;
+    run(&mut w, 90, 0);
+    assert!(w.room_alpha[room] < 0.9, "revealed");
+    assert!((w.ents[g].b.x - x0).abs() > 0.2, "and awake now");
+}
+
+#[test]
+fn enemies_outside_hidden_rooms_are_not_held_back() {
+    let mut w = level(crate::levels::BONBON_PLAYHOUSE);
+    let g = w
+        .ents
+        .iter()
+        .position(|e| e.kind == Kind::Gloop && e.b.x < 12.0)
+        .expect("the first gloop is outside any room");
+    let x0 = w.ents[g].b.x;
+    run(&mut w, 120, 0);
+    assert!((w.ents[g].b.x - x0).abs() > 0.5, "it paces as usual");
+}
+
+#[test]
+fn the_secret_mural_is_covered_by_the_flat_until_ben_walks_in() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = level(crate::levels::SUGAR_GLASS_GALLERY);
+    w.ents.clear();
+    let rect = |u: f32| SpriteRect {
+        u,
+        v: u,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h: 16.0,
+    };
+    w.spr[Spr::Mural as usize] = rect(0.77);
+    w.spr[Spr::Facade as usize] = rect(0.31);
+    w.half_w = 12.0;
+    w.half_h = 8.0;
+    w.render(0.5, 0);
+    let data = w.inst.as_slice();
+    let n = w.inst.len();
+    let mural = (0..n)
+        .find(|&i| data[i * STRIDE + 16] == 0.77)
+        .expect("the mural is drawn");
+    // Every one of the mural's six cells has a flat drawn over it, after the mural.
+    for dx in 0..3 {
+        for dy in 0..2 {
+            let (cx, cy) = (130.5 + dx as f32, 11.5 + dy as f32);
+            let covered = (mural + 1..n).any(|i| {
+                data[i * STRIDE + 16] == 0.31
+                    && (data[i * STRIDE + 12] - cx).abs() < 0.01
+                    && (data[i * STRIDE + 13] - cy).abs() < 0.01
+            });
+            assert!(covered, "no flat over mural cell {cx},{cy}");
+        }
+    }
+}

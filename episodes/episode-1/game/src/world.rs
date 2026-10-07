@@ -25,6 +25,9 @@ pub const MAX_INSTANCES: usize = 120_000;
 /// bottom is then within about a tile of the floor.
 pub const PRESS_DANGER_DROP: f64 = 1.6;
 
+/// Enemies in a hidden room do not move while its front wall is more opaque than this.
+pub const ROOM_DORMANT_ALPHA: f64 = 0.95;
+
 /// How opaque a room's front wall is while Ben stands inside it.
 pub const ROOM_SEEN_ALPHA: f64 = 0.22;
 
@@ -1251,6 +1254,15 @@ impl World {
                 self.ents[i] = e;
                 self.tick_boss(i, dt);
                 continue;
+            }
+            // Whatever waits in a hidden room stays put until Ben walks in and the flat fades, so
+            // an ambush is still there when he arrives instead of having wandered out already.
+            let (cx, cy) = (e.b.x + e.b.w / 2.0, e.b.y + e.b.h / 2.0);
+            if let Some(r) = self.room_at(cx.floor() as i32, cy.floor() as i32) {
+                if self.room_alpha[r] > ROOM_DORMANT_ALPHA {
+                    self.ents[i] = e;
+                    continue;
+                }
             }
             self.ai(&mut e, dt);
             self.ents[i] = e;
