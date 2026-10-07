@@ -606,9 +606,23 @@ fn a_locked_level_point_prompts_as_locked_and_names_what_is_missing() {
 #[test]
 fn loading_progress_drops_bits_that_mean_nothing() {
     let mut w = World::new();
-    w.game.done = (1 << 20) | crate::world::SECRET_FOUND | 0b101;
-    w.game.done &= crate::world::PROGRESS_BITS;
+    w.game
+        .load_done((1 << 20) | crate::world::SECRET_FOUND | 0b101);
     assert_eq!(w.game.done, crate::world::SECRET_FOUND | 0b101);
+    // Garbage that is not even a whole number of bits cannot get through either.
+    w.game.load_done(u32::MAX);
+    assert_eq!(w.game.done, crate::world::PROGRESS_BITS);
+}
+
+#[test]
+fn an_unknown_level_id_builds_the_first_level_and_cannot_set_stray_bits() {
+    let mut w = World::new();
+    w.game_new();
+    w.enter_level(200);
+    assert_eq!(w.level_id, 0, "falls back to the first level, id and all");
+    w.won = false;
+    w.game.set_done(w.level_id);
+    assert_eq!(w.game.done, 1, "only the first level's bit");
 }
 
 fn lookout() -> World {

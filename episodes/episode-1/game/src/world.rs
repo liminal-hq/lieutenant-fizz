@@ -66,6 +66,11 @@ pub const SECRET_FOUND: u32 = 1 << 15;
 pub const PROGRESS_BITS: u32 = ((1 << levels::LEVEL_COUNT) - 1) | SECRET_FOUND;
 
 impl Game {
+    /// Takes a saved cleared-levels mask, dropping every bit that means nothing.
+    pub fn load_done(&mut self, mask: u32) {
+        self.done = mask & PROGRESS_BITS;
+    }
+
     pub fn is_done(&self, level: u8) -> bool {
         self.done & levels::level_bit(level) != 0
     }
@@ -365,6 +370,7 @@ impl World {
     }
 
     pub fn enter_level(&mut self, id: u8) {
+        let id = if id < levels::LEVEL_COUNT { id } else { 0 };
         if self.mode == Mode::Map {
             if let Some(pt) = self
                 .points
@@ -381,6 +387,8 @@ impl World {
     }
 
     pub fn load_level(&mut self, id: u8) {
+        // An id the table does not know builds the first level, so it is also that level's id.
+        let id = if id < levels::LEVEL_COUNT { id } else { 0 };
         let d = levels::build_level(id);
         self.level_id = id;
         self.theme = d.theme;

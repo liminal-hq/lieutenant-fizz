@@ -76,7 +76,9 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
 ];
 
 /// Bit in `Game::done` for a cleared level.
+/// `id` must be a real level id: anything from 32 up would overflow the shift.
 pub const fn level_bit(id: u8) -> u32 {
+    debug_assert!(id < LEVEL_COUNT);
     1 << id
 }
 #[derive(Clone, Copy, Debug)]
@@ -393,7 +395,8 @@ fn crater() -> LevelData {
 }
 
 /// Open-sky daylight level: biscuit-rock mesas separated by gaps that cloud ledges and a hover
-/// platform bridge. Gaps are at most 4 wide unless something carries Ben across.
+/// platform bridge. Gaps are at most 3 wide unless a ledge or hover platform carries Ben across: Ben
+/// only clears 4 tiles by jumping within a tenth of a second of the edge.
 fn meteor_mesa() -> LevelData {
     let mut b = Builder::new(200, 30, 4);
     b.run(&[
@@ -431,7 +434,7 @@ fn meteor_mesa() -> LevelData {
         (Flat, 27),
     ]);
     b.walls();
-    // Cloud ledges across the wide gaps, one tile under the neighbouring ground.
+    // Cloud ledges across the wide gaps, level with the neighbouring ground.
     b.plat(64, 65, 7).plat(127, 128, 8).plat(169, 170, 3);
     b.hover(97.0, 4.5, 103.0, 4.5, 0.3);
     b.row(Cheezie, 6, 5, 6, 1)
@@ -452,7 +455,7 @@ fn meteor_mesa() -> LevelData {
         .row(Choc, 167, 6, 7, 1)
         .row(Cookie, 185, 2, 6, 3);
     b.fill(195, 195, 4, 5, EXIT);
-    for x in [8, 30, 52, 74, 110, 121, 154, 182] {
+    for x in [8, 30, 50, 74, 110, 121, 154, 182] {
         b.crys(x);
     }
     b.ent(Kind::Gloop, 26.0)
@@ -859,6 +862,16 @@ mod tests {
             );
             assert!(count(&l.map, CRYS) > 0);
             assert!(!l.items.is_empty());
+            for it in &l.items {
+                assert!(
+                    !l.map
+                        .solid(it.x.floor() as i32, it.y.floor() as i32, false, 0.0),
+                    "level {id}: {:?} at {:.1},{:.1} is inside solid ground",
+                    it.kind,
+                    it.x,
+                    it.y
+                );
+            }
             assert!(!l.spawns.is_empty());
         }
         assert_eq!(count(&build_level(CRATER).map, EXIT), 2);
