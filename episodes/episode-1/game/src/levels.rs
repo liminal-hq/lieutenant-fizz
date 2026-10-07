@@ -29,6 +29,10 @@ pub const WHISPER_HOLLOW: u8 = 14;
 
 /// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
 pub const LEVEL_COUNT: u8 = 15;
+/// Ben's saucer, a walk-through with no goal: it has an id and a table entry but no cleared bit.
+pub const SAUCER: u8 = 15;
+/// Every id the level table knows: the cleared-level ids plus the saucer.
+pub const TABLE_LEN: u8 = 16;
 
 /// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
 pub const AREA_CRATER_FIELDS: u8 = 0;
@@ -49,7 +53,7 @@ pub struct LevelDef {
 }
 
 /// Every level, indexed by id.
-pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
+pub const LEVELS: [LevelDef; TABLE_LEN as usize] = [
     LevelDef {
         id: CRATER,
         build: crater,
@@ -154,6 +158,13 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
         theme: Theme::Caves,
         area: AREA_ROCK_CANDY_REACH,
         icon: Spr::OwCave,
+    },
+    LevelDef {
+        id: SAUCER,
+        build: saucer,
+        theme: Theme::Building,
+        area: AREA_CRATER_FIELDS,
+        icon: Spr::Saucer,
     },
 ];
 
@@ -1756,6 +1767,35 @@ fn whisper_hollow() -> LevelData {
     b.out(WHISPER_HOLLOW, (3.0, 3.0), None)
 }
 
+/// Ben's own saucer: a short walk up to the hatch and a stroll round the inside, with no enemies,
+/// no snacks and nothing to clear. Paintings on the walls say what the crew has been up to.
+fn saucer() -> LevelData {
+    let mut b = Builder::new(72, 22, 3);
+    b.fill(0, 71, 0, 2, FILL).walls();
+    // The hull: a wall with a hatch at the bottom, a rounded roof, and the far wall.
+    b.fill(15, 16, 6, 14, FILL)
+        .fill(15, 68, 15, 16, FILL)
+        .fill(17, 22, 14, 14, FILL)
+        .fill(60, 66, 14, 14, FILL)
+        .fill(67, 68, 3, 14, FILL);
+    b.wall_behind(17, 66, 3, 13);
+    // A ladder up to the bridge loft, which has its own floor.
+    b.fill(40, 62, 8, 8, PLAT).ladder(41, 3, 8);
+    // Ben's way back out to the map, beside where he lands.
+    b.fill(1, 1, 3, 4, EXIT);
+    // Crystals light the outside and the hull; the rest is paintings.
+    for x in [6, 12, 20, 36, 56] {
+        b.map.set(x, 3, CRYS);
+    }
+    b.ent_dir(Kind::Glyph, 14.0, 3.0, 4.0)
+        .ent_dir(Kind::Glyph, 21.0, 3.0, 5.0)
+        .ent_dir(Kind::Glyph, 28.0, 3.0, 6.0)
+        .ent_dir(Kind::Glyph, 34.0, 3.0, 8.0)
+        .ent_dir(Kind::Glyph, 47.0, 9.0, 7.0)
+        .ent_dir(Kind::Glyph, 56.0, 9.0, 9.0);
+    b.out(SAUCER, (10.0, 3.0), None)
+}
+
 fn citadel() -> LevelData {
     let mut b = Builder::new(158, 26, 4);
     b.run(&[
@@ -2009,7 +2049,7 @@ pub fn build_overworld() -> MapData {
     let secret = crate::world::SECRET_FOUND as u16;
     // Indices matter: each teleporter names its partner by index.
     let points = vec![
-        pt(PtKind::Saucer, 0, 8, 10, 0, 0, false),
+        pt(PtKind::Saucer, SAUCER, 8, 10, 0, 0, false),
         pt(PtKind::Level, CRATER, 14, 6, 0, 0, false),
         // The first area is a tutorial: Crater Fields, then Meteor Mesa, then Zarg Lookout.
         pt(PtKind::Level, METEOR_MESA, 16, 14, 0, req(CRATER), false),
@@ -2249,7 +2289,7 @@ mod tests {
 
     #[test]
     fn the_level_table_is_indexed_by_id_and_every_builder_agrees() {
-        assert_eq!(LEVELS.len(), usize::from(LEVEL_COUNT));
+        assert_eq!(LEVELS.len(), usize::from(TABLE_LEN));
         for (i, def) in LEVELS.iter().enumerate() {
             assert_eq!(usize::from(def.id), i, "table slot {i} holds id {}", def.id);
             let l = (def.build)();

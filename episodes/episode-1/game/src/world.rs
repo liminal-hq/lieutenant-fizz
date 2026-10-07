@@ -104,11 +104,14 @@ impl Game {
     }
 
     pub fn is_done(&self, level: u8) -> bool {
-        self.done & levels::level_bit(level) != 0
+        level < levels::LEVEL_COUNT && self.done & levels::level_bit(level) != 0
     }
 
     pub fn set_done(&mut self, level: u8) {
-        self.done |= levels::level_bit(level);
+        // The saucer has no goal and no bit of its own (its id would land on the secret flag).
+        if level < levels::LEVEL_COUNT {
+            self.done |= levels::level_bit(level);
+        }
     }
 
     pub fn fresh() -> Self {
@@ -459,12 +462,12 @@ impl World {
     }
 
     pub fn enter_level(&mut self, id: u8) {
-        let id = if id < levels::LEVEL_COUNT { id } else { 0 };
+        let id = if id < levels::TABLE_LEN { id } else { 0 };
         if self.mode == Mode::Map {
             if let Some(pt) = self
                 .points
                 .iter()
-                .find(|p| p.kind == PtKind::Level && p.level == id)
+                .find(|p| matches!(p.kind, PtKind::Level | PtKind::Saucer) && p.level == id)
             {
                 self.game.map_pos = Some((pt.x + 0.2, pt.y - 1.0));
             }
@@ -477,7 +480,7 @@ impl World {
 
     pub fn load_level(&mut self, id: u8) {
         // An id the table does not know builds the first level, so it is also that level's id.
-        let id = if id < levels::LEVEL_COUNT { id } else { 0 };
+        let id = if id < levels::TABLE_LEN { id } else { 0 };
         let d = levels::build_level(id);
         self.level_id = id;
         self.theme = d.theme;
@@ -837,6 +840,7 @@ impl World {
         let pt = self.points[i];
         match pt.kind {
             PtKind::Level if self.met(pt.req) => self.enter_level(pt.level),
+            PtKind::Saucer => self.enter_level(pt.level),
             PtKind::Tele if self.met(pt.req) => {
                 let to = self.points[pt.to];
                 let (px, py) = (self.p.b.x, self.p.b.y);
@@ -1207,6 +1211,12 @@ impl World {
                     if first {
                         let toast = match en.dir as i32 {
                             1 => Toast::GlyphVisitors,
+                            4 => Toast::SaucerHatch,
+                            5 => Toast::SaucerGalley,
+                            6 => Toast::SaucerBunks,
+                            7 => Toast::SaucerChart,
+                            8 => Toast::SaucerShelf,
+                            9 => Toast::SaucerBridge,
                             2 => Toast::GlyphFizz,
                             3 => Toast::GlyphDeep,
                             _ => Toast::GlyphGrowth,

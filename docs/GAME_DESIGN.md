@@ -37,6 +37,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 | | Mildred's Citadel | citadel | Boulder ramp, sentries, phantoms, then the boss arena, the terminal and Billy's cage |
 | **Gumdrop Isle** (central island, secret) | Gumdrop Isle | open sky | A short, snack-dense bonus course with two caches of cookies that each earn an extra life |
 
+3c. **The Saucer** (Crater Fields, walk-through): Ben's own flying saucer, parked at the map's starting point. Press Confirm at it to step inside: a short walk to the hatch, then a galley, bunks, a star chart, a souvenir shelf and a bridge up a ladder, with a painting at each that says something about the crew. No enemies, no snacks and no cleared bit; the exit at the far left goes straight back to the map. It has the id after the last cleared-level id, so it is in the level table but never in the progress mask.
 4. **The secret.** The island in the lake, its teleporter pad and its level are visible from the start but cannot be walked to. One hidden room in the Sugar Glass Gallery holds a mural of the crystal forest with a ring of trees glowing in the far north-east. Stepping into it sets the secret-found flag, which makes a hidden teleporter pad appear inside a ring of trees in that corner of the map (the ring has one gap). It pairs with the island pad.
 5. Ending (4 panels), then the credits (skippable), then a score card. Episode 1 has no post-credits stinger; it belongs to Episode 3.
 

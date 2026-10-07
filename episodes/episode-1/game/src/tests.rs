@@ -2382,6 +2382,73 @@ fn a_rider_is_carried_by_a_moving_platform_and_is_never_sent_home() {
 }
 
 #[test]
+fn the_saucer_opens_from_the_map_and_leaving_it_clears_nothing() {
+    use crate::levels::{LEVEL_COUNT, SAUCER};
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    w.p.b.x = 8.2;
+    w.p.b.y = 10.2;
+    w.step(0);
+    w.step(JUMP);
+    assert_eq!(w.mode, Mode::Level);
+    assert_eq!(w.level_id, SAUCER);
+    assert!(
+        w.ents
+            .iter()
+            .all(|e| matches!(e.kind, Kind::Glyph | Kind::Cameo)),
+        "no enemies"
+    );
+    assert!(w.items.is_empty(), "nothing to collect");
+    // Walk out through the exit on the left.
+    w.p.b.x = 2.5;
+    w.p.b.y = 3.0;
+    w.p.face = -1.0;
+    run(&mut w, 40, LEFT);
+    assert!(w.won, "touching the exit ends the visit");
+    assert_eq!(w.game.done, 0, "and sets no cleared bit");
+    assert!(!w.game.is_done(SAUCER));
+    assert_eq!(LEVEL_COUNT, 15);
+}
+
+#[test]
+fn the_saucers_paintings_all_speak() {
+    use crate::text::Toast;
+    let mut seen = vec![];
+    let mut w = level(crate::levels::SAUCER);
+    w.p.inv = 1e9;
+    let glyphs: Vec<(f64, f64)> = w
+        .ents
+        .iter()
+        .filter(|e| e.kind == Kind::Glyph)
+        .map(|e| (e.b.x, e.b.y))
+        .collect();
+    assert_eq!(glyphs.len(), 6);
+    for (x, y) in glyphs {
+        w.p.b.x = x + 0.2;
+        w.p.b.y = y;
+        w.p.b.vy = 0.0;
+        run(&mut w, 6, 0);
+    }
+    for t in [
+        Toast::SaucerHatch,
+        Toast::SaucerGalley,
+        Toast::SaucerBunks,
+        Toast::SaucerChart,
+        Toast::SaucerShelf,
+        Toast::SaucerBridge,
+    ] {
+        if events_of(&w, ev::TOAST)
+            .iter()
+            .any(|e| e.a == t as u16 as f32)
+        {
+            seen.push(t);
+        }
+    }
+    assert_eq!(seen.len(), 6, "every painting shows its line: {seen:?}");
+}
+
+#[test]
 fn ben_shows_his_aim_pose_while_firing_along_a_ladder() {
     use crate::render::ben_sprite;
     use crate::sprites::Spr;
@@ -2418,4 +2485,11 @@ fn a_rider_on_a_tall_vertical_platform_is_not_sent_home() {
         "still riding high up, at {:.1}",
         w.ents[0].b.y
     );
+}
+
+#[test]
+fn the_saucer_has_its_five_crystals() {
+    let w = level(crate::levels::SAUCER);
+    let n = w.map.data.iter().filter(|&&t| t == CRYS).count();
+    assert_eq!(n, 5, "crystals light the saucer");
 }

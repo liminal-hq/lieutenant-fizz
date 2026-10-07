@@ -19,7 +19,7 @@ import { applyProgress, captureProgress, readProgress, safeStorage, writeProgres
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
-import { CINE, CINE_TRACK, DIALOGUE, END, LEVELS, type Line } from './story';
+import { CINE, CINE_TRACK, DIALOGUE, END, LEVELS, SAUCER_ID, type Line } from './story';
 import { MORTIMER_STINGER } from './stinger';
 import { Ui, type HudState, type MenuItem, type OptionKey, type Prompt } from './ui';
 
@@ -354,6 +354,11 @@ export class Game {
         break;
       case Ev.LEVEL_COMPLETE: {
         const id = e.a;
+        if (id >= SAUCER_ID) {
+          // The saucer has no goal: walking out of it just goes back to the map.
+          this.enterMap();
+          break;
+        }
         window.clearTimeout(this.completeTimer);
         this.completeTimer = window.setTimeout(() => {
           if (this.disposed || this.screen !== 'play') return;
@@ -456,8 +461,8 @@ export class Game {
     if (type === 3) {
       return {
         title: 'Spaghetti with meatballs flying saucer',
-        text: 'Parked and steaming gently. Billy first.',
-        action: null,
+        text: 'Parked and steaming gently. Step inside for a look around.',
+        action: 'Enter',
       };
     }
     return null;
