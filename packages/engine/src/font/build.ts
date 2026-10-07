@@ -227,7 +227,7 @@ export function buildFace(spec: FaceSpec): Uint8Array {
   names.windows['preferredSubfamily'] = { en: spec.style };
   names.windows['uniqueID'] = { en: `Liminal HQ: ${full}: ${VERSION}` };
   for (const l of ligaturesFor(cmap)) font.substitution.addLigature('liga', l);
-  return pinDates(new Uint8Array(font.toArrayBuffer()), TIMESTAMP);
+  return finishFont(new Uint8Array(font.toArrayBuffer()), TIMESTAMP, LINE_GAP);
 }
 
 const sfntSum = (data: Uint8Array, from: number, length: number): number => {
@@ -242,30 +242,38 @@ const sfntSum = (data: Uint8Array, from: number, length: number): number => {
 };
 
 /**
- * Pins the `head` table's created and modified dates. opentype.js stamps `modified` from the clock,
- * which would make every build differ, so this rewrites both dates and the checksums that cover them.
+ * Fixes up what opentype.js cannot express. It stamps the `head` modified date from the clock, which
+ * would make every build differ, so both dates are pinned; and it has no line gap option, so the
+ * 200-unit gap is written into `hhea` and `OS/2` (`sTypoLineGap`). The checksums covering each change
+ * are recomputed.
  */
-export function pinDates(file: Uint8Array, unixSeconds: number): Uint8Array {
+export function finishFont(file: Uint8Array, unixSeconds: number, lineGap: number): Uint8Array {
   const out = Uint8Array.from(file);
   const dv = new DataView(out.buffer);
   const count = dv.getUint16(4);
   const stamp = unixSeconds + FONT_EPOCH;
+  let head = -1;
   for (let i = 0; i < count; i++) {
     const rec = 12 + 16 * i;
     const tag = String.fromCharCode(...out.subarray(rec, rec + 4));
-    if (tag !== 'head') continue;
     const at = dv.getUint32(rec + 8);
-    const length = dv.getUint32(rec + 12);
-    dv.setUint32(at + 8, 0);
-    for (const field of [20, 28]) {
-      dv.setUint32(at + field, 0);
-      dv.setUint32(at + field + 4, stamp);
-    }
-    dv.setUint32(rec + 4, sfntSum(out, at, length));
-    dv.setUint32(at + 8, (0xb1b0afba - sfntSum(out, 0, out.length)) >>> 0);
-    return out;
+    if (tag === 'head') {
+      head = at;
+      dv.setUint32(at + 8, 0);
+      for (const field of [20, 28]) {
+        dv.setUint32(at + field, 0);
+        dv.setUint32(at + field + 4, stamp);
+      }
+    } else if (tag === 'hhea') {
+      dv.setInt16(at + 8, lineGap);
+    } else if (tag === 'OS/2') {
+      dv.setInt16(at + 72, lineGap);
+    } else continue;
+    dv.setUint32(rec + 4, sfntSum(out, at, dv.getUint32(rec + 12)));
   }
-  throw new Error('font has no head table');
+  if (head < 0) throw new Error('font has no head table');
+  dv.setUint32(head + 8, (0xb1b0afba - sfntSum(out, 0, out.length)) >>> 0);
+  return out;
 }
 
 /** The ligatures for `{A}`-style tokens: the characters of the token become one glyph. */

@@ -200,6 +200,24 @@ describe('name table', () => {
   });
 });
 
+describe('vertical metrics', () => {
+  it('writes the 200-unit line gap to both hhea and OS/2 in every face', () => {
+    for (const spec of FACES) {
+      const font = parse(spec);
+      const hhea = font.tables['hhea'] as { lineGap: number; ascender: number; descender: number };
+      const os2 = font.tables['os2'] as {
+        sTypoLineGap: number;
+        sTypoAscender: number;
+        sTypoDescender: number;
+      };
+      expect(hhea.lineGap, `${spec.file} hhea`).toBe(200);
+      expect(os2.sTypoLineGap, `${spec.file} OS/2`).toBe(200);
+      expect([hhea.ascender, hhea.descender]).toEqual([900, -200]);
+      expect([os2.sTypoAscender, os2.sTypoDescender]).toEqual([900, -200]);
+    }
+  });
+});
+
 describe('reproducibility', () => {
   it('builds the same bytes every time', () => {
     const spec = face('fizz-bold-oblique');
