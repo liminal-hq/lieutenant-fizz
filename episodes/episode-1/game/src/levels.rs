@@ -1776,10 +1776,12 @@ pub fn overworld_areas() -> Vec<AreaRect> {
     };
     vec![
         rect(20, 18, 29, 27, AREA_GUMDROP_ISLE),
-        rect(2, 2, 23, 21, AREA_CRATER_FIELDS),
-        rect(2, 24, 23, 41, AREA_MARSHMALLOW_MEADOWS),
-        rect(26, 24, 57, 41, AREA_ROCK_CANDY_REACH),
-        rect(26, 2, 57, 21, AREA_FROSTING_FRONTIER),
+        // The regions run out to the rivers between them, so a river takes its theme from the
+        // region on its west or south side.
+        rect(0, 0, 24, 22, AREA_CRATER_FIELDS),
+        rect(0, 23, 24, 43, AREA_MARSHMALLOW_MEADOWS),
+        rect(25, 0, 59, 22, AREA_FROSTING_FRONTIER),
+        rect(25, 23, 59, 43, AREA_ROCK_CANDY_REACH),
     ]
 }
 
@@ -1831,8 +1833,17 @@ pub fn build_overworld() -> MapData {
     let points = vec![
         pt(PtKind::Saucer, 0, 8, 10, 0, 0, false),
         pt(PtKind::Level, CRATER, 14, 6, 0, 0, false),
-        pt(PtKind::Level, METEOR_MESA, 16, 14, 0, 0, false),
-        pt(PtKind::Level, ZARG_LOOKOUT, 6, 16, 0, 0, false),
+        // The first area is a tutorial: Crater Fields, then Meteor Mesa, then Zarg Lookout.
+        pt(PtKind::Level, METEOR_MESA, 16, 14, 0, req(CRATER), false),
+        pt(
+            PtKind::Level,
+            ZARG_LOOKOUT,
+            6,
+            16,
+            0,
+            req(METEOR_MESA),
+            false,
+        ),
         // The three levels of Crater Fields power the way down to the Meadows.
         pt(
             PtKind::Tele,
@@ -2367,6 +2378,28 @@ mod tests {
                 p.level
             );
         }
+    }
+
+    #[test]
+    fn the_first_area_is_a_tutorial_in_order_and_the_rivers_take_a_theme() {
+        let m = build_overworld();
+        let find = |id: u8| {
+            m.points
+                .iter()
+                .find(|p| p.kind == PtKind::Level && p.level == id)
+                .unwrap()
+        };
+        assert_eq!(find(CRATER).req, 0, "the first level is open");
+        assert_eq!(find(METEOR_MESA).req, level_bit(CRATER) as u16);
+        assert_eq!(find(ZARG_LOOKOUT).req, level_bit(METEOR_MESA) as u16);
+        // Every tile has an area, including the dividers, and a divider is not left to the default:
+        // the river between the north-west and north-east regions belongs to one of them.
+        assert_eq!(m.area_at(24, 30), AREA_MARSHMALLOW_MEADOWS);
+        assert_eq!(m.area_at(25, 30), AREA_ROCK_CANDY_REACH);
+        assert_eq!(m.area_at(40, 22), AREA_FROSTING_FRONTIER);
+        assert_eq!(m.area_at(40, 23), AREA_ROCK_CANDY_REACH);
+        assert_eq!(m.area_at(10, 22), AREA_CRATER_FIELDS);
+        assert_eq!(m.area_at(10, 23), AREA_MARSHMALLOW_MEADOWS);
     }
 
     #[test]
