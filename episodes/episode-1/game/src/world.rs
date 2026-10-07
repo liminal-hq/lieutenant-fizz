@@ -571,6 +571,15 @@ impl World {
                 Some(i) => {
                     let pt = self.points[i];
                     match pt.kind {
+                        PtKind::Level if !self.met(pt.req) => {
+                            // Locked: name the first level still to clear, and carry this level's id.
+                            self.events.emit(
+                                ev::MAP_PROMPT,
+                                4.0,
+                                f64::from(self.first_unmet(pt.req)),
+                                f64::from(pt.level),
+                            );
+                        }
                         PtKind::Level => {
                             let done = self.game.is_done(pt.level);
                             self.events.emit(
