@@ -231,7 +231,7 @@ export function owShaft(): Grid {
   return p.outline();
 }
 
-/** A painted map of the crystal forest: rivers, grass and a ring of crystals in the north-east,
+/** A painted map of the crystal forest: rivers, grass and a ring of trees in the north-east,
  * matching where the hidden pad sits on the map (the map is drawn with north up). */
 export function mural(): Grid {
   const p = new Pen(48, 32);
@@ -249,9 +249,13 @@ export function mural(): Grid {
     [34, 10],
     [35, 8],
   ] as const;
+  // Each marker is a small tree with a glowing yellow top, to match the clue's "ring of trees".
   for (const [x, y] of ring) {
-    p.rect(x - 1, y - 2, 3, 3, 'y');
-    p.rect(x, y - 1, 1, 2, 'c');
+    p.px(x, y - 4, 'y');
+    p.rect(x - 1, y - 3, 3, 1, 'g');
+    p.rect(x - 2, y - 2, 5, 1, 'G');
+    p.rect(x - 2, y - 1, 5, 1, 'g');
+    p.rect(x, y, 1, 1, 'N');
   }
   p.px(33, 9, 'G');
   p.px(34, 9, 'G');
