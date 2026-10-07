@@ -297,10 +297,12 @@ body {
   gap: 2px;
 }
 .menu button {
+  /* One full glyph cell high, so the line box never spills out of the row or its plate. */
+  --lf-line: 11px;
   display: flex;
   align-items: center;
   gap: max(6px, calc(var(--n) * 2px));
-  height: calc(var(--n) * 10px);
+  height: calc(var(--n) * 11px);
   padding: 0;
   border: 0;
   background: none;
