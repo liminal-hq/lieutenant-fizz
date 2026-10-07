@@ -524,7 +524,7 @@ impl World {
                     DOOR_R => Spr::DoorRed as u16,
                     DOOR_B => Spr::DoorBlue as u16,
                     BRIDGE => {
-                        op.alpha = if self.map.switch_on { 1.0 } else { 0.22 };
+                        op.alpha = if self.map.switch(0) { 1.0 } else { 0.22 };
                         Spr::Bridge as u16
                     }
                     CRYS => {
@@ -691,7 +691,7 @@ impl World {
                 }
                 Kind::Switch => {
                     op = PushOpts::default();
-                    if self.map.switch_on {
+                    if self.map.switch(0) {
                         Spr::SwitchOn
                     } else {
                         Spr::SwitchOff

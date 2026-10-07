@@ -6,7 +6,7 @@
 //! Lieutenant Fizz engine core (game-agnostic).
 //!
 //! A deterministic fixed-step simulation toolkit: a tile map with per-tile properties
-//! (solid, one-way, switchable, 45 and 22.5 degree slopes), an AABB body that resolves X then
+//! (solid, one-way, switchable on numbered channels, conveyor, ladder, 45 and 22.5 degree slopes), an AABB body that resolves X then
 //! Y against it, moving platforms, a front-to-back instance buffer shared with the renderer,
 //! a nearest-first light selector and a flat event queue.
 

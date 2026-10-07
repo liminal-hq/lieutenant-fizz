@@ -261,7 +261,7 @@ fn switch_toggles_the_bridge_and_bridge_collision() {
     w.p.b.x = w.ents[si].b.x;
     w.p.b.y = w.ents[si].b.y;
     w.step(0);
-    assert!(w.map.switch_on);
+    assert!(w.map.switch(0));
     assert!(w.map.solid(65, 3, false, 0.0));
 }
 
