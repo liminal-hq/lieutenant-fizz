@@ -14,7 +14,7 @@ Bun workspaces + Cargo workspace:
 
 - `crates/sim` and `packages/engine` — the shared engine; anything reusable across episodes goes here
 - `episodes/episode-N/` — one folder per episode (levels, assets, tuning, story, entry point), starting with `episodes/episode-1`; an episode with its own game rules owns a Rust crate in `episodes/episode-N/game`
-- `site/` — static landing page; `scripts/` — build and check scripts
+- `site/` — static landing page; `scripts/` — build and check scripts, including `build-font.ts` for the Fizz font (generated font files are OFL-1.1, everything else Apache-2.0 OR MIT)
 - `docs/` — engine spec and cross-episode design; `design/` — reference prototypes
 
 Episodes depend on the engine, never on each other, and the engine never imports from an episode. To add an episode, follow "Adding an episode" in `AGENTS.md` → Repository Layout.
