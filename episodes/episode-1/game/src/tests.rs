@@ -2364,8 +2364,5 @@ fn ben_shows_his_aim_pose_while_firing_along_a_ladder() {
     // Climbing without firing keeps the climb frames.
     let mut w = ladder_world();
     w.step(UP);
-    assert!(matches!(
-        ben_sprite(&w.p),
-        Spr::BenClimb1 | Spr::BenClimb2
-    ));
+    assert!(matches!(ben_sprite(&w.p), Spr::BenClimb1 | Spr::BenClimb2));
 }
