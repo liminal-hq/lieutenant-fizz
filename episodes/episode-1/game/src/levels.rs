@@ -353,6 +353,7 @@ impl Builder {
             x,
             y,
             dir: -1.0,
+            ride: false,
         });
         self
     }
@@ -363,13 +364,32 @@ impl Builder {
             x,
             y,
             dir: -1.0,
+            ride: false,
+        });
+        self
+    }
+
+    /// An enemy that rides moving platforms (most enemies pass through them).
+    fn rider(&mut self, kind: Kind, x: f64, y: f64) -> &mut Self {
+        self.spawns.push(Spawn {
+            kind,
+            x,
+            y,
+            dir: -1.0,
+            ride: true,
         });
         self
     }
 
     /// A spawn with an explicit orientation, such as a `/` mirror (`dir` = 1).
     fn ent_dir(&mut self, kind: Kind, x: f64, y: f64, dir: f64) -> &mut Self {
-        self.spawns.push(Spawn { kind, x, y, dir });
+        self.spawns.push(Spawn {
+            kind,
+            x,
+            y,
+            dir,
+            ride: false,
+        });
         self
     }
 
@@ -1610,6 +1630,8 @@ fn caves() -> LevelData {
     b.hover(22.0, 4.0, 27.0, 4.0, 0.3)
         .hover(120.0, 3.5, 123.0, 6.0, 0.4)
         .hover(125.0, 6.0, 128.0, 3.5, 0.4);
+    // A beetle rides the first hover platform back and forth over the pool.
+    b.rider(Kind::Beetle, 23.0, 4.6);
     b.ent_at(Kind::Switch, 57.0, 4.0);
     b.fill(60, 73, 3, 3, BRIDGE);
     b.row(Cheezie, 4, 5, 6, 1)

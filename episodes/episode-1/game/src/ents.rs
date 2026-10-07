@@ -215,6 +215,8 @@ pub struct Spawn {
     pub y: f64,
     /// Facing or orientation: -1 or 1. Mirrors use it for `\` and `/`.
     pub dir: f64,
+    /// Rides moving platforms instead of passing through them.
+    pub ride: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -238,6 +240,8 @@ pub struct Ent {
     pub dead: bool,
     /// Seconds spent far from the home floor.
     pub stray: f64,
+    /// Rides moving platforms (and so is never sent home for straying).
+    pub ride: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

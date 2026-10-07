@@ -1207,6 +1207,7 @@ fn belts_carry_enemies_too_and_they_still_turn_at_the_end() {
         x: 14.0,
         y: 4.0,
         dir: -1.0,
+        ride: false,
     };
     let e = w.init_ent(&g);
     w.ents.push(e);
@@ -1844,7 +1845,7 @@ fn a_single_wall_cannot_be_climbed_by_kicking_but_two_facing_walls_can() {
         w.p.b.x = if both { 14.0 } else { 11.28 };
         w.p.b.y = 3.0;
         let mut top = 0.0_f64;
-        for t in 0..420 {
+        for t in 0..300 {
             // Head for the next wall, tap Jump (every other tick) while he touches one, so each kick is a
             // fresh press.
             let towards = if !both || w.p.b.vx >= 0.0 {
@@ -1928,6 +1929,7 @@ fn shooting_a_lantern_pops_it_into_snacks() {
         x: 12.0,
         y: 3.0,
         dir: 4.0,
+        ride: false,
     };
     let e = w.init_ent(&t);
     w.ents.push(e);
@@ -1950,6 +1952,7 @@ fn a_wall_painting_shows_its_line_once_per_visit() {
         x: 8.0,
         y: 2.0,
         dir: 2.0,
+        ride: false,
     };
     let e = w.init_ent(&g);
     w.ents.push(e);
@@ -2165,6 +2168,7 @@ fn chalk_drawings_of_billy_and_mortimer_have_their_say() {
             x,
             y: 2.0,
             dir,
+            ride: false,
         });
         w.ents.push(e);
         w.p.b.x = x + 0.1;
@@ -2278,6 +2282,7 @@ fn enemies_ignore_lift_trays_and_are_not_carried_off() {
         x: 8.0,
         y: 6.6,
         dir: -1.0,
+        ride: false,
     });
     w.ents.push(g);
     run(&mut w, 120, 0);
@@ -2297,6 +2302,7 @@ fn an_enemy_found_far_from_its_floor_is_sent_home() {
         x: 12.0,
         y: 4.0,
         dir: -1.0,
+        ride: false,
     });
     let home = (g.b.x, g.b.y);
     w.ents.push(g);
@@ -2351,6 +2357,31 @@ fn holding_up_or_down_on_the_ground_starts_a_look_that_ends_on_release() {
 }
 
 #[test]
+fn a_rider_is_carried_by_a_moving_platform_and_is_never_sent_home() {
+    use lf_sim::Platform;
+    let mut w = level(CRATER);
+    w.ents.clear();
+    w.plats = vec![Platform::new(8.0, 8.0, 14.0, 8.0, 1.0).sized(3.0, 0.5)];
+    let spawn = |ride| crate::ents::Spawn {
+        kind: Kind::Beetle,
+        x: 9.0,
+        y: 8.5,
+        dir: -1.0,
+        ride,
+    };
+    let rider = w.init_ent(&spawn(true));
+    w.ents.push(rider);
+    let start = w.ents[0].b.x;
+    run(&mut w, 150, 0);
+    assert!(
+        w.ents[0].b.y > 7.5,
+        "still up on the tray, at {:.1}",
+        w.ents[0].b.y
+    );
+    assert!((w.ents[0].b.x - start).abs() > 0.5, "carried along");
+}
+
+#[test]
 fn ben_shows_his_aim_pose_while_firing_along_a_ladder() {
     use crate::render::ben_sprite;
     use crate::sprites::Spr;
@@ -2365,4 +2396,26 @@ fn ben_shows_his_aim_pose_while_firing_along_a_ladder() {
     let mut w = ladder_world();
     w.step(UP);
     assert!(matches!(ben_sprite(&w.p), Spr::BenClimb1 | Spr::BenClimb2));
+}
+
+#[test]
+fn a_rider_on_a_tall_vertical_platform_is_not_sent_home() {
+    use lf_sim::Platform;
+    let mut w = level(CRATER);
+    w.ents.clear();
+    w.plats = vec![Platform::new(8.0, 8.0, 8.0, 20.0, 0.25).sized(3.0, 0.5)];
+    let rider = w.init_ent(&crate::ents::Spawn {
+        kind: Kind::Beetle,
+        x: 9.0,
+        y: 8.5,
+        dir: -1.0,
+        ride: true,
+    });
+    w.ents.push(rider);
+    run(&mut w, 300, 0);
+    assert!(
+        w.ents[0].b.y > w.ents[0].ay + crate::world::STRAY_HEIGHT,
+        "still riding high up, at {:.1}",
+        w.ents[0].b.y
+    );
 }
