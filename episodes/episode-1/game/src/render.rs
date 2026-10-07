@@ -75,6 +75,7 @@ pub enum Theme {
     Building,
     Theatre,
     Shaft,
+    Foundry,
 }
 
 /// How the camera follows Ben.
@@ -103,6 +104,7 @@ impl Theme {
             Theme::OpenSky => 3,
             Theme::Building => 4,
             Theme::Theatre => 5,
+            Theme::Foundry => 6,
         }
     }
 }
@@ -198,6 +200,21 @@ pub fn theme(t: Theme) -> LevelTheme {
             ],
             crys: Spr::CrysM,
             lc: [1.0, 0.85, 0.5],
+        },
+        Theme::Foundry => LevelTheme {
+            clear: 0x100808,
+            amb: [0.85, 0.72, 0.66],
+            night: [0.34, 0.24, 0.24],
+            lm: 0.6,
+            lantern: true,
+            layers: vec![Layer::Wall {
+                s: tileset_tile(Theme::Foundry.tiles(), BT_BACK),
+                tint: 0xa8806e,
+                nt: 0x5a4038,
+                f: 0.6,
+            }],
+            crys: Spr::CrysM,
+            lc: [1.4, 0.7, 0.3],
         },
         Theme::Theatre => LevelTheme {
             clear: 0x200010,
@@ -695,6 +712,29 @@ impl World {
                     RUNG => Spr::Ladder as u16,
                     RUNG_TOP => Spr::LadderTop as u16,
                     SPIKE => Spr::SpikeTile as u16,
+                    CONV_L => {
+                        if fr != 0 {
+                            Spr::ConveyL1 as u16
+                        } else {
+                            Spr::ConveyL0 as u16
+                        }
+                    }
+                    CONV_R => {
+                        if fr != 0 {
+                            Spr::ConveyR1 as u16
+                        } else {
+                            Spr::ConveyR0 as u16
+                        }
+                    }
+                    FURNACE => {
+                        op.emissive = true;
+                        match (up == FURNACE, fr != 0) {
+                            (true, true) => Spr::FurnDeep1 as u16,
+                            (true, false) => Spr::FurnDeep0 as u16,
+                            (false, true) => Spr::FurnTop1 as u16,
+                            (false, false) => Spr::FurnTop0 as u16,
+                        }
+                    }
                     CHOC => {
                         op.emissive = true;
                         match (up == CHOC, fr != 0) {
@@ -886,6 +926,14 @@ impl World {
                         Spr::Boss1
                     } else {
                         Spr::Boss0
+                    }
+                }
+                Kind::Press => {
+                    op = PushOpts::default();
+                    if e.b.y < e.ay - 1.5 {
+                        Spr::Press1
+                    } else {
+                        Spr::Press0
                     }
                 }
                 Kind::Mirror | Kind::Swivel => {

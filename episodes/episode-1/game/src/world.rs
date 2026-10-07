@@ -232,7 +232,7 @@ pub fn ground_ahead(map: &TileMap, e: &Ent) -> bool {
     let cy = (e.b.y - 0.1).floor() as i32;
     let t = map.get(cx, cy);
     let t2 = map.get(cx, e.b.y.floor() as i32);
-    if t == SPIKE || t == CHOC || t2 == SPIKE {
+    if t == SPIKE || is_liquid(t) || t2 == SPIKE {
         return false;
     }
     map.solid(cx, cy, true, e.b.y) || map.is_slope(t) || map.is_slope(t2)
@@ -450,7 +450,7 @@ impl World {
             let mut run: i32 = -1;
             for x in 0..=w {
                 let t = if x < w { self.map.get(x, y) } else { 0 };
-                let top = t == SPIKE || (t == CHOC && self.map.get(x, y + 1) != CHOC);
+                let top = t == SPIKE || (is_liquid(t) && !is_liquid(self.map.get(x, y + 1)));
                 if top && run < 0 {
                     run = x;
                 }
@@ -466,7 +466,7 @@ impl World {
         }
     }
 
-    fn init_ent(&self, s: &Spawn) -> Ent {
+    pub(crate) fn init_ent(&self, s: &Spawn) -> Ent {
         let d = info(s.kind);
         let mut e = Ent {
             kind: s.kind,
@@ -876,8 +876,8 @@ impl World {
                 if t == SPIKE && py < f64::from(cy) + 0.55 {
                     die = true;
                 }
-                if t == CHOC {
-                    let lim = if self.map.get(cx, cy + 1) == CHOC {
+                if is_liquid(t) {
+                    let lim = if is_liquid(self.map.get(cx, cy + 1)) {
                         1.0
                     } else {
                         0.55
@@ -1446,6 +1446,11 @@ impl World {
                 e.b.x = e.ax + 2.6 * (e.t * 1.6).sin();
                 e.b.y = e.ay + 1.4 * (e.t * 3.2).sin();
             }
+            Kind::Press => {
+                // Raised by default; the phase comes from the spawn position, so a row of presses
+                // is staggered the same way every run. Contact kills while it is down.
+                e.b.y = e.ay - 3.0 * (0.5 - 0.5 * (e.t * 1.6).cos());
+            }
             Kind::Boss
             | Kind::Switch
             | Kind::Terminal
@@ -1728,8 +1733,8 @@ impl World {
                 if m.solid(nx, y - 1, false, 0.0)
                     && !m.solid(nx, y, false, 0.0)
                     && !m.solid(nx, y + 1, false, 0.0)
-                    && m.get(nx, y) != CHOC
-                    && m.get(nx, y - 1) != CHOC
+                    && !is_liquid(m.get(nx, y))
+                    && !is_liquid(m.get(nx, y - 1))
                 {
                     let (ex, ey) = (self.ents[j].b.x, self.ents[j].b.y);
                     self.fx.push(Fx {

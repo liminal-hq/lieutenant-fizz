@@ -110,6 +110,16 @@ export function defineSprites(): SpriteDef[] {
     add(`${b}Back`, t.backTile(b, seed++), true);
   }
   add('facade', t.facadeTile(), true);
+  add('conveyL0', t.conveyorTile('L', 0), true);
+  add('conveyL1', t.conveyorTile('L', 1), true);
+  add('conveyR0', t.conveyorTile('R', 0), true);
+  add('conveyR1', t.conveyorTile('R', 1), true);
+  add('press0', t.pressTile(false));
+  add('press1', t.pressTile(true));
+  add('furnTop0', t.furnaceTop(0), true);
+  add('furnTop1', t.furnaceTop(1), true);
+  add('furnDeep0', t.furnaceDeep(0), true);
+  add('furnDeep1', t.furnaceDeep(1), true);
   add('crysC', t.crystal('c', 'C'));
   add('crysM', t.crystal('m', 'M'));
   add('spike', t.spikeTile());
@@ -147,6 +157,7 @@ export function defineSprites(): SpriteDef[] {
   add('owPlayhouse', sc.owPlayhouse());
   add('owMeadow', sc.owMeadow());
   add('owShaft', sc.owShaft());
+  add('owFoundry', sc.owFoundry());
   add('owCave', sc.owCave());
   add('owCastle', sc.owCastle());
   add('owTele0', sc.owTele(0));

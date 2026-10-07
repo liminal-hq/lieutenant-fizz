@@ -182,4 +182,11 @@ export const LEVELS: LevelInfo[] = [
     track: 'crater',
     cleared: 'Twelve floors up and twelve floors down, and Ben’s knees have opinions about it.',
   },
+  {
+    name: 'Cocoa Foundry',
+    blurb: 'Belts, presses and pools of molten metal. Mind the timing, and mind the belts.',
+    track: 'citadel',
+    cleared:
+      'The presses thump on without him. Ben dusts the soot off his helmet and heads for the Citadel.',
+  },
 ];

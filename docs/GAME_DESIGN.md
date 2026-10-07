@@ -27,6 +27,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 3g. **Sugar Glass Gallery** (Rock Candy Reach, theatre, optional): a long theatre of stacked hidden rooms: the red key on one balcony, the blue key on a higher one, a beetle waiting on the path. An alcove reached by ledges over the last pit holds a mural of the crystal forest with a glowing ring of trees in the far south-east. Walking into it is how the player finds the secret.
 3h. **Frosting Flats** (Frosting Frontier, open sky, optional): the hardest open-sky level, with spike runs, a hover platform over an eight-tile gap, a chain of two over a ten-tile one and drones overhead. The red key is two cloud ledges up.
 3i. **Frosting Spire** (Frosting Frontier, building): the tallest tower, twelve floors with ladders alternating sides, three lifts and a key in every colour. A red door splits the fifth floor and a blue door the eighth; the green key is on the roof and its door guards the exit at the bottom, so the climb ends with the whole tower to come down. Sentries hover on the upper floors.
+3j. **Cocoa Foundry** (Frosting Frontier, foundry): conveyor belts that help and hinder, crushing presses to time, pools of molten metal crossed on a hover platform and stepping stones, beetles, phantoms and sentries, and the blue key up a short tower of ledges.
 4. **Crystal Caves:** darker tunnels lit by crystals and Ben's lantern. Hover platforms, a bridge switch, bats, blue gumdrop door.
 5. **Mildred's Citadel:** boulder ramp, sentries, phantoms, then the boss arena, the terminal and Billy's cage.
 6. Ending (4 panels), then the credits (skippable), then a score card. Episode 1 has no post-credits stinger; it belongs to Episode 3.
@@ -41,6 +42,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 - **Hidden rooms:** in theatre levels, painted flats cover some rooms completely. They fade to about a fifth opaque while Ben is inside and fade back when he leaves; everything inside, from snacks to ambushers, is hidden until then.
 - **Mirrors and crystal switches:** a fizz bubble bounces off a 45-degree mirror (`/` sends an upward bubble right, `\` sends it left). A swivel mirror swings to the other angle after every bounce. A crystal switch opens its own gate when a bubble hits it; each gate has its own switch.
 - **The secret:** one hidden room in the Sugar Glass Gallery counts as the secret. The first time Ben steps inside, the game records it (bit 15 of the saved progress) and toasts a clue pointing at the far south-east of the map.
+- **Conveyor belts** carry Ben (and enemies) at 3 tiles/s in the direction of their chevrons, on top of his own running. **Presses** rise and fall over a floor on a fixed beat; one that is raised is harmless, one that is down crushes. **Molten metal** is lethal like fudge.
 - **Keys:** red, blue and green gumdrops open matching cookie doors.
 
 ## Collectibles
@@ -66,6 +68,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 | Bulldozer | Rock roller | Fizz-proof boulder; speeds up downhill | Pogo over it |
 | Heavy gunner | Zargoth sentry | Tracks Ben's height; 3-shot burst within 9 tiles | Approach outside its height range |
 | Aerial patroller | Gravity drone | Invincible figure-eight path | Jump timing |
+| Crusher | Foundry press | Rises and falls on a fixed beat over a floor | Walk under it while it is raised |
 | Boss | Cocoa Colossus | Hover → drop globs → slam → charge → overheats with dome open | 3 hits while the dome is open |
 
 ## Controls

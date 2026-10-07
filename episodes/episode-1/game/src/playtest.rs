@@ -558,6 +558,18 @@ mod tests {
     }
 
     #[test]
+    fn cocoa_foundry_can_be_finished_via_the_blue_key() {
+        use crate::levels::COCOA_FOUNDRY;
+        let route = [wp(93.5, 12.0), exit_of(COCOA_FOUNDRY)];
+        let r = play_level(COCOA_FOUNDRY, &route, &Options::default());
+        assert!(
+            r.finished,
+            "bot stalled at wp {} after {} ticks; keys {:?}; best states {:?}",
+            r.waypoint, r.ticks, r.keys, r.top
+        );
+    }
+
+    #[test]
     fn meteor_mesa_can_be_finished() {
         let r = play_level(METEOR_MESA, &[exit_of(METEOR_MESA)], &Options::default());
         assert!(
