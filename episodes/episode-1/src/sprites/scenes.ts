@@ -149,6 +149,60 @@ export function owRock(): Grid {
   return p.outline();
 }
 
+/** A small overworld house with a coloured roof. */
+export function owHouse(roof: 'red' | 'blue'): Grid {
+  const p = new Pen(16, 16);
+  const [a, b] = roof === 'red' ? (['r', 'R'] as const) : (['b', 'B'] as const);
+  p.rect(2, 7, 12, 8, 'W');
+  p.rect(1, 6, 14, 2, b);
+  p.rect(3, 4, 10, 2, a);
+  p.rect(5, 2, 6, 2, a);
+  p.rect(7, 10, 3, 5, 'N');
+  p.rect(3, 9, 3, 3, 'c');
+  p.rect(11, 9, 2, 3, 'c');
+  p.rect(11, 1, 2, 3, 'D');
+  return p.outline();
+}
+
+/** A shop: a striped awning over a counter, with a sign on top. */
+export function owShop(): Grid {
+  const p = new Pen(16, 16);
+  p.rect(2, 8, 12, 7, 'y');
+  p.fn((x, y) => (y >= 5 && y <= 7 && x >= 1 && x <= 14 ? (x % 4 < 2 ? 'r' : 'W') : undefined));
+  p.rect(4, 1, 8, 3, 'N');
+  p.rect(5, 2, 2, 1, 'y');
+  p.rect(8, 2, 3, 1, 'y');
+  p.rect(6, 10, 4, 5, 'N');
+  p.rect(3, 10, 2, 2, 'c');
+  p.rect(11, 10, 2, 2, 'c');
+  return p.outline();
+}
+
+/** A fountain in the town square, running with fudge. */
+export function owFountain(): Grid {
+  const p = new Pen(16, 16);
+  p.ell(8, 11, 7, 4, 'L');
+  p.ell(8, 10, 5.5, 3, 'N');
+  p.rect(7, 4, 2, 6, 'L');
+  p.rect(6, 3, 4, 1, 'N');
+  p.px(5, 5, 'N');
+  p.px(10, 5, 'N');
+  p.px(4, 7, 'N');
+  p.px(11, 7, 'N');
+  return p.outline();
+}
+
+/** A signpost: a board on a post. */
+export function owSign(): Grid {
+  const p = new Pen(16, 16);
+  p.rect(7, 7, 2, 8, 'N');
+  p.rect(2, 2, 12, 6, 'y');
+  p.rect(2, 2, 12, 1, 'N');
+  p.fn((x, y) => (y === 4 && x >= 4 && x <= 11 && x % 2 === 0 ? 'k' : undefined));
+  p.fn((x, y) => (y === 6 && x >= 4 && x <= 9 && x % 2 === 1 ? 'k' : undefined));
+  return p.outline();
+}
+
 export function owCrater(): Grid {
   const p = new Pen(16, 16);
   p.ell(8, 9, 7, 5, 'M');

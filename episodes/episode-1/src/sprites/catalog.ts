@@ -167,6 +167,11 @@ export function defineSprites(): SpriteDef[] {
   add('owTree0', sc.owTree(0));
   add('owTree1', sc.owTree(1));
   add('owRock', sc.owRock());
+  add('owHouseA', sc.owHouse('red'));
+  add('owHouseB', sc.owHouse('blue'));
+  add('owShop', sc.owShop());
+  add('owFountain', sc.owFountain());
+  add('owSign', sc.owSign());
   add('owCrater', sc.owCrater());
   add('owMesa', sc.owMesa());
   add('owTower', sc.owTower());

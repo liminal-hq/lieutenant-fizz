@@ -55,6 +55,11 @@ pub const VINE: u8 = 36;
 /// A cracked wall: solid until a fizz shot hits it, then it (and any cracked tiles touching it)
 /// crumbles away, opening a hidden way through.
 pub const CRACKED: u8 = 37;
+/// Town buildings and a fountain on the overworld: solid, drawn over grass.
+pub const HOUSE_A: u8 = 38;
+pub const HOUSE_B: u8 = 39;
+pub const SHOP: u8 = 40;
+pub const FOUNTAIN: u8 = 41;
 /// Decorative interior wall behind a building's rooms, stairs and ladders (not solid).
 pub const WALLBG: u8 = 30;
 /// Climbable rung (not solid).
@@ -71,7 +76,8 @@ pub fn is_liquid(t: u8) -> bool {
 pub fn props() -> TileProps {
     let mut p = TileProps::default();
     for t in [
-        FILL, BLOCK, CRACKED, DOOR_R, DOOR_B, DOOR_G, RIVER, TREE, ROCK,
+        FILL, BLOCK, CRACKED, DOOR_R, DOOR_B, DOOR_G, RIVER, TREE, ROCK, HOUSE_A, HOUSE_B, SHOP,
+        FOUNTAIN,
     ] {
         p.set_flags(t, SOLID);
     }

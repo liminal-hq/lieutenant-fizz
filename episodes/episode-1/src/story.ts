@@ -106,6 +106,13 @@ export interface LevelInfo {
   cleared: string;
 }
 
+/** Signposts in Crater Corners, by the text number each sign point carries. */
+export const SIGNS: string[] = [
+  'Welcome to Crater Corners. Population: nine, plus one very confident cat. Please wipe your boots.',
+  'The Sticky Bun Bakery: closed since the Zargs borrowed the cocoa. Sorry, no refunds.',
+  'The fountain used to run chocolate. Now it runs on hope and a leaky pipe.',
+];
+
 /** Id of the saucer walk-through: a level with no goal, so it never shows a cleared card. */
 export const SAUCER_ID = 15;
 

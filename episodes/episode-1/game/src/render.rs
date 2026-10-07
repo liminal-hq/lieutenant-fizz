@@ -429,6 +429,16 @@ impl World {
                 if tt == ROCK {
                     self.push(fx, fy, theme.rock, &em);
                 }
+                let building = match tt {
+                    HOUSE_A => Some(Spr::OwHouseA),
+                    HOUSE_B => Some(Spr::OwHouseB),
+                    SHOP => Some(Spr::OwShop),
+                    FOUNTAIN => Some(Spr::OwFountain),
+                    _ => None,
+                };
+                if let Some(s) = building {
+                    self.push(fx, fy, s, &em);
+                }
             }
         }
         for i in 0..self.points.len() {
@@ -439,6 +449,7 @@ impl World {
             let (x, y) = (pt.x + 0.5, pt.y + 0.5);
             match pt.kind {
                 crate::levels::PtKind::Saucer => self.push(x, y, Spr::Saucer, &em),
+                crate::levels::PtKind::Sign => self.push(x, y, Spr::OwSign, &em),
                 crate::levels::PtKind::Tele => {
                     let on = self.met(pt.req);
                     let s = if on && ((self.t * 4.0).floor() as i64) & 1 != 0 {
