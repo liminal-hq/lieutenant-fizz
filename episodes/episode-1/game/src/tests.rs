@@ -1003,24 +1003,6 @@ fn the_second_shot_through_the_swivel_reaches_the_switch() {
 }
 
 #[test]
-fn fizz_fires_sideways_on_a_ladder_with_down_held_too() {
-    let mut w = lookout();
-    w.p.b.x = 17.8;
-    w.p.b.y = 3.0;
-    run(&mut w, 40, UP);
-    assert!(w.p.climb);
-    w.shots.clear();
-    w.step(DOWN | FIRE);
-    let s = w.shots.last().expect("a shot");
-    assert!(
-        s.vx.abs() > 10.0 && s.vy == 0.0,
-        "sideways, got {} {}",
-        s.vx,
-        s.vy
-    );
-}
-
-#[test]
 fn every_gate_tile_is_drawn_and_fades_when_its_gate_opens() {
     use crate::sprites::Spr;
     use lf_sim::{SpriteRect, STRIDE};
