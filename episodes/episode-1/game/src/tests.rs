@@ -2349,3 +2349,23 @@ fn holding_up_or_down_on_the_ground_starts_a_look_that_ends_on_release() {
     run(&mut w, 10, DOWN);
     assert!(w.p.look_down > 0.0);
 }
+
+#[test]
+fn ben_shows_his_aim_pose_while_firing_along_a_ladder() {
+    use crate::render::ben_sprite;
+    use crate::sprites::Spr;
+    let mut w = ladder_world();
+    w.step(UP | FIRE);
+    assert!(w.p.climb && w.p.shoot_t > 0.0);
+    assert_eq!(ben_sprite(&w.p), Spr::BenAimUp);
+    let mut w = ladder_world();
+    w.step(DOWN | FIRE);
+    assert_eq!(ben_sprite(&w.p), Spr::BenAimDown);
+    // Climbing without firing keeps the climb frames.
+    let mut w = ladder_world();
+    w.step(UP);
+    assert!(matches!(
+        ben_sprite(&w.p),
+        Spr::BenClimb1 | Spr::BenClimb2
+    ));
+}
