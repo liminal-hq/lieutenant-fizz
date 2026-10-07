@@ -2203,3 +2203,28 @@ fn chalk_drawings_of_billy_and_mortimer_have_their_say() {
         );
     }
 }
+
+#[test]
+fn jumping_off_a_vine_beside_a_wall_hops_instead_of_kicking() {
+    let mut w = arena();
+    for y in 2..20 {
+        w.map.set(12, y, FILL);
+        w.map.set(13, y, VINE);
+    }
+    w.p.b.x = 13.02;
+    w.p.b.y = 6.0;
+    w.p.b.on_ground = false;
+    w.step(UP);
+    assert!(w.p.climb, "holding the vine");
+    w.step(RIGHT | JUMP);
+    assert!(
+        (w.p.b.vy - 12.0).abs() < 2.0,
+        "a hop, not a kick, vy {}",
+        w.p.b.vy
+    );
+    assert!(
+        w.p.b.vx >= 0.0,
+        "pressed away from the wall, vx {}",
+        w.p.b.vx
+    );
+}
