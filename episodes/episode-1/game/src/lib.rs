@@ -136,7 +136,7 @@ pub extern "C" fn load_attract() {
 
 #[no_mangle]
 pub extern "C" fn enter_level(id: u32) {
-    w().enter_level(id as u8);
+    w().enter_level(u8::try_from(id).unwrap_or(u8::MAX));
 }
 
 #[no_mangle]
@@ -249,7 +249,7 @@ pub extern "C" fn state_set(i: u32, v: f64) {
         SCORE => s.game.score = v as i32,
         NEXT_LIFE => s.game.next_life = v as i32,
         AMMO => s.game.ammo = v as i32,
-        DONE_MASK => s.game.done = (v as u32) & world::PROGRESS_BITS,
+        DONE_MASK => s.game.load_done(v as u32),
         MAP_X => {
             let y = s.game.map_pos.map_or(0.0, |p| p.1);
             s.game.map_pos = Some((v, y));

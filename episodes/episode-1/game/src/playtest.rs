@@ -122,6 +122,8 @@ pub struct Options {
     pub climb: bool,
     /// Add fizz shots (straight up, and sideways) to the moves, for levels with mirrors and switches.
     pub fire: bool,
+    /// Allow the pogo toggle. Turn it off to prove a route needs nothing but running and jumping.
+    pub pogo: bool,
     /// Keep enemies (the default removes everything hostile).
     pub keep_enemies: bool,
 }
@@ -134,6 +136,7 @@ impl Default for Options {
             max_ticks: 6000,
             climb: false,
             fire: false,
+            pogo: true,
             keep_enemies: false,
         }
     }
@@ -227,6 +230,7 @@ pub fn solve(mut start: World, route: &[Waypoint], o: &Options) -> Outcome {
         .iter()
         .chain(if o.climb { CLIMB.iter() } else { [].iter() })
         .chain(if o.fire { SHOOT.iter() } else { [].iter() })
+        .filter(|a| o.pogo || a.mask != POGO)
         .copied()
         .collect();
     let mut beam = vec![Node { w: start, wp: 0 }];
@@ -463,6 +467,8 @@ mod tests {
         ];
         let o = Options {
             fire: true,
+            // Nothing in the shaft should need the pogo: three-row steps and ledges under each gate.
+            pogo: false,
             max_ticks: 16_000,
             ..Options::default()
         };

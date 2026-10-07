@@ -512,11 +512,13 @@ mod tests {
         settle(&mut b, &m, 90);
         assert!(b.on_ground);
         assert!((b.y - 9.0).abs() < 1e-3, "standing on the top, y = {}", b.y);
-        let mut up = Body::new(4.85, 3.0, 0.7, 1.4);
-        up.vy = 6.0;
-        for _ in 0..20 {
+        // Rising from the rungs below, the body's head and then its feet cross the ladder-top tile
+        // (row 8) and it ends up above it.
+        let mut up = Body::new(4.85, 6.0, 0.7, 1.4);
+        up.vy = 14.0;
+        for _ in 0..30 {
             up.phys(&m, &[], STEP);
         }
-        assert!(up.y > 4.0, "rose through the ladder, y = {}", up.y);
+        assert!(up.y > 9.5, "rose through the ladder top, y = {}", up.y);
     }
 }
