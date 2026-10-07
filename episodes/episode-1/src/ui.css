@@ -225,6 +225,8 @@ body {
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
+  /* Never push the top of a tall column out of reach: line up with the top and scroll instead. */
+  justify-content: safe center;
   gap: calc(var(--n) * 8px);
   box-sizing: border-box;
   padding: var(--lf-pad-y) var(--lf-pad-x) calc(var(--lf-pad-y) + 40px);
@@ -276,6 +278,44 @@ body {
   color: var(--lf-accent);
   text-shadow: 0 calc(var(--n) * 1px) 0 #000;
 }
+#title .logo {
+  position: relative;
+  width: max-content;
+}
+#title .ben {
+  position: absolute;
+  image-rendering: pixelated;
+  pointer-events: none;
+  transform-origin: 50% 100%;
+}
+@media (max-height: 420px) {
+  #title .ben {
+    display: none;
+  }
+}
+#attractFade {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  pointer-events: none;
+}
+#attractFade[hidden] {
+  display: none;
+}
+#attractTag {
+  --n: var(--lf-n-small);
+  right: var(--lf-pad-x);
+  bottom: var(--lf-keys-bottom);
+  color: var(--lf-muted);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+  pointer-events: none;
+}
+@media (max-width: 559px) {
+  #attractTag {
+    display: none;
+  }
+}
+
 #title .hero {
   --n: var(--lf-n-logo);
   line-height: calc(var(--lf-cell) * var(--n));
@@ -455,6 +495,26 @@ body {
   --n: var(--lf-n-hint);
   color: var(--lf-muted);
   overflow-wrap: anywhere;
+}
+.menu .l2.brief {
+  display: none;
+}
+/* Narrow windows: drop the thumbnail, pips and date so five slots still fit. */
+@media (max-width: 559px) {
+  .menu .thumb,
+  .menu .pips-row {
+    display: none;
+  }
+  .menu .l2.full {
+    display: none;
+  }
+  .menu .l2.brief {
+    display: block;
+  }
+  #controls th:not(.on, :first-child),
+  #controls td:not(.on, :first-child) {
+    display: none;
+  }
 }
 .menu button.sel .l2 {
   color: var(--lf-ink);

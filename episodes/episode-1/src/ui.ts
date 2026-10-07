@@ -23,12 +23,15 @@ import {
   creditsTransform,
   watchResize,
 } from './layout';
+import type { BenFrame, BenPose } from './titleBen';
 import './ui.css';
 
 /** A save slot shown as a row: thumbnail, two lines of text and the cleared-level pips. */
 export interface SlotRow {
   title: string;
   detail: string;
+  /** A shorter second line for narrow windows. */
+  brief: string;
   /** PNG data URL of the mini overworld; empty for an empty slot. */
   thumb: string;
   empty: boolean;
@@ -168,6 +171,11 @@ export class Ui {
   private readonly loading: HTMLElement;
   private toastTimer = 0;
   private bulletUrl = '';
+  private benUrls: Partial<Record<BenPose, string>> = {};
+  private readonly benEl: HTMLImageElement;
+  private readonly heroEl: HTMLElement;
+  private readonly attractFade: HTMLElement;
+  private readonly attractTag: HTMLElement;
   private unwatch: () => void = () => {};
   private ctx: HintContext = { device: 'keyboard', layout: 0 };
   private titleKind: HintScreen = 'list';
@@ -196,8 +204,10 @@ export class Ui {
     this.toastEl = el('div', { id: 'toast', class: 'lf lf-panel', hidden: '' });
 
     this.title = el('div', { id: 'title', class: 'lf screen', hidden: '' });
-    this.title.innerHTML = `<div class="head"><h1 class="wordmark"><span class="kicker">Ben Blaze in</span><span class="hero"><span class="w">Lieutenant</span> <span class="w">Fizz</span></span></h1>
+    this.title.innerHTML = `<div class="head"><h1 class="wordmark"><span class="kicker">Ben Blaze in</span><span class="logo"><span class="hero"><span class="w">Lieutenant</span> <span class="w">Fizz</span></span><img class="ben" alt="" hidden></span></h1>
       <p class="episode">Episode 1 · The Cocoa Caper</p></div>`;
+    this.benEl = need(this.title, '.ben') as HTMLImageElement;
+    this.heroEl = need(this.title, '.hero');
     this.menuEl = el('div', { class: 'menu' });
     this.controls = el('div', { id: 'controls', hidden: '' });
     this.renderControls();
@@ -261,7 +271,11 @@ export class Ui {
     this.loading = el('div', { id: 'loading', class: 'lf' }, 'Loading Zargoth…');
     this.err = el('div', { id: 'err', class: 'lf', hidden: '' });
 
+    this.attractFade = el('div', { id: 'attractFade', hidden: '' });
+    this.attractTag = el('div', { id: 'attractTag', class: 'lf', hidden: '' });
     this.root.append(
+      this.attractFade,
+      this.attractTag,
       this.hud,
       this.boss,
       this.prompt,
@@ -350,6 +364,42 @@ export class Ui {
   /** Freezes the menu plate cycle and bullet bob, for reduced motion. */
   setReducedMotion(on: boolean): void {
     this.root.classList.toggle('rm', on);
+  }
+
+  /** Sets the Ben sprites used on the title: one image per pose. */
+  setBenSprites(grids: Partial<Record<BenPose, Grid>>): void {
+    for (const [pose, grid] of Object.entries(grids) as [BenPose, Grid][]) {
+      const c = document.createElement('canvas');
+      this.paintGrid(c, grid);
+      this.benUrls[pose] = c.toDataURL();
+    }
+  }
+
+  /** The size of the wordmark, so Ben can be placed against it. */
+  logoBox(): { w: number; h: number } {
+    return { w: this.heroEl.offsetWidth, h: this.heroEl.offsetHeight };
+  }
+
+  /** Draws Ben on the title: a pose at a pixel offset from the wordmark, `scale` pixels per sprite pixel. */
+  setBen(f: BenFrame | null, scale = 2): void {
+    const url = f ? this.benUrls[f.pose] : undefined;
+    this.benEl.hidden = !f || !url;
+    if (!f || !url) return;
+    if (this.benEl.getAttribute('src') !== url) this.benEl.src = url;
+    const s = this.benEl.style;
+    s.width = `${16 * scale}px`;
+    s.left = `${f.x}px`;
+    s.bottom = `${f.y}px`;
+    s.transform = `scaleX(${f.flip ? -1 : 1}) rotate(${f.rot}deg)`;
+  }
+
+  /** Shows the attract label and the black fade between levels, or hides both. */
+  setAttract(v: { label: string; fade: number } | null): void {
+    this.attractTag.hidden = !v;
+    this.attractFade.hidden = !v || v.fade <= 0;
+    if (!v) return;
+    if (this.attractTag.textContent !== v.label) this.attractTag.textContent = v.label;
+    this.attractFade.style.opacity = v.fade.toFixed(3);
   }
 
   /** Sets the menu bullet sprite: drawn once to a canvas and shown as a pixelated image. */
@@ -525,9 +575,11 @@ export class Ui {
     const text = el('span', { class: 'txt' });
     const l1 = el('span', { class: 'l1' });
     l1.textContent = s.title;
-    const l2 = el('span', { class: 'l2' });
+    const l2 = el('span', { class: 'l2 full' });
     l2.textContent = s.detail;
-    text.append(l1, l2);
+    const brief = el('span', { class: 'l2 brief' });
+    brief.textContent = s.brief;
+    text.append(l1, l2, brief);
     const pips = el('span', { class: 'pips-row' });
     for (let k = 0; k < s.total; k++) pips.append(el('i', { class: k < s.cleared ? 'on' : '' }));
     if (s.empty) pips.hidden = true;

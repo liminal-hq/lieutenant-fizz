@@ -18,6 +18,7 @@ import type { Grid } from '@lieutenant-fizz/engine/pen';
 import { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
 import simUrl from './wasm/sim.wasm?url';
 import { PATTERNS } from './audio/patterns';
+import { attractFade, attractLabel, nextAttract } from './attract';
 import { Cinematic, CINE_TALL } from './cine';
 import { EPISODE } from './episode';
 import {
@@ -46,13 +47,22 @@ import {
   writeSlot,
   type SlotId,
 } from './save';
-import { areaName, slotDetail, slotName, slotTitle, summarise, type SlotSummary } from './slots';
+import {
+  areaName,
+  slotBrief,
+  slotDetail,
+  slotName,
+  slotTitle,
+  summarise,
+  type SlotSummary,
+} from './slots';
 import { thumbDataUrl } from './thumb';
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
 import { CINE, CINE_TRACK, DIALOGUE, END, LEVELS, SAUCER_ID, SIGNS, type Line } from './story';
 import { MORTIMER_STINGER } from './stinger';
+import { BEN_LOOK, BEN_WAVE, benFrame, benScale, type BenPose } from './titleBen';
 import { Ui, type HudState, type MenuItem, type OptionKey, type Prompt, type SlotRow } from './ui';
 
 export type Screen =
@@ -110,6 +120,11 @@ export class Game {
   private readonly reducedForced: boolean | undefined;
   private settings: Options = { ...DEFAULT_OPTIONS };
   private played = 0;
+  private attractIdx = 0;
+  private readonly benT0 = performance.now() / 1000;
+  private benWaveUntil = 0;
+  private benLookUntil = 0;
+  private titleAction = 0;
   private roll: CreditsRoll | null = null;
   private rollViewport = 0;
   private scene: StingerScene | null = null;
@@ -202,6 +217,12 @@ export class Game {
       const sprites = defineSprites();
       const soda = sprites.find((d) => d.name === 'soda');
       if (soda) ui.setBullet(soda.grid);
+      const ben: Partial<Record<BenPose, Grid>> = {};
+      for (const pose of ['stand', 'jump', 'shoot', 'pogo', 'pogo2'] as const) {
+        const def = sprites.find((d) => d.name === `ben_${pose}`);
+        if (def) ben[pose] = def.grid;
+      }
+      ui.setBenSprites(ben);
       const atlas = buildAtlas(sprites);
       sim.setSprites(atlas.rects);
       const renderer = new InstancedRenderer(ui.gl, atlas);
@@ -217,7 +238,7 @@ export class Game {
   }
 
   private boot(): void {
-    this.sim.x.load_attract();
+    this.loadAttract(0);
     this.hasSave = newestSlot(this.store) !== null;
     this.screen = 'title';
     this.ui.setLoading(false);
@@ -238,6 +259,7 @@ export class Game {
     cancelAnimationFrame(this.raf);
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('pagehide', this.onVisibility);
+    window.clearTimeout(this.titleAction);
     this.input.dispose();
     this.audio.dispose();
     this.ui.dispose();
@@ -289,6 +311,7 @@ export class Game {
       sim.drainEvents().forEach((e) => this.onEvent(e));
     }
     this.tickTypewriter(dt);
+    this.tickTitle();
     this.draw();
 
     if (dt > 0) this.fpsE += (1 / dt - this.fpsE) * 0.05;
@@ -554,6 +577,53 @@ export class Game {
   }
   private hud: HudState | null = null;
 
+  // ---------- Title: attract loop and Ben ----------
+
+  /** Loads one level of the attract loop, with the camera held still under reduced motion. */
+  private loadAttract(idx: number): void {
+    this.attractIdx = idx;
+    this.sim.x.load_attract(idx, this.reducedMotion ? 1 : 0);
+  }
+
+  /** Advances the attract loop, fades between levels, and animates Ben on the title. */
+  private tickTitle(): void {
+    if (this.screen !== 'title') {
+      this.ui.setAttract(null);
+      this.ui.setBen(null);
+      return;
+    }
+    const sim = this.sim;
+    const ticks = sim.get(State.ATTRACT_T);
+    const period = sim.get(State.ATTRACT_PERIOD);
+    if (!this.reducedMotion && ticks >= period) {
+      this.loadAttract(nextAttract(this.attractIdx));
+    }
+    this.ui.setAttract({
+      label: attractLabel(this.attractIdx),
+      fade: attractFade(ticks, period, this.reducedMotion),
+    });
+    if (this.sub) {
+      this.ui.setBen(null);
+      return;
+    }
+    const now = performance.now() / 1000;
+    const scale = benScale(window.innerHeight);
+    const box = this.ui.logoBox();
+    this.ui.setBen(
+      benFrame({ logoW: box.w, logoH: box.h, width: 16 * scale }, now - this.benT0, {
+        reduced: this.reducedMotion,
+        waveLeft: Math.max(0, this.benWaveUntil - now),
+        looking: this.benLookUntil > now,
+      }),
+      scale,
+    );
+  }
+
+  /** Ben turns to face the menu for a moment, as the selection moves. */
+  private benLook(): void {
+    this.benLookUntil = performance.now() / 1000 + BEN_LOOK;
+  }
+
   // ---------- Input: menus, commands ----------
 
   private menuInput(bits: number): void {
@@ -648,10 +718,12 @@ export class Game {
     this.audio.setSfxVolume(volumeOf(o.sfx));
     this.audio.setSfx(o.sfx > 0);
     this.opts.captions = o.captions;
+    const before = this.reducedMotion;
     this.reducedMotion =
       this.reducedForced ??
       reducedMotion(o, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     this.ui.setReducedMotion(this.reducedMotion);
+    if (before !== this.reducedMotion && this.screen === 'title') this.loadAttract(this.attractIdx);
     this.ui.setTextLarge(o.text === 1);
     this.ui.setToggle('music', o.music > 0);
     this.ui.setToggle('sfx', o.sfx > 0);
@@ -715,6 +787,7 @@ export class Game {
       const slot: SlotRow = {
         title: slotTitle(summary),
         detail: slotDetail(summary, this.saveMode),
+        brief: slotBrief(summary, this.saveMode),
         thumb: entry?.thumb ?? '',
         empty: summary.empty,
         cleared: summary.cleared,
@@ -779,12 +852,14 @@ export class Game {
     }
     this.audio.play('menu');
     this.menuIdx = i;
+    this.benLook();
     this.syncUi();
   }
 
   private hover(i: number): void {
     if (this.menuItems()[i]?.disabled || this.menuIdx === i) return;
     this.menuIdx = i;
+    this.benLook();
     this.syncUi();
   }
 
@@ -871,11 +946,22 @@ export class Game {
     }
     if (this.sub === 'controls') return this.closeSub();
     if (this.screen === 'title') {
-      if (id === 'new') this.newGame();
-      else if (id === 'continue') this.continueGame();
-      else if (id === 'load') this.openSaves('load');
-      else if (id === 'options') this.openSub('options');
-      else if (id === 'controls') this.openSub('controls');
+      // Ben waves for a moment before the choice takes effect, unless motion is reduced.
+      const run = (): void => {
+        this.titleAction = 0;
+        if (this.screen !== 'title') return;
+        if (id === 'new') this.newGame();
+        else if (id === 'continue') this.continueGame();
+        else if (id === 'load') this.openSaves('load');
+        else if (id === 'options') this.openSub('options');
+        else if (id === 'controls') this.openSub('controls');
+      };
+      if (this.titleAction) return;
+      if (this.reducedMotion) run();
+      else {
+        this.benWaveUntil = performance.now() / 1000 + BEN_WAVE;
+        this.titleAction = window.setTimeout(run, 650);
+      }
     } else if (this.screen === 'pause') {
       if (id === 'resume') this.resume();
       else if (id === 'save') this.openSaves('save');
@@ -1198,7 +1284,9 @@ export class Game {
 
   private quitToTitle(): void {
     window.clearTimeout(this.completeTimer);
-    this.sim.x.load_attract();
+    window.clearTimeout(this.titleAction);
+    this.titleAction = 0;
+    this.loadAttract(0);
     this.screen = 'title';
     this.card = null;
     this.sub = null;
@@ -1317,6 +1405,30 @@ export class Game {
     this.sim.x.game_new();
     this.sim.x.enter_level(id);
     this.handleEvents();
+  }
+
+  /** Test hook: opens a screen directly, so layout checks can visit each one. */
+  debugShow(
+    what: 'title' | 'controls' | 'options' | 'saves' | 'pause' | 'cine' | 'dialogue' | 'credits',
+  ): void {
+    if (what === 'credits') return this.debugStartCredits();
+    if (what === 'cine') return this.newGame();
+    if (what === 'pause' || what === 'dialogue') {
+      this.debugEnterLevel(0);
+      this.screen = what;
+      if (what === 'dialogue') {
+        this.dlg = DIALOGUE.bossIntro;
+        this.dlgId = 'bossIntro';
+        this.dlgI = 0;
+        this.typed = 1e6;
+      }
+      this.menuIdx = 0;
+      return this.syncUi();
+    }
+    this.quitToTitle();
+    this.sub = what === 'title' ? null : what === 'saves' ? 'saves' : what;
+    if (what === 'saves') this.openSaves('load');
+    this.syncUi();
   }
 
   get debugState(): Record<string, unknown> {

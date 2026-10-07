@@ -12,6 +12,7 @@ import {
   clearedCount,
   formatDate,
   formatPlayed,
+  slotBrief,
   slotDetail,
   slotName,
   slotTitle,
@@ -67,6 +68,19 @@ describe('slot text', () => {
   it('names areas and falls back to the first for an unknown id', () => {
     expect(areaName(1)).toBe('Marshmallow Meadows');
     expect(areaName(99)).toBe(AREA_NAMES[0]);
+  });
+});
+
+describe('slotBrief', () => {
+  it('keeps lives, score and time played, and drops the date', () => {
+    expect(slotBrief(summarise(1, stored(), 'Crater Fields'), 'load')).toBe(
+      'Lives 3 · 1,240 pts · 0:42',
+    );
+  });
+
+  it('says what an empty slot is for', () => {
+    expect(slotBrief(summarise(2, null, ''), 'save')).toBe('Save here');
+    expect(slotBrief(summarise(2, null, ''), 'load')).toBe('Nothing saved');
   });
 });
 

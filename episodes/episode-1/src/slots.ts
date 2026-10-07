@@ -100,6 +100,12 @@ export function summarise(id: SlotId, save: Stored | null, place: string): SlotS
 /** The first line of a slot row: `Name · Place`, or `Name · Empty`. */
 export const slotTitle = (s: SlotSummary): string => `${s.name} · ${s.empty ? 'Empty' : s.place}`;
 
+/** A shorter second line for narrow windows: lives, score and time played only. */
+export function slotBrief(s: SlotSummary, mode: 'save' | 'load'): string {
+  if (s.empty) return mode === 'save' ? 'Save here' : 'Nothing saved';
+  return [`Lives ${s.lives}`, `${s.score.toLocaleString('en-CA')} pts`, s.played].join(' · ');
+}
+
 /** The second line of a slot row. Empty slots say what the screen can do with them. */
 export function slotDetail(s: SlotSummary, mode: 'save' | 'load'): string {
   if (s.empty) return mode === 'save' ? 'Save here' : 'Save from the pause menu to use this slot';
