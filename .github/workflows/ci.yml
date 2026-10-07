@@ -58,6 +58,7 @@ jobs:
   e2e:
     name: Overlay layout in Chromium
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
@@ -68,6 +69,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
+      # The locally installed CLI, so nothing is resolved from the network first.
+      - run: ./node_modules/.bin/playwright install --with-deps chromium
       # Builds the WASM, starts the Vite dev server and checks each screen at four window sizes.
       - run: bun run test:e2e
