@@ -723,6 +723,7 @@ impl World {
                     RUNG => Spr::Ladder as u16,
                     RUNG_TOP => Spr::LadderTop as u16,
                     VINE => Spr::Vine as u16,
+                    CRACKED => Spr::Cracked as u16,
                     SPIKE => Spr::SpikeTile as u16,
                     CONV_L => {
                         if fr != 0 {
@@ -965,6 +966,14 @@ impl World {
                     } else {
                         Spr::SwitchOff
                     }
+                }
+                Kind::Target => {
+                    op = em;
+                    Spr::Target
+                }
+                Kind::Glyph => {
+                    op = PushOpts::default();
+                    Spr::Glyph
                 }
                 Kind::Terminal => {
                     op = em;

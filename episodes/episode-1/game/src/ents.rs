@@ -29,6 +29,10 @@ pub enum Kind {
     CrystalSwitch,
     /// A crushing press that rises and falls over a floor; harmless while it is raised.
     Press,
+    /// Shootable scenery: a fizz bubble pops it, and it drops `dir` cheezies (3 if unset).
+    Target,
+    /// Painted wall art: touching it shows a line of lore, chosen by `dir`.
+    Glyph,
 }
 
 /// Static per-kind traits (size and how the player may interact).
@@ -154,6 +158,20 @@ pub fn info(k: Kind) -> Info {
             w: 2.0,
             h: 1.5,
             inv: true,
+            ..D
+        },
+        Kind::Target => Info {
+            w: 0.8,
+            h: 0.8,
+            harmless: true,
+            prop: true,
+            ..D
+        },
+        Kind::Glyph => Info {
+            w: 1.6,
+            h: 1.4,
+            harmless: true,
+            prop: true,
             ..D
         },
         Kind::Mirror | Kind::Swivel | Kind::CrystalSwitch => Info {

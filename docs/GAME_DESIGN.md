@@ -45,6 +45,9 @@ See `STORY.md` for the full opening cinematic and ending text.
 - **Fizz Blaster:** cream soda bubbles. Stuns enemies for 6 s, never kills. Aim up with ↑, or down with ↓ while in the air. Uses ammo; cream soda cans give +5.
 - **Stomp:** landing on most enemies stuns them for 3 s.
 - **Lives:** start with 3, extra life every 100 snack points. Death returns Ben to the map; game over offers your last save.
+- **Cracked walls:** a cracked rock tile is solid until a fizz shot from Ben hits it; it and every cracked tile touching it then crumble away. Enemy bubbles do nothing to it. Cracks hide short ways through to secret rooms, so a cracked wall is always a promise, never a trap.
+- **Lanterns:** a hanging candy lantern is shootable scenery. A fizz bubble pops it into a few cheezies (the spawn's `dir` is the count, three by default).
+- **Wall paintings:** a painted panel shows one line of lore the first time Ben touches it. The paintings hint at the world's history: the crystal growers, the round ship, fizz on a dry crack, and the long stair down.
 - **Vines:** vine tiles are not solid. Up grabs one anywhere along its length, Up and Down move at 3.5 tiles/s, and Left and Right shuffle sideways at 3 tiles/s from vine to vine. Jump lets go with a hop, exactly as on a ladder. Vines suit cave walls, where a ladder would look out of place.
 - **Mantle:** when Ben jumps and just misses a ledge (the top edge is within about one tile of his feet and there is headroom), he hauls himself up onto it automatically ("heave"). Level design can therefore count on a one-tile overshoot.
 - **Wall-kick:** pressing Jump while touching a solid wall in mid-air kicks off it (up 19 tiles/s, away 6 tiles/s). Each side allows one kick until Ben lands, climbs, or kicks off the opposite wall, so a single wall cannot be scaled but two facing walls (a shaft at least three tiles wide) can. A kick is always full height.

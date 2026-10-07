@@ -60,7 +60,7 @@ sprites! {
     ChocTop0 = "chocTop0", ChocTop1 = "chocTop1", ChocDeep0 = "chocDeep0", ChocDeep1 = "chocDeep1",
     DoorRed = "doorRed", DoorBlue = "doorBlue", DoorGreen = "doorGreen", ExitTop = "exitTop", ExitBot = "exitBot",
     Bridge = "bridge", Gate = "gate", Mirror = "mirror", CrysSwitchOff = "crysSwitchOff", CrysSwitchOn = "crysSwitchOn", Hover0 = "hover0", Hover1 = "hover1", Lift0 = "lift0", Lift1 = "lift1",
-    Ladder = "ladder", LadderTop = "ladderTop", Vine = "vine", SwitchOff = "switchOff", SwitchOn = "switchOn",
+    Ladder = "ladder", LadderTop = "ladderTop", Vine = "vine", Cracked = "cracked", Target = "target", Glyph = "glyph", SwitchOff = "switchOff", SwitchOn = "switchOn",
     Terminal0 = "terminal0", Terminal1 = "terminal1",
     OwGrass = "owGrass", OwPath = "owPath", OwRiver0 = "owRiver0", OwRiver1 = "owRiver1", OwWater0 = "owWater0", OwWater1 = "owWater1",
     OwTree0 = "owTree0", OwTree1 = "owTree1", OwRock = "owRock",

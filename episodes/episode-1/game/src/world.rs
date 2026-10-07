@@ -1126,6 +1126,18 @@ impl World {
                     }
                     continue;
                 }
+                Kind::Glyph => {
+                    if first {
+                        let toast = match en.dir as i32 {
+                            1 => Toast::GlyphVisitors,
+                            2 => Toast::GlyphFizz,
+                            3 => Toast::GlyphDeep,
+                            _ => Toast::GlyphGrowth,
+                        };
+                        self.toast(toast);
+                    }
+                    continue;
+                }
                 // A raised press is harmless; only one that has come down towards the floor crushes.
                 Kind::Press if en.b.y >= en.ay - PRESS_DANGER_DROP => continue,
                 _ => {}
@@ -1660,7 +1672,9 @@ impl World {
             | Kind::Cage
             | Kind::Mirror
             | Kind::Swivel
-            | Kind::CrystalSwitch => {}
+            | Kind::CrystalSwitch
+            | Kind::Target
+            | Kind::Glyph => {}
         }
     }
 
@@ -1803,6 +1817,10 @@ impl World {
             b.x += b.vx * dt;
             b.y += b.vy * dt;
             b.life -= dt;
+            if b.ben && self.map.get(b.x.floor() as i32, b.y.floor() as i32) == CRACKED {
+                self.crumble(b.x.floor() as i32, b.y.floor() as i32);
+                b.life = 0.0;
+            }
             let mut gone = b.life <= 0.0
                 || self
                     .map
@@ -1860,6 +1878,25 @@ impl World {
                                     tint: 0x55ffff,
                                 });
                             }
+                        }
+                        continue;
+                    }
+                    if e.kind == Kind::Target {
+                        let (cx, cy) = (e.b.x + e.b.w / 2.0, e.b.y + e.b.h / 2.0);
+                        if (b.x - cx).abs() < 0.7 && (b.y - cy).abs() < 0.7 {
+                            let n = if e.dir < 1.0 { 3 } else { e.dir as i32 };
+                            self.ents[j].dead = true;
+                            for k in 0..n {
+                                self.items.push(Item {
+                                    kind: ItemKind::Cheezie,
+                                    x: cx + (f64::from(k) - f64::from(n - 1) / 2.0) * 0.7,
+                                    y: cy - 0.2,
+                                    taken: false,
+                                });
+                            }
+                            self.cap(cx, cy + 0.7, Cap::Pop);
+                            gone = true;
+                            break;
                         }
                         continue;
                     }
@@ -1928,6 +1965,30 @@ impl World {
             } else {
                 self.shots[i] = b;
             }
+        }
+    }
+
+    /// Breaks the cracked tile at `(x, y)` and every cracked tile joined to it.
+    fn crumble(&mut self, x: i32, y: i32) {
+        let mut open = vec![(x, y)];
+        let mut first = true;
+        while let Some((cx, cy)) = open.pop() {
+            if self.map.get(cx, cy) != CRACKED {
+                continue;
+            }
+            self.map.set(cx, cy, EMPTY);
+            self.fx.push(Fx {
+                x: f64::from(cx) + 0.5,
+                y: f64::from(cy) + 0.5,
+                t: 0.0,
+                life: 0.5,
+                tint: 0xaaaaaa,
+            });
+            if first {
+                self.cap(f64::from(cx) + 0.5, f64::from(cy) + 1.0, Cap::Crumble);
+                first = false;
+            }
+            open.extend([(cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)]);
         }
     }
 

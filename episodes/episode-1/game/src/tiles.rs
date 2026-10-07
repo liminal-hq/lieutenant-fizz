@@ -52,6 +52,9 @@ pub const GATE_3: u8 = 34;
 pub const FACADE: u8 = 31;
 /// A crystal vine on a cave wall: not solid, and Ben can free-climb it in any direction.
 pub const VINE: u8 = 36;
+/// A cracked wall: solid until a fizz shot hits it, then it (and any cracked tiles touching it)
+/// crumbles away, opening a hidden way through.
+pub const CRACKED: u8 = 37;
 /// Decorative interior wall behind a building's rooms, stairs and ladders (not solid).
 pub const WALLBG: u8 = 30;
 /// Climbable rung (not solid).
@@ -67,7 +70,9 @@ pub fn is_liquid(t: u8) -> bool {
 /// Collision behaviour for every Episode 1 tile id.
 pub fn props() -> TileProps {
     let mut p = TileProps::default();
-    for t in [FILL, BLOCK, DOOR_R, DOOR_B, DOOR_G, RIVER, TREE, ROCK] {
+    for t in [
+        FILL, BLOCK, CRACKED, DOOR_R, DOOR_B, DOOR_G, RIVER, TREE, ROCK,
+    ] {
         p.set_flags(t, SOLID);
     }
     p.set_flags(CONV_L, SOLID | CONVEY_L);
