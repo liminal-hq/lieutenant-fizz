@@ -9,6 +9,8 @@ import {
   BUTTON_CODES,
   FIXED_KEYS,
   FIXED_KEY_BASE,
+  KEYED_ARROWS,
+  KEYED_ARROW_BASE,
   KEYED_BASE,
   KEY_CENTRE,
   KEY_LEFT,
@@ -146,6 +148,10 @@ export function puaGlyphs(
     out.push({ cp: KEYED_BASE + cp - 0x20, name: `keyed.${cp.toString(16)}`, rows, joiner: true });
     if (cp === 0x20) out.push({ cp: KEY_CENTRE, name: 'key.centre', rows, joiner: true });
   }
+  KEYED_ARROWS.forEach((arrow, i) => {
+    const rows = keyedFor(arrow);
+    out.push({ cp: KEYED_ARROW_BASE + i, name: `keyed.arrow${i}`, rows, joiner: true });
+  });
   FIXED_KEYS.forEach((key, i) => {
     const rows = concat([capLeft(), ...Array.from(key, keyedFor), capRight()]);
     out.push({ cp: FIXED_KEY_BASE + i, name: `key.${key}`, rows, joiner: true });

@@ -25,6 +25,10 @@ export const KEY_CENTRE = 0xe0f1;
 export const KEY_RIGHT = 0xe0f2;
 /** Keycap label glyphs: `KEYED_BASE + (code point - 0x20)` for printable ASCII. */
 export const KEYED_BASE = 0xe100;
+/** Arrow characters that also have keycap label glyphs, at `KEYED_ARROW_BASE` in this order. */
+export const KEYED_ARROWS = ['←', '→', '↑', '↓'] as const;
+/** First code point of the keycap arrow glyphs. */
+export const KEYED_ARROW_BASE = 0xe160;
 /** Whole keycaps for common key names, drawn as one glyph each. */
 export const FIXED_KEYS = [
   'Esc',
@@ -48,6 +52,8 @@ export const keyedShape = (ch: string): string => DESCENDER_FOLD[ch] ?? ch;
 
 /** The private-use code point of one keycap label character. Anything unprintable becomes `?`. */
 export function keyedCode(ch: string): number {
+  const arrow = (KEYED_ARROWS as readonly string[]).indexOf(ch);
+  if (arrow >= 0) return KEYED_ARROW_BASE + arrow;
   const cp = ch.codePointAt(0) ?? 0x3f;
   return KEYED_BASE + (cp >= 0x20 && cp <= 0x7e ? cp : 0x3f) - 0x20;
 }

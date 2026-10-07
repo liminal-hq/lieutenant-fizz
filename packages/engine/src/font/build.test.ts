@@ -54,7 +54,7 @@ describe('font metrics', () => {
   it('has the same glyph count in every face', () => {
     const counts = FACES.map((f) => parse(f).glyphs.length);
     expect(new Set(counts).size).toBe(1);
-    expect(counts[0]).toBe(299);
+    expect(counts[0]).toBe(303);
   });
 
   it('advances ordinary glyphs by their width plus one pixel', () => {
@@ -137,6 +137,8 @@ describe('coverage', () => {
     expect(has('')).toEqual([]);
     expect(has('')).toEqual([]);
     expect(has(hintText('{[Page Up]}'))).toEqual([]);
+    expect(has(hintText('{[↑↓]} {[←→]}'))).toEqual([]);
+    expect(hintText('{[↑]}')).toBe(`\uE0F0\uE162\uE0F2`);
   });
 });
 

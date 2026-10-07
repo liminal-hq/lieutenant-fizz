@@ -67,6 +67,7 @@ These sit in the Private Use Area, so they never collide with real text.
 | `U+E0F0`, `E0F2` | Keycap left and right ends                                                          |
 | `U+E0F1`         | Keycap centre: a blank stretch inside a label (used for spaces)                     |
 | `U+E100–E15E`    | Keycap label characters: printable ASCII `U+0020–007E` drawn between the top and bottom edges |
+| `U+E160–E163`    | Keycap label arrows ← → ↑ ↓                                                         |
 | `U+E200–E208`    | Whole keycaps for Esc, Enter, Space, Ctrl, Alt, Shift, Tab, F5, F9                  |
 
 The button letters are holes in the outline, so a button reads as a single-colour disc on any background. Keycap labels use capitals for g, j, p, q and y so tails do not hit the keycap's lower edge.
