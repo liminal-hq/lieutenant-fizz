@@ -2526,3 +2526,38 @@ fn the_saucer_has_its_five_crystals() {
     let n = w.map.data.iter().filter(|&&t| t == CRYS).count();
     assert_eq!(n, 5, "crystals light the saucer");
 }
+
+#[test]
+fn the_overworld_thumbnail_marks_rivers_areas_and_level_nodes() {
+    use crate::levels::{
+        area_at, build_overworld, overworld_areas, overworld_thumb, PtKind, AREA_CRATER_FIELDS,
+        AREA_GUMDROP_ISLE, THUMB_GRASS, THUMB_NODE, THUMB_RIVER,
+    };
+    let (w, h, cells) = overworld_thumb();
+    assert_eq!((w, h), (60, 44));
+    assert_eq!(cells.len(), (w * h) as usize);
+    let kind = |x: i32, y: i32| cells[(y * w + x) as usize] & 0x0f;
+    let aux = |x: i32, y: i32| cells[(y * w + x) as usize] >> 4;
+    assert_eq!(kind(0, 0), THUMB_RIVER, "the outer river");
+    assert_eq!(kind(24, 10), THUMB_RIVER, "the north-south river");
+    assert_eq!(kind(10, 10), THUMB_GRASS);
+    assert_eq!(aux(10, 10), AREA_CRATER_FIELDS);
+    let areas = overworld_areas();
+    assert_eq!(aux(10, 10), area_at(&areas, 10, 10));
+    assert_eq!(area_at(&areas, 24, 22), AREA_GUMDROP_ISLE);
+    // Every visible level point is a node carrying its level id.
+    let data = build_overworld();
+    let nodes: Vec<_> = data
+        .points
+        .iter()
+        .filter(|p| p.kind == PtKind::Level && !p.hidden)
+        .collect();
+    assert!(!nodes.is_empty());
+    for p in &nodes {
+        let (x, y) = (p.x as i32, p.y as i32);
+        assert_eq!(kind(x, y), THUMB_NODE, "node at {x},{y}");
+        assert_eq!(aux(x, y), p.level);
+    }
+    let count = cells.iter().filter(|&&c| c & 0x0f == THUMB_NODE).count();
+    assert_eq!(count, nodes.len());
+}

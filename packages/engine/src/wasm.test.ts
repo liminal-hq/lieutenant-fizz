@@ -78,6 +78,18 @@ describe('MemoryViews', () => {
     expect(after.length).toBe(4);
   });
 
+  it('returns a byte view at the pointer, cached, and rebuilt after memory.grow', () => {
+    const memory = new WebAssembly.Memory({ initial: 1, maximum: 2 });
+    new Uint8Array(memory.buffer, 4, 3).set([7, 8, 9]);
+    const views = new MemoryViews(memory);
+    const a = views.u8('b', 4, 3);
+    expect(Array.from(a)).toEqual([7, 8, 9]);
+    expect(views.u8('b', 4, 3)).toBe(a);
+    memory.grow(1);
+    expect(a.length).toBe(0);
+    expect(Array.from(views.u8('b', 4, 3))).toEqual([7, 8, 9]);
+  });
+
   it('decodes UTF-8 strings from memory', () => {
     const memory = new WebAssembly.Memory({ initial: 1 });
     const bytes = new TextEncoder().encode('Fizz — ok');

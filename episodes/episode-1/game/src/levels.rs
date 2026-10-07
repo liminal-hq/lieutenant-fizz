@@ -2005,6 +2005,42 @@ pub fn overworld_areas() -> Vec<AreaRect> {
     ]
 }
 
+/// A cell of the overworld thumbnail is `kind | aux << 4`: grass (aux is the area), river, or a
+/// level node (aux is the level id).
+pub const THUMB_GRASS: u8 = 0;
+pub const THUMB_RIVER: u8 = 1;
+pub const THUMB_NODE: u8 = 2;
+
+/// The overworld flattened to one byte per tile, row 0 at the south, for the save-slot thumbnails.
+/// Returns the width, the height and the cells. Nodes mark every level point; teleporters, signs and
+/// the saucer are left out.
+pub fn overworld_thumb() -> (i32, i32, Vec<u8>) {
+    let data = build_overworld();
+    let (w, h) = (data.map.w, data.map.h);
+    let mut cells = vec![0u8; (w * h) as usize];
+    for y in 0..h {
+        for x in 0..w {
+            let kind = if data.map.get(x, y) == RIVER {
+                THUMB_RIVER
+            } else {
+                THUMB_GRASS
+            };
+            cells[(y * w + x) as usize] = kind | (data.area_at(x, y) << 4);
+        }
+    }
+    for p in data
+        .points
+        .iter()
+        .filter(|p| p.kind == PtKind::Level && !p.hidden)
+    {
+        let (x, y) = (p.x as i32, p.y as i32);
+        if x >= 0 && y >= 0 && x < w && y < h {
+            cells[(y * w + x) as usize] = THUMB_NODE | (p.level << 4);
+        }
+    }
+    (w, h, cells)
+}
+
 pub fn build_overworld() -> MapData {
     let (w, h) = (60, 44);
     let mut map = TileMap::new(w, h, props());

@@ -122,6 +122,41 @@ pub extern "C" fn events_clear() {
     w().events.clear();
 }
 
+// ---------- Overworld thumbnail ----------
+
+static mut THUMB: Option<(i32, i32, Vec<u8>)> = None;
+
+/// The overworld as one byte per tile (see `levels::overworld_thumb`), built once.
+fn thumb() -> &'static (i32, i32, Vec<u8>) {
+    // SAFETY: single-threaded wasm; exports are never re-entered.
+    unsafe { (*addr_of_mut!(THUMB)).get_or_insert_with(levels::overworld_thumb) }
+}
+
+#[no_mangle]
+pub extern "C" fn thumb_w() -> u32 {
+    thumb().0 as u32
+}
+
+#[no_mangle]
+pub extern "C" fn thumb_h() -> u32 {
+    thumb().1 as u32
+}
+
+#[no_mangle]
+pub extern "C" fn thumb_ptr() -> *const u8 {
+    thumb().2.as_ptr()
+}
+
+/// The overworld area (see the `AREA_*` ids) that covers a tile position.
+#[no_mangle]
+pub extern "C" fn area_of(x: f64, y: f64) -> u32 {
+    u32::from(levels::area_at(
+        &levels::overworld_areas(),
+        x.floor() as i32,
+        y.floor() as i32,
+    ))
+}
+
 // ---------- Flow ----------
 
 #[no_mangle]

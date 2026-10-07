@@ -34,6 +34,10 @@ export interface SimExports {
   mode(): number;
   state_get(i: number): number;
   state_set(i: number, v: number): void;
+  thumb_w(): number;
+  thumb_h(): number;
+  thumb_ptr(): number;
+  area_of(x: number, y: number): number;
 }
 
 /** Atlas rectangle of a sprite: UV origin and size plus the size in logical pixels. */
@@ -83,6 +87,21 @@ export class Sim {
       out.push(this.views.string(this.x.name_ptr(table, i), this.x.name_len(table, i)));
     }
     return out;
+  }
+
+  /**
+   * The overworld flattened to one byte per tile, row 0 at the south: `kind | aux << 4`, where kind
+   * 0 is grass (aux is the area), 1 is river and 2 is a level node (aux is the level id).
+   */
+  overworldThumb(): { w: number; h: number; cells: Uint8Array } {
+    const w = this.x.thumb_w();
+    const h = this.x.thumb_h();
+    return { w, h, cells: this.views.u8('thumb', this.x.thumb_ptr(), w * h) };
+  }
+
+  /** The overworld area id at a tile position. */
+  areaOf(x: number, y: number): number {
+    return this.x.area_of(x, y);
   }
 
   captionColour(i: number): number {

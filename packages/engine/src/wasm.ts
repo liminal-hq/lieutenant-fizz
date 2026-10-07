@@ -55,6 +55,19 @@ export class MemoryViews {
     return view;
   }
 
+  private bytes = new Map<string, { buffer: ArrayBufferLike; view: Uint8Array }>();
+
+  u8(key: string, ptr: number, length: number): Uint8Array {
+    const buffer = this.memory.buffer;
+    const hit = this.bytes.get(key);
+    if (hit && hit.buffer === buffer && hit.view.byteOffset === ptr && hit.view.length === length) {
+      return hit.view;
+    }
+    const view = new Uint8Array(buffer, ptr, length);
+    this.bytes.set(key, { buffer, view });
+    return view;
+  }
+
   string(ptr: number, len: number): string {
     return new TextDecoder().decode(new Uint8Array(this.memory.buffer, ptr, len));
   }
