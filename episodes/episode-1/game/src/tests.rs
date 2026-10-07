@@ -1154,7 +1154,11 @@ fn the_green_gumdrop_is_collected_and_opens_only_the_green_door() {
     w.p.face = 1.0;
     run(&mut w, 40, RIGHT);
     assert!(!w.keys_green, "the key is used up");
-    assert_eq!(w.map.get(36, 5), 0, "the green door is gone");
+    assert_eq!(
+        w.map.get(36, 5),
+        WALLBG,
+        "the green door is gone, leaving interior wall"
+    );
     assert_ne!(w.map.get(21, 49), 0, "the red door is untouched");
 }
 
