@@ -30,6 +30,8 @@ pub const PATH: u8 = 21;
 pub const RIVER: u8 = 22;
 pub const TREE: u8 = 23;
 pub const ROCK: u8 = 24;
+/// Painted flat that hides a room (see `levels::Room`); fades out while Ben is inside it.
+pub const FACADE: u8 = 31;
 /// Decorative interior wall behind a building's rooms, stairs and ladders (not solid).
 pub const WALLBG: u8 = 30;
 /// Climbable rung (not solid).

@@ -73,6 +73,7 @@ pub enum Theme {
     Citadel,
     OpenSky,
     Building,
+    Theatre,
 }
 
 /// How the camera follows Ben.
@@ -100,6 +101,7 @@ impl Theme {
             Theme::Citadel => 2,
             Theme::OpenSky => 3,
             Theme::Building => 4,
+            Theme::Theatre => 5,
         }
     }
 }
@@ -195,6 +197,21 @@ pub fn theme(t: Theme) -> LevelTheme {
             ],
             crys: Spr::CrysM,
             lc: [1.0, 0.85, 0.5],
+        },
+        Theme::Theatre => LevelTheme {
+            clear: 0x200010,
+            amb: [0.62, 0.5, 0.58],
+            night: [0.3, 0.22, 0.3],
+            lm: 0.6,
+            lantern: true,
+            layers: vec![Layer::Wall {
+                s: tileset_tile(Theme::Theatre.tiles(), BT_BACK),
+                tint: 0xbb9aaa,
+                nt: 0x6a4a5a,
+                f: 0.7,
+            }],
+            crys: Spr::CrysM,
+            lc: [1.2, 0.8, 0.5],
         },
         Theme::Building => LevelTheme {
             clear: 0x55ffff,
@@ -969,6 +986,30 @@ impl World {
                         ..Default::default()
                     },
                 );
+            }
+        }
+        // Painted flats go over everything, so a hidden room hides what is inside until it fades.
+        if !self.rooms.is_empty() {
+            for y in ty0..=ty1 {
+                for x in tx0..=tx1 {
+                    if self.map.get(x, y) != FACADE {
+                        continue;
+                    }
+                    let a = self.room_at(x, y).map_or(1.0, |i| self.room_alpha[i]);
+                    if a < 0.02 {
+                        continue;
+                    }
+                    self.push(
+                        f64::from(x) + 0.5,
+                        f64::from(y) + 0.5,
+                        Spr::Facade,
+                        &PushOpts {
+                            alpha: a as f32,
+                            ..Default::default()
+                        },
+                    );
+                    world += 1;
+                }
             }
         }
         world

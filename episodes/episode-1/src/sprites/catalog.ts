@@ -108,6 +108,7 @@ export function defineSprites(): SpriteDef[] {
     add(`${b}Block`, t.blockTile(b), true);
     add(`${b}Back`, t.backTile(b, seed++), true);
   }
+  add('facade', t.facadeTile(), true);
   add('crysC', t.crystal('c', 'C'));
   add('crysM', t.crystal('m', 'M'));
   add('spike', t.spikeTile());
@@ -137,6 +138,8 @@ export function defineSprites(): SpriteDef[] {
   add('owCrater', sc.owCrater());
   add('owMesa', sc.owMesa());
   add('owTower', sc.owTower());
+  add('owPlayhouse', sc.owPlayhouse());
+  add('owMeadow', sc.owMeadow());
   add('owCave', sc.owCave());
   add('owCastle', sc.owCastle());
   add('owTele0', sc.owTele(0));

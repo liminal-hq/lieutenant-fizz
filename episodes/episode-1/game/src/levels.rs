@@ -16,9 +16,11 @@ pub const CAVES: u8 = 1;
 pub const CITADEL: u8 = 2;
 pub const METEOR_MESA: u8 = 3;
 pub const ZARG_LOOKOUT: u8 = 4;
+pub const MARSHMALLOW_MEADOWS: u8 = 5;
+pub const BONBON_PLAYHOUSE: u8 = 6;
 
 /// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
-pub const LEVEL_COUNT: u8 = 5;
+pub const LEVEL_COUNT: u8 = 7;
 
 /// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
 pub const AREA_CRATER_FIELDS: u8 = 0;
@@ -73,6 +75,20 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
         area: AREA_CRATER_FIELDS,
         icon: Spr::OwTower,
     },
+    LevelDef {
+        id: MARSHMALLOW_MEADOWS,
+        build: marshmallow_meadows,
+        theme: Theme::OpenSky,
+        area: AREA_MARSHMALLOW_MEADOWS,
+        icon: Spr::OwMeadow,
+    },
+    LevelDef {
+        id: BONBON_PLAYHOUSE,
+        build: bonbon_playhouse,
+        theme: Theme::Theatre,
+        area: AREA_MARSHMALLOW_MEADOWS,
+        icon: Spr::OwPlayhouse,
+    },
 ];
 
 /// Bit in `Game::done` for a cleared level.
@@ -86,6 +102,28 @@ pub struct Arena {
     pub floor: f64,
 }
 
+/// A rectangle of tiles (inclusive) hidden behind `FACADE` tiles until Ben steps inside.
+#[derive(Clone, Copy, Debug)]
+pub struct Room {
+    pub x0: i32,
+    pub y0: i32,
+    pub x1: i32,
+    pub y1: i32,
+}
+
+impl Room {
+    pub fn overlaps(&self, x: f64, y: f64, w: f64, h: f64) -> bool {
+        x < f64::from(self.x1 + 1)
+            && x + w > f64::from(self.x0)
+            && y < f64::from(self.y1 + 1)
+            && y + h > f64::from(self.y0)
+    }
+
+    pub fn contains(&self, x: i32, y: i32) -> bool {
+        x >= self.x0 && x <= self.x1 && y >= self.y0 && y <= self.y1
+    }
+}
+
 pub struct LevelData {
     pub id: u8,
     pub theme: Theme,
@@ -96,6 +134,7 @@ pub struct LevelData {
     pub plats: Vec<Platform>,
     pub start: (f64, f64),
     pub arena: Option<Arena>,
+    pub rooms: Vec<Room>,
 }
 
 enum Seg {
@@ -118,6 +157,7 @@ struct Builder {
     spawns: Vec<Spawn>,
     items: Vec<Item>,
     plats: Vec<Platform>,
+    rooms: Vec<Room>,
     x: i32,
     ground: i32,
 }
@@ -132,6 +172,7 @@ impl Builder {
             spawns: vec![],
             items: vec![],
             plats: vec![],
+            rooms: vec![],
             x: 0,
             ground,
         }
@@ -258,6 +299,20 @@ impl Builder {
         self
     }
 
+    /// Hides a rectangle behind painted flats: every empty cell in it becomes `FACADE`, so floors,
+    /// ledges and ladders inside stay solid and visible once the flat fades.
+    fn room(&mut self, x0: i32, y0: i32, x1: i32, y1: i32) -> &mut Self {
+        for x in x0..=x1 {
+            for y in y0..=y1 {
+                if self.map.get(x, y) == EMPTY {
+                    self.map.set(x, y, FACADE);
+                }
+            }
+        }
+        self.rooms.push(Room { x0, y0, x1, y1 });
+        self
+    }
+
     /// A ladder from standing row `y0` up to the ledge at row `y1`: rungs below, a standable top.
     fn ladder(&mut self, x: i32, y0: i32, y1: i32) -> &mut Self {
         self.fill(x, x, y0, y1 - 1, RUNG);
@@ -322,6 +377,7 @@ impl Builder {
             plats: self.plats,
             start,
             arena,
+            rooms: self.rooms,
         }
     }
 }
@@ -553,6 +609,169 @@ fn zarg_lookout() -> LevelData {
     b.out(ZARG_LOOKOUT, (3.0, 3.0), None)
 }
 
+/// Open sky with soft ground: marshmallows bounce in fenced corrals (pogo onto one for a springboard),
+/// and the blue key sits at the top of a stack of cloud ledges. Rises and falls are slopes; gaps are
+/// 3 wide.
+fn marshmallow_meadows() -> LevelData {
+    let mut b = Builder::new(220, 32, 4);
+    b.run(&[
+        (Flat, 14),
+        (Up, 3),
+        (Flat, 8),
+        (Down, 3),
+        (Flat, 10),
+        (Gap, 3),
+        (Flat, 12),
+        (Up22, 2),
+        (Flat, 10),
+        (Down22, 2),
+        (Flat, 10),
+        (Gap, 3),
+        (Flat, 8),
+        (Up, 2),
+        (Flat, 24),
+        (Gap, 3),
+        (Flat, 14),
+        (Down, 3),
+        (Flat, 6),
+        (Gap, 3),
+        (Flat, 10),
+        (Up, 4),
+        (Flat, 14),
+        (Gap, 3),
+        (Flat, 10),
+        (Down, 2),
+        (Flat, 30),
+    ]);
+    b.walls();
+    // Corral fences: a marshmallow bounces between two posts Ben can jump over.
+    b.fill(29, 29, 4, 5, BLOCK)
+        .fill(36, 36, 4, 5, BLOCK)
+        .fill(100, 100, 6, 7, BLOCK)
+        .fill(108, 108, 6, 7, BLOCK);
+    // The blue key, three cloud ledges up: each step is three tiles, within a jump.
+    b.plat(58, 60, 8).plat(62, 64, 11).plat(58, 60, 14);
+    b.item(KeyBlue, 59, 15);
+    b.fill(150, 150, 3, 4, DOOR_B).fill(150, 150, 5, 31, BLOCK);
+    b.fill(215, 215, 5, 6, EXIT);
+    b.row(Cheezie, 6, 6, 6, 1)
+        .row(Cheezie, 18, 6, 9, 1)
+        .row(Cheezie, 30, 6, 9, 1)
+        .item(Soda, 33, 7)
+        .row(Choc, 38, 3, 8, 1)
+        .row(Cheezie, 44, 8, 6, 1)
+        .item(Cookie, 63, 12)
+        .row(Cheezie, 70, 6, 6, 1)
+        .row(Choc, 81, 3, 8, 1)
+        .row(Cheezie, 96, 4, 9, 1)
+        .row(Cheezie, 102, 5, 11, 1)
+        .item(Soda, 104, 12)
+        .row(Cheezie, 118, 3, 9, 1)
+        .row(Cheezie, 125, 6, 8, 1)
+        .item(Cookie, 140, 6)
+        .row(Choc, 144, 3, 7, 1)
+        .row(Cheezie, 160, 5, 9, 1)
+        .row(Choc, 175, 3, 11, 1)
+        .item(Soda, 182, 10)
+        .row(Cookie, 196, 3, 8, 3);
+    for x in [8, 24, 48, 74, 96, 126, 142, 164, 185, 205] {
+        b.crys(x);
+    }
+    b.ent(Kind::Marsh, 32.0).ent(Kind::Marsh, 104.0);
+    b.ent(Kind::Gloop, 20.0)
+        .ent(Kind::Gloop, 45.0)
+        .ent(Kind::Gloop, 74.0)
+        .ent(Kind::Gloop, 125.0)
+        .ent(Kind::Gloop, 195.0)
+        .ent(Kind::Hopper, 60.0)
+        .ent(Kind::Hopper, 112.0)
+        .ent(Kind::Hopper, 165.0)
+        .ent(Kind::Pod, 141.0);
+    b.ent_at(Kind::Drone, 90.5, 10.5)
+        .ent_at(Kind::Drone, 170.5, 12.5);
+    b.out(MARSHMALLOW_MEADOWS, (3.0, 4.0), None)
+}
+
+/// A candy playhouse whose backstage rooms are hidden behind painted flats: the walls fade away
+/// while Ben is inside. The red key is in a room up a stack of ledges, the blue key in one over a
+/// bat-haunted stretch, and a beetle waits in a room on the path.
+fn bonbon_playhouse() -> LevelData {
+    let mut b = Builder::new(170, 30, 4);
+    b.run(&[
+        (Flat, 16),
+        (Up, 2),
+        (Flat, 12),
+        (Down, 2),
+        (Flat, 10),
+        (Gap, 3),
+        (Flat, 12),
+        (Up22, 1),
+        (Flat, 10),
+        (Down22, 1),
+        (Flat, 14),
+        (Gap, 3),
+        (Flat, 10),
+        (Up, 3),
+        (Flat, 14),
+        (Down, 3),
+        (Flat, 10),
+        (Gap, 3),
+        (Flat, 14),
+        (Flat, 25),
+    ]);
+    b.walls();
+    // Red key room: a floor over the path, reached by ledges that start over the first pit.
+    b.fill(45, 56, 9, 9, FILL);
+    b.plat(42, 43, 5).plat(44, 44, 7);
+    b.item(KeyRed, 50, 10)
+        .item(Cookie, 54, 10)
+        .row(Cheezie, 46, 4, 10, 1);
+    b.ent_at(Kind::Hopper, 52.0, 10.0);
+    b.room(45, 10, 56, 15);
+    // A tutorial room right on the path, with a gloop lying in wait.
+    b.row(Cheezie, 20, 6, 7, 1).item(Soda, 27, 7);
+    b.ent_at(Kind::Gloop, 24.0, 6.0);
+    b.room(18, 6, 29, 11);
+    // A room on the path that hides a beetle; it stops at the ledge at the room's end.
+    b.row(Choc, 74, 4, 5, 2);
+    b.ent_at(Kind::Beetle, 80.0, 4.0);
+    b.room(71, 4, 84, 9);
+    // Blue key room over the path, reached by four ledges, with bats hanging underneath.
+    b.fill(101, 114, 13, 13, FILL);
+    b.plat(92, 93, 6).plat(95, 96, 9).plat(98, 99, 12);
+    b.item(KeyBlue, 108, 14)
+        .item(Cookie, 104, 14)
+        .row(Cheezie, 110, 4, 14, 1);
+    b.room(101, 14, 114, 19);
+    for x in [104.0, 110.0] {
+        b.ent_at(Kind::Bat, x, 11.3);
+    }
+    // Cookie doors seal the way on, with a wall of painted flats above each.
+    b.fill(60, 60, 5, 6, DOOR_R).fill(60, 60, 7, 29, BLOCK);
+    b.fill(122, 122, 4, 5, DOOR_B).fill(122, 122, 6, 29, BLOCK);
+    b.fill(165, 165, 4, 5, EXIT);
+    b.row(Cheezie, 6, 6, 6, 1)
+        .row(Choc, 34, 3, 7, 1)
+        .row(Cheezie, 62, 6, 8, 1)
+        .item(Soda, 66, 9)
+        .row(Cheezie, 88, 3, 8, 2)
+        .row(Cheezie, 118, 4, 8, 1)
+        .row(Choc, 134, 4, 7, 2)
+        .row(Cookie, 148, 3, 7, 3);
+    for x in [10, 36, 64, 90, 118, 138, 158] {
+        b.crys(x);
+    }
+    b.ent(Kind::Gloop, 10.0)
+        .ent(Kind::Gloop, 36.0)
+        .ent(Kind::Gloop, 66.0)
+        .ent(Kind::Gloop, 92.0)
+        .ent(Kind::Gloop, 120.0)
+        .ent(Kind::Gloop, 140.0)
+        .ent(Kind::Pod, 63.0)
+        .ent(Kind::Pod, 135.0);
+    b.out(BONBON_PLAYHOUSE, (3.0, 4.0), None)
+}
+
 fn caves() -> LevelData {
     let mut b = Builder::new(176, 26, 5);
     b.run(&[
@@ -768,6 +987,8 @@ pub fn build_overworld() -> MapData {
         // Appended last so the teleporter pairs above keep their indices.
         pt(PtKind::Level, METEOR_MESA, 12, 19, 0, 0, false),
         pt(PtKind::Level, ZARG_LOOKOUT, 15, 19, 0, 0, false),
+        pt(PtKind::Level, MARSHMALLOW_MEADOWS, 15, 23, 0, 0, false),
+        pt(PtKind::Level, BONBON_PLAYHOUSE, 15, 27, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -960,6 +1181,6 @@ mod tests {
                 );
             }
         }
-        assert_eq!(m.points.len(), 10);
+        assert_eq!(m.points.len(), 12);
     }
 }
