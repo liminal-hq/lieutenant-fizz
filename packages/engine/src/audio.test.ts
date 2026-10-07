@@ -158,6 +158,23 @@ describe('GameAudio volume', () => {
     expect(audio.musicVol).toBe(0);
   });
 
+  it('does not restart the loop when music is set to the state it is already in', async () => {
+    const stop = vi.fn();
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop });
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    await unlockAudio();
+    audio.playMusic('title');
+    audio.setMusic(true);
+    audio.setMusic(true);
+    expect(loop).toHaveBeenCalledTimes(1);
+    expect(stop).not.toHaveBeenCalled();
+    // A volume change restarts it once, and setting the state again afterwards does not add a second.
+    audio.setMusicVolume(0.5);
+    audio.setMusic(true);
+    expect(loop).toHaveBeenCalledTimes(2);
+  });
+
   it('does not start music for a volume change while music is off', async () => {
     const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
     const audio = new GameAudio(patterns, async () => Undertone);

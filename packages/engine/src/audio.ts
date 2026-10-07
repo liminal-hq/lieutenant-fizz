@@ -468,6 +468,8 @@ export class GameAudio {
   }
 
   setMusic(on: boolean): void {
+    // Setting the state it is already in must not restart the running loop.
+    if (on === this.music) return;
     this.music = on;
     this.handle?.stop();
     this.handle = null;
