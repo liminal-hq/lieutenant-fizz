@@ -137,11 +137,12 @@ export function conveyorTile(dir: 'L' | 'R', f: 0 | 1): Grid {
     if (y === 0) return 'L';
     if (y === 15) return 'k';
     if (y > 5) return 'D';
-    // A chevron every eight pixels that steps four pixels each frame, towards the belt's direction.
-    const step = dir === 'R' ? f * 4 : 16 - f * 4;
-    const d = (x + step) % 8;
-    const arrow = dir === 'R' ? d === y || d === 8 - y : d === 5 - y || d === 3 + y;
-    return arrow ? 'y' : 'N';
+    // A chevron every eight pixels, pointing the way the belt carries: `>` for right, `<` for left.
+    // It shifts a couple of pixels between the two frames in that direction.
+    const tip = (4 + (dir === 'R' ? f * 2 : -f * 2) + 8) % 8;
+    const wing = Math.abs(y - 3);
+    const col = dir === 'R' ? tip - wing : tip + wing;
+    return (((x - col) % 8) + 8) % 8 === 0 ? 'y' : 'N';
   });
 }
 
