@@ -2380,3 +2380,23 @@ fn a_rider_is_carried_by_a_moving_platform_and_is_never_sent_home() {
     );
     assert!((w.ents[0].b.x - start).abs() > 0.5, "carried along");
 }
+
+#[test]
+fn ben_shows_his_aim_pose_while_firing_along_a_ladder() {
+    use crate::render::ben_sprite;
+    use crate::sprites::Spr;
+    let mut w = ladder_world();
+    w.step(UP | FIRE);
+    assert!(w.p.climb && w.p.shoot_t > 0.0);
+    assert_eq!(ben_sprite(&w.p), Spr::BenAimUp);
+    let mut w = ladder_world();
+    w.step(DOWN | FIRE);
+    assert_eq!(ben_sprite(&w.p), Spr::BenAimDown);
+    // Climbing without firing keeps the climb frames.
+    let mut w = ladder_world();
+    w.step(UP);
+    assert!(matches!(
+        ben_sprite(&w.p),
+        Spr::BenClimb1 | Spr::BenClimb2
+    ));
+}
