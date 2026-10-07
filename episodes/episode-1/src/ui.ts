@@ -8,7 +8,7 @@ import { hintText, keycap } from '@lieutenant-fizz/engine/font/tokens';
 import { EGA } from '@lieutenant-fizz/engine/palette';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import type { StingerContent, StingerPhase } from '@lieutenant-fizz/engine/stinger';
-import { applyLayout } from './layout';
+import { applyLayout, watchResize } from './layout';
 import './ui.css';
 
 export interface MenuItem {
@@ -140,6 +140,7 @@ export class Ui {
   private readonly loading: HTMLElement;
   private toastTimer = 0;
   private bulletUrl = '';
+  private unwatch: () => void = () => {};
   private large = false;
   private panelOpen = false;
   private panelVisibleAllowed = true;
@@ -253,7 +254,13 @@ export class Ui {
       this.err,
     );
     this.relayout();
-    window.addEventListener('resize', () => this.relayout());
+    this.unwatch = watchResize(() => this.relayout());
+  }
+
+  /** Stops listening to the window and cancels pending timers. */
+  dispose(): void {
+    this.unwatch();
+    window.clearTimeout(this.toastTimer);
   }
 
   /** Sizes the overlay's pixel text from the window. Called on resize and when text size changes. */

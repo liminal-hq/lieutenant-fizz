@@ -201,6 +201,7 @@ export class Game {
     window.removeEventListener('pagehide', this.onVisibility);
     this.input.dispose();
     this.audio.dispose();
+    this.ui.dispose();
     this.renderer.dispose();
   }
 

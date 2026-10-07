@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { layoutVars } from './layout';
+import { layoutVars, watchResize } from './layout';
 
 const SIZES: [number, number][] = [
   [1280, 720],
@@ -61,5 +61,33 @@ describe('layoutVars', () => {
     expect(v['--lf-pad-y']).toBe('37px');
     expect(Number(v['--lf-cols'])).toBeGreaterThanOrEqual(20);
     expect(Number(v['--lf-cols'])).toBeLessThanOrEqual(56);
+  });
+});
+
+describe('layoutVars keys bar', () => {
+  it('keeps the hint bar between 16 and 36 px from the bottom', () => {
+    expect(layoutVars(1000, 300, false)['--lf-keys-bottom']).toBe('16px');
+    expect(layoutVars(1000, 615, false)['--lf-keys-bottom']).toBe('25px');
+    expect(layoutVars(1000, 2000, false)['--lf-keys-bottom']).toBe('36px');
+  });
+});
+
+describe('watchResize', () => {
+  it('listens for resize and stops when told to', () => {
+    const handlers = new Map<string, EventListenerOrEventListenerObject>();
+    const target = {
+      addEventListener: (type: string, fn: EventListenerOrEventListenerObject) =>
+        void handlers.set(type, fn),
+      removeEventListener: (type: string, fn: EventListenerOrEventListenerObject) => {
+        if (handlers.get(type) === fn) handlers.delete(type);
+      },
+    };
+    let calls = 0;
+    const stop = watchResize(() => calls++, target);
+    expect(handlers.has('resize')).toBe(true);
+    (handlers.get('resize') as () => void)();
+    expect(calls).toBe(1);
+    stop();
+    expect(handlers.has('resize')).toBe(false);
   });
 });
