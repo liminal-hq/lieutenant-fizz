@@ -1204,6 +1204,7 @@ fn enemies_ignore_lift_trays_and_are_not_carried_off() {
         kind: Kind::Gloop,
         x: 8.0,
         y: 6.6,
+        dir: -1.0,
     });
     w.ents.push(g);
     run(&mut w, 120, 0);
@@ -1222,6 +1223,7 @@ fn an_enemy_found_far_from_its_floor_is_sent_home() {
         kind: Kind::Gloop,
         x: 12.0,
         y: 4.0,
+        dir: -1.0,
     });
     let home = (g.b.x, g.b.y);
     w.ents.push(g);
