@@ -983,7 +983,7 @@ fn mirror_shafts() -> LevelData {
         (6, 4, 12),
         (9, 10, 18),
         (12, 16, 24),
-        (15, 22, 30),
+        (15, 22, 26),
         (18, 16, 24),
         (21, 10, 26),
         (24, 4, 12),
@@ -997,8 +997,8 @@ fn mirror_shafts() -> LevelData {
         (48, 10, 20),
         (51, 6, 14),
         (54, 6, 14),
-        (57, 12, 16),
-        (60, 16, 22),
+        (57, 12, 17),
+        (60, 19, 25),
         (63, 24, 30),
         (66, 18, 28),
         (69, 14, 24),
@@ -1026,8 +1026,8 @@ fn mirror_shafts() -> LevelData {
         .ent_dir(Kind::CrystalSwitch, 28.0, 26.0, 1.0);
     // Puzzle 2: two mirrors in a chain, right and then up.
     b.ent_dir(Kind::Mirror, 10.0, 58.0, 1.0)
-        .ent_dir(Kind::Mirror, 18.0, 58.0, 1.0)
-        .ent_dir(Kind::CrystalSwitch, 18.0, 62.0, 2.0);
+        .ent_dir(Kind::Mirror, 17.0, 58.0, 1.0)
+        .ent_dir(Kind::CrystalSwitch, 17.0, 62.0, 2.0);
     // Puzzle 3: the swivel mirror sends the first bubble right into the wall and swings round to
     // send the second left, to the switch.
     b.ent_dir(Kind::Swivel, 18.0, 82.0, 1.0)
@@ -1776,10 +1776,12 @@ pub fn overworld_areas() -> Vec<AreaRect> {
     };
     vec![
         rect(20, 18, 29, 27, AREA_GUMDROP_ISLE),
-        rect(2, 2, 23, 21, AREA_CRATER_FIELDS),
-        rect(2, 24, 23, 41, AREA_MARSHMALLOW_MEADOWS),
-        rect(26, 24, 57, 41, AREA_ROCK_CANDY_REACH),
-        rect(26, 2, 57, 21, AREA_FROSTING_FRONTIER),
+        // The regions run out to the rivers between them, so a river takes its theme from the
+        // region on its west or south side.
+        rect(0, 0, 24, 22, AREA_CRATER_FIELDS),
+        rect(0, 23, 24, 43, AREA_MARSHMALLOW_MEADOWS),
+        rect(25, 0, 59, 22, AREA_FROSTING_FRONTIER),
+        rect(25, 23, 59, 43, AREA_ROCK_CANDY_REACH),
     ]
 }
 
@@ -1831,8 +1833,17 @@ pub fn build_overworld() -> MapData {
     let points = vec![
         pt(PtKind::Saucer, 0, 8, 10, 0, 0, false),
         pt(PtKind::Level, CRATER, 14, 6, 0, 0, false),
-        pt(PtKind::Level, METEOR_MESA, 16, 14, 0, 0, false),
-        pt(PtKind::Level, ZARG_LOOKOUT, 6, 16, 0, 0, false),
+        // The first area is a tutorial: Crater Fields, then Meteor Mesa, then Zarg Lookout.
+        pt(PtKind::Level, METEOR_MESA, 16, 14, 0, req(CRATER), false),
+        pt(
+            PtKind::Level,
+            ZARG_LOOKOUT,
+            6,
+            16,
+            0,
+            req(METEOR_MESA),
+            false,
+        ),
         // The three levels of Crater Fields power the way down to the Meadows.
         pt(
             PtKind::Tele,
@@ -2108,6 +2119,67 @@ mod tests {
         assert_eq!(l.theme, Theme::OpenSky);
     }
 
+    /// Whether a bubble fired straight up from anywhere Ben can stand reaches a crystal switch
+    /// before a mirror or a wall turns or stops it. A bubble flies about 17 tiles.
+    fn switch_in_straight_line(l: &LevelData) -> Option<(f64, f64, f64, f64)> {
+        let cells = |kinds: &[Kind]| -> Vec<(f64, f64)> {
+            l.spawns
+                .iter()
+                .filter(|s| kinds.contains(&s.kind))
+                .map(|s| (s.x + 0.5, s.y + 0.5))
+                .collect()
+        };
+        let switches = cells(&[Kind::CrystalSwitch]);
+        let mirrors = cells(&[Kind::Mirror, Kind::Swivel]);
+        for x in 0..l.map.w {
+            for y in 0..l.map.h - 2 {
+                let t = l.map.get(x, y);
+                let floor = t == PLAT || l.map.is_solid_tile(t);
+                if !floor || l.map.get(x, y + 1) != EMPTY && l.map.get(x, y + 1) != WALLBG {
+                    continue;
+                }
+                let stand = f64::from(y + 1);
+                // Ben's centre can be anywhere that leaves part of his 0.7-wide body on the tile.
+                let mut cx = f64::from(x) - 0.3;
+                while cx < f64::from(x) + 1.3 {
+                    let mut py = stand + 1.5;
+                    while py < stand + 1.5 + 17.6 {
+                        if l.map
+                            .solid(cx.floor() as i32, py.floor() as i32, false, 0.0)
+                        {
+                            break;
+                        }
+                        if mirrors
+                            .iter()
+                            .any(|m| (m.0 - cx).abs() < 0.55 && (m.1 - py).abs() < 0.55)
+                        {
+                            break;
+                        }
+                        if let Some(s) = switches
+                            .iter()
+                            .find(|s| (s.0 - cx).abs() < 0.55 && (s.1 - py).abs() < 0.55)
+                        {
+                            return Some((cx, stand, s.0, s.1));
+                        }
+                        py += 0.05;
+                    }
+                    cx += 0.05;
+                }
+            }
+        }
+        None
+    }
+
+    #[test]
+    fn no_crystal_switch_can_be_shot_directly_from_a_ledge() {
+        let l = build_level(MIRROR_SHAFTS);
+        assert_eq!(
+            switch_in_straight_line(&l),
+            None,
+            "a switch is in a straight line up from somewhere Ben can stand: (x, stand, switch)"
+        );
+    }
+
     #[test]
     fn no_press_sweeps_through_a_ledge_or_solid_ground() {
         for def in LEVELS.iter() {
@@ -2306,6 +2378,28 @@ mod tests {
                 p.level
             );
         }
+    }
+
+    #[test]
+    fn the_first_area_is_a_tutorial_in_order_and_the_rivers_take_a_theme() {
+        let m = build_overworld();
+        let find = |id: u8| {
+            m.points
+                .iter()
+                .find(|p| p.kind == PtKind::Level && p.level == id)
+                .unwrap()
+        };
+        assert_eq!(find(CRATER).req, 0, "the first level is open");
+        assert_eq!(find(METEOR_MESA).req, level_bit(CRATER) as u16);
+        assert_eq!(find(ZARG_LOOKOUT).req, level_bit(METEOR_MESA) as u16);
+        // Every tile has an area, including the dividers, and a divider is not left to the default:
+        // the river between the north-west and north-east regions belongs to one of them.
+        assert_eq!(m.area_at(24, 30), AREA_MARSHMALLOW_MEADOWS);
+        assert_eq!(m.area_at(25, 30), AREA_ROCK_CANDY_REACH);
+        assert_eq!(m.area_at(40, 22), AREA_FROSTING_FRONTIER);
+        assert_eq!(m.area_at(40, 23), AREA_ROCK_CANDY_REACH);
+        assert_eq!(m.area_at(10, 22), AREA_CRATER_FIELDS);
+        assert_eq!(m.area_at(10, 23), AREA_MARSHMALLOW_MEADOWS);
     }
 
     #[test]

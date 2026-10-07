@@ -112,13 +112,15 @@ export const LEVELS: LevelInfo[] = [
     name: 'Crater Fields',
     blurb: 'Twinkling crystal craters and chocolate pools.',
     track: 'crater',
-    cleared: 'The first teleporter on the map is humming now. The Crystal Caves are waiting.',
+    cleared:
+      'The path on to Meteor Mesa is open. Clear it and Zarg Lookout, and the first teleporter will hum.',
   },
   {
     name: 'Crystal Caves',
     blurb: 'Dark, glittering tunnels over chocolate rivers.',
     track: 'caves',
-    cleared: 'The next teleporter is humming. Mildred’s Citadel is waiting.',
+    cleared:
+      'One of the two levels the Frosting Frontier teleporter wants is done. Mirror Shafts is the other.',
   },
   {
     name: "Mildred's Citadel",
@@ -130,13 +132,13 @@ export const LEVELS: LevelInfo[] = [
     name: 'Meteor Mesa',
     blurb: 'Biscuit-rock mesas in open sky, with cloud ledges between them.',
     track: 'sky',
-    cleared: 'The sky is clear all the way to the horizon, and there is more of Zargoth to see.',
+    cleared: 'The sky is clear all the way to the horizon. Zarg Lookout is next along the path.',
   },
   {
     name: 'Zarg Lookout',
     blurb: 'A watchtower of ladders, stairs and one slow lift. The red key is on the roof.',
     track: 'tower',
-    cleared: 'Ben climbs down with a pocketful of snacks and the whole sky to look at.',
+    cleared: 'The first teleporter is humming now, and Marshmallow Meadows are waiting.',
   },
   {
     name: 'Marshmallow Meadows',
@@ -148,7 +150,8 @@ export const LEVELS: LevelInfo[] = [
     name: 'Bonbon Playhouse',
     blurb: 'A candy theatre. The walls are only painted flats, so walk right in.',
     track: 'theatre',
-    cleared: 'The curtain falls on a very sticky stage. Ben takes a bow.',
+    cleared:
+      'The curtain falls on a very sticky stage. With Marshmallow Meadows, that powers the teleporter to Rock Candy Reach.',
   },
   {
     name: 'Fudge Bog',
@@ -162,7 +165,7 @@ export const LEVELS: LevelInfo[] = [
       'A tall crystal shaft sealed by gates. Bounce fizz off the mirrors to reach the switches.',
     track: 'caves',
     cleared:
-      'The last gate slides open and the shaft hums. Ben has never seen so many reflections of himself.',
+      'The last gate slides open and the shaft hums. With the Crystal Caves, that powers the teleporter to the Frosting Frontier.',
   },
   {
     name: 'Sugar Glass Gallery',
@@ -180,14 +183,15 @@ export const LEVELS: LevelInfo[] = [
     name: 'Frosting Spire',
     blurb: 'The tallest Zarg tower: twelve floors, three lifts, and a key in every colour.',
     track: 'tower',
-    cleared: 'Twelve floors up and twelve floors down, and Ben’s knees have opinions about it.',
+    cleared:
+      'Twelve floors up and twelve floors down, and Ben’s knees have opinions about it. The Citadel opens once the Foundry is done too.',
   },
   {
     name: 'Cocoa Foundry',
     blurb: 'Belts, presses and pools of molten metal. Mind the timing, and mind the belts.',
     track: 'foundry',
     cleared:
-      'The presses thump on without him. Ben dusts the soot off his helmet and heads for the Citadel.',
+      'The presses thump on without him. Ben dusts the soot off his helmet. The Citadel opens once the Spire is done too.',
   },
   {
     name: 'Gumdrop Isle',
