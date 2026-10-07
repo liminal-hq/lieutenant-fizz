@@ -1785,7 +1785,7 @@ fn saucer() -> LevelData {
     b.fill(1, 1, 3, 4, EXIT);
     // Crystals light the outside and the hull; the rest is paintings.
     for x in [6, 12, 20, 36, 56] {
-        b.crys(x);
+        b.map.set(x, 3, CRYS);
     }
     b.ent_dir(Kind::Glyph, 14.0, 3.0, 4.0)
         .ent_dir(Kind::Glyph, 21.0, 3.0, 5.0)

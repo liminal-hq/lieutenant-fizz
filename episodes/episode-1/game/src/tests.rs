@@ -2486,3 +2486,10 @@ fn a_rider_on_a_tall_vertical_platform_is_not_sent_home() {
         w.ents[0].b.y
     );
 }
+
+#[test]
+fn the_saucer_has_its_five_crystals() {
+    let w = level(crate::levels::SAUCER);
+    let n = w.map.data.iter().filter(|&&t| t == CRYS).count();
+    assert_eq!(n, 5, "crystals light the saucer");
+}
