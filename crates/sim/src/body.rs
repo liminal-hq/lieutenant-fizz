@@ -164,8 +164,13 @@ impl Body {
     /// on a conveyor is carried along it on top of its own velocity.
     pub fn phys(&mut self, map: &TileMap, plats: &[Platform], dt: f64) {
         let was = self.on_ground;
+        // The belt moves the body as a step of its own: if it only pushes the body into a wall, that
+        // is not a hit of the body's own motion, so its velocity survives and it can walk away.
         let drift = if was { self.ground_drift(map) } else { 0.0 };
-        self.hit_x = self.move_x(map, (self.vx + drift) * dt, was);
+        if drift != 0.0 {
+            self.move_x(map, drift * dt, was);
+        }
+        self.hit_x = self.move_x(map, self.vx * dt, was);
         if self.hit_x {
             self.vx = 0.0;
         }
@@ -455,6 +460,36 @@ mod tests {
             (b.x - start - (2.0 - CONVEYOR_SPEED) * 0.5).abs() < 0.1,
             "net drift {}",
             b.x - start
+        );
+    }
+
+    #[test]
+    fn a_body_can_walk_away_from_a_wall_a_belt_is_pushing_it_into() {
+        let mut m = world();
+        for x in 5..20 {
+            m.set(x, 1, BELT_R);
+        }
+        for y in 2..6 {
+            m.set(18, y, FLOOR);
+        }
+        // Pinned against the wall by the belt, then pushing left at less than the belt's speed:
+        // with the old combined-move collision the wall hit zeroed the velocity every tick, so
+        // it never built up and the body stayed trapped.
+        let mut b = Body::new(17.2, 2.0, 0.7, 1.4);
+        settle(&mut b, &m, 20);
+        assert!(b.x + b.w <= 18.0 + 1e-3, "against the wall, x = {}", b.x);
+        let start = b.x;
+        for _ in 0..120 {
+            b.fall(STEP, 22.0);
+            // Ground acceleration as the game applies it: build up towards 7 tiles/s.
+            b.vx = (b.vx - 55.0 * STEP).max(-7.0);
+            b.phys(&m, &[], STEP);
+        }
+        assert!(
+            b.x < start - 3.0,
+            "walked away from the wall against the belt, x = {} from {}",
+            b.x,
+            start
         );
     }
 
