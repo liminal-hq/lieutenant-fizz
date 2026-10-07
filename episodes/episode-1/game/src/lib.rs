@@ -264,7 +264,7 @@ pub extern "C" fn state_set(i: u32, v: f64) {
             }
         }
         POGO_HEIGHT => s.pogo_height = v,
-        // Debug hooks: place Ben and snap the camera to him (used for review screenshots).
+        // Debug hooks: place Ben and snap the camera to him, so tooling can put him anywhere.
         PLAYER_X => {
             s.p.b.x = v;
             s.p.b.px = v;
