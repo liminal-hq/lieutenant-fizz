@@ -1,4 +1,4 @@
-// Biome-coloured pixel-art level tiles for the crater, caves and citadel.
+// Tile-set-coloured pixel-art level tiles for the crater, caves, citadel and open sky.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -6,7 +6,7 @@
 import { Pen, spriteRng, type Grid } from '@lieutenant-fizz/engine/pen';
 import type { Colour } from '@lieutenant-fizz/engine/palette';
 
-export type Biome = 'crater' | 'caves' | 'citadel';
+export type Biome = 'crater' | 'caves' | 'citadel' | 'sky';
 
 interface BiomeColours {
   top: Colour;
@@ -46,6 +46,16 @@ export const BIOMES: Record<Biome, BiomeColours> = {
     plat: ['y', 'N', 'R'],
     block: ['N', 'R', 'y'],
   },
+  // Sun-baked biscuit rock with cloud ledges, for the daylight mesa levels.
+  sky: {
+    top: 'y',
+    top2: 'N',
+    fill: 'N',
+    fill2: 'N',
+    fleck: 'y',
+    plat: ['W', 'L', 'c'],
+    block: ['y', 'N', 'R'],
+  },
 };
 
 /** Terrain tile: everything under `surf(x)` (height in pixels above the tile bottom) is ground. */
@@ -72,6 +82,7 @@ export function ground(bio: Biome, surf: (x: number) => number, seed: number): G
 export const fillTile = (bio: Biome, seed: number): Grid => ground(bio, () => Infinity, seed);
 
 export function platTile(bio: Biome): Grid {
+  if (bio === 'sky') return cloudLedge();
   const [a, b, c] = BIOMES[bio].plat;
   return new Pen(16, 16).fn((x, y) =>
     y === 0
@@ -86,6 +97,15 @@ export function platTile(bio: Biome): Grid {
             ? b
             : null,
   );
+}
+
+/** A puffy white ledge with a pale-cyan underside; the flat top is the walking surface. */
+function cloudLedge(): Grid {
+  const p = new Pen(16, 16);
+  p.rect(0, 0, 16, 3, 'W');
+  p.ell(4, 3, 4.2, 2.8, 'W');
+  p.ell(11.5, 3, 5, 3.2, 'W');
+  return p.fn((x, y, c) => (c && !p.at(x, y + 1) ? 'c' : undefined));
 }
 
 export function blockTile(bio: Biome): Grid {

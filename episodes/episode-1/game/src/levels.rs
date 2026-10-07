@@ -14,9 +14,10 @@ use lf_sim::{Platform, TileMap};
 pub const CRATER: u8 = 0;
 pub const CAVES: u8 = 1;
 pub const CITADEL: u8 = 2;
+pub const METEOR_MESA: u8 = 3;
 
 /// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
-pub const LEVEL_COUNT: u8 = 3;
+pub const LEVEL_COUNT: u8 = 4;
 
 /// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
 pub const AREA_CRATER_FIELDS: u8 = 0;
@@ -56,6 +57,13 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
         theme: Theme::Citadel,
         area: AREA_FROSTING_FRONTIER,
         icon: Spr::OwCastle,
+    },
+    LevelDef {
+        id: METEOR_MESA,
+        build: meteor_mesa,
+        theme: Theme::OpenSky,
+        area: AREA_CRATER_FIELDS,
+        icon: Spr::OwMesa,
     },
 ];
 
@@ -339,6 +347,84 @@ fn crater() -> LevelData {
     b.out(CRATER, (3.0, 4.0), None)
 }
 
+/// Open-sky daylight level: biscuit-rock mesas separated by gaps that cloud ledges and a hover
+/// platform bridge. Gaps are at most 3 wide unless a ledge or hover platform carries Ben across: Ben
+/// only clears 4 tiles by jumping within a tenth of a second of the edge.
+fn meteor_mesa() -> LevelData {
+    let mut b = Builder::new(200, 30, 4);
+    b.run(&[
+        (Flat, 12),
+        (Up, 2),
+        (Flat, 6),
+        (Gap, 3),
+        (Flat, 9),
+        (Up, 3),
+        (Flat, 6),
+        (Down, 2),
+        (Gap, 3),
+        (Flat, 6),
+        (Up22, 1),
+        (Flat, 8),
+        (Gap, 6),
+        (Flat, 10),
+        (Down, 3),
+        (Flat, 5),
+        (Spikes, 3),
+        (Flat, 8),
+        (Gap, 8),
+        (Flat, 8),
+        (Up, 4),
+        (Flat, 8),
+        (Gap, 5),
+        (Flat, 6),
+        (Down, 3),
+        (Flat, 8),
+        (Gap, 3),
+        (Flat, 7),
+        (Down, 2),
+        (Flat, 8),
+        (Gap, 6),
+        (Flat, 27),
+    ]);
+    b.walls();
+    // Cloud ledges across the wide gaps, level with the neighbouring ground.
+    b.plat(64, 65, 7).plat(127, 128, 8).plat(169, 170, 3);
+    b.hover(97.0, 4.5, 103.0, 4.5, 0.3);
+    b.row(Cheezie, 6, 5, 6, 1)
+        .row(Choc, 20, 3, 9, 2)
+        .row(Cheezie, 35, 6, 11, 1)
+        .item(Cookie, 38, 11)
+        .item(Soda, 40, 11)
+        .row(Choc, 43, 2, 9, 2)
+        .row(Cheezie, 62, 6, 10, 1)
+        .row(Cheezie, 68, 5, 10, 2)
+        .row(Cheezie, 85, 5, 8, 1)
+        .row(Choc, 98, 3, 8, 2)
+        .row(Cheezie, 118, 5, 11, 1)
+        .item(Soda, 122, 11)
+        .item(Cookie, 127, 10)
+        .row(Choc, 130, 3, 11, 2)
+        .row(Cheezie, 147, 4, 9, 1)
+        .row(Choc, 167, 6, 7, 1)
+        .row(Cookie, 185, 2, 6, 3);
+    b.fill(195, 195, 4, 5, EXIT);
+    for x in [8, 30, 50, 74, 110, 121, 154, 182] {
+        b.crys(x);
+    }
+    b.ent(Kind::Gloop, 26.0)
+        .ent(Kind::Gloop, 48.0)
+        .ent(Kind::Gloop, 72.0)
+        .ent(Kind::Gloop, 180.0);
+    b.ent(Kind::Hopper, 57.0)
+        .ent(Kind::Hopper, 120.0)
+        .ent(Kind::Hopper, 162.0)
+        .ent(Kind::Gloop, 154.0)
+        .ent(Kind::Pod, 108.0);
+    b.ent_at(Kind::Drone, 84.5, 11.5)
+        .ent_at(Kind::Drone, 141.0, 12.5);
+    b.out(METEOR_MESA, (3.0, 4.0), None)
+}
+
 fn caves() -> LevelData {
     let mut b = Builder::new(176, 26, 5);
     b.run(&[
@@ -551,6 +637,8 @@ pub fn build_overworld() -> MapData {
         pt(PtKind::Tele, 0, 53, 27, 6, req(CAVES), false),
         pt(PtKind::Tele, 0, 53, 18, 5, req(CAVES), false),
         pt(PtKind::Level, CITADEL, 41, 8, 0, 0, true),
+        // Appended last so the teleporter pairs above keep their indices.
+        pt(PtKind::Level, METEOR_MESA, 12, 19, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -627,7 +715,7 @@ mod tests {
 
     #[test]
     fn every_level_has_a_free_start_and_the_right_features() {
-        for id in [CRATER, CAVES, CITADEL] {
+        for id in 0..LEVEL_COUNT {
             let l = build_level(id);
             let (sx, sy) = l.start;
             for dy in 0..2 {
@@ -642,6 +730,16 @@ mod tests {
             );
             assert!(count(&l.map, CRYS) > 0);
             assert!(!l.items.is_empty());
+            for it in &l.items {
+                assert!(
+                    !l.map
+                        .solid(it.x.floor() as i32, it.y.floor() as i32, false, 0.0),
+                    "level {id}: {:?} at {:.1},{:.1} is inside solid ground",
+                    it.kind,
+                    it.x,
+                    it.y
+                );
+            }
             assert!(!l.spawns.is_empty());
         }
         assert_eq!(count(&build_level(CRATER).map, EXIT), 2);
@@ -665,6 +763,41 @@ mod tests {
             0,
             "unknown ids fall back to the first level"
         );
+    }
+
+    /// Widest run of columns with nothing to stand on, ignoring columns a hover platform spans.
+    fn widest_unsupported_gap(l: &LevelData) -> i32 {
+        let (mut widest, mut run) = (0, 0);
+        for x in 1..l.map.w - 1 {
+            let carried = l.plats.iter().any(|p| {
+                f64::from(x) + 1.0 > p.ax.min(p.bx) && f64::from(x) < p.ax.max(p.bx) + p.w
+            });
+            let supported = (0..l.map.h - 1).any(|y| {
+                let t = l.map.get(x, y);
+                let top = l.map.props.flags(t) != 0 || l.map.is_slope(t);
+                top && t != CHOC && l.map.get(x, y + 1) == EMPTY
+            });
+            if supported || carried {
+                run = 0;
+            } else {
+                run += 1;
+                widest = widest.max(run);
+            }
+        }
+        widest
+    }
+
+    #[test]
+    fn meteor_mesa_has_no_gap_wider_than_a_comfortable_jump() {
+        let l = build_level(METEOR_MESA);
+        assert!(
+            widest_unsupported_gap(&l) <= 3,
+            "gap of {} columns",
+            widest_unsupported_gap(&l)
+        );
+        assert_eq!(count(&l.map, EXIT), 2);
+        assert!(l.arena.is_none() && l.plats.len() == 1);
+        assert_eq!(l.theme, Theme::OpenSky);
     }
 
     #[test]
@@ -708,6 +841,6 @@ mod tests {
                 );
             }
         }
-        assert_eq!(m.points.len(), 8);
+        assert_eq!(m.points.len(), 9);
     }
 }

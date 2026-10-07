@@ -125,6 +125,7 @@ export function defineSprites(): SpriteDef[] {
   add('owTree1', sc.owTree(1));
   add('owRock', sc.owRock());
   add('owCrater', sc.owCrater());
+  add('owMesa', sc.owMesa());
   add('owCave', sc.owCave());
   add('owCastle', sc.owCastle());
   add('owTele0', sc.owTele(0));
@@ -148,5 +149,6 @@ export function defineSprites(): SpriteDef[] {
   add('mtnTop', sc.mtnTop());
   add('fill', sc.fillSolid(), true);
   add('star', sc.star());
+  add('cloud', sc.cloud());
   return d;
 }

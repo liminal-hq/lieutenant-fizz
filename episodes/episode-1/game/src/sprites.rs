@@ -39,6 +39,9 @@ sprites! {
     CitadelTop = "citadelTop", CitadelFill = "citadelFill", CitadelR45 = "citadelR45", CitadelL45 = "citadelL45",
     CitadelR22A = "citadelR22A", CitadelR22B = "citadelR22B", CitadelL22A = "citadelL22A", CitadelL22B = "citadelL22B",
     CitadelPlat = "citadelPlat", CitadelBlock = "citadelBlock", CitadelBack = "citadelBack",
+    SkyTop = "skyTop", SkyFill = "skyFill", SkyR45 = "skyR45", SkyL45 = "skyL45",
+    SkyR22A = "skyR22A", SkyR22B = "skyR22B", SkyL22A = "skyL22A", SkyL22B = "skyL22B",
+    SkyPlat = "skyPlat", SkyBlock = "skyBlock", SkyBack = "skyBack",
     CrysC = "crysC", CrysM = "crysM", SpikeTile = "spike",
     ChocTop0 = "chocTop0", ChocTop1 = "chocTop1", ChocDeep0 = "chocDeep0", ChocDeep1 = "chocDeep1",
     DoorRed = "doorRed", DoorBlue = "doorBlue", ExitTop = "exitTop", ExitBot = "exitBot",
@@ -46,8 +49,8 @@ sprites! {
     Terminal0 = "terminal0", Terminal1 = "terminal1",
     OwGrass = "owGrass", OwPath = "owPath", OwRiver0 = "owRiver0", OwRiver1 = "owRiver1",
     OwTree0 = "owTree0", OwTree1 = "owTree1", OwRock = "owRock", OwCrater = "owCrater",
-    OwCave = "owCave", OwCastle = "owCastle", OwTele0 = "owTele0", OwTele1 = "owTele1", OwFlag = "owFlag",
-    Saucer = "saucer", HillTop = "hillTop", MtnTop = "mtnTop", Fill = "fill", Star = "star",
+    OwCave = "owCave", OwMesa = "owMesa", OwCastle = "owCastle", OwTele0 = "owTele0", OwTele1 = "owTele1", OwFlag = "owFlag",
+    Saucer = "saucer", HillTop = "hillTop", MtnTop = "mtnTop", Fill = "fill", Star = "star", Cloud = "cloud",
 }
 
 /// Per-tileset tile sprites are laid out in this order, 11 per tileset, starting at `CraterTop`.
@@ -82,6 +85,8 @@ mod tests {
             SPRITE_NAMES[tileset_tile(2, BT_SLOPE0 + 5) as usize],
             "citadelL22B"
         );
+        assert_eq!(SPRITE_NAMES[tileset_tile(3, BT_TOP) as usize], "skyTop");
+        assert_eq!(SPRITE_NAMES[tileset_tile(3, BT_BACK) as usize], "skyBack");
         assert_eq!(SPRITE_NAMES[Spr::BenStand as usize], "ben_stand");
         assert_eq!(SPRITE_NAMES[Spr::Star as usize], "star");
         let mut sorted: Vec<_> = SPRITE_NAMES.to_vec();

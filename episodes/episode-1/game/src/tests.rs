@@ -296,7 +296,7 @@ fn gloops_patrol_and_turn_around() {
 
 #[test]
 fn every_enemy_type_survives_ten_simulated_seconds_without_leaving_the_world() {
-    for id in [CRATER, CAVES, CITADEL] {
+    for id in 0..crate::levels::LEVEL_COUNT {
         let mut w = level(id);
         w.p.inv = 1e9;
         for t in 0..600 {
@@ -451,7 +451,12 @@ fn teleporters_need_a_cleared_level() {
 #[test]
 fn render_writes_finite_instances_for_every_scene() {
     let mut w = level(CRATER);
-    for (id, name) in [(CRATER, "crater"), (CAVES, "caves"), (CITADEL, "citadel")] {
+    for (id, name) in [
+        (CRATER, "crater"),
+        (CAVES, "caves"),
+        (CITADEL, "citadel"),
+        (crate::levels::METEOR_MESA, "meteor mesa"),
+    ] {
         w.enter_level(id);
         w.half_w = 11.0;
         w.half_h = 6.5;

@@ -283,6 +283,58 @@ impl World {
         }
     }
 
+    /// Copies everything the simulation reads, with minimal output buffers, so search bots can
+    /// branch a world cheaply. Rendering a fork is not supported.
+    #[cfg(test)]
+    pub fn fork(&self) -> World {
+        World {
+            mode: self.mode,
+            game: self.game.clone(),
+            pogo_height: self.pogo_height,
+            held: self.held,
+            prev_held: self.prev_held,
+            edge: self.edge,
+            tick_count: self.tick_count,
+            rng: self.rng.clone(),
+            t: self.t,
+            half_w: self.half_w,
+            half_h: self.half_h,
+            cam_x: self.cam_x,
+            cam_y: self.cam_y,
+            pcx: self.pcx,
+            pcy: self.pcy,
+            shake: self.shake,
+            level_id: self.level_id,
+            theme: self.theme,
+            map: self.map.clone(),
+            ents: self.ents.clone(),
+            items: self.items.clone(),
+            plats: self.plats.clone(),
+            shots: self.shots.clone(),
+            fx: self.fx.clone(),
+            static_lights: self.static_lights.clone(),
+            hazards: self.hazards.clone(),
+            p: self.p.clone(),
+            keys_red: self.keys_red,
+            keys_blue: self.keys_blue,
+            has_usb: self.has_usb,
+            hacked: self.hacked,
+            won: self.won,
+            end_timer: self.end_timer,
+            arena: self.arena,
+            solid_count: self.solid_count,
+            points: self.points.clone(),
+            near: self.near,
+            inst: InstanceBuffer::new(1),
+            lights: LightPool::new(1),
+            lights_pos: [0.0; 64],
+            lights_col: [0.0; 48],
+            events: EventQueue::new(256),
+            spr: Vec::new(),
+            out: [0.0; 16],
+        }
+    }
+
     // ---------- Flow ----------
 
     pub fn game_new(&mut self) {
