@@ -60,7 +60,9 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
 ];
 
 /// Bit in `Game::done` for a cleared level.
+/// `id` must be a real level id: anything from 32 up would overflow the shift.
 pub const fn level_bit(id: u8) -> u32 {
+    debug_assert!(id < LEVEL_COUNT);
     1 << id
 }
 #[derive(Clone, Copy, Debug)]
