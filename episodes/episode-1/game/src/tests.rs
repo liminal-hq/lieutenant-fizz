@@ -1448,3 +1448,23 @@ fn jumping_off_a_ladder_with_up_held_does_not_grab_it_again() {
     run(&mut w, 3, UP);
     assert!(w.p.climb, "a new press of Up grabs it");
 }
+
+#[test]
+fn a_bubble_fired_from_beside_a_mirror_still_bounces_off_it() {
+    let mut w = shafts();
+    w.shots.clear();
+    // Fired left from Ben's usual muzzle offset (0.6 in front of him) with Ben against the right
+    // edge of the swivel's column (centre 0.35 right of the cell's left edge), so the bubble starts
+    // 0.75 left of the mirror's centre and moves away from it.
+    let i = find(&w, Kind::Swivel, 18.0);
+    let (mx, my) = (w.ents[i].b.x + 0.5, w.ents[i].b.y + 0.5);
+    w.shots.push(bubble(mx - 0.75, my, -16.0, 0.0));
+    w.step(0);
+    let s = w.shots.first().expect("the bubble is still flying");
+    assert_ne!(
+        (s.vx, s.vy),
+        (-16.0, 0.0),
+        "it was turned by the mirror, not left to fly on into the corridor"
+    );
+    assert_eq!(s.last, i as i32);
+}

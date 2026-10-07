@@ -26,6 +26,21 @@ describe('Episode 1 sprites', () => {
     }
   });
 
+  it('draws the mural clue as five whole trees, each with its own glowing top and trunk', () => {
+    const mural = defs.find((d) => d.name === 'mural')?.grid;
+    expect(mural).toBeDefined();
+    if (!mural) return;
+    const count = (c: string): number => {
+      let n = 0;
+      for (let y = 0; y < mural.h; y++)
+        for (let x = 0; x < mural.w; x++) if (mural.at(x, y) === c) n++;
+      return n;
+    };
+    // Yellow is used for nothing else in the picture, so one glowing top per tree.
+    expect(count('y')).toBe(5);
+    expect(count('m')).toBeGreaterThan(5 * 6);
+  });
+
   it('keeps tile sprites 16x16 and Ben 16 wide', () => {
     for (const d of defs.filter((s) => s.tile && !s.name.startsWith('ow') && s.name !== 'ladder')) {
       expect([d.name, d.grid.w, d.grid.h]).toEqual([d.name, 16, 16]);

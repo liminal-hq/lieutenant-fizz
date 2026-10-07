@@ -1022,6 +1022,13 @@ fn mirror_shafts() -> LevelData {
     // send the second left, to the switch.
     b.ent_dir(Kind::Swivel, 18.0, 82.0, 1.0)
         .ent_dir(Kind::CrystalSwitch, 8.0, 82.0, 3.0);
+    // Shield the switches. Each bubble reaches its switch along a short corridor of rock that is
+    // open only where the mirror sends the bubble in, so nobody can reach a switch by jumping and
+    // firing sideways from a ledge: puzzle one's and three's switches sit at the end of a
+    // corridor, puzzle two's in a niche the bubble enters from below.
+    b.fill(19, 28, 25, 25, FILL).fill(19, 28, 27, 27, FILL);
+    b.fill(16, 16, 61, 63, FILL).fill(18, 18, 61, 63, FILL);
+    b.fill(4, 17, 81, 81, FILL).fill(4, 17, 83, 83, FILL);
     b.fill(20, 20, 93, 94, EXIT);
     // Soda by each firing spot, so a few wasted bubbles never strand Ben.
     b.item(Soda, 13, 21)
@@ -1803,8 +1810,10 @@ mod tests {
         assert_eq!(l.theme, Theme::OpenSky);
     }
 
-    /// Whether a bubble fired straight up from anywhere Ben can stand reaches a crystal switch
-    /// before a mirror or a wall turns or stops it. A bubble flies about 17 tiles.
+    /// Whether a bubble fired from anywhere Ben can stand or jump to reaches a crystal switch
+    /// before a mirror or a wall turns or stops it: straight up from the ground, or sideways at any
+    /// height of an ordinary jump (3.4 tiles; the pogo goes higher and is not guarded). A bubble
+    /// flies about 17 tiles. Returns where the shot started and which switch it hit.
     fn switch_in_straight_line(l: &LevelData) -> Option<(f64, f64, f64, f64)> {
         let cells = |kinds: &[Kind]| -> Vec<(f64, f64)> {
             l.spawns
@@ -1815,37 +1824,68 @@ mod tests {
         };
         let switches = cells(&[Kind::CrystalSwitch]);
         let mirrors = cells(&[Kind::Mirror, Kind::Swivel]);
+        // Follows a bubble from (x, y) in direction (dx, dy) and returns the switch it hits, if
+        // nothing solid or a mirror gets in the way first.
+        let ray = |x: f64, y: f64, dx: f64, dy: f64| -> Option<(f64, f64)> {
+            let (mut px, mut py) = (x, y);
+            for _ in 0..352 {
+                if l.map
+                    .solid(px.floor() as i32, py.floor() as i32, false, 0.0)
+                {
+                    return None;
+                }
+                if mirrors.iter().any(|m| {
+                    (m.0 - px).abs() < crate::world::MIRROR_REACH
+                        && (m.1 - py).abs() < crate::world::MIRROR_REACH
+                }) {
+                    return None;
+                }
+                if let Some(s) = switches.iter().find(|s| {
+                    (s.0 - px).abs() < crate::world::SWITCH_REACH
+                        && (s.1 - py).abs() < crate::world::SWITCH_REACH
+                }) {
+                    return Some(*s);
+                }
+                px += dx * 0.05;
+                py += dy * 0.05;
+            }
+            None
+        };
         for x in 0..l.map.w {
             for y in 0..l.map.h - 2 {
                 let t = l.map.get(x, y);
                 let floor = t == PLAT || l.map.is_solid_tile(t);
-                if !floor || l.map.get(x, y + 1) != EMPTY && l.map.get(x, y + 1) != WALLBG {
+                // He needs room to stand: the two tiles above must be free (he is 1.4 tall).
+                let free = |yy: i32| matches!(l.map.get(x, yy), EMPTY | WALLBG);
+                if !floor || !free(y + 1) || !free(y + 2) {
                     continue;
                 }
                 let stand = f64::from(y + 1);
                 // Ben's centre can be anywhere that leaves part of his 0.7-wide body on the tile.
                 let mut cx = f64::from(x) - 0.3;
                 while cx < f64::from(x) + 1.3 {
-                    let mut py = stand + 1.5;
-                    while py < stand + 1.5 + 17.6 {
-                        if l.map
-                            .solid(cx.floor() as i32, py.floor() as i32, false, 0.0)
-                        {
+                    if let Some(s) = ray(cx, stand + 1.5, 0.0, 1.0) {
+                        return Some((cx, stand + 1.5, s.0, s.1));
+                    }
+                    // Sideways, at every height of a jump from this spot (a shot leaves 0.6 tiles
+                    // in front of him, at 0.85 above his feet).
+                    let mut feet = stand;
+                    while feet <= stand + 3.4 {
+                        // His body must fit in open space at this height.
+                        let fits = (((cx - 0.35).floor() as i32)..=((cx + 0.34).floor() as i32))
+                            .all(|bx| {
+                                (feet.floor() as i32..=(feet + 1.39).floor() as i32)
+                                    .all(|by| !l.map.is_solid_tile(l.map.get(bx, by)))
+                            });
+                        if !fits {
                             break;
                         }
-                        if mirrors
-                            .iter()
-                            .any(|m| (m.0 - cx).abs() < 0.55 && (m.1 - py).abs() < 0.55)
-                        {
-                            break;
+                        for dir in [-1.0, 1.0] {
+                            if let Some(s) = ray(cx + dir * 0.6, feet + 0.85, dir, 0.0) {
+                                return Some((cx, feet + 0.85, s.0, s.1));
+                            }
                         }
-                        if let Some(s) = switches
-                            .iter()
-                            .find(|s| (s.0 - cx).abs() < 0.55 && (s.1 - py).abs() < 0.55)
-                        {
-                            return Some((cx, stand, s.0, s.1));
-                        }
-                        py += 0.05;
+                        feet += 0.1;
                     }
                     cx += 0.05;
                 }
@@ -1860,7 +1900,7 @@ mod tests {
         assert_eq!(
             switch_in_straight_line(&l),
             None,
-            "a switch is in a straight line up from somewhere Ben can stand: (x, stand, switch)"
+            "a switch can be shot directly from somewhere Ben can stand or jump: (x, y, switch)"
         );
     }
 
