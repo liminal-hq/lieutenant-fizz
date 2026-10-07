@@ -379,6 +379,18 @@ mod tests {
     }
 
     #[test]
+    fn fudge_bog_can_be_finished_via_the_red_key() {
+        use crate::levels::FUDGE_BOG;
+        let route = [wp(139.5, 15.0), exit_of(FUDGE_BOG)];
+        let r = play_level(FUDGE_BOG, &route, &Options::default());
+        assert!(
+            r.finished,
+            "bot stalled at wp {} after {} ticks; best states {:?}",
+            r.waypoint, r.ticks, r.top
+        );
+    }
+
+    #[test]
     fn meteor_mesa_can_be_finished() {
         let r = play_level(METEOR_MESA, &[exit_of(METEOR_MESA)], &Options::default());
         assert!(

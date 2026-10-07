@@ -22,6 +22,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 3b. **Zarg Lookout** (Crater Fields, building): a nine-floor watchtower in cutaway. Ladders, two flights of stairs and a slow lift link floors that alternate between full-width halls and small landings; the red key is on the roof and its cookie door guards the exit at the bottom, so Ben climbs up and comes back down. The camera chases quickly and looks neither ahead nor far above.
 3c. **Marshmallow Meadows** (Marshmallow Meadows, open sky): soft hills, marshmallows bouncing in fenced corrals to pogo off, and the blue key at the top of a stack of cloud ledges.
 3d. **Bonbon Playhouse** (Marshmallow Meadows, theatre): a candy theatre whose backstage rooms are hidden behind painted flats. Walk into a room and its front wall fades away, showing what waits inside; the red key and blue key are each in a hidden room, a beetle waits in one on the path, and bats hang under the blue-key room.
+3e. **Fudge Bog** (Marshmallow Meadows, crater, optional): a harder crater with wide fudge pools crossed on stepping stones, spike runs, three spore pods and the red key at the top of a short tower of ledges.
 4. **Crystal Caves:** darker tunnels lit by crystals and Ben's lantern. Hover platforms, a bridge switch, bats, blue gumdrop door.
 5. **Mildred's Citadel:** boulder ramp, sentries, phantoms, then the boss arena, the terminal and Billy's cage.
 6. Ending (4 panels), then the credits (skippable), then a score card. Episode 1 has no post-credits stinger; it belongs to Episode 3.

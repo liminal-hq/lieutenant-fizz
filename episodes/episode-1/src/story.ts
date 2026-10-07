@@ -150,4 +150,10 @@ export const LEVELS: LevelInfo[] = [
     track: 'caves',
     cleared: 'The curtain falls on a very sticky stage. Ben takes a bow.',
   },
+  {
+    name: 'Fudge Bog',
+    blurb: 'Wide pools of hot fudge, stepping stones and three very puffy spore pods.',
+    track: 'crater',
+    cleared: 'Ben wipes fudge off his boots. That was the hard way round, and he knows it.',
+  },
 ];

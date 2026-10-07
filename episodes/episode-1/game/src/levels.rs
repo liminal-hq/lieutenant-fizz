@@ -18,9 +18,10 @@ pub const METEOR_MESA: u8 = 3;
 pub const ZARG_LOOKOUT: u8 = 4;
 pub const MARSHMALLOW_MEADOWS: u8 = 5;
 pub const BONBON_PLAYHOUSE: u8 = 6;
+pub const FUDGE_BOG: u8 = 7;
 
 /// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
-pub const LEVEL_COUNT: u8 = 7;
+pub const LEVEL_COUNT: u8 = 8;
 
 /// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
 pub const AREA_CRATER_FIELDS: u8 = 0;
@@ -88,6 +89,13 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
         theme: Theme::Theatre,
         area: AREA_MARSHMALLOW_MEADOWS,
         icon: Spr::OwPlayhouse,
+    },
+    LevelDef {
+        id: FUDGE_BOG,
+        build: fudge_bog,
+        theme: Theme::Crater,
+        area: AREA_MARSHMALLOW_MEADOWS,
+        icon: Spr::OwCrater,
     },
 ];
 
@@ -772,6 +780,85 @@ fn bonbon_playhouse() -> LevelData {
     b.out(BONBON_PLAYHOUSE, (3.0, 4.0), None)
 }
 
+/// A harder crater: wide fudge pools crossed on stepping-stone ledges, spikes, three spore pods and a
+/// red key at the top of a short tower of ledges.
+fn fudge_bog() -> LevelData {
+    let mut b = Builder::new(190, 28, 4);
+    b.run(&[
+        (Flat, 12),
+        (Pool, 3),
+        (Flat, 8),
+        (Up, 2),
+        (Flat, 6),
+        (Pool, 5),
+        (Flat, 10),
+        (Spikes, 3),
+        (Flat, 8),
+        (Down, 2),
+        (Pool, 3),
+        (Flat, 12),
+        (Up22, 2),
+        (Flat, 8),
+        (Pool, 6),
+        (Flat, 10),
+        (Spikes, 3),
+        (Flat, 9),
+        (Pool, 3),
+        (Flat, 10),
+        (Up, 3),
+        (Flat, 14),
+        (Down, 3),
+        (Pool, 4),
+        (Flat, 39),
+    ]);
+    b.walls();
+    // Stepping stones over the wide pools, level with the ground on either side.
+    b.plat(32, 33, 5).plat(88, 89, 5).plat(148, 149, 5);
+    // The red key: two ledges, each three tiles above the last.
+    b.plat(134, 136, 11).plat(138, 140, 14);
+    b.item(KeyRed, 139, 15);
+    b.fill(165, 165, 6, 7, DOOR_R).fill(165, 165, 8, 27, BLOCK);
+    b.fill(185, 185, 6, 7, EXIT);
+    b.row(Cheezie, 4, 6, 6, 1)
+        .row(Choc, 12, 3, 8, 1)
+        .row(Cheezie, 26, 5, 8, 1)
+        .row(Choc, 31, 5, 9, 1)
+        .row(Cheezie, 37, 6, 8, 1)
+        .row(Cheezie, 46, 3, 9, 1)
+        .item(Soda, 52, 8)
+        .row(Choc, 59, 3, 7, 1)
+        .row(Cheezie, 64, 8, 6, 1)
+        .item(Cookie, 80, 9)
+        .row(Choc, 86, 6, 9, 1)
+        .row(Cheezie, 94, 6, 8, 1)
+        .row(Cheezie, 102, 3, 9, 1)
+        .item(Soda, 108, 8)
+        .row(Cheezie, 117, 8, 8, 1)
+        .item(Cookie, 135, 12)
+        .item(Cookie, 140, 15)
+        .row(Choc, 147, 4, 8, 1)
+        .row(Cheezie, 152, 6, 8, 1)
+        .row(Cookie, 172, 4, 8, 3);
+    for x in [6, 20, 40, 66, 82, 96, 120, 136, 156, 176] {
+        b.crys(x);
+    }
+    b.ent(Kind::Pod, 18.0)
+        .ent(Kind::Pod, 67.0)
+        .ent(Kind::Pod, 121.0);
+    b.ent(Kind::Gloop, 28.0)
+        .ent(Kind::Gloop, 96.0)
+        .ent(Kind::Gloop, 155.0)
+        .ent(Kind::Gloop, 175.0)
+        .ent(Kind::Hopper, 40.0)
+        .ent(Kind::Hopper, 82.0)
+        .ent(Kind::Hopper, 133.0)
+        .ent(Kind::Beetle, 109.0);
+    b.ent_at(Kind::Drone, 60.5, 9.5)
+        .ent_at(Kind::Drone, 125.5, 11.5)
+        .ent_at(Kind::Drone, 170.5, 11.5);
+    b.out(FUDGE_BOG, (3.0, 4.0), None)
+}
+
 fn caves() -> LevelData {
     let mut b = Builder::new(176, 26, 5);
     b.run(&[
@@ -989,6 +1076,7 @@ pub fn build_overworld() -> MapData {
         pt(PtKind::Level, ZARG_LOOKOUT, 15, 19, 0, 0, false),
         pt(PtKind::Level, MARSHMALLOW_MEADOWS, 15, 23, 0, 0, false),
         pt(PtKind::Level, BONBON_PLAYHOUSE, 15, 27, 0, 0, false),
+        pt(PtKind::Level, FUDGE_BOG, 15, 31, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -1181,6 +1269,6 @@ mod tests {
                 );
             }
         }
-        assert_eq!(m.points.len(), 12);
+        assert_eq!(m.points.len(), 13);
     }
 }
