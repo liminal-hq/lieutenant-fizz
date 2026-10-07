@@ -53,6 +53,11 @@ pub const WALL_KICK_COOLDOWN: f64 = 0.25;
 pub const CLIMB_SPEED: f64 = 4.5;
 
 /// How far from its home floor (in tiles) an enemy may be, and for how long, before it is sent home.
+/// The levels attract mode shows in turn.
+pub const ATTRACT_LEVELS: [u8; 3] = [levels::CRATER, levels::CAVES, levels::CITADEL];
+/// Attract camera speed in tiles per second, and the longest stretch it pans across in tiles.
+const ATTRACT_SPEED: f64 = 2.2;
+const ATTRACT_SPAN: f64 = 46.0;
 pub const STRAY_HEIGHT: f64 = 4.0;
 pub const STRAY_SECS: f64 = 3.0;
 
@@ -228,6 +233,11 @@ pub struct World {
     pub t: f64,
     pub half_w: f64,
     pub half_h: f64,
+    /// Ticks since the current attract level loaded, which level of the loop it is, and whether
+    /// the camera holds still (reduced motion).
+    pub attract_t: u32,
+    pub attract_idx: u32,
+    pub attract_still: bool,
 
     // Camera (world units). `p` prefix = previous tick, for interpolation.
     pub cam_x: f64,
@@ -330,6 +340,9 @@ impl World {
             t: 0.0,
             half_w: 10.0,
             half_h: 6.5,
+            attract_t: 0,
+            attract_idx: 0,
+            attract_still: false,
             cam_x: 0.0,
             cam_y: 0.0,
             pcx: 0.0,
@@ -387,6 +400,9 @@ impl World {
             t: self.t,
             half_w: self.half_w,
             half_h: self.half_h,
+            attract_t: self.attract_t,
+            attract_idx: self.attract_idx,
+            attract_still: self.attract_still,
             cam_x: self.cam_x,
             cam_y: self.cam_y,
             pcx: self.pcx,
@@ -455,10 +471,55 @@ impl World {
         self.events.emit(ev::TOAST, f64::from(t as u16), 0.0, 0.0);
     }
 
-    pub fn load_attract(&mut self) {
-        self.load_level(levels::CRATER);
+    /// Loads one level of the attract loop (Crater Fields, Crystal Caves, Mildred's Citadel, then
+    /// round again). With `still` the camera holds at the start of the level instead of panning.
+    pub fn load_attract(&mut self, idx: u32, still: bool) {
+        self.attract_idx = idx % ATTRACT_LEVELS.len() as u32;
+        self.load_level(ATTRACT_LEVELS[self.attract_idx as usize]);
         self.mode = Mode::Attract;
         self.p.hidden = true;
+        self.attract_t = 0;
+        self.attract_still = still;
+        self.attract_camera();
+    }
+
+    /// How far left and right the attract camera pans: from just inside the left wall, up to
+    /// `ATTRACT_SPAN` tiles, but never past the right wall.
+    fn attract_range(&self) -> (f64, f64) {
+        let w = f64::from(self.map.w);
+        let x0 = self.half_w + 1.0;
+        let x1 = (w - self.half_w - 1.0).min(x0 + ATTRACT_SPAN).max(x0 + 1.0);
+        (x0, x1)
+    }
+
+    /// Ticks for the camera to pan across and back, which is how long one level is shown.
+    pub fn attract_period(&self) -> u32 {
+        let (x0, x1) = self.attract_range();
+        ((2.0 * (x1 - x0) / ATTRACT_SPEED) * 60.0).ceil() as u32
+    }
+
+    /// Places the camera from the tick count alone, so the same ticks always give the same view.
+    /// The bottom edge sits on row 0 and never shows below the bottom tile row.
+    fn attract_camera(&mut self) {
+        let (x0, x1) = self.attract_range();
+        let dist = x1 - x0;
+        let period = f64::from(self.attract_period().max(1));
+        let ph = if self.attract_still {
+            0.0
+        } else {
+            f64::from(self.attract_t % self.attract_period().max(1)) / period
+        };
+        self.cam_x = x0 + dist * if ph < 0.5 { ph * 2.0 } else { 2.0 - ph * 2.0 };
+        let (w, h) = (f64::from(self.map.w), f64::from(self.map.h));
+        let (hw, hh) = (self.half_w, self.half_h);
+        self.cam_x = if hw * 2.0 < w {
+            self.cam_x.clamp(hw, w - hw)
+        } else {
+            w / 2.0
+        };
+        self.cam_y = if hh * 2.0 < h { hh } else { h / 2.0 };
+        self.pcx = self.cam_x;
+        self.pcy = self.cam_y;
     }
 
     pub fn enter_level(&mut self, id: u8) {
@@ -672,10 +733,8 @@ impl World {
                 self.follow(dt, 0.0, 0.0, 3.5);
             }
             Mode::Attract => {
-                let w = f64::from(self.map.w);
-                self.cam_x = 14.0 + ((self.t * 0.04 - 1.57).sin() * 0.5 + 0.5) * (w - 28.0);
-                self.cam_y = 9.0;
-                self.pcx = self.cam_x;
+                self.attract_t = self.attract_t.wrapping_add(1);
+                self.attract_camera();
                 self.tick_ents(dt);
             }
             Mode::Level => {

@@ -527,7 +527,7 @@ fn simulation_and_rendering_are_deterministic() {
 #[test]
 fn attract_mode_scrolls_without_ben() {
     let mut w = World::new();
-    w.load_attract();
+    w.load_attract(0, false);
     w.half_w = 11.0;
     w.half_h = 6.5;
     let x0 = w.cam_x;
@@ -2525,4 +2525,140 @@ fn the_saucer_has_its_five_crystals() {
     let w = level(crate::levels::SAUCER);
     let n = w.map.data.iter().filter(|&&t| t == CRYS).count();
     assert_eq!(n, 5, "crystals light the saucer");
+}
+
+#[test]
+fn the_overworld_thumbnail_marks_rivers_areas_and_level_nodes() {
+    use crate::levels::{
+        area_at, build_overworld, overworld_areas, overworld_thumb, PtKind, AREA_CRATER_FIELDS,
+        AREA_GUMDROP_ISLE, THUMB_GRASS, THUMB_NODE, THUMB_RIVER,
+    };
+    let (w, h, cells) = overworld_thumb();
+    assert_eq!((w, h), (60, 44));
+    assert_eq!(cells.len(), (w * h) as usize);
+    let kind = |x: i32, y: i32| cells[(y * w + x) as usize] & 0x0f;
+    let aux = |x: i32, y: i32| cells[(y * w + x) as usize] >> 4;
+    assert_eq!(kind(0, 0), THUMB_RIVER, "the outer river");
+    assert_eq!(kind(24, 10), THUMB_RIVER, "the north-south river");
+    assert_eq!(kind(10, 10), THUMB_GRASS);
+    assert_eq!(aux(10, 10), AREA_CRATER_FIELDS);
+    let areas = overworld_areas();
+    assert_eq!(aux(10, 10), area_at(&areas, 10, 10));
+    assert_eq!(area_at(&areas, 24, 22), AREA_GUMDROP_ISLE);
+    // Every visible level point is a node carrying its level id.
+    let data = build_overworld();
+    let nodes: Vec<_> = data
+        .points
+        .iter()
+        .filter(|p| p.kind == PtKind::Level && !p.hidden)
+        .collect();
+    assert!(!nodes.is_empty());
+    for p in &nodes {
+        let (x, y) = (p.x as i32, p.y as i32);
+        assert_eq!(kind(x, y), THUMB_NODE, "node at {x},{y}");
+        assert_eq!(aux(x, y), p.level);
+    }
+    let count = cells.iter().filter(|&&c| c & 0x0f == THUMB_NODE).count();
+    assert_eq!(count, nodes.len());
+}
+
+#[test]
+fn attract_mode_visits_the_three_levels_in_turn() {
+    use crate::levels::{CAVES, CITADEL, CRATER};
+    let mut w = World::new();
+    for (idx, id) in [
+        (0, CRATER),
+        (1, CAVES),
+        (2, CITADEL),
+        (3, CRATER),
+        (7, CAVES),
+    ] {
+        w.load_attract(idx, false);
+        assert_eq!(w.level_id, id, "attract level {idx}");
+        assert_eq!(w.mode, Mode::Attract);
+        assert!(w.p.hidden);
+        assert!(w.attract_period() > 0);
+    }
+}
+
+#[test]
+fn attract_camera_never_shows_below_the_bottom_row() {
+    for idx in 0..3 {
+        for (hw, hh) in [
+            (8.0, 4.0),
+            (10.0, 6.5),
+            (14.0, 6.5),
+            (20.0, 6.0),
+            (30.0, 8.0),
+        ] {
+            let mut w = World::new();
+            w.half_w = hw;
+            w.half_h = hh;
+            w.load_attract(idx, false);
+            let period = w.attract_period();
+            for t in 0..(period + 5) {
+                w.step(0);
+                let bottom = w.cam_y - w.half_h;
+                assert!(
+                    bottom >= -1e-9,
+                    "level {idx}, view {hw}x{hh}, tick {t}: bottom edge at {bottom}"
+                );
+                let left = w.cam_x - w.half_w;
+                assert!(left >= -1e-9, "level {idx}: left edge at {left}");
+            }
+            // A level at least as tall as the view rests exactly on row 0.
+            if f64::from(w.map.h) >= hh * 2.0 {
+                assert!((w.cam_y - hh).abs() < 1e-9, "bottom edge is row 0");
+            }
+        }
+    }
+}
+
+#[test]
+fn attract_camera_depends_only_on_the_tick_count() {
+    let path = || {
+        let mut w = World::new();
+        w.half_w = 11.0;
+        w.half_h = 6.5;
+        w.load_attract(1, false);
+        (0..400)
+            .map(|_| {
+                w.step(0);
+                (w.cam_x.to_bits(), w.cam_y.to_bits())
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(path(), path());
+}
+
+#[test]
+fn attract_camera_pans_across_and_comes_back_each_period() {
+    let mut w = World::new();
+    w.half_w = 11.0;
+    w.half_h = 6.5;
+    w.load_attract(0, false);
+    let start = w.cam_x;
+    let period = w.attract_period();
+    let mut far = start;
+    for _ in 0..period {
+        w.step(0);
+        far = far.max(w.cam_x);
+    }
+    assert!(far - start > 20.0, "pans a good way across, to {far}");
+    assert!(
+        (w.cam_x - start).abs() < 0.2,
+        "back near the start after one period"
+    );
+    assert_eq!(w.attract_t, period);
+}
+
+#[test]
+fn attract_camera_holds_still_for_reduced_motion() {
+    let mut w = World::new();
+    w.half_w = 11.0;
+    w.half_h = 6.5;
+    w.load_attract(2, true);
+    let (x, y) = (w.cam_x, w.cam_y);
+    run(&mut w, 600, 0);
+    assert_eq!((w.cam_x, w.cam_y), (x, y));
 }

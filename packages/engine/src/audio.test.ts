@@ -137,6 +137,70 @@ describe('GameAudio with Undertone', () => {
   });
 });
 
+describe('GameAudio volume', () => {
+  it('restarts the music loop when the music volume changes, and clamps it', async () => {
+    const stop = vi.fn();
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop });
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    await unlockAudio();
+    audio.playMusic('title');
+    expect(loop).toHaveBeenCalledTimes(1);
+    audio.setMusicVolume(0.5);
+    expect(audio.musicVol).toBe(0.5);
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(loop).toHaveBeenCalledTimes(2);
+    audio.setMusicVolume(0.5);
+    expect(loop).toHaveBeenCalledTimes(2);
+    audio.setMusicVolume(7);
+    expect(audio.musicVol).toBe(1);
+    audio.setMusicVolume(-1);
+    expect(audio.musicVol).toBe(0);
+  });
+
+  it('does not restart the loop when music is set to the state it is already in', async () => {
+    const stop = vi.fn();
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop });
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    await unlockAudio();
+    audio.playMusic('title');
+    audio.setMusic(true);
+    audio.setMusic(true);
+    expect(loop).toHaveBeenCalledTimes(1);
+    expect(stop).not.toHaveBeenCalled();
+    // A volume change restarts it once, and setting the state again afterwards does not add a second.
+    audio.setMusicVolume(0.5);
+    audio.setMusic(true);
+    expect(loop).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not start music for a volume change while music is off', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    await unlockAudio();
+    audio.playMusic('title');
+    audio.setMusic(false);
+    audio.setMusicVolume(0.25);
+    expect(loop).toHaveBeenCalledTimes(1);
+  });
+
+  it('builds effects again at a new sound volume and clamps it', async () => {
+    const play = vi.spyOn(Undertone.Pattern.prototype, 'play').mockImplementation(() => {});
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    await unlockAudio();
+    audio.play('jump');
+    audio.setSfxVolume(0.25);
+    expect(audio.sfxVol).toBe(0.25);
+    audio.play('jump');
+    expect(play).toHaveBeenCalledTimes(2);
+    audio.setSfxVolume(3);
+    expect(audio.sfxVol).toBe(1);
+  });
+});
+
 describe('GameAudio fallback', () => {
   it('uses the built-in synth when Undertone fails to load', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});

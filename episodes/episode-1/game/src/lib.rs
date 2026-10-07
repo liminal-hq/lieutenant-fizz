@@ -122,6 +122,41 @@ pub extern "C" fn events_clear() {
     w().events.clear();
 }
 
+// ---------- Overworld thumbnail ----------
+
+static mut THUMB: Option<(i32, i32, Vec<u8>)> = None;
+
+/// The overworld as one byte per tile (see `levels::overworld_thumb`), built once.
+fn thumb() -> &'static (i32, i32, Vec<u8>) {
+    // SAFETY: single-threaded wasm; exports are never re-entered.
+    unsafe { (*addr_of_mut!(THUMB)).get_or_insert_with(levels::overworld_thumb) }
+}
+
+#[no_mangle]
+pub extern "C" fn thumb_w() -> u32 {
+    thumb().0 as u32
+}
+
+#[no_mangle]
+pub extern "C" fn thumb_h() -> u32 {
+    thumb().1 as u32
+}
+
+#[no_mangle]
+pub extern "C" fn thumb_ptr() -> *const u8 {
+    thumb().2.as_ptr()
+}
+
+/// The overworld area (see the `AREA_*` ids) that covers a tile position.
+#[no_mangle]
+pub extern "C" fn area_of(x: f64, y: f64) -> u32 {
+    u32::from(levels::area_at(
+        &levels::overworld_areas(),
+        x.floor() as i32,
+        y.floor() as i32,
+    ))
+}
+
 // ---------- Flow ----------
 
 #[no_mangle]
@@ -129,9 +164,10 @@ pub extern "C" fn game_new() {
     w().game_new();
 }
 
+/// Loads one level of the attract loop; `still` holds the camera for reduced motion.
 #[no_mangle]
-pub extern "C" fn load_attract() {
-    w().load_attract();
+pub extern "C" fn load_attract(idx: u32, still: u32) {
+    w().load_attract(idx, still != 0);
 }
 
 #[no_mangle]
@@ -204,6 +240,9 @@ pub mod state {
     pub const LEVEL_ID: u32 = 17;
     pub const WON: u32 = 18;
     pub const KEY_GREEN: u32 = 19;
+    pub const ATTRACT_T: u32 = 20;
+    pub const ATTRACT_PERIOD: u32 = 21;
+    pub const ATTRACT_IDX: u32 = 22;
 }
 
 #[no_mangle]
@@ -236,6 +275,9 @@ pub extern "C" fn state_get(i: u32) -> f64 {
         TICK => f64::from(s.tick_count),
         LEVEL_ID => f64::from(s.level_id),
         WON => b(s.won),
+        ATTRACT_T => f64::from(s.attract_t),
+        ATTRACT_PERIOD => f64::from(s.attract_period()),
+        ATTRACT_IDX => f64::from(s.attract_idx),
         _ => 0.0,
     }
 }

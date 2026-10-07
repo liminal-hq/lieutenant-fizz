@@ -15,7 +15,7 @@ Billy, 14, has vanished. His cousin Ben, 10, finds a secret lab under their tree
 See `STORY.md` for the full opening cinematic and ending text.
 
 ## Structure
-1. Title screen, then the opening cinematic (8 panels, skippable).
+1. Title screen (with a looping attract backdrop over Crater Fields, Crystal Caves and Mildred's Citadel, and Ben on the wordmark), then the opening cinematic (8 panels, skippable).
 2. **Overworld:** a top-down map (north is up) cut into four regions by chocolate rivers, each with its own ground, trees and levels. In Crater Fields the three levels open in order, tutorial first, and a small town, Crater Corners (houses, shops, a fountain and three signposts that say a line when Ben walks up to them), lines the street east of the first level. Teleporter pairs link the regions and power up once the levels in front of them are cleared; the Citadel stays locked until the two Frosting Frontier levels before it are done. Autosaves on every visit. A lake at the centre holds an island that cannot be walked to (see **The secret**).
 3. **Areas and levels** (15 levels; the `Type` says how a level plays, not where it is):
 
@@ -102,10 +102,15 @@ See `STORY.md` for the full opening cinematic and ending text.
 | Menu | Esc | Esc / P | Start |
 | Save / Load | F5 / F9 | F5 / F9 | Pause menu |
 
+- **Menus:** the title menu is New Game, Continue (it names the newest save), Load game, Options and Controls. The pause menu is Resume, Save game, Load game, Options, Leave level (in a level) and Quit to title.
+- **Options:** Music and Sound are 8-block volume meters; Captions is On or Off; Controls picks which keyboard column the hints and the Controls table show (Keen-style or Modern; both layouts always work); Text size is Normal or Large (one scale step up); Motion is System, Reduced or Full. Left and right change a value, and Enter steps it. They are saved on this device.
+- **Save slots:** the autosave (read-only) plus four slots. Each shows a mini overworld with Ben's position, the area, a pip per level cleared, lives, score, time played and the date. Esc or B goes back from any screen opened over a menu.
+- **Hints:** keycap and button hints along the bottom of each screen follow the last input used: pressing a key shows keyboard hints, touching the gamepad (or connecting one) shows button hints, and unplugging the last pad goes back to the keyboard.
+
 ## Art direction
 - 16-colour EGA palette; bright and fun, in the style of *Goodbye, Galaxy!* and *Aliens Ate My Babysitter*.
 - Daylight by default, with Last Light's lighting effects layered on top. A night variant is supported (§5.1 of the engine spec).
-- UI uses the Liminal HQ design system in the DOM overlay; the world stays strictly pixel art.
+- UI uses the Liminal HQ design system's colours, scrims and panels in the DOM overlay, set in the Fizz pixel font at whole-pixel sizes (`docs/FONT.md`); the world stays strictly pixel art. The title and pause menus are left-aligned lists over a scrim, with a soda-can bullet and an orange stepped plate on the selected row, and the pause and card screens hide the HUD.
 
 ## Audio
 - **Music:** 16 looping tracks: title, map, boss, ending, four for the opening cinematic (`yard`, `lab`, `launch`, `cine`), and one per level type: `crater`, `caves`, `citadel`, `sky` (open sky), `tower` (buildings), `theatre` (a waltz), `foundry` and `secret` (Gumdrop Isle). Mirror Shafts reuses `caves` and Fudge Bog reuses `crater`.

@@ -73,7 +73,7 @@ The repository is a monorepo for every Lieutenant Fizz episode.
 | `episodes/episode-1`     | *The Cocoa Caper*: the Vite app with its sprites, cinematic, DOM overlay, saves, music and story text       |
 | `episodes/episode-1/game` | `lf-episode-1`, the episode's own Rust crate: levels, player, enemies, boss, overworld and scene drawing, compiled to `sim.wasm` |
 | `site/`                  | The static landing page published at the Pages root; episodes are listed in `site/episodes.json`            |
-| `scripts/`               | Shell scripts for the WASM build, the Pages site assembly and the licence header check                     |
+| `scripts/`               | Shell scripts for the WASM build, the Pages site assembly and the licence header check, plus the Bun script that builds the Fizz font |
 | `docs/`                  | The engine specification, game design, story text and port status — the ground truth for implementation     |
 | `design/`                | The original playable prototype and the Liminal HQ design system, kept for reference                        |
 | `.github/workflows/`     | CI and the GitHub Pages deploy                                                                              |
@@ -91,6 +91,7 @@ bun run build       # production build: WASM, TypeScript and Vite
 bun run build:site  # landing page plus episodes assembled in dist-site/, as Pages publishes them
 bun run test        # TypeScript tests
 bun run test:rust   # Rust tests across the Cargo workspace
+bun run test:e2e    # Browser layout checks of the overlay (Playwright; not part of validate)
 bun run typecheck   # TypeScript type-check
 bun run lint        # lint
 bun run format      # format TypeScript, markdown and Rust
@@ -115,3 +116,5 @@ Lieutenant Fizz is a [Liminal HQ](https://liminalhq.ca) project. Its audio is wr
 ## Licence
 
 Licensed under either of the [Apache License, Version 2.0](LICENSE-APACHE) or the [MIT licence](LICENSE-MIT), at your option.
+
+The Fizz pixel font files in [`packages/engine/assets/fonts`](packages/engine/assets/fonts) are licensed separately under the [SIL Open Font License 1.1](packages/engine/assets/fonts/OFL.txt). The code that generates them stays under the dual licence above. See [`docs/FONT.md`](docs/FONT.md).

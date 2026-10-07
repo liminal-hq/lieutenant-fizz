@@ -4,15 +4,52 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { CreditsContent } from '@lieutenant-fizz/engine/credits';
+import { hintText } from '@lieutenant-fizz/engine/font/tokens';
 import { EGA } from '@lieutenant-fizz/engine/palette';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import type { StingerContent, StingerPhase } from '@lieutenant-fizz/engine/stinger';
+import {
+  controlsColumn,
+  creditsHints,
+  menuHints,
+  stingerHints,
+  type HintContext,
+  type HintScreen,
+} from './hints';
+import {
+  applyLayout,
+  captionAnimation,
+  captionPosition,
+  creditsTransform,
+  watchResize,
+} from './layout';
+import type { BenFrame, BenPose } from './titleBen';
 import './ui.css';
 
+/** A save slot shown as a row: thumbnail, two lines of text and the cleared-level pips. */
+export interface SlotRow {
+  title: string;
+  detail: string;
+  /** A shorter second line for narrow windows. */
+  brief: string;
+  /** PNG data URL of the mini overworld; empty for an empty slot. */
+  thumb: string;
+  empty: boolean;
+  cleared: number;
+  total: number;
+}
+
 export interface MenuItem {
+  /** A stable id the game acts on, so labels can change without breaking the menu. */
+  id?: string;
   label: string;
+  slot?: SlotRow;
   value?: string;
   disabled?: boolean;
+  /** `meter` shows `meter` of 8 blocks; `choice` shows `◄ value ►` while selected. */
+  kind?: 'meter' | 'choice';
+  /** Filled blocks, 0 to 8, for a `meter` row. */
+  meter?: number;
 }
 
 export interface HudState {
@@ -115,6 +152,7 @@ export class Ui {
   private readonly title: HTMLElement;
   private readonly menuEl: HTMLElement;
   private readonly controls: HTMLElement;
+  private readonly backMenu: HTMLElement;
   private readonly overlay: HTMLElement;
   private readonly overlayMenu: HTMLElement;
   private readonly overlayNote: HTMLElement;
@@ -132,6 +170,19 @@ export class Ui {
   private readonly err: HTMLElement;
   private readonly loading: HTMLElement;
   private toastTimer = 0;
+  private bulletUrl = '';
+  private benUrls: Partial<Record<BenPose, string>> = {};
+  private readonly benEl: HTMLImageElement;
+  private readonly heroEl: HTMLElement;
+  private readonly attractFade: HTMLElement;
+  private readonly attractTag: HTMLElement;
+  private unwatch: () => void = () => {};
+  private ctx: HintContext = { device: 'keyboard', layout: 0 };
+  private titleKind: HintScreen = 'list';
+  private overlayKind: HintScreen = 'list';
+  private readonly titleKeys: HTMLElement;
+  private readonly overlayKeys: HTMLElement;
+  private large = false;
   private panelOpen = false;
   private panelVisibleAllowed = true;
   private readonly toggles = new Map<OptionKey, HTMLButtonElement>();
@@ -153,26 +204,18 @@ export class Ui {
     this.toastEl = el('div', { id: 'toast', class: 'lf lf-panel', hidden: '' });
 
     this.title = el('div', { id: 'title', class: 'lf screen', hidden: '' });
-    this.title.innerHTML = `<div class="head"><h1 class="wordmark"><span class="kicker">Ben Blaze in</span><span class="hero">Lieutenant Fizz</span></h1>
+    this.title.innerHTML = `<div class="head"><h1 class="wordmark"><span class="kicker">Ben Blaze in</span><span class="logo"><span class="hero"><span class="w">Lieutenant</span> <span class="w">Fizz</span></span><img class="ben" alt="" hidden></span></h1>
       <p class="episode">Episode 1 · The Cocoa Caper</p></div>`;
+    this.benEl = need(this.title, '.ben') as HTMLImageElement;
+    this.heroEl = need(this.title, '.hero');
     this.menuEl = el('div', { class: 'menu' });
     this.controls = el('div', { id: 'controls', hidden: '' });
-    this.controls.innerHTML = `<table>
-      <tr><th>Action</th><th>Keen-style</th><th>Modern</th><th>Gamepad</th></tr>
-      <tr><td>Move</td><td>← →</td><td>← → / A D</td><td>D-pad / stick</td></tr>
-      <tr><td>Jump</td><td>Ctrl</td><td>Z</td><td>A</td></tr>
-      <tr><td>Pogo (toggle)</td><td>Alt</td><td>X</td><td>B / Y</td></tr>
-      <tr><td>Fizz</td><td>Space</td><td>C</td><td>X / RT</td></tr>
-      <tr><td>Menu</td><td>Esc</td><td>Esc / P</td><td>Start</td></tr>
-      <tr><td>Save / Load</td><td>F5 / F9</td><td>F5 / F9</td><td>Pause menu</td></tr>
-    </table>
-    <p class="note">Hold jump while pogoing for a high bounce. Aim fizz up with ↑, or down with ↓ in the air.</p>`;
-    const back = el('button', { class: 'back' }, 'Back');
-    back.addEventListener('click', () => h.backFromControls());
-    this.controls.append(back);
-    const keys = el('div', { class: 'keys' });
-    keys.innerHTML = `<span><kbd>↑ ↓</kbd>Choose</span><span><kbd>Enter</kbd><kbd>A</kbd>Select</span>`;
-    this.title.append(this.menuEl, this.controls, keys);
+    this.renderControls();
+    this.backMenu = el('div', { class: 'menu' });
+    this.renderMenu(this.backMenu, [{ label: 'Back' }], 0, () => h.backFromControls());
+    this.controls.append(this.backMenu);
+    this.titleKeys = el('div', { class: 'keys' });
+    this.title.append(this.menuEl, this.controls, this.titleKeys);
 
     this.overlay = el('div', { id: 'overlay', class: 'lf screen', hidden: '' });
     const box = el('div', { class: 'box' });
@@ -180,7 +223,8 @@ export class Ui {
     this.overlayMenu = el('div', { class: 'menu' });
     this.overlayNote = el('p', { class: 'note' });
     box.append(this.overlayMenu, this.overlayNote);
-    this.overlay.append(box);
+    this.overlayKeys = el('div', { class: 'keys' });
+    this.overlay.append(box, this.overlayKeys);
 
     this.letterbox = el('div', { id: 'letterbox', class: 'lf', hidden: '' });
     this.letterbox.innerHTML = `<div class="bar"><span class="place"></span><button class="btn ghost skip">Skip</button></div>
@@ -201,8 +245,8 @@ export class Ui {
       <div class="name"></div><span class="sound" hidden></span>
       <div class="box"><div class="in"><span class="place"></span>
         <span class="line"><span class="shown"></span><span class="hidden-text"></span></span>
-        <div class="hints"><button class="hint skip"><kbd>Esc</kbd>Skip</button>
-          <span class="hint go"><span class="cursor">▌</span><kbd>Jump</kbd>Continue</span></div></div></div>`;
+        <div class="hints"><button class="hint skip"></button>
+          <span class="hint go"><span class="cursor">▌</span><span class="go-text"></span></span></div></div></div>`;
     this.stinger.addEventListener('click', () => h.stingerPress());
     need(this.stinger, '.skip').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -227,7 +271,11 @@ export class Ui {
     this.loading = el('div', { id: 'loading', class: 'lf' }, 'Loading Zargoth…');
     this.err = el('div', { id: 'err', class: 'lf', hidden: '' });
 
+    this.attractFade = el('div', { id: 'attractFade', hidden: '' });
+    this.attractTag = el('div', { id: 'attractTag', class: 'lf', hidden: '' });
     this.root.append(
+      this.attractFade,
+      this.attractTag,
       this.hud,
       this.boss,
       this.prompt,
@@ -243,6 +291,123 @@ export class Ui {
       this.loading,
       this.err,
     );
+    this.relayout();
+    this.refreshHints();
+    this.unwatch = watchResize(() => this.relayout());
+  }
+
+  /** Stops listening to the window and cancels pending timers. */
+  dispose(): void {
+    this.unwatch();
+    window.clearTimeout(this.toastTimer);
+  }
+
+  /** Sets the device and keyboard layout the hints are written for. */
+  setHintContext(ctx: HintContext): void {
+    if (ctx.device === this.ctx.device && ctx.layout === this.ctx.layout) return;
+    this.ctx = ctx;
+    this.refreshHints();
+  }
+
+  private setKeys(into: HTMLElement, hints: string[]): void {
+    into.replaceChildren(
+      ...hints.map((h) => {
+        const span = el('span');
+        span.textContent = hintText(h);
+        return span;
+      }),
+    );
+  }
+
+  private refreshHints(): void {
+    this.setKeys(this.titleKeys, menuHints(this.titleKind, this.ctx));
+    this.setKeys(this.overlayKeys, menuHints(this.overlayKind, this.ctx));
+    this.renderControls();
+  }
+
+  /** The Controls table, with the column for the device in use picked out. */
+  private renderControls(): void {
+    const on = controlsColumn(this.ctx);
+    const cell = (tag: string, col: number, text: string): string =>
+      `<${tag}${col === on ? ' class="on"' : ''}>${hintText(text)}</${tag}>`;
+    const row = (action: string, keen: string, modern: string, pad: string): string =>
+      `<tr>${cell('td', 0, action)}${cell('td', 1, keen)}${cell('td', 2, modern)}${cell('td', 3, pad)}</tr>`;
+    const table = this.controls.querySelector('table');
+    const html = `<tr><th>Action</th>${['Keen-style', 'Modern', 'Gamepad']
+      .map((h, i) => cell('th', i + 1, h))
+      .join('')}</tr>
+      ${row('Move', '{[←]} {[→]}', '{[←]} {[→]} {[A]} {[D]}', 'D-pad / stick')}
+      ${row('Jump', '{Ctrl}', '{[Z]}', '{A}')}
+      ${row('Pogo (toggle)', '{Alt}', '{[X]}', '{B} {Y}')}
+      ${row('Fizz', '{Space}', '{[C]}', '{X} {RT}')}
+      ${row('Menu', '{Esc}', '{Esc} {[P]}', '{Start}')}
+      ${row('Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu')}`;
+    if (table) {
+      table.innerHTML = html;
+      return;
+    }
+    this.controls.innerHTML = `<table>${html}</table>
+    <p class="note">${hintText('Hold jump while pogoing for a high bounce. Aim fizz up with {[↑]}, or down with {[↓]} in the air.')}</p>`;
+  }
+
+  /** Sizes the overlay's pixel text from the window. Called on resize and when text size changes. */
+  private relayout(): void {
+    applyLayout(document.documentElement, window.innerWidth, window.innerHeight, this.large);
+  }
+
+  /** Switches between normal and large text (one step up), for Options › Text size. */
+  setTextLarge(large: boolean): void {
+    this.large = large;
+    this.relayout();
+  }
+
+  /** Freezes the menu plate cycle and bullet bob, for reduced motion. */
+  setReducedMotion(on: boolean): void {
+    this.root.classList.toggle('rm', on);
+  }
+
+  /** Sets the Ben sprites used on the title: one image per pose. */
+  setBenSprites(grids: Partial<Record<BenPose, Grid>>): void {
+    for (const [pose, grid] of Object.entries(grids) as [BenPose, Grid][]) {
+      const c = document.createElement('canvas');
+      this.paintGrid(c, grid);
+      this.benUrls[pose] = c.toDataURL();
+    }
+  }
+
+  /** The size of the wordmark, so Ben can be placed against it. */
+  logoBox(): { w: number; h: number } {
+    return { w: this.heroEl.offsetWidth, h: this.heroEl.offsetHeight };
+  }
+
+  /** Draws Ben on the title: a pose at a pixel offset from the wordmark, `scale` pixels per sprite pixel. */
+  setBen(f: BenFrame | null, scale = 2): void {
+    const url = f ? this.benUrls[f.pose] : undefined;
+    this.benEl.hidden = !f || !url;
+    if (!f || !url) return;
+    if (this.benEl.getAttribute('src') !== url) this.benEl.src = url;
+    const s = this.benEl.style;
+    s.width = `${16 * scale}px`;
+    s.left = `${f.x}px`;
+    s.bottom = `${f.y}px`;
+    s.transform = `scaleX(${f.flip ? -1 : 1}) rotate(${f.rot}deg)`;
+  }
+
+  /** Shows the attract label and the black fade between levels, or hides both. */
+  setAttract(v: { label: string; fade: number } | null): void {
+    this.attractTag.hidden = !v;
+    this.attractFade.hidden = !v || v.fade <= 0;
+    if (!v) return;
+    if (this.attractTag.textContent !== v.label) this.attractTag.textContent = v.label;
+    this.attractFade.style.opacity = v.fade.toFixed(3);
+  }
+
+  /** Sets the menu bullet sprite: drawn once to a canvas and shown as a pixelated image. */
+  setBullet(grid: Grid): void {
+    const c = document.createElement('canvas');
+    this.paintGrid(c, grid);
+    this.bulletUrl = c.toDataURL();
+    this.renderMenu(this.backMenu, [{ label: 'Back' }], 0, () => this.h.backFromControls());
   }
 
   private buildPanel(): void {
@@ -359,38 +524,95 @@ export class Ui {
 
   // ----- Menus -----
 
-  private renderMenu(into: HTMLElement, items: MenuItem[], sel: number): void {
+  private renderMenu(
+    into: HTMLElement,
+    items: MenuItem[],
+    sel: number,
+    onClick: (i: number) => void = (i) => this.h.menuClick(i),
+  ): void {
     into.replaceChildren();
     items.forEach((it, i) => {
+      const selected = i === sel && !it.disabled;
       const b = el('button', {
-        class: `${i === sel && !it.disabled ? 'sel' : ''} ${it.disabled ? 'dis' : ''}`,
+        class: `${selected ? 'sel' : ''} ${it.disabled ? 'dis' : ''}`.trim(),
       });
-      const l = el('span');
-      l.textContent = it.label;
-      b.append(l);
-      if (it.value) {
-        const v = el('span', { class: 'val' });
-        v.textContent = it.value;
-        b.append(v);
+      const gut = el('span', { class: 'gut' });
+      if (this.bulletUrl) gut.append(el('img', { class: 'bullet', alt: '', src: this.bulletUrl }));
+      const plate = el('span', { class: 'plate' });
+      if (it.slot) {
+        b.classList.add('slot');
+        this.fillSlot(plate, it.slot);
+        b.append(gut, plate);
+        b.addEventListener('click', () => onClick(i));
+        b.addEventListener('mouseenter', () => this.h.menuHover(i));
+        into.append(b);
+        return;
       }
-      b.addEventListener('click', () => this.h.menuClick(i));
+      const l = el('span', { class: 'lbl' });
+      l.textContent = it.label;
+      plate.append(l);
+      if (it.kind === 'meter') {
+        const m = el('span', { class: 'meter' });
+        for (let k = 0; k < 8; k++) m.append(el('i', { class: k < (it.meter ?? 0) ? 'on' : '' }));
+        plate.append(m);
+      } else if (it.value) {
+        const v = el('span', { class: 'val' });
+        v.textContent = it.kind === 'choice' && selected ? `◄ ${it.value} ►` : it.value;
+        plate.append(v);
+      }
+      b.append(gut, plate);
+      b.addEventListener('click', () => onClick(i));
       b.addEventListener('mouseenter', () => this.h.menuHover(i));
       into.append(b);
     });
   }
 
+  /** A save slot's content: thumbnail, two text lines and one pip per level. */
+  private fillSlot(into: HTMLElement, s: SlotRow): void {
+    const thumb = s.empty
+      ? el('span', { class: 'thumb none' })
+      : el('img', { class: 'thumb', alt: '', src: s.thumb });
+    const text = el('span', { class: 'txt' });
+    const l1 = el('span', { class: 'l1' });
+    l1.textContent = s.title;
+    const l2 = el('span', { class: 'l2 full' });
+    l2.textContent = s.detail;
+    const brief = el('span', { class: 'l2 brief' });
+    brief.textContent = s.brief;
+    text.append(l1, l2, brief);
+    const pips = el('span', { class: 'pips-row' });
+    for (let k = 0; k < s.total; k++) pips.append(el('i', { class: k < s.cleared ? 'on' : '' }));
+    if (s.empty) pips.hidden = true;
+    into.append(thumb, text, pips);
+  }
+
   showTitle(items: MenuItem[] | null, sel: number, controls: boolean): void {
+    this.titleKind = controls ? 'controls' : 'list';
     this.title.hidden = items === null && !controls;
+    this.setKeys(this.titleKeys, menuHints(this.titleKind, this.ctx));
     if (items) this.renderMenu(this.menuEl, items, sel);
     this.menuEl.hidden = controls || items === null;
     this.controls.hidden = !controls;
   }
 
   showOverlay(
-    o: { title: string; text: string; note?: string; items: MenuItem[]; sel: number } | null,
+    o: {
+      title: string;
+      text: string;
+      note?: string;
+      items: MenuItem[];
+      sel: number;
+      /** Which hints to show along the bottom. */
+      screen: HintScreen;
+      /** Use the side-fading scrim of the title screens instead of the flat pause scrim. */
+      side?: boolean;
+    } | null,
   ): void {
     this.overlay.hidden = !o;
     if (!o) return;
+    this.overlayKind = o.screen;
+    this.overlay.toggleAttribute('data-side', !!o.side);
+    this.setKeys(this.overlayKeys, menuHints(o.screen, this.ctx));
     need(this.overlay, 'h2').textContent = o.title;
     const p = need(this.overlay, '.text');
     p.textContent = o.text;
@@ -482,8 +704,7 @@ export class Ui {
       stars.append(d);
     }
     const foot = el('div', { class: 'foot' });
-    foot.innerHTML =
-      '<button class="hint skip"><kbd>Esc</kbd>Skip credits</button><span class="hint go"><kbd>Jump</kbd><span class="act"></span></span>';
+    foot.innerHTML = '<button class="hint skip"></button><span class="hint go"></span>';
     need(foot, '.skip').addEventListener('click', (e) => {
       e.stopPropagation();
       this.h.creditsSkip();
@@ -522,11 +743,12 @@ export class Ui {
       : v.held
         ? 'Continue'
         : 'Next';
-    need(root, '.act').textContent = act;
+    const [skip, go] = creditsHints(this.ctx, act) as [string, string];
+    need(root, '.skip').textContent = hintText(skip);
+    need(root, '.go').textContent = hintText(go);
     if (!v.reduced && this.creditsTrack && v.offset !== this.creditsOffset) {
       this.creditsOffset = v.offset;
-      const y = root.clientHeight - v.offset;
-      this.creditsTrack.style.transform = `translateY(${y.toFixed(1)}px)`;
+      this.creditsTrack.style.transform = creditsTransform(root.clientHeight, v.offset);
     }
     if (v.reduced && this.creditsTrack) {
       this.creditsTrack.style.transform = 'none';
@@ -567,6 +789,9 @@ export class Ui {
     need(root, '.sound').hidden = !(v.caption && v.phase === 'slit');
     need(root, '.shown').textContent = v.shown;
     need(root, '.hidden-text').textContent = v.hidden;
+    const [skip, go] = stingerHints(this.ctx) as [string, string];
+    need(root, '.skip').textContent = hintText(skip);
+    need(root, '.go-text').textContent = hintText(go);
   }
 
   private paintGrid(canvas: HTMLCanvasElement, grid: Grid): void {
@@ -590,18 +815,13 @@ export class Ui {
   caption(x: number, y: number, text: string, colour: string): void {
     const d = el('div', { class: 'cap' });
     d.textContent = text;
-    d.style.left = `${x}px`;
-    d.style.top = `${y}px`;
     d.style.color = colour;
     this.fx.append(d);
-    const a = d.animate(
-      [
-        { transform: 'translate(-50%,-50%) scale(0.8)', opacity: 1 },
-        { transform: 'translate(-50%,-60%) scale(1.05)', opacity: 1, offset: 0.2 },
-        { transform: 'translate(-50%,-180%)', opacity: 0 },
-      ],
-      { duration: 950, easing: 'ease-out' },
-    );
+    const at = captionPosition(x, y, d.offsetWidth, d.offsetHeight);
+    d.style.left = `${at.left}px`;
+    d.style.top = `${at.top}px`;
+    const { keyframes, options } = captionAnimation();
+    const a = d.animate(keyframes, options);
     a.onfinish = () => d.remove();
   }
 

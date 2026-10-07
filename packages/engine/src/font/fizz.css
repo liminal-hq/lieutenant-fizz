@@ -1,0 +1,79 @@
+/* The Fizz pixel font family and its pixel-text helpers. See docs/FONT.md for the rules.
+
+   Fizz is eleven pixel rows tall, so text is only crisp when font-size is 11px times a whole
+   number n and every glyph pixel is exactly n CSS pixels. Never size pixel text with clamp(), vw,
+   vh, rem fractions or any other fractional value. */
+@font-face {
+  font-family: 'Fizz';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../../assets/fonts/fizz-regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fizz';
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url('../../assets/fonts/fizz-bold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fizz';
+  font-style: italic;
+  font-weight: 400;
+  font-display: block;
+  src: url('../../assets/fonts/fizz-oblique.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fizz';
+  font-style: italic;
+  font-weight: 700;
+  font-display: block;
+  src: url('../../assets/fonts/fizz-bold-oblique.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fizz Condensed';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../../assets/fonts/fizz-condensed.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fizz Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../../assets/fonts/fizz-mono-regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fizz Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url('../../assets/fonts/fizz-mono-bold.woff2') format('woff2');
+}
+
+:root {
+  /* One cell of the font in CSS pixels at scale 1, and the font sizes for scales 1 to 6. */
+  --lf-cell: 11px;
+  --lf-type-1: 11px;
+  --lf-type-2: 22px;
+  --lf-type-3: 33px;
+  --lf-type-4: 44px;
+  --lf-type-5: 55px;
+  --lf-type-6: 66px;
+  /* The item scale (set by the shell from the viewport) and one glyph pixel at that scale. */
+  --lf-n: 3;
+  --lf-px: calc(var(--lf-n) * 1px);
+}
+
+/* Crisp pixel text: no smoothing, no kerning, no synthesised styles, no letter spacing. */
+.lf-pix {
+  font-family: 'Fizz', ui-monospace, monospace;
+  font-synthesis: none;
+  font-kerning: none;
+  letter-spacing: 0;
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+}

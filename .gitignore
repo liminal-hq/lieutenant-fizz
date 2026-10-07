@@ -8,3 +8,4 @@ episodes/*/src/wasm/
 test-results/
 *.tsbuildinfo
 .playwright-mcp/
+playwright-report/

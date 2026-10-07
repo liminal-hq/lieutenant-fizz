@@ -7,21 +7,63 @@ import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
-import { Input as Bits, InputManager, type Command } from '@lieutenant-fizz/engine/input';
+import {
+  Input as Bits,
+  InputManager,
+  type Command,
+  type InputDevice,
+} from '@lieutenant-fizz/engine/input';
 import { FixedStepper, InstanceWriter } from '@lieutenant-fizz/engine/instances';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
 import simUrl from './wasm/sim.wasm?url';
 import { PATTERNS } from './audio/patterns';
+import { attractFade, attractLabel, nextAttract } from './attract';
 import { Cinematic, CINE_TALL } from './cine';
 import { EPISODE } from './episode';
-import { applyProgress, captureProgress, readProgress, safeStorage, writeProgress } from './save';
+import {
+  DEFAULT_OPTIONS,
+  LAYOUTS,
+  METER_BLOCKS,
+  MOTIONS,
+  readOptions,
+  reducedMotion,
+  stepOption,
+  TEXT_SIZES,
+  volumeOf,
+  writeOptions,
+  type Options,
+  type SettingKey,
+} from './options';
+import {
+  applyProgress,
+  captureProgress,
+  newestSlot,
+  readSlot,
+  readSlots,
+  safeStorage,
+  SLOT_IDS,
+  writeProgress,
+  writeSlot,
+  type SlotId,
+} from './save';
+import {
+  areaName,
+  slotBrief,
+  slotDetail,
+  slotName,
+  slotTitle,
+  summarise,
+  type SlotSummary,
+} from './slots';
+import { thumbDataUrl } from './thumb';
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
 import { CINE, CINE_TRACK, DIALOGUE, END, LEVELS, SAUCER_ID, SIGNS, type Line } from './story';
 import { MORTIMER_STINGER } from './stinger';
-import { Ui, type HudState, type MenuItem, type OptionKey, type Prompt } from './ui';
+import { BEN_LOOK, BEN_WAVE, benFrame, benScale, type BenPose } from './titleBen';
+import { Ui, type HudState, type MenuItem, type OptionKey, type Prompt, type SlotRow } from './ui';
 
 export type Screen =
   | 'loading'
@@ -73,7 +115,16 @@ export class Game {
   private captionNames: string[] = [];
   private toastNames: string[] = [];
   private readonly previewStinger: boolean;
-  private readonly reducedMotion: boolean;
+  private reducedMotion = false;
+  /** Set by `GameOptions.reducedMotion`; overrides the Motion option when present. */
+  private readonly reducedForced: boolean | undefined;
+  private settings: Options = { ...DEFAULT_OPTIONS };
+  private played = 0;
+  private attractIdx = 0;
+  private readonly benT0 = performance.now() / 1000;
+  private benWaveUntil = 0;
+  private benLookUntil = 0;
+  private titleAction = 0;
   private roll: CreditsRoll | null = null;
   private rollViewport = 0;
   private scene: StingerScene | null = null;
@@ -98,7 +149,11 @@ export class Game {
   private typed = 0;
   private card: Card | null = null;
   private menuIdx = 0;
-  private sub: 'controls' | null = null;
+  /** A screen opened from the title or pause menu; the menu underneath keeps its place. */
+  private sub: 'controls' | 'options' | 'saves' | null = null;
+  private subReturn = 0;
+  private saveMode: 'save' | 'load' = 'load';
+  private slotRows = new Map<SlotId, { summary: SlotSummary; thumb: string }>();
   private bossHp: number | null = null;
   private prompt: Prompt | null = null;
   private hasSave = false;
@@ -123,14 +178,16 @@ export class Game {
     options: GameOptions,
   ) {
     this.previewStinger = options.previewStinger ?? false;
-    this.reducedMotion =
-      options.reducedMotion ?? window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.reducedForced = options.reducedMotion;
     this.sim = sim;
     this.atlas = atlas;
     this.ui = ui;
     this.renderer = renderer;
     this.input = new InputManager(ui.stage);
     this.audio = new GameAudio(PATTERNS);
+    this.settings = readOptions(this.store);
+    this.applySettings();
+    this.input.onDevice(() => this.syncHints());
     this.writer = new InstanceWriter(sim.instanceBuffer, atlas.rects);
     this.captionNames = sim.names(Table.CAPTIONS);
     this.toastNames = sim.names(Table.TOASTS);
@@ -157,7 +214,16 @@ export class Game {
     });
     try {
       const [sim] = await Promise.all([Sim.load(simUrl)]);
-      const atlas = buildAtlas(defineSprites());
+      const sprites = defineSprites();
+      const soda = sprites.find((d) => d.name === 'soda');
+      if (soda) ui.setBullet(soda.grid);
+      const ben: Partial<Record<BenPose, Grid>> = {};
+      for (const pose of ['stand', 'jump', 'shoot', 'pogo', 'pogo2'] as const) {
+        const def = sprites.find((d) => d.name === `ben_${pose}`);
+        if (def) ben[pose] = def.grid;
+      }
+      ui.setBenSprites(ben);
+      const atlas = buildAtlas(sprites);
       sim.setSprites(atlas.rects);
       const renderer = new InstancedRenderer(ui.gl, atlas);
       game = new Game(sim, atlas, ui, renderer, options);
@@ -172,14 +238,12 @@ export class Game {
   }
 
   private boot(): void {
-    this.sim.x.load_attract();
-    this.hasSave = readProgress(this.store) !== null;
+    this.loadAttract(0);
+    this.hasSave = newestSlot(this.store) !== null;
     this.screen = 'title';
     this.ui.setLoading(false);
     for (const k of Object.keys(this.opts) as (keyof Game['opts'])[])
       this.ui.setToggle(k, this.opts[k]);
-    this.ui.setToggle('music', true);
-    this.ui.setToggle('sfx', true);
     this.syncUi();
     this.last = performance.now();
     const loop = (t: number): void => {
@@ -195,8 +259,10 @@ export class Game {
     cancelAnimationFrame(this.raf);
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('pagehide', this.onVisibility);
+    window.clearTimeout(this.titleAction);
     this.input.dispose();
     this.audio.dispose();
+    this.ui.dispose();
     this.renderer.dispose();
   }
 
@@ -222,7 +288,10 @@ export class Game {
       this.alpha = this.stepper.advance(dt, () => {
         sim.step(screen === 'play' ? this.input.poll() : 0);
       });
-      if (screen === 'play') this.levelSeconds += dt;
+      if (screen === 'play') {
+        this.levelSeconds += dt;
+        this.played += dt;
+      }
       this.handleEvents();
     } else if (screen === 'credits') {
       this.stepper.reset();
@@ -242,6 +311,7 @@ export class Game {
       sim.drainEvents().forEach((e) => this.onEvent(e));
     }
     this.tickTypewriter(dt);
+    this.tickTitle();
     this.draw();
 
     if (dt > 0) this.fpsE += (1 / dt - this.fpsE) * 0.05;
@@ -507,16 +577,69 @@ export class Game {
   }
   private hud: HudState | null = null;
 
+  // ---------- Title: attract loop and Ben ----------
+
+  /** Loads one level of the attract loop, with the camera held still under reduced motion. */
+  private loadAttract(idx: number): void {
+    this.attractIdx = idx;
+    this.sim.x.load_attract(idx, this.reducedMotion ? 1 : 0);
+  }
+
+  /** Advances the attract loop, fades between levels, and animates Ben on the title. */
+  private tickTitle(): void {
+    if (this.screen !== 'title') {
+      this.ui.setAttract(null);
+      this.ui.setBen(null);
+      return;
+    }
+    const sim = this.sim;
+    const ticks = sim.get(State.ATTRACT_T);
+    const period = sim.get(State.ATTRACT_PERIOD);
+    if (!this.reducedMotion && ticks >= period) {
+      this.loadAttract(nextAttract(this.attractIdx));
+    }
+    this.ui.setAttract({
+      label: attractLabel(this.attractIdx),
+      fade: attractFade(ticks, period, this.reducedMotion),
+    });
+    if (this.sub) {
+      this.ui.setBen(null);
+      return;
+    }
+    const now = performance.now() / 1000;
+    const scale = benScale(window.innerHeight);
+    const box = this.ui.logoBox();
+    this.ui.setBen(
+      benFrame({ logoW: box.w, logoH: box.h, width: 16 * scale }, now - this.benT0, {
+        reduced: this.reducedMotion,
+        waveLeft: Math.max(0, this.benWaveUntil - now),
+        looking: this.benLookUntil > now,
+      }),
+      scale,
+    );
+  }
+
+  /** Ben turns to face the menu for a moment, as the selection moves. */
+  private benLook(): void {
+    this.benLookUntil = performance.now() / 1000 + BEN_LOOK;
+  }
+
   // ---------- Input: menus, commands ----------
 
   private menuInput(bits: number): void {
     const edge = bits & ~this.lastBits;
     const s = this.screen;
     if (s === 'title' || s === 'pause' || s === 'card') {
-      if (!this.sub) {
+      if (this.sub !== 'controls') {
         if (edge & Bits.UP) this.nav(-1);
         if (edge & Bits.DOWN) this.nav(1);
       }
+      if (this.sub === 'options') {
+        if (edge & Bits.LEFT) this.adjust(-1);
+        if (edge & Bits.RIGHT) this.adjust(1);
+      }
+      // B (the pogo button) goes back from a screen opened over a menu.
+      if (this.sub && edge & Bits.POGO) this.closeSub();
     }
     if (
       s === 'cine' ||
@@ -543,16 +666,17 @@ export class Game {
           this.screen = 'pause';
           this.menuIdx = 0;
           this.syncUi();
-        } else if (this.screen === 'pause') this.resume();
+        } else if (this.sub && (this.screen === 'pause' || this.screen === 'title'))
+          this.closeSub();
+        else if (this.screen === 'pause') this.resume();
         else if (this.screen === 'cine') this.skipCine();
         else if (this.screen === 'credits' || this.screen === 'stinger') this.skipEnding();
-        else if (this.screen === 'title' && this.sub) this.backFromControls();
         break;
       case 'quickSave':
-        this.saveGame();
+        this.quickSave();
         break;
       case 'quickLoad':
-        this.loadGame();
+        this.quickLoad();
         break;
       case 'togglePanel':
         this.ui.togglePanel();
@@ -571,22 +695,46 @@ export class Game {
   }
 
   private toggle(k: OptionKey): void {
-    if (k === 'music') {
-      const on = !this.audio.music;
-      this.audio.setMusic(on);
-      this.ui.setToggle('music', on);
-      this.syncUi();
+    if (k === 'music' || k === 'sfx') {
+      // The engine panel switches a channel between silent and full; Options holds the levels.
+      this.settings = { ...this.settings, [k]: this.settings[k] > 0 ? 0 : METER_BLOCKS };
+      this.applySettings();
       return;
     }
-    if (k === 'sfx') {
-      const on = !this.audio.sfx;
-      this.audio.setSfx(on);
-      this.ui.setToggle('sfx', on);
-      this.syncUi();
+    if (k === 'captions') {
+      this.settings = { ...this.settings, captions: !this.settings.captions };
+      this.applySettings();
       return;
     }
     this.opts[k] = !this.opts[k];
     this.ui.setToggle(k, this.opts[k]);
+  }
+
+  /** Applies the options to audio, captions, text size, motion and hints, and saves them. */
+  private applySettings(save = true): void {
+    const o = this.settings;
+    this.audio.setMusicVolume(volumeOf(o.music));
+    this.audio.setMusic(o.music > 0);
+    this.audio.setSfxVolume(volumeOf(o.sfx));
+    this.audio.setSfx(o.sfx > 0);
+    this.opts.captions = o.captions;
+    const before = this.reducedMotion;
+    this.reducedMotion =
+      this.reducedForced ??
+      reducedMotion(o, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    this.ui.setReducedMotion(this.reducedMotion);
+    if (before !== this.reducedMotion && this.screen === 'title') this.loadAttract(this.attractIdx);
+    this.ui.setTextLarge(o.text === 1);
+    this.ui.setToggle('music', o.music > 0);
+    this.ui.setToggle('sfx', o.sfx > 0);
+    this.ui.setToggle('captions', o.captions);
+    this.syncHints();
+    if (save) writeOptions(this.store, o);
+  }
+
+  private syncHints(): void {
+    const device: InputDevice = this.input.device;
+    this.ui.setHintContext({ device, layout: this.settings.layout });
   }
 
   private readonly onVisibility = (): void => {
@@ -601,31 +749,93 @@ export class Game {
 
   // ---------- Menus ----------
 
+  /** The Options rows, in order, and the setting each one changes. */
+  private static readonly OPTION_ROWS: { label: string; key: SettingKey }[] = [
+    { label: 'Music', key: 'music' },
+    { label: 'Sound', key: 'sfx' },
+    { label: 'Captions', key: 'captions' },
+    { label: 'Controls', key: 'layout' },
+    { label: 'Text size', key: 'text' },
+    { label: 'Motion', key: 'motion' },
+  ];
+
+  private optionItems(): MenuItem[] {
+    const o = this.settings;
+    const text = (key: SettingKey): string =>
+      key === 'captions'
+        ? o.captions
+          ? 'On'
+          : 'Off'
+        : key === 'layout'
+          ? (LAYOUTS[o.layout] ?? '')
+          : key === 'text'
+            ? (TEXT_SIZES[o.text] ?? '')
+            : (MOTIONS[o.motion] ?? '');
+    const rows: MenuItem[] = Game.OPTION_ROWS.map(({ label, key }) =>
+      key === 'music' || key === 'sfx'
+        ? { id: `opt:${key}`, label, kind: 'meter', meter: o[key] }
+        : { id: `opt:${key}`, label, kind: 'choice', value: text(key) },
+    );
+    return [...rows, { id: 'back', label: 'Back' }];
+  }
+
+  /** One row per save slot, then Back. In save mode the autosave cannot be chosen. */
+  private slotItems(): MenuItem[] {
+    const rows = SLOT_IDS.map((id): MenuItem => {
+      const entry = this.slotRows.get(id);
+      const summary = entry?.summary ?? summarise(id, null, '');
+      const slot: SlotRow = {
+        title: slotTitle(summary),
+        detail: slotDetail(summary, this.saveMode),
+        brief: slotBrief(summary, this.saveMode),
+        thumb: entry?.thumb ?? '',
+        empty: summary.empty,
+        cleared: summary.cleared,
+        total: summary.total,
+      };
+      return {
+        id: `slot:${id}`,
+        label: summary.name,
+        slot,
+        disabled: this.saveMode === 'save' && summary.readOnly,
+      };
+    });
+    return [...rows, { id: 'back', label: 'Back' }];
+  }
+
   private menuItems(): MenuItem[] {
-    const mus: MenuItem = { label: 'Music', value: this.audio.music ? 'On' : 'Off' };
-    const sfx: MenuItem = { label: 'Sound', value: this.audio.sfx ? 'On' : 'Off' };
+    if (this.sub === 'options') return this.optionItems();
+    if (this.sub === 'saves') return this.slotItems();
     if (this.screen === 'title') {
       if (this.sub === 'controls') return [];
+      const newest = newestSlot(this.store);
       return [
-        { label: 'New Game' },
-        { label: 'Continue', disabled: !this.hasSave },
-        { label: 'Controls' },
-        mus,
-        sfx,
+        { id: 'new', label: 'New Game' },
+        {
+          id: 'continue',
+          label: 'Continue',
+          disabled: !this.hasSave,
+          ...(newest ? { value: slotName(newest) } : {}),
+        },
+        { id: 'load', label: 'Load game', disabled: !this.hasSave },
+        { id: 'options', label: 'Options' },
+        { id: 'controls', label: 'Controls' },
       ];
     }
     if (this.screen === 'pause') {
       const items: MenuItem[] = [
-        { label: 'Resume' },
-        { label: 'Save game', value: 'F5' },
-        { label: 'Load game', value: 'F9' },
+        { id: 'resume', label: 'Resume' },
+        { id: 'save', label: 'Save game', value: 'F5' },
+        { id: 'load', label: 'Load game', value: 'F9' },
+        { id: 'options', label: 'Options' },
       ];
-      if (this.sim.x.mode() === Mode.LEVEL) items.push({ label: 'Leave level' });
-      return [...items, mus, sfx, { label: 'Quit to title' }];
+      if (this.sim.x.mode() === Mode.LEVEL) items.push({ id: 'leave', label: 'Leave level' });
+      return [...items, { id: 'quit', label: 'Quit to title' }];
     }
     if (this.screen === 'card' && this.card) {
-      const items: MenuItem[] = [{ label: this.card.primaryLabel }];
-      if (this.card.secondaryLabel) items.push({ label: this.card.secondaryLabel });
+      const items: MenuItem[] = [{ id: 'primary', label: this.card.primaryLabel }];
+      if (this.card.secondaryLabel)
+        items.push({ id: 'secondary', label: this.card.secondaryLabel });
       return items;
     }
     return [];
@@ -642,12 +852,71 @@ export class Game {
     }
     this.audio.play('menu');
     this.menuIdx = i;
+    this.benLook();
     this.syncUi();
   }
 
   private hover(i: number): void {
     if (this.menuItems()[i]?.disabled || this.menuIdx === i) return;
     this.menuIdx = i;
+    this.benLook();
+    this.syncUi();
+  }
+
+  /** Opens a screen over the title or pause menu, remembering which row opened it. */
+  private openSub(sub: 'controls' | 'options' | 'saves', menuIdx = 0): void {
+    this.subReturn = this.menuIdx;
+    this.sub = sub;
+    this.menuIdx = menuIdx;
+    this.syncUi();
+  }
+
+  /** Closes the screen opened over a menu and puts the selection back on the row that opened it. */
+  private closeSub(): void {
+    if (!this.sub) return;
+    this.audio.play('click');
+    this.sub = null;
+    this.menuIdx = this.subReturn;
+    this.syncUi();
+  }
+
+  private openSaves(mode: 'save' | 'load'): void {
+    this.saveMode = mode;
+    this.refreshSlots();
+    const newest = newestSlot(this.store);
+    // Save mode starts on Slot 1 (the autosave is read-only); load mode on the newest save.
+    const idx = mode === 'save' ? 1 : Math.max(0, SLOT_IDS.indexOf(newest ?? 'auto'));
+    this.openSub('saves', idx);
+  }
+
+  /** Reads every slot and draws its thumbnail. Done when the screen opens and after a save. */
+  private refreshSlots(): void {
+    const thumb = this.sim.overworldThumb();
+    this.slotRows.clear();
+    for (const { id, save } of readSlots(this.store)) {
+      const map = save?.progress.map;
+      const place = areaName(map ? this.sim.areaOf(map.x, map.y) : 0);
+      this.slotRows.set(id, {
+        summary: summarise(id, save, place),
+        thumb: save ? thumbDataUrl(thumb, save.progress.doneMask, map) : '',
+      });
+    }
+  }
+
+  /** Left or right on an Options row. */
+  private adjust(d: number): void {
+    if (this.sub !== 'options') return;
+    const row = Game.OPTION_ROWS[this.menuIdx];
+    if (!row) return;
+    this.step(row.key, d, false);
+  }
+
+  private step(key: SettingKey, d: number, wrapMeter: boolean): void {
+    const next = stepOption(this.settings, key, d, wrapMeter);
+    if (next[key] === this.settings[key]) return;
+    this.settings = next;
+    this.audio.play('menu');
+    this.applySettings();
     this.syncUi();
   }
 
@@ -658,35 +927,56 @@ export class Game {
     const it = items[i];
     if (!it || it.disabled) return;
     this.audio.play('click');
-    const label = it.label;
+    const id = it.id ?? '';
+    if (this.sub === 'options') {
+      if (id === 'back') this.closeSub();
+      else if (id.startsWith('opt:')) {
+        const key = id.slice(4) as SettingKey;
+        this.step(key, 1, true);
+      }
+      return;
+    }
+    if (this.sub === 'saves') {
+      if (id === 'back') this.closeSub();
+      else if (id.startsWith('slot:')) {
+        const raw = id.slice(5);
+        this.pickSlot(raw === 'auto' ? 'auto' : (Number(raw) as SlotId));
+      }
+      return;
+    }
+    if (this.sub === 'controls') return this.closeSub();
     if (this.screen === 'title') {
-      if (label === 'New Game') this.newGame();
-      else if (label === 'Continue') this.continueGame();
-      else if (label === 'Controls') {
-        this.sub = 'controls';
-        this.menuIdx = 0;
-        this.syncUi();
-      } else if (label === 'Music') this.toggle('music');
-      else if (label === 'Sound') this.toggle('sfx');
+      // Ben waves for a moment before the choice takes effect, unless motion is reduced.
+      const run = (): void => {
+        this.titleAction = 0;
+        if (this.screen !== 'title') return;
+        if (id === 'new') this.newGame();
+        else if (id === 'continue') this.continueGame();
+        else if (id === 'load') this.openSaves('load');
+        else if (id === 'options') this.openSub('options');
+        else if (id === 'controls') this.openSub('controls');
+      };
+      if (this.titleAction) return;
+      if (this.reducedMotion) run();
+      else {
+        this.benWaveUntil = performance.now() / 1000 + BEN_WAVE;
+        this.titleAction = window.setTimeout(run, 650);
+      }
     } else if (this.screen === 'pause') {
-      if (label === 'Resume') this.resume();
-      else if (label === 'Save game') this.saveGame();
-      else if (label === 'Load game') this.loadGame();
-      else if (label === 'Leave level') this.enterMap();
-      else if (label === 'Music') this.toggle('music');
-      else if (label === 'Sound') this.toggle('sfx');
-      else if (label === 'Quit to title') this.quitToTitle();
+      if (id === 'resume') this.resume();
+      else if (id === 'save') this.openSaves('save');
+      else if (id === 'load') this.openSaves('load');
+      else if (id === 'options') this.openSub('options');
+      else if (id === 'leave') this.enterMap();
+      else if (id === 'quit') this.quitToTitle();
     } else if (this.screen === 'card' && this.card) {
-      if (i === 0) this.card.primary();
+      if (id === 'primary') this.card.primary();
       else this.card.secondary?.();
     }
   }
 
   private backFromControls(): void {
-    this.audio.play('click');
-    this.sub = null;
-    this.menuIdx = 2;
-    this.syncUi();
+    this.closeSub();
   }
 
   /** Enter / jump / fire: finish the typewriter, then advance whatever is on screen. */
@@ -698,7 +988,6 @@ export class Game {
     else if (s === 'credits') this.pressCredits();
     else if (s === 'stinger') this.pressStinger();
     else if (s === 'title' || s === 'pause' || s === 'card') {
-      if (s === 'title' && this.sub) return this.backFromControls();
       this.activate();
     }
   }
@@ -733,6 +1022,7 @@ export class Game {
   newGame(): void {
     this.sim.x.game_new();
     this.sim.x.enter_none();
+    this.played = 0;
     this.screen = 'cine';
     this.cineIdx = 0;
     this.typed = 0;
@@ -763,19 +1053,36 @@ export class Game {
     this.bossHp = null;
     this.prompt = null;
     this.stepper.reset();
-    if (writeProgress(this.store, captureProgress(this.sim))) this.hasSave = true;
+    if (writeProgress(this.store, captureProgress(this.sim, Math.floor(this.played)))) {
+      this.hasSave = true;
+    }
     this.syncUi();
   }
 
+  /** Continues from the most recent save, whichever slot it is in. */
   continueGame(): void {
-    const p = readProgress(this.store);
-    if (!p) {
+    const id = newestSlot(this.store);
+    if (id === null) {
       this.ui.toast('No save on this device yet');
       return;
     }
+    this.loadSlot(id);
+  }
+
+  /** Loads a slot and goes to the map. Returns false when the slot is empty or unreadable. */
+  private loadSlot(id: SlotId): boolean {
+    const save = readSlot(this.store, id);
+    if (!save) {
+      this.ui.toast('That slot is empty');
+      return false;
+    }
     this.sim.x.game_new();
-    applyProgress(this.sim, p);
+    applyProgress(this.sim, save.progress);
+    this.played = save.progress.played;
+    this.sub = null;
     this.enterMap();
+    this.ui.toast(`Loaded ${slotName(id)}`);
+    return true;
   }
 
   private nextLine(): void {
@@ -934,31 +1241,58 @@ export class Game {
     this.syncUi();
   }
 
-  private saveGame(): void {
-    if (this.screen !== 'play' && this.screen !== 'pause') return;
-    const ok = writeProgress(this.store, captureProgress(this.sim));
-    this.hasSave ||= ok;
-    this.ui.toast(
-      ok ? 'Progress saved to this device' : "Couldn't save: storage is full or blocked",
-    );
+  /** The slot F5 saves to: the newest manual slot, or Slot 1 when none has been used. */
+  private quickSlot(): SlotId {
+    let best: { id: SlotId; at: number } | null = null;
+    for (const { id, save } of readSlots(this.store)) {
+      if (id !== 'auto' && save && (!best || save.at >= best.at)) best = { id, at: save.at };
+    }
+    return best?.id ?? 1;
   }
 
-  private loadGame(): void {
-    if (readProgress(this.store)) {
-      this.continueGame();
-      this.ui.toast('Loaded your saved progress');
-    } else this.ui.toast('No save yet. Press F5 to make one.');
+  /** Writes the current progress to a manual slot and says where it went. */
+  private saveToSlot(id: SlotId): boolean {
+    const ok = writeSlot(this.store, id, captureProgress(this.sim, Math.floor(this.played)));
+    this.hasSave ||= ok;
+    this.ui.toast(ok ? `Saved to ${slotName(id)}` : "Couldn't save: storage is full or blocked");
+    return ok;
+  }
+
+  private quickSave(): void {
+    if (this.screen !== 'play' && this.screen !== 'pause') return;
+    this.saveToSlot(this.quickSlot());
+  }
+
+  private quickLoad(): void {
+    if (this.screen !== 'play' && this.screen !== 'pause') return;
+    if (newestSlot(this.store) === null) this.ui.toast('No save yet. Press F5 to make one.');
+    else this.continueGame();
+  }
+
+  /** A slot chosen on the saves screen: save into it, or load it. */
+  private pickSlot(id: SlotId): void {
+    if (this.saveMode === 'save') {
+      if (id === 'auto') return;
+      if (this.saveToSlot(id)) {
+        this.refreshSlots();
+        this.closeSub();
+      }
+      return;
+    }
+    this.loadSlot(id);
   }
 
   private quitToTitle(): void {
     window.clearTimeout(this.completeTimer);
-    this.sim.x.load_attract();
+    window.clearTimeout(this.titleAction);
+    this.titleAction = 0;
+    this.loadAttract(0);
     this.screen = 'title';
     this.card = null;
     this.sub = null;
     this.prompt = null;
     this.bossHp = null;
-    this.hasSave = readProgress(this.store) !== null;
+    this.hasSave = newestSlot(this.store) !== null;
     this.menuIdx = this.hasSave ? 1 : 0;
     this.stepper.reset();
     this.syncUi();
@@ -969,7 +1303,8 @@ export class Game {
   private syncUi(): void {
     const s = this.screen;
     const ui = this.ui;
-    const hudScreens: Screen[] = ['play', 'pause', 'dialogue', 'card'];
+    // The pause and card screens fill the viewport with a left-aligned column, so the HUD steps aside.
+    const hudScreens: Screen[] = ['play', 'dialogue'];
     ui.setHud(hudScreens.includes(s) ? this.hud : null);
     ui.setBoss(this.bossHp !== null && this.bossHp > 0 && s === 'play' ? this.bossHp : null);
     ui.setPrompt(s === 'play' ? this.prompt : null);
@@ -981,19 +1316,29 @@ export class Game {
 
     const items = this.menuItems();
     const sel = Math.min(this.menuIdx, Math.max(0, items.length - 1));
-    ui.showTitle(
-      s === 'title' && !this.sub ? items : null,
-      sel,
-      s === 'title' && this.sub === 'controls',
-    );
-    if (s === 'title' && this.sub === 'controls') ui.showTitle(null, 0, true);
-    ui.showOverlay(
-      s === 'pause'
-        ? { title: 'Paused', text: '', note: PAUSE_NOTE, items, sel }
-        : s === 'card' && this.card
-          ? { title: this.card.title, text: this.card.text, items, sel }
-          : null,
-    );
+    const onTitle = s === 'title';
+    const over = this.sub === 'options' || this.sub === 'saves';
+    ui.showTitle(onTitle && !this.sub ? items : null, sel, onTitle && this.sub === 'controls');
+    if (onTitle && this.sub === 'controls') ui.showTitle(null, 0, true);
+    if (over && (onTitle || s === 'pause')) {
+      const saves = this.sub === 'saves';
+      ui.showOverlay({
+        title: saves ? (this.saveMode === 'save' ? 'Save game' : 'Load game') : 'Options',
+        text: '',
+        items,
+        sel,
+        screen: saves ? 'saves' : 'options',
+        side: true,
+      });
+    } else {
+      ui.showOverlay(
+        s === 'pause'
+          ? { title: 'Paused', text: '', note: PAUSE_NOTE, items, sel, screen: 'pause' }
+          : s === 'card' && this.card
+            ? { title: this.card.title, text: this.card.text, items, sel, screen: 'list' }
+            : null,
+      );
+    }
 
     const text = this.curText();
     const typed = Math.min(text.length, Math.floor(this.typed));
@@ -1060,6 +1405,30 @@ export class Game {
     this.sim.x.game_new();
     this.sim.x.enter_level(id);
     this.handleEvents();
+  }
+
+  /** Test hook: opens a screen directly, so layout checks can visit each one. */
+  debugShow(
+    what: 'title' | 'controls' | 'options' | 'saves' | 'pause' | 'cine' | 'dialogue' | 'credits',
+  ): void {
+    if (what === 'credits') return this.debugStartCredits();
+    if (what === 'cine') return this.newGame();
+    if (what === 'pause' || what === 'dialogue') {
+      this.debugEnterLevel(0);
+      this.screen = what;
+      if (what === 'dialogue') {
+        this.dlg = DIALOGUE.bossIntro;
+        this.dlgId = 'bossIntro';
+        this.dlgI = 0;
+        this.typed = 1e6;
+      }
+      this.menuIdx = 0;
+      return this.syncUi();
+    }
+    this.quitToTitle();
+    this.sub = what === 'title' ? null : what === 'saves' ? 'saves' : what;
+    if (what === 'saves') this.openSaves('load');
+    this.syncUi();
   }
 
   get debugState(): Record<string, unknown> {

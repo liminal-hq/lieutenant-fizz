@@ -54,3 +54,22 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+
+  e2e:
+    name: Overlay layout in Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+      - uses: dtolnay/rust-toolchain@1.98.0
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: bun install --frozen-lockfile
+      # The locally installed CLI, so nothing is resolved from the network first.
+      - run: ./node_modules/.bin/playwright install --with-deps chromium
+      # Builds the WASM, starts the Vite dev server and checks each screen at four window sizes.
+      - run: bun run test:e2e
