@@ -6,7 +6,19 @@
 import { Pen, type Grid } from '@lieutenant-fizz/engine/pen';
 
 export type BenPose =
-  'stand' | 'run1' | 'run2' | 'jump' | 'shoot' | 'pogo' | 'pogo2' | 'climb1' | 'climb2';
+  | 'stand'
+  | 'run1'
+  | 'run2'
+  | 'jump'
+  | 'shoot'
+  | 'pogo'
+  | 'pogo2'
+  | 'climb1'
+  | 'climb2'
+  | 'lookUp'
+  | 'lookDown'
+  | 'aimUp'
+  | 'aimDown';
 
 /** Ben "Lieutenant Fizz" Blaze: bicycle helmet, red shirt, 16x24 (16x32 on the pogo stick). */
 export function ben(pose: BenPose): Grid {
@@ -31,19 +43,39 @@ export function ben(pose: BenPose): Grid {
   P(5, 3, 'G');
   P(8, 3, 'G');
   P(11, 3, 'G');
+  // Eyes and mouth follow where Ben is looking: up, level, or down under a lowered brim.
+  const up = pose === 'lookUp' || pose === 'aimUp';
+  const down = pose === 'lookDown' || pose === 'aimDown';
+  const eyeY = up ? 6 : down ? 8 : 7;
   R(5, 6, 7, 4, 'W');
-  P(4, 7, 'W');
-  P(9, 7, 'k');
-  P(11, 7, 'k');
-  P(12, 8, 'W');
-  P(10, 9, 'r');
+  if (down) R(3, 6, 12, 1, 'G');
+  P(4, eyeY, 'W');
+  P(9, eyeY, 'k');
+  P(11, eyeY, 'k');
+  if (up) {
+    P(10, 9, 'D');
+    R(9, 9, 3, 1, 'D');
+  } else if (!down) {
+    P(12, 8, 'W');
+    P(10, 9, 'r');
+  }
   P(5, 8, 'D');
   P(5, 9, 'D');
   R(4, 10, 8, 6, 'r');
   R(4, 15, 8, 1, 'R');
   R(6, 10, 4, 1, 'W');
   R(7, 12, 2, 2, 'y');
-  if (pose === 'shoot') {
+  if (pose === 'aimUp') {
+    R(3, 11, 2, 4, 'R');
+    R(12, 4, 2, 8, 'r');
+    R(12, 0, 3, 4, 'c');
+    P(13, 0, 'W');
+  } else if (pose === 'aimDown') {
+    R(3, 11, 2, 4, 'R');
+    R(11, 11, 2, 6, 'r');
+    R(10, 17, 4, 3, 'c');
+    P(11, 19, 'W');
+  } else if (pose === 'shoot') {
     R(10, 11, 4, 2, 'r');
     R(12, 10, 4, 3, 'c');
     P(15, 10, 'W');

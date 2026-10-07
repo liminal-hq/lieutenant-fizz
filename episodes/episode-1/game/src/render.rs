@@ -1070,7 +1070,11 @@ impl World {
                         Spr::BenClimb1
                     }
                 } else if p.shoot_t > 0.0 {
-                    Spr::BenShoot
+                    match p.aim {
+                        1 => Spr::BenAimUp,
+                        -1 => Spr::BenAimDown,
+                        _ => Spr::BenShoot,
+                    }
                 } else if !p.b.on_ground {
                     Spr::BenJump
                 } else if p.b.vx.abs() > 0.5 {
@@ -1079,6 +1083,10 @@ impl World {
                     } else {
                         Spr::BenRun1
                     }
+                } else if p.look_up > 0.0 {
+                    Spr::BenLookUp
+                } else if p.look_down > 0.0 {
+                    Spr::BenLookDown
                 } else {
                     Spr::BenStand
                 };
