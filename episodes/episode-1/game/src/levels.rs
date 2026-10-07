@@ -1015,12 +1015,8 @@ fn fudge_bog() -> LevelData {
     b.item(Cookie, 41, 12)
         .item(Cookie, 43, 12)
         .item(Soda, 40, 12)
-<<<<<<< HEAD
-        .ent_dir(Kind::Glyph, 34.0, f64::from(foot), 3.0)
+        .ent_dir(Kind::Glyph, 38.0, f64::from(foot), 3.0)
         .ent_dir(Kind::Cameo, 44.0, 12.0, 1.0);
-=======
-        .ent_dir(Kind::Glyph, 38.0, f64::from(foot), 3.0);
->>>>>>> feat/climbing-cave-level
     b.out(FUDGE_BOG, (3.0, 4.0), None)
 }
 
