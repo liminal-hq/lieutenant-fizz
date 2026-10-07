@@ -478,6 +478,22 @@ export class GameAudio {
     this.sfx = on;
   }
 
+  /** Sets music loudness from 0 to 1. The running loop restarts so the new level takes effect. */
+  setMusicVolume(v: number): void {
+    const vol = Math.min(1, Math.max(0, v));
+    if (vol === this.musicVol) return;
+    this.musicVol = vol;
+    if (this.music && this.track) this.playMusic(this.track, true);
+  }
+
+  /** Sets sound effect loudness from 0 to 1. Effects built at the old level are dropped. */
+  setSfxVolume(v: number): void {
+    const vol = Math.min(1, Math.max(0, v));
+    if (vol === this.sfxVol) return;
+    this.sfxVol = vol;
+    this.cache.clear();
+  }
+
   /** Suspends or resumes the whole context (tab hidden, pause menu). */
   setActive(on: boolean): void {
     if (!this.ctx || this.disposed) return;
