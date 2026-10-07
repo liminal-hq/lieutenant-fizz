@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { CELL_ROWS, DESCENDER_ROWS } from './fizz-glyphs';
+import { CELL_ROWS } from './fizz-glyphs';
 import { blank, trim, width, type Grid, type Placed } from './derive';
 import {
   BUTTON_CODES,
@@ -15,7 +15,6 @@ import {
   KEY_CENTRE,
   KEY_LEFT,
   KEY_RIGHT,
-  keyedShape,
 } from './tokens';
 
 /** A generated glyph at a private-use code point. */
@@ -91,7 +90,8 @@ const EDGE_BOTTOM = CELL_ROWS - 1;
 function keyed(p: Placed): Grid {
   const g = blank(p.adv, CELL_ROWS);
   p.rows.forEach((row, y) => {
-    if (y >= CELL_ROWS - DESCENDER_ROWS) return;
+    // The second descender row would run into the bottom edge, so tails are cut to one row.
+    if (y >= CELL_ROWS - 1) return;
     row.forEach((v, x) => {
       const col = x + p.ox;
       if (v && col >= 0 && col < p.adv) (g[y] as number[])[col] = 1;
@@ -142,7 +142,7 @@ export function puaGlyphs(
   }
   out.push({ cp: KEY_LEFT, name: 'key.left', rows: capLeft(), joiner: true });
   out.push({ cp: KEY_RIGHT, name: 'key.right', rows: capRight(), joiner: true });
-  const keyedFor = (ch: string): Grid => keyed(letter(keyedShape(ch)));
+  const keyedFor = (ch: string): Grid => keyed(letter(ch));
   for (let cp = 0x20; cp <= 0x7e; cp++) {
     const rows = keyedFor(String.fromCharCode(cp));
     out.push({ cp: KEYED_BASE + cp - 0x20, name: `keyed.${cp.toString(16)}`, rows, joiner: true });

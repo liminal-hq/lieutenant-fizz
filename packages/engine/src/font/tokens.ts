@@ -44,12 +44,6 @@ export const FIXED_KEYS = [
 /** First code point of the {@link FIXED_KEYS} glyphs, in order. */
 export const FIXED_KEY_BASE = 0xe200;
 
-/** Letters whose tails would hit the keycap edge are drawn as capitals inside a keycap. */
-const DESCENDER_FOLD: Record<string, string> = { g: 'G', j: 'J', p: 'P', q: 'Q', y: 'Y' };
-
-/** The ASCII character whose shape a keycap label glyph uses. */
-export const keyedShape = (ch: string): string => DESCENDER_FOLD[ch] ?? ch;
-
 /** The private-use code point of one keycap label character. Anything unprintable becomes `?`. */
 export function keyedCode(ch: string): number {
   const arrow = (KEYED_ARROWS as readonly string[]).indexOf(ch);

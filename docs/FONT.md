@@ -70,7 +70,7 @@ These sit in the Private Use Area, so they never collide with real text.
 | `U+E160–E163`    | Keycap label arrows ← → ↑ ↓                                                         |
 | `U+E200–E208`    | Whole keycaps for Esc, Enter, Space, Ctrl, Alt, Shift, Tab, F5, F9                  |
 
-The button letters are holes in the outline, so a button reads as a single-colour disc on any background. Keycap labels use capitals for g, j, p, q and y so tails do not hit the keycap's lower edge.
+The button letters are holes in the outline, so a button reads as a single-colour disc on any background. Inside a keycap the tails of g, j, p, q and y are cut to one row so they stop short of the keycap's lower edge.
 
 ### Writing hints
 
