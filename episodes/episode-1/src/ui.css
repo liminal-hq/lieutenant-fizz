@@ -482,8 +482,15 @@ body {
   gap: calc(var(--n) * 6px);
   text-shadow: 0 calc(var(--n) * 1px) 0 #000;
 }
+#controls {
+  max-width: 100%;
+}
 #controls table {
   border-collapse: collapse;
+  /* Narrow windows scroll the table sideways rather than pushing a column off screen. */
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 #controls td,
 #controls th {
