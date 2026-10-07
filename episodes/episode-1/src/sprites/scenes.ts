@@ -62,6 +62,17 @@ export function owCrater(): Grid {
   return p.outline();
 }
 
+export function owMesa(): Grid {
+  const p = new Pen(16, 16);
+  p.rect(3, 6, 10, 9, 'N');
+  p.rect(2, 5, 12, 2, 'y');
+  p.rect(5, 8, 2, 5, 'R');
+  p.rect(10, 9, 2, 4, 'R');
+  p.ell(12, 3, 3.2, 1.8, 'W');
+  p.ell(4, 2.5, 2.4, 1.4, 'W');
+  return p.outline();
+}
+
 export function owCave(): Grid {
   const p = new Pen(16, 16);
   p.ell(8, 11, 7.5, 8, 'D', (_i, j) => j < 16);
@@ -168,6 +179,19 @@ export const hillTop = (): Grid =>
 
 export const mtnTop = (): Grid =>
   new Pen(16, 16).fn((x, y) => (y >= Math.abs(x - 7.5) * 1.8 + 2 ? 'W' : null));
+
+/** A flat-bottomed puffy cloud, white so layers can tint it. */
+export function cloud(): Grid {
+  const p = new Pen(48, 16);
+  for (const [x, y, rx, ry] of [
+    [12, 9, 9, 5],
+    [24, 7, 11, 6],
+    [36, 9, 9, 5],
+  ] as const) {
+    p.ell(x, y, rx, ry, 'W');
+  }
+  return p.fn((x, y, c) => (c && y > 11 ? null : undefined));
+}
 
 export const star = (): Grid =>
   new Pen(4, 4).fn((x, y) => ((x === 1 || x === 2) && (y === 1 || y === 2) ? 'W' : null));

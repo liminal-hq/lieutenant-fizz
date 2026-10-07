@@ -102,28 +102,34 @@ export interface LevelInfo {
   blurb: string;
   /** Music track while playing it. */
   track: string;
+  /** Shown on the level-cleared card. */
+  cleared: string;
 }
 
+/** Indexed by level id, matching the `LEVELS` table in the Rust sim. */
 export const LEVELS: LevelInfo[] = [
   {
     name: 'Crater Fields',
     blurb: 'Twinkling crystal craters and chocolate pools.',
     track: 'crater',
+    cleared: 'The first teleporter on the map is humming now. The Crystal Caves are waiting.',
   },
   {
     name: 'Crystal Caves',
     blurb: 'Dark, glittering tunnels over chocolate rivers.',
     track: 'caves',
+    cleared: 'The next teleporter is humming. Mildred’s Citadel is waiting.',
   },
   {
     name: "Mildred's Citadel",
     blurb: 'A castle of cake, cookie doors and frozen chocolate.',
     track: 'citadel',
+    cleared: 'The Citadel is cleared.',
   },
-];
-
-export const CLEARED_TEXT = [
-  'The first teleporter on the map is humming now. The Crystal Caves are waiting.',
-  'The next teleporter is humming. Mildred’s Citadel is waiting.',
-  'The Citadel is cleared.',
+  {
+    name: 'Meteor Mesa',
+    blurb: 'Biscuit-rock mesas in open sky, with cloud ledges between them.',
+    track: 'crater',
+    cleared: 'The sky is clear all the way to the horizon, and there is more of Zargoth to see.',
+  },
 ];

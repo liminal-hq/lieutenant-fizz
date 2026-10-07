@@ -18,6 +18,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 1. Title screen, then the opening cinematic (8 panels, skippable).
 2. **Overworld:** a top-down crystal forest split by chocolate rivers. Teleporter pairs power up as levels are cleared. Autosaves on every visit.
 3. **Crater Fields:** tutorial biome with slopes, pogo, fizz, chocolate pools, red gumdrop door.
+3a. **Meteor Mesa** (Crater Fields, open sky): daylight biscuit-rock mesas with drifting clouds, gaps bridged by cloud ledges and a hover platform, no ceiling.
 4. **Crystal Caves:** darker tunnels lit by crystals and Ben's lantern. Hover platforms, a bridge switch, bats, blue gumdrop door.
 5. **Mildred's Citadel:** boulder ramp, sentries, phantoms, then the boss arena, the terminal and Billy's cage.
 6. Ending (4 panels), then the credits (skippable), then a score card. Episode 1 has no post-credits stinger; it belongs to Episode 3.

@@ -19,7 +19,7 @@ import { applyProgress, captureProgress, readProgress, safeStorage, writeProgres
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
-import { CINE, CINE_TRACK, CLEARED_TEXT, DIALOGUE, END, LEVELS, type Line } from './story';
+import { CINE, CINE_TRACK, DIALOGUE, END, LEVELS, type Line } from './story';
 import { MORTIMER_STINGER } from './stinger';
 import { Ui, type HudState, type MenuItem, type OptionKey, type Prompt } from './ui';
 
@@ -359,7 +359,7 @@ export class Game {
           if (this.disposed || this.screen !== 'play') return;
           this.showCard({
             title: `${LEVELS[id]?.name ?? 'Level'} cleared`,
-            text: CLEARED_TEXT[id] ?? '',
+            text: LEVELS[id]?.cleared ?? '',
             primaryLabel: 'Back to the map',
             primary: () => this.enterMap(),
           });

@@ -19,6 +19,8 @@ pub mod tiles;
 pub mod world;
 
 #[cfg(test)]
+mod playtest;
+#[cfg(test)]
 mod tests;
 
 use std::ptr::addr_of_mut;
@@ -260,6 +262,19 @@ pub extern "C" fn state_set(i: u32, v: f64) {
             }
         }
         POGO_HEIGHT => s.pogo_height = v,
+        // Debug hooks: place Ben and snap the camera to him (used for review screenshots).
+        PLAYER_X => {
+            s.p.b.x = v;
+            s.p.b.px = v;
+            s.cam_x = v + 6.0;
+            s.pcx = s.cam_x;
+        }
+        PLAYER_Y => {
+            s.p.b.y = v;
+            s.p.b.py = v;
+            s.cam_y = v + 3.0;
+            s.pcy = s.cam_y;
+        }
         _ => {}
     }
 }

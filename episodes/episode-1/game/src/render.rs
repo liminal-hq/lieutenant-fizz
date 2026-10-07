@@ -52,6 +52,17 @@ pub enum Layer {
         nt: u32,
         f: f64,
     },
+    /// Drifting clouds scattered on a coarse grid; `base` and `spread` set their altitude band.
+    Clouds {
+        s: Spr,
+        tint: u32,
+        nt: u32,
+        f: f64,
+        base: f64,
+        spread: f64,
+        speed: f64,
+        alpha: f32,
+    },
 }
 
 /// How a level plays and looks; chosen per level, independent of the overworld area it sits in.
@@ -60,6 +71,7 @@ pub enum Theme {
     Crater,
     Caves,
     Citadel,
+    OpenSky,
 }
 
 impl Theme {
@@ -69,6 +81,7 @@ impl Theme {
             Theme::Crater => 0,
             Theme::Caves => 1,
             Theme::Citadel => 2,
+            Theme::OpenSky => 3,
         }
     }
 }
@@ -116,6 +129,54 @@ pub fn theme(t: Theme) -> LevelTheme {
             }],
             crys: Spr::CrysM,
             lc: [1.2, 0.5, 1.1],
+        },
+        Theme::OpenSky => LevelTheme {
+            clear: 0x55ffff,
+            amb: [1.0, 1.0, 1.0],
+            night: [0.34, 0.34, 0.5],
+            lm: 0.55,
+            lantern: true,
+            layers: vec![
+                Layer::Stars,
+                Layer::Clouds {
+                    s: Spr::Cloud,
+                    tint: 0xffffff,
+                    nt: 0x3a3a68,
+                    f: 0.08,
+                    base: 11.0,
+                    spread: 10.0,
+                    speed: 0.25,
+                    alpha: 0.9,
+                },
+                Layer::Hills {
+                    s: Spr::MtnTop,
+                    tint: 0xaa5500,
+                    nt: 0x2a1a30,
+                    f: 0.2,
+                    base: 3.5,
+                    amp: 2.5,
+                },
+                Layer::Hills {
+                    s: Spr::HillTop,
+                    tint: 0x55ff55,
+                    nt: 0x14202a,
+                    f: 0.45,
+                    base: 2.5,
+                    amp: 1.5,
+                },
+                Layer::Clouds {
+                    s: Spr::Cloud,
+                    tint: 0xffffff,
+                    nt: 0x4a4a78,
+                    f: 0.6,
+                    base: 5.0,
+                    spread: 5.0,
+                    speed: 0.6,
+                    alpha: 0.75,
+                },
+            ],
+            crys: Spr::CrysM,
+            lc: [1.0, 0.85, 0.5],
         },
         Theme::Crater => LevelTheme {
             clear: 0x5555ff,
@@ -428,6 +489,45 @@ impl World {
                                 },
                             );
                         }
+                    }
+                }
+                Layer::Clouds {
+                    s,
+                    tint,
+                    nt,
+                    f,
+                    base,
+                    spread,
+                    speed,
+                    alpha,
+                } => {
+                    let (ox, oy) = (cx * (1.0 - f), cy * (1.0 - f) * 0.6);
+                    let drift = t * speed;
+                    let cell = 8.0;
+                    let o = PushOpts {
+                        tint: if night { *nt } else { *tint },
+                        alpha: *alpha,
+                        ..em
+                    };
+                    let (g0, g1) = (
+                        ((x0 - ox - drift) / cell).floor() as i32 - 1,
+                        ((x1 - ox - drift) / cell).ceil() as i32,
+                    );
+                    for g in g0..=g1 {
+                        if hashf(g, 11) < 0.35 {
+                            continue;
+                        }
+                        let wx = (f64::from(g) + hashf(g, 23)) * cell + drift + ox;
+                        let wy = base + spread * hashf(g, 37) + oy;
+                        self.push(
+                            wx,
+                            wy,
+                            *s,
+                            &PushOpts {
+                                scale: (0.8 + 0.6 * hashf(g, 5)) as f32,
+                                ..o
+                            },
+                        );
                     }
                 }
                 Layer::Wall { s, tint, nt, f } => {

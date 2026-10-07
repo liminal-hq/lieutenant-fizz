@@ -1,0 +1,313 @@
+// Search bot that plays levels through the real simulation to prove they can be finished.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+//! Beam search over short input macros. The bot forks the live `World` at every step, so it
+//! exercises the same physics, hazards, doors and switches the player meets. Hostile enemies are
+//! removed so a result speaks for the platforming; a level passes when the exit is reached.
+
+use crate::ents::Kind;
+use crate::world::{input::*, Mode, World};
+use std::collections::HashSet;
+
+/// One input macro: hold `mask` for `ticks` ticks, releasing jump for the first tick so each jump
+/// press is a fresh edge.
+#[derive(Clone, Copy)]
+struct Act {
+    mask: u32,
+    ticks: u8,
+}
+
+const WALK: [Act; 9] = [
+    Act {
+        mask: RIGHT,
+        ticks: 8,
+    },
+    Act {
+        mask: RIGHT | JUMP,
+        ticks: 6,
+    },
+    Act {
+        mask: RIGHT | JUMP,
+        ticks: 11,
+    },
+    Act {
+        mask: RIGHT | JUMP,
+        ticks: 18,
+    },
+    Act {
+        mask: LEFT,
+        ticks: 8,
+    },
+    Act {
+        mask: LEFT | JUMP,
+        ticks: 16,
+    },
+    Act {
+        mask: JUMP,
+        ticks: 16,
+    },
+    Act { mask: 0, ticks: 6 },
+    Act {
+        mask: POGO,
+        ticks: 1,
+    },
+];
+
+/// Extra macros for levels with ladders and lifts.
+const CLIMB: [Act; 4] = [
+    Act {
+        mask: UP,
+        ticks: 10,
+    },
+    Act {
+        mask: DOWN,
+        ticks: 10,
+    },
+    Act {
+        mask: UP | RIGHT,
+        ticks: 8,
+    },
+    Act {
+        mask: DOWN | RIGHT,
+        ticks: 8,
+    },
+];
+
+/// A spot Ben must stand on, in tile coordinates (his feet at `y`); the last one is normally the
+/// exit, which also ends the search once it is touched.
+#[derive(Clone, Copy)]
+pub struct Waypoint {
+    pub x: f64,
+    pub y: f64,
+}
+
+pub struct Options {
+    pub beam: usize,
+    /// Most states kept per tile column, height band and ground/air state.
+    pub per_bucket: usize,
+    pub max_ticks: u32,
+    pub climb: bool,
+    /// Keep enemies (the default removes everything hostile).
+    pub keep_enemies: bool,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Options {
+            beam: 120,
+            per_bucket: 4,
+            max_ticks: 6000,
+            climb: false,
+            keep_enemies: false,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Outcome {
+    pub finished: bool,
+    pub ticks: u32,
+    /// Index of the furthest waypoint reached, and the furthest grounded position seen.
+    pub waypoint: usize,
+    pub best_x: f64,
+    pub best_y: f64,
+}
+
+struct Node {
+    w: World,
+    wp: usize,
+}
+
+fn reached(w: &World, p: Waypoint) -> bool {
+    w.p.b.on_ground && (w.p.b.centre_x() - p.x).abs() < 0.9 && (w.p.b.y - p.y).abs() < 0.3
+}
+
+fn dist(w: &World, p: Waypoint) -> f64 {
+    (w.p.b.centre_x() - p.x).abs() + 1.5 * (w.p.b.y - p.y).abs()
+}
+
+fn key(n: &Node) -> (i32, i32, i8, i8, bool, bool, usize) {
+    let b = &n.w.p.b;
+    (
+        (b.x * 3.0).round() as i32,
+        (b.y * 3.0).round() as i32,
+        b.vx.round() as i8,
+        (b.vy / 4.0).round() as i8,
+        b.on_ground,
+        n.w.p.pogo,
+        n.wp,
+    )
+}
+
+fn play(w: &mut World, a: Act) -> bool {
+    for t in 0..a.ticks {
+        let held = if t == 0 { a.mask & !JUMP } else { a.mask };
+        w.step(held);
+        if w.p.dead > 0.0 || w.mode != Mode::Level {
+            return false;
+        }
+        if w.won {
+            return true;
+        }
+    }
+    true
+}
+
+/// Searches for an input sequence that visits every waypoint in order and wins the level.
+pub fn solve(mut start: World, route: &[Waypoint], o: &Options) -> Outcome {
+    if !o.keep_enemies {
+        start
+            .ents
+            .retain(|e| matches!(e.kind, Kind::Switch | Kind::Terminal | Kind::Cage));
+    }
+    let acts: Vec<Act> = WALK
+        .iter()
+        .chain(if o.climb { CLIMB.iter() } else { [].iter() })
+        .copied()
+        .collect();
+    let mut beam = vec![Node { w: start, wp: 0 }];
+    let mut best = Outcome {
+        finished: false,
+        ticks: 0,
+        waypoint: 0,
+        best_x: 0.0,
+        best_y: 0.0,
+    };
+    while !beam.is_empty() && beam[0].w.tick_count < o.max_ticks {
+        let mut next: Vec<Node> = Vec::new();
+        let mut seen = HashSet::new();
+        for n in &beam {
+            for a in &acts {
+                let mut w = n.w.fork();
+                let alive = play(&mut w, *a);
+                if w.won {
+                    best.finished = true;
+                    best.ticks = w.tick_count;
+                    return best;
+                }
+                if !alive {
+                    continue;
+                }
+                let mut wp = n.wp;
+                while wp < route.len() && reached(&w, route[wp]) {
+                    wp += 1;
+                }
+                if w.p.b.on_ground && w.p.b.x > best.best_x {
+                    best.best_x = w.p.b.x;
+                    best.best_y = w.p.b.y;
+                }
+                let child = Node { w, wp };
+                if seen.insert(key(&child)) {
+                    next.push(child);
+                }
+            }
+        }
+        next.sort_by(|a, b| {
+            b.wp.cmp(&a.wp).then_with(|| {
+                let da = route.get(a.wp).map_or(0.0, |p| dist(&a.w, *p));
+                let db = route.get(b.wp).map_or(0.0, |p| dist(&b.w, *p));
+                da.total_cmp(&db)
+            })
+        });
+        // Keep the beam spread out: at most a few states per tile column, height band and ground/air state, so
+        // states already committed to a doomed fall cannot crowd out ones waiting to jump.
+        let mut per_bucket = std::collections::HashMap::new();
+        next.retain(|n| {
+            let bucket = (
+                n.w.p.b.x.floor() as i32,
+                (n.w.p.b.y / 3.0).floor() as i32,
+                n.w.p.b.on_ground,
+                n.wp,
+            );
+            let c = per_bucket.entry(bucket).or_insert(0usize);
+            *c += 1;
+            *c <= o.per_bucket
+        });
+        next.truncate(o.beam);
+        if let Some(n) = next.first() {
+            best.waypoint = n.wp;
+            best.ticks = n.w.tick_count;
+        }
+        beam = next;
+    }
+    best
+}
+
+/// Starts a fresh game on `id` and searches `route`.
+pub fn play_level(id: u8, route: &[Waypoint], o: &Options) -> Outcome {
+    let mut w = World::new();
+    w.game_new();
+    w.enter_level(id);
+    solve(w, route, o)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::levels::{build_level, METEOR_MESA};
+    use crate::tiles::EXIT;
+
+    /// Where the exit tile sits, as a waypoint standing in front of it.
+    pub fn exit_of(id: u8) -> Waypoint {
+        let l = build_level(id);
+        for x in 0..l.map.w {
+            for y in 0..l.map.h {
+                if l.map.get(x, y) == EXIT {
+                    return Waypoint {
+                        x: f64::from(x) + 0.5,
+                        y: f64::from(y),
+                    };
+                }
+            }
+        }
+        panic!("level {id} has no exit");
+    }
+
+    fn wp(x: f64, y: f64) -> Waypoint {
+        Waypoint { x, y }
+    }
+
+    #[test]
+    fn crater_fields_can_be_finished_via_the_red_key() {
+        let r = play_level(
+            crate::levels::CRATER,
+            &[wp(132.5, 13.0), exit_of(crate::levels::CRATER)],
+            &Options::default(),
+        );
+        assert!(
+            r.finished,
+            "bot stalled at x={:.1} y={:.1} wp {} after {} ticks",
+            r.best_x, r.best_y, r.waypoint, r.ticks
+        );
+    }
+
+    #[test]
+    fn crystal_caves_can_be_finished_via_the_switch_and_blue_key() {
+        let r = play_level(
+            crate::levels::CAVES,
+            &[
+                wp(57.5, 4.0),
+                wp(101.5, 10.0),
+                exit_of(crate::levels::CAVES),
+            ],
+            &Options::default(),
+        );
+        assert!(
+            r.finished,
+            "bot stalled at x={:.1} y={:.1} wp {} after {} ticks",
+            r.best_x, r.best_y, r.waypoint, r.ticks
+        );
+    }
+
+    #[test]
+    fn meteor_mesa_can_be_finished() {
+        let r = play_level(METEOR_MESA, &[exit_of(METEOR_MESA)], &Options::default());
+        assert!(
+            r.finished,
+            "bot stalled at x={:.1} y={:.1} after {} ticks",
+            r.best_x, r.best_y, r.ticks
+        );
+    }
+}
