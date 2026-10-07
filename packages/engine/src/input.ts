@@ -25,6 +25,28 @@ export type Command =
   | { type: 'zoom'; factor: number }
   | { type: 'zoomReset' };
 
+/** Which kind of input the player last used, so hints can show the matching labels. */
+export type InputDevice = 'keyboard' | 'gamepad';
+
+/** Something that can change the hint device. */
+export type DeviceEvent = 'key' | 'pad-input' | 'pad-connected' | 'pad-disconnected';
+
+/**
+ * The hint device after an event. A key press means keyboard, a gamepad button or stick move means
+ * gamepad, connecting a pad switches to it, and unplugging the last pad goes back to the keyboard.
+ */
+export function nextDevice(current: InputDevice, event: DeviceEvent, padsLeft = 0): InputDevice {
+  switch (event) {
+    case 'key':
+      return 'keyboard';
+    case 'pad-input':
+    case 'pad-connected':
+      return 'gamepad';
+    case 'pad-disconnected':
+      return padsLeft > 0 ? current : 'keyboard';
+  }
+}
+
 const MAPPED = new Set([
   'ArrowLeft',
   'ArrowRight',
@@ -88,6 +110,9 @@ export class InputManager {
   private prevStart = false;
   private readonly handlers = new Set<(c: Command) => void>();
   padConnected = false;
+  /** The device the player last used. Starts on the gamepad if one is already connected. */
+  device: InputDevice = 'keyboard';
+  private readonly deviceHandlers = new Set<(d: InputDevice) => void>();
   /** When true, held bits are suppressed (menus, dialogue) but commands still fire. */
   blocked = false;
 
@@ -95,6 +120,7 @@ export class InputManager {
     const t = e.target as HTMLElement | null;
     if (t && /INPUT|TEXTAREA|SELECT/.test(t.tagName)) return;
     if (MAPPED.has(e.code)) e.preventDefault();
+    this.setDevice('key');
     if (e.repeat) return;
     this.keys.add(e.code);
     switch (e.code) {
@@ -138,11 +164,36 @@ export class InputManager {
     this.emit({ type: 'zoom', factor: Math.exp(-e.deltaY * 0.0015) });
   };
 
+  private readonly onPadConnected = (): void => this.setDevice('pad-connected');
+  private readonly onPadDisconnected = (): void =>
+    this.setDevice('pad-disconnected', this.padCount());
+
   constructor(private readonly host: HTMLElement) {
+    if (this.padCount() > 0) this.device = 'gamepad';
+    window.addEventListener('gamepadconnected', this.onPadConnected);
+    window.addEventListener('gamepaddisconnected', this.onPadDisconnected);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onBlur);
     host.addEventListener('wheel', this.onWheel, { passive: false });
+  }
+
+  private padCount(): number {
+    const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+    return Array.from(pads).filter(Boolean).length;
+  }
+
+  private setDevice(event: DeviceEvent, padsLeft = 0): void {
+    const next = nextDevice(this.device, event, padsLeft);
+    if (next === this.device) return;
+    this.device = next;
+    for (const h of this.deviceHandlers) h(next);
+  }
+
+  /** Calls `fn` whenever the last-used device changes. Returns an unsubscribe function. */
+  onDevice(fn: (d: InputDevice) => void): () => void {
+    this.deviceHandlers.add(fn);
+    return () => this.deviceHandlers.delete(fn);
   }
 
   onCommand(fn: (c: Command) => void): () => void {
@@ -166,6 +217,7 @@ export class InputManager {
       const r = padToBits(gp);
       bits |= r.bits;
       start ||= r.start;
+      if (r.bits || r.start) this.setDevice('pad-input');
     }
     this.padConnected = pad;
     if (start && !this.prevStart) this.emit({ type: 'pause' });
@@ -189,6 +241,8 @@ export class InputManager {
   }
 
   dispose(): void {
+    window.removeEventListener('gamepadconnected', this.onPadConnected);
+    window.removeEventListener('gamepaddisconnected', this.onPadDisconnected);
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.onBlur);
