@@ -27,6 +27,8 @@ pub enum Kind {
     Swivel,
     /// Opens the gate on switch channel 1 when a fizz bubble hits it.
     CrystalSwitch,
+    /// A crushing press that rises and falls over a floor; harmless while it is raised.
+    Press,
 }
 
 /// Static per-kind traits (size and how the player may interact).
@@ -146,6 +148,12 @@ pub fn info(k: Kind) -> Info {
             h: 1.5,
             harmless: true,
             prop: true,
+            ..D
+        },
+        Kind::Press => Info {
+            w: 2.0,
+            h: 1.5,
+            inv: true,
             ..D
         },
         Kind::Mirror | Kind::Swivel | Kind::CrystalSwitch => Info {

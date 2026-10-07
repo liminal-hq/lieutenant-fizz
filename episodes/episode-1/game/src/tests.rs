@@ -1162,6 +1162,153 @@ fn the_green_gumdrop_is_collected_and_opens_only_the_green_door() {
     assert_ne!(w.map.get(21, 49), 0, "the red door is untouched");
 }
 
+fn foundry() -> World {
+    let mut w = level(crate::levels::COCOA_FOUNDRY);
+    w.ents.retain(|e| e.kind == Kind::Press);
+    w
+}
+
+#[test]
+fn a_belt_carries_ben_and_he_can_walk_against_it() {
+    let mut w = foundry();
+    w.ents.clear();
+    // The first right-hand belt starts at x = 12 on floor 4.
+    w.p.b.x = 13.0;
+    w.p.b.y = 4.0;
+    run(&mut w, 5, 0);
+    let x0 = w.p.b.x;
+    run(&mut w, 30, 0);
+    let drift = (w.p.b.x - x0) / 0.5;
+    assert!(
+        (drift - 3.0).abs() < 0.4,
+        "carried right at 3 tiles/s, got {drift}"
+    );
+    // Walking left on it nets 7 - 3 tiles/s once he is up to speed; start at the belt's far end so
+    // he stays on it for the whole measurement.
+    w.p.b.x = 20.8;
+    w.p.b.y = 4.0;
+    run(&mut w, 25, LEFT);
+    let x1 = w.p.b.x;
+    run(&mut w, 15, LEFT);
+    let net = (x1 - w.p.b.x) / 0.25;
+    assert!(w.p.b.x > 12.0, "still on the belt, at {:.1}", w.p.b.x);
+    assert!(
+        (net - 4.0).abs() < 0.8,
+        "net 4 tiles/s against the belt, got {net}"
+    );
+}
+
+#[test]
+fn belts_carry_enemies_too_and_they_still_turn_at_the_end() {
+    let mut w = level(crate::levels::COCOA_FOUNDRY);
+    w.ents.clear();
+    let g = crate::ents::Spawn {
+        kind: Kind::Gloop,
+        x: 14.0,
+        y: 4.0,
+        dir: -1.0,
+    };
+    let e = w.init_ent(&g);
+    w.ents.push(e);
+    run(&mut w, 300, 0);
+    let b = &w.ents[0].b;
+    assert!(
+        b.x > 0.0 && b.y > 3.0,
+        "stayed on the floor, at {:.1},{:.1}",
+        b.x,
+        b.y
+    );
+}
+
+#[test]
+fn molten_metal_kills_like_fudge() {
+    let mut w = level(crate::levels::COCOA_FOUNDRY);
+    w.ents.clear();
+    w.game.lives = 3;
+    // The first furnace pool is at x 43..45; drop in.
+    assert_eq!(w.map.get(44, 1), FURNACE);
+    w.p.b.x = 44.0;
+    w.p.b.y = 4.0;
+    run(&mut w, 60, 0);
+    assert!(w.p.dead > 0.0, "Ben fell into molten metal and died");
+}
+
+#[test]
+fn a_press_kills_while_down_and_is_harmless_while_raised() {
+    let mut w = foundry();
+    // The press at x = 24 sits over floor 4, raised bottom at y 7.
+    let i = w
+        .ents
+        .iter()
+        .position(|e| e.kind == Kind::Press && (e.b.x - 23.5).abs() < 0.01)
+        .expect("press at 24");
+    // Raised: phase 0.
+    w.ents[i].t = 0.0;
+    w.p.b.x = 23.8;
+    w.p.b.y = 4.0;
+    w.p.inv = 0.0;
+    w.step(0);
+    w.step(0);
+    assert_eq!(w.p.dead, 0.0, "a raised press is harmless");
+    assert!(w.ents[i].b.y > 6.5, "raised, y = {}", w.ents[i].b.y);
+    // Down: half a period later, bottom on the floor.
+    w.ents[i].t = std::f64::consts::PI / 1.6;
+    w.step(0);
+    w.step(0);
+    assert!(w.ents[i].b.y < 4.5, "down, y = {}", w.ents[i].b.y);
+    assert!(w.p.dead > 0.0, "a press that is down crushes Ben");
+}
+
+#[test]
+fn jumping_into_a_raised_press_is_harmless_and_it_kills_as_it_comes_down_on_him() {
+    let mut w = foundry();
+    let i = w
+        .ents
+        .iter()
+        .position(|e| e.kind == Kind::Press && (e.b.x - 23.5).abs() < 0.01)
+        .expect("press at 24");
+    // Hold the press raised (phase 0 keeps it up) and put Ben inside its box, as if he had jumped
+    // up into it from the floor below: nothing happens.
+    w.ents[i].t = 0.0;
+    w.p.b.x = 23.8;
+    w.p.b.y = 7.5;
+    w.p.b.vy = 0.0;
+    w.p.inv = 0.0;
+    w.step(0);
+    assert!(w.ents[i].b.y > 6.5, "still raised, y = {}", w.ents[i].b.y);
+    assert_eq!(
+        w.p.dead, 0.0,
+        "a raised press does not hurt even when he is inside it"
+    );
+    // As soon as it has come down far enough, the same overlap is fatal.
+    w.ents[i].t = std::f64::consts::PI / 1.6;
+    w.p.b.y = 4.0;
+    // Entities move after Ben in a tick, so the press is down by the second one.
+    w.step(0);
+    w.step(0);
+    assert!(w.p.dead > 0.0, "the lowered press crushes him");
+}
+
+#[test]
+fn presses_are_staggered_deterministically() {
+    let a = foundry();
+    let b = foundry();
+    let phases = |w: &World| -> Vec<f64> {
+        w.ents
+            .iter()
+            .filter(|e| e.kind == Kind::Press)
+            .map(|e| e.t)
+            .collect()
+    };
+    assert_eq!(phases(&a), phases(&b), "same every run");
+    let p = phases(&a);
+    assert!(p.len() >= 10);
+    assert!(
+        p.windows(2).any(|w| (w[0] - w[1]).abs() > 0.5),
+        "not all in step"
+    );
+}
+
 #[test]
 fn enemies_in_a_hidden_room_wait_there_until_ben_walks_in() {
     let mut w = level(crate::levels::BONBON_PLAYHOUSE);

@@ -6,7 +6,7 @@
 import { Pen, spriteRng, type Grid } from '@lieutenant-fizz/engine/pen';
 import type { Colour } from '@lieutenant-fizz/engine/palette';
 
-export type Biome = 'crater' | 'caves' | 'citadel' | 'sky' | 'building' | 'theatre';
+export type Biome = 'crater' | 'caves' | 'citadel' | 'sky' | 'building' | 'theatre' | 'foundry';
 
 interface BiomeColours {
   top: Colour;
@@ -55,6 +55,16 @@ export const BIOMES: Record<Biome, BiomeColours> = {
     fleck: 'L',
     plat: ['y', 'N', 'R'],
     block: ['L', 'D', 'W'],
+  },
+  // The cocoa foundry: steel plate, iron, rust and rivets.
+  foundry: {
+    top: 'L',
+    top2: 'D',
+    fill: 'D',
+    fill2: 'k',
+    fleck: 'N',
+    plat: ['y', 'D', 'k'],
+    block: ['L', 'D', 'y'],
   },
   // A candy playhouse: a wooden stage, red velvet and gold trim.
   theatre: {
@@ -118,6 +128,51 @@ export function platTile(bio: Biome): Grid {
           : y === 5 && x % 5 === 2
             ? b
             : null,
+  );
+}
+
+/** A conveyor belt: a steel track with chevrons that shift between frames. */
+export function conveyorTile(dir: 'L' | 'R', f: 0 | 1): Grid {
+  return new Pen(16, 16).fn((x, y) => {
+    if (y === 0) return 'L';
+    if (y === 15) return 'k';
+    if (y > 5) return 'D';
+    // A chevron every eight pixels, pointing the way the belt carries: `>` for right, `<` for left.
+    // It shifts a couple of pixels between the two frames in that direction.
+    const tip = (4 + (dir === 'R' ? f * 2 : -f * 2) + 8) % 8;
+    const wing = Math.abs(y - 3);
+    const col = dir === 'R' ? tip - wing : tip + wing;
+    return (((x - col) % 8) + 8) % 8 === 0 ? 'y' : 'N';
+  });
+}
+
+/** A crushing press: a steel block with a hazard-striped face and a piston above it. */
+export function pressTile(down: boolean): Grid {
+  const p = new Pen(32, 24);
+  p.rect(14, 0, 4, 6, 'L');
+  p.rect(2, 6, 28, 14, 'D');
+  p.rect(2, 6, 28, 2, 'L');
+  for (let x = 2; x < 30; x += 4) p.rect(x, 18, 2, 2, 'y');
+  p.rect(2, 20, 28, 4, down ? 'r' : 'N');
+  for (let x = 2; x < 30; x += 6) p.rect(x, 20, 3, 4, 'k');
+  p.px(4, 9, 'k');
+  p.px(27, 9, 'k');
+  return p.outline();
+}
+
+/** Molten metal. */
+export function furnaceTop(f: number): Grid {
+  return new Pen(16, 16).fn((x, y) => {
+    const s = 3 + Math.round(Math.sin(((x + f * 5) / 16) * Math.PI * 2) * 1.2);
+    if (y < s) return null;
+    if (y === s) return (x + f * 3) % 6 === 0 ? 'W' : 'y';
+    return y < s + 3 ? 'r' : (x + y + f) % 7 === 0 ? 'y' : 'R';
+  });
+}
+
+export function furnaceDeep(f: number): Grid {
+  return new Pen(16, 16).fn((x, y) =>
+    Math.sin((x * 0.8 + y * 0.5 + f * 3) * 0.9) > 0.6 ? 'r' : 'R',
   );
 }
 
@@ -201,6 +256,15 @@ export function blockTile(bio: Biome): Grid {
 export function backTile(bio: Biome, seed: number): Grid {
   const r = spriteRng(seed);
   const p = new Pen(16, 16);
+  if (bio === 'foundry') {
+    // Pipework: a pipe every eight rows with a highlight, and rivets on the joins.
+    return p.fn((x, y) => {
+      const r = y % 8;
+      if (r === 1) return 'L';
+      if (r >= 2 && r <= 4) return x % 8 === 0 ? 'k' : 'D';
+      return r === 5 ? 'k' : 'N';
+    });
+  }
   if (bio === 'theatre') {
     // Velvet curtain: deep folds every four pixels with a lighter ridge between them.
     return p.fn((x, y) => (x % 4 === 0 ? 'k' : x % 4 === 2 && y % 8 < 6 ? 'M' : 'R'));

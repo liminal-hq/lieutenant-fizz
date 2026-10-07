@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use lf_sim::tilemap::{
-    TileProps, LADDER as LADDER_FLAG, ONEWAY, SLOPE_L22A, SLOPE_L22B, SLOPE_L45, SLOPE_R22A,
-    SLOPE_R22B, SLOPE_R45, SOLID, SWITCHED,
+    TileProps, CONVEY_L, CONVEY_R, LADDER as LADDER_FLAG, ONEWAY, SLOPE_L22A, SLOPE_L22B,
+    SLOPE_L45, SLOPE_R22A, SLOPE_R22B, SLOPE_R45, SOLID, SWITCHED,
 };
 
 /// Switch channel that gates use; channel 0 belongs to the bridge.
@@ -35,6 +35,11 @@ pub const PATH: u8 = 21;
 pub const RIVER: u8 = 22;
 pub const TREE: u8 = 23;
 pub const ROCK: u8 = 24;
+/// Conveyor belts: solid, and carry a body standing on them to the left or the right.
+pub const CONV_L: u8 = 25;
+pub const CONV_R: u8 = 26;
+/// Molten metal: a lethal liquid like chocolate, with its own look.
+pub const FURNACE: u8 = 27;
 /// A wall mural. Its bottom-left tile draws the whole 3-by-2 picture; the other five do not draw.
 pub const MURAL: u8 = 18;
 pub const MURAL_PART: u8 = 19;
@@ -52,12 +57,19 @@ pub const RUNG: u8 = 28;
 /// Top rung of a ladder: climbable, and a one-way ledge Ben can stand on.
 pub const RUNG_TOP: u8 = 29;
 
+/// Whether a tile is a lethal liquid (fudge or molten metal).
+pub fn is_liquid(t: u8) -> bool {
+    t == CHOC || t == FURNACE
+}
+
 /// Collision behaviour for every Episode 1 tile id.
 pub fn props() -> TileProps {
     let mut p = TileProps::default();
     for t in [FILL, BLOCK, DOOR_R, DOOR_B, DOOR_G, RIVER, TREE, ROCK] {
         p.set_flags(t, SOLID);
     }
+    p.set_flags(CONV_L, SOLID | CONVEY_L);
+    p.set_flags(CONV_R, SOLID | CONVEY_R);
     p.set_flags(PLAT, ONEWAY);
     for (t, ch) in [(GATE, GATE_CHANNEL), (GATE_2, 2), (GATE_3, 3)] {
         p.set_flags(t, SWITCHED);

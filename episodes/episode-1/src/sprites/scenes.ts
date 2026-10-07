@@ -152,6 +152,18 @@ export function mural(): Grid {
   return p.outline();
 }
 
+export function owFoundry(): Grid {
+  const p = new Pen(16, 16);
+  p.rect(2, 8, 12, 7, 'D');
+  p.rect(10, 1, 3, 8, 'L');
+  p.rect(10, 0, 3, 1, 'k');
+  p.rect(3, 6, 5, 3, 'N');
+  p.ell(5, 12, 2.2, 2.2, 'y');
+  p.px(5, 12, 'N');
+  p.px(11, 0, 'W');
+  return p.outline();
+}
+
 export function owCave(): Grid {
   const p = new Pen(16, 16);
   p.ell(8, 11, 7.5, 8, 'D', (_i, j) => j < 16);

@@ -23,9 +23,10 @@ pub const MIRROR_SHAFTS: u8 = 8;
 pub const SUGAR_GLASS_GALLERY: u8 = 9;
 pub const FROSTING_FLATS: u8 = 10;
 pub const FROSTING_SPIRE: u8 = 11;
+pub const COCOA_FOUNDRY: u8 = 12;
 
 /// Number of levels; level ids are `0..LEVEL_COUNT` and double as bit positions in `Game::done`.
-pub const LEVEL_COUNT: u8 = 12;
+pub const LEVEL_COUNT: u8 = 13;
 
 /// Overworld areas, in the order `MapData::areas` and `area_theme` index them.
 pub const AREA_CRATER_FIELDS: u8 = 0;
@@ -129,6 +130,13 @@ pub const LEVELS: [LevelDef; LEVEL_COUNT as usize] = [
         area: AREA_FROSTING_FRONTIER,
         icon: Spr::OwTower,
     },
+    LevelDef {
+        id: COCOA_FOUNDRY,
+        build: cocoa_foundry,
+        theme: Theme::Foundry,
+        area: AREA_FROSTING_FRONTIER,
+        icon: Spr::OwFoundry,
+    },
 ];
 
 /// Bit in `Game::done` for a cleared level.
@@ -190,6 +198,10 @@ enum Seg {
     Gap,
     Pool,
     Spikes,
+    /// A conveyor belt carrying Ben to the right.
+    BeltR,
+    /// A conveyor belt carrying Ben to the left.
+    BeltL,
 }
 use Seg::*;
 
@@ -204,6 +216,8 @@ struct Builder {
     rooms: Vec<Room>,
     x: i32,
     ground: i32,
+    /// The liquid `Pool` segments are filled with.
+    liquid: u8,
 }
 
 impl Builder {
@@ -219,6 +233,7 @@ impl Builder {
             rooms: vec![],
             x: 0,
             ground,
+            liquid: CHOC,
         }
     }
 
@@ -286,13 +301,20 @@ impl Builder {
                     Gap => self.x += 1,
                     Pool => {
                         self.map.set(x, 0, FILL);
-                        self.fill(x, x, 1, self.ground - 2, CHOC);
+                        let liquid = self.liquid;
+                        self.fill(x, x, 1, self.ground - 2, liquid);
                         self.set_h(x, f64::from(self.ground) - 1.0);
                         self.x += 1;
                     }
                     Spikes => {
                         self.col(x, self.ground);
                         self.map.set(x, self.ground, SPIKE);
+                        self.x += 1;
+                    }
+                    BeltR | BeltL => {
+                        self.col(x, self.ground);
+                        let belt = if matches!(k, BeltR) { CONV_R } else { CONV_L };
+                        self.map.set(x, self.ground - 1, belt);
                         self.x += 1;
                     }
                 }
@@ -1313,6 +1335,97 @@ fn frosting_spire() -> LevelData {
     b.out(FROSTING_SPIRE, (3.0, 3.0), None)
 }
 
+/// The cocoa foundry: conveyor belts that help and hinder, crushing presses to time, pools of molten
+/// metal crossed on a hover platform and stepping stones, and the blue key up a short tower of
+/// ledges. Presses are harmless while raised, so every one can be walked under in its window.
+fn cocoa_foundry() -> LevelData {
+    let mut b = Builder::new(214, 30, 4);
+    b.liquid = FURNACE;
+    b.run(&[
+        (Flat, 12),
+        (BeltR, 10),
+        (Flat, 5),
+        (BeltL, 10),
+        (Flat, 6),
+        (Pool, 3),
+        (Flat, 8),
+        (Up, 2),
+        (Flat, 6),
+        (BeltR, 14),
+        (Flat, 4),
+        (Pool, 7),
+        (Flat, 8),
+        (BeltL, 10),
+        (Flat, 7),
+        (Spikes, 3),
+        (Flat, 8),
+        (Down, 2),
+        (Flat, 8),
+        (Pool, 3),
+        (Flat, 10),
+        (BeltR, 14),
+        (Flat, 8),
+        (Pool, 6),
+        (Flat, 40),
+    ]);
+    b.walls();
+    // Over the seven-tile furnace: one hover. Over the six-tile one: stepping stones.
+    b.hover(80.0, 5.5, 85.0, 5.5, 0.28);
+    b.plat(170, 171, 3);
+    // The blue key, two ledges up, each three tiles above the last.
+    b.plat(88, 90, 8).plat(92, 94, 11);
+    b.item(KeyBlue, 93, 12);
+    b.fill(180, 180, 4, 5, DOOR_B).fill(180, 180, 6, 29, BLOCK);
+    b.fill(208, 208, 4, 5, EXIT);
+    // A press every so often, each on a floor it can crush; the floor height is read from the map.
+    for x in [
+        24, 40, 50, 58, 68, 78, 100, 108, 118, 128, 140, 152, 164, 176, 186, 196,
+    ] {
+        let floor = (0..b.h)
+            .rev()
+            .find(|&y| b.map.solid(x, y, false, 0.0) || b.map.get(x, y) == PLAT)
+            .map_or(4, |y| y + 1);
+        b.ent_at(Kind::Press, f64::from(x), f64::from(floor) + 3.0);
+    }
+    b.row(Cheezie, 4, 6, 6, 1)
+        .row(Cheezie, 12, 10, 6, 1)
+        .row(Choc, 28, 8, 6, 1)
+        .row(Cheezie, 38, 5, 6, 1)
+        .row(Choc, 43, 3, 7, 1)
+        .item(Soda, 49, 6)
+        .row(Cheezie, 62, 14, 8, 1)
+        .row(Choc, 80, 7, 9, 1)
+        .item(Cookie, 90, 9)
+        .item(Cookie, 94, 12)
+        .row(Cheezie, 96, 10, 8, 1)
+        .row(Cheezie, 105, 6, 8, 1)
+        .item(Soda, 118, 8)
+        .row(Cheezie, 125, 6, 6, 1)
+        .row(Choc, 133, 3, 7, 1)
+        .row(Cheezie, 146, 14, 6, 1)
+        .row(Choc, 168, 6, 6, 1)
+        .item(Soda, 175, 6)
+        .row(Cheezie, 182, 8, 6, 2)
+        .row(Cookie, 198, 3, 6, 3);
+    for x in [6, 30, 52, 70, 90, 108, 130, 150, 172, 190, 204] {
+        b.crys(x);
+    }
+    b.ent(Kind::Gloop, 24.0)
+        .ent(Kind::Gloop, 48.0)
+        .ent(Kind::Gloop, 120.0)
+        .ent(Kind::Gloop, 188.0)
+        .ent(Kind::Beetle, 59.0)
+        .ent(Kind::Beetle, 130.0)
+        .ent(Kind::Beetle, 163.0)
+        .ent(Kind::Phantom, 98.0)
+        .ent(Kind::Phantom, 142.0);
+    b.ent_at(Kind::Sentry, 108.0, 10.5)
+        .ent_at(Kind::Sentry, 192.0, 9.5)
+        .ent_at(Kind::Drone, 60.5, 12.5)
+        .ent_at(Kind::Drone, 140.5, 11.5);
+    b.out(COCOA_FOUNDRY, (3.0, 4.0), None)
+}
+
 fn caves() -> LevelData {
     let mut b = Builder::new(176, 26, 5);
     b.run(&[
@@ -1535,6 +1648,7 @@ pub fn build_overworld() -> MapData {
         pt(PtKind::Level, SUGAR_GLASS_GALLERY, 15, 39, 0, 0, false),
         pt(PtKind::Level, FROSTING_FLATS, 19, 31, 0, 0, false),
         pt(PtKind::Level, FROSTING_SPIRE, 19, 35, 0, 0, false),
+        pt(PtKind::Level, COCOA_FOUNDRY, 19, 39, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -1791,6 +1905,31 @@ mod tests {
     }
 
     #[test]
+    fn no_press_sweeps_through_a_ledge_or_solid_ground() {
+        for def in LEVELS.iter() {
+            let l = (def.build)();
+            for s in l.spawns.iter().filter(|s| s.kind == Kind::Press) {
+                // A press is 2 wide (body x = spawn x - 0.5), raised with its bottom at `s.y`, and it
+                // drops 3 tiles; its box sweeps from the floor up to its raised top.
+                let (x0, x1) = ((s.x - 0.5).floor() as i32, (s.x + 1.4).floor() as i32);
+                let (y0, y1) = ((s.y - 3.0).floor() as i32, (s.y + 1.4).floor() as i32);
+                for x in x0..=x1 {
+                    // The floor itself is the row below the press's lowest point.
+                    for y in y0..=y1 {
+                        let t = l.map.get(x, y);
+                        assert!(
+                            !l.map.is_solid_tile(t) && t != PLAT,
+                            "level {}: press at {} sweeps through tile {t} at {x},{y}",
+                            def.id,
+                            s.x
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn progress_bits_cover_every_level() {
         for id in 0..LEVEL_COUNT {
             assert_ne!(crate::world::PROGRESS_BITS & level_bit(id), 0);
@@ -1831,6 +1970,6 @@ mod tests {
                 );
             }
         }
-        assert_eq!(m.points.len(), 17);
+        assert_eq!(m.points.len(), 18);
     }
 }
