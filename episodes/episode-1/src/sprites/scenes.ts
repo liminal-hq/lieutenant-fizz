@@ -15,15 +15,6 @@ export function owGrass(seed: number): Grid {
   });
 }
 
-/** Lake water: blue with white ripples that shift between frames. */
-export function owWater(f: number): Grid {
-  return new Pen(16, 16).fn((x, y) => {
-    const w = Math.sin(x * 0.55 + y * 0.8 + f * 2.5);
-    if (w > 0.88) return 'W';
-    return (x + y * 2 + f) % 6 === 0 ? 'b' : 'B';
-  });
-}
-
 /** Marshmallow Meadows ground: pale pink with white fluff. */
 export function owGrassMeadow(seed: number): Grid {
   const r = spriteRng(seed);
