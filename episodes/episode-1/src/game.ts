@@ -19,7 +19,7 @@ import { applyProgress, captureProgress, readProgress, safeStorage, writeProgres
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
-import { CINE, CINE_TRACK, DIALOGUE, END, LEVELS, SAUCER_ID, type Line } from './story';
+import { CINE, CINE_TRACK, DIALOGUE, END, LEVELS, SAUCER_ID, SIGNS, type Line } from './story';
 import { MORTIMER_STINGER } from './stinger';
 import { Ui, type HudState, type MenuItem, type OptionKey, type Prompt } from './ui';
 
@@ -457,6 +457,9 @@ export class Game {
         text: 'Humming faintly, and going nowhere. Somewhere, something is hiding its other half.',
         action: null,
       };
+    }
+    if (type === 6) {
+      return { title: 'Sign', text: SIGNS[id] ?? '', action: null };
     }
     if (type === 3) {
       return {

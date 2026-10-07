@@ -810,6 +810,10 @@ impl World {
                             );
                         }
                         PtKind::Saucer => self.events.emit(ev::MAP_PROMPT, 3.0, 0.0, 0.0),
+                        PtKind::Sign => {
+                            self.events
+                                .emit(ev::MAP_PROMPT, 6.0, f64::from(pt.level), 0.0)
+                        }
                     }
                 }
             }

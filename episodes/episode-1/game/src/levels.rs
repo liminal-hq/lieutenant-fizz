@@ -1868,6 +1868,8 @@ pub enum PtKind {
     Saucer,
     Level,
     Tele,
+    /// A signpost in a town; `level` holds the text number (see `SIGNS` in the shell).
+    Sign,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -2145,6 +2147,10 @@ pub fn build_overworld() -> MapData {
         },
         pt(PtKind::Level, GUMDROP_ISLE, 24, 23, 0, 0, false),
         pt(PtKind::Level, WHISPER_HOLLOW, 41, 28, 0, 0, false),
+        // Crater Corners, the little town along the street east of the first level.
+        pt(PtKind::Sign, 0, 17, 6, 0, 0, false),
+        pt(PtKind::Sign, 1, 19, 6, 0, 0, false),
+        pt(PtKind::Sign, 2, 22, 6, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -2166,6 +2172,7 @@ pub fn build_overworld() -> MapData {
     };
     path(8, 9, 14, 6);
     path(14, 6, 16, 14);
+    path(16, 6, 22, 6);
     path(16, 14, 6, 16);
     path(6, 16, 12, 19);
     path(12, 26, 5, 30);
@@ -2217,6 +2224,18 @@ pub fn build_overworld() -> MapData {
                 }
             }
         }
+    }
+    // Crater Corners: houses and shops either side of the street, a fountain at its end.
+    for (x, y, t) in [
+        (17, 4, HOUSE_A),
+        (19, 4, HOUSE_B),
+        (21, 4, SHOP),
+        (18, 8, HOUSE_B),
+        (20, 8, HOUSE_A),
+        (22, 8, SHOP),
+        (23, 6, FOUNTAIN),
+    ] {
+        map.set(x, y, t);
     }
     // The hidden pad's clearing: a ring of trees two tiles out with a single gap to the west.
     for dx in -2i32..=2 {
@@ -2496,7 +2515,7 @@ mod tests {
                 assert_eq!(q.to, i, "teleporter {i} and {} pair up", p.to);
             }
         }
-        assert_eq!(m.points.len(), 24);
+        assert_eq!(m.points.len(), 27);
     }
 
     /// Indices of the points a walker can reach from tile (x, y) without crossing anything solid.

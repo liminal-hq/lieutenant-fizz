@@ -16,7 +16,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 
 ## Structure
 1. Title screen, then the opening cinematic (8 panels, skippable).
-2. **Overworld:** a top-down map (north is up) cut into four regions by chocolate rivers, each with its own ground, trees and levels. In Crater Fields the three levels open in order, tutorial first. Teleporter pairs link the regions and power up once the levels in front of them are cleared; the Citadel stays locked until the two Frosting Frontier levels before it are done. Autosaves on every visit. A lake at the centre holds an island that cannot be walked to (see **The secret**).
+2. **Overworld:** a top-down map (north is up) cut into four regions by chocolate rivers, each with its own ground, trees and levels. In Crater Fields the three levels open in order, tutorial first, and a small town, Crater Corners (houses, shops, a fountain and three signposts that say a line when Ben walks up to them), lines the street east of the first level. Teleporter pairs link the regions and power up once the levels in front of them are cleared; the Citadel stays locked until the two Frosting Frontier levels before it are done. Autosaves on every visit. A lake at the centre holds an island that cannot be walked to (see **The secret**).
 3. **Areas and levels** (15 levels; the `Type` says how a level plays, not where it is):
 
 | Area | Level | Type | Notes |
