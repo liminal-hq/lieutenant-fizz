@@ -882,9 +882,9 @@ impl World {
             match en.kind {
                 Kind::Switch => {
                     if first {
-                        self.map.switch_on = !self.map.switch_on;
+                        let on = self.map.toggle_switch(0);
                         self.cap(b.x + 0.4, b.y + 1.4, Cap::ClickClack);
-                        self.toast(if self.map.switch_on {
+                        self.toast(if on {
                             Toast::BridgeOn
                         } else {
                             Toast::BridgeOff

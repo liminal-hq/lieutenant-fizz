@@ -131,9 +131,45 @@ impl Body {
         false
     }
 
-    /// Full physics step: X, then Y, then slope snapping, then moving platforms.
+    /// Speed (tiles per second) the tile underfoot carries the body at; 0 unless grounded on a
+    /// conveyor.
+    pub fn ground_drift(&self, map: &TileMap) -> f64 {
+        if !self.on_ground {
+            return 0.0;
+        }
+        map.drift_at(
+            self.centre_x().floor() as i32,
+            (self.y - 0.05).floor() as i32,
+        )
+    }
+
+    /// Whether the body's centre column overlaps a climbable tile at any height of its body.
+    pub fn on_ladder(&self, map: &TileMap) -> bool {
+        let cx = self.centre_x().floor() as i32;
+        let y0 = (self.y + 0.05).floor() as i32;
+        let y1 = (self.y + self.h - 0.05).floor() as i32;
+        (y0..=y1).any(|cy| map.has_ladder(cx, cy))
+    }
+
+    /// Whether a climbable tile lies directly under the feet, so a body standing on a ladder top
+    /// can start climbing down.
+    pub fn ladder_below(&self, map: &TileMap) -> bool {
+        map.has_ladder(
+            self.centre_x().floor() as i32,
+            (self.y - 0.05).floor() as i32,
+        )
+    }
+
+    /// Full physics step: X, then Y, then slope snapping, then moving platforms. A body grounded
+    /// on a conveyor is carried along it on top of its own velocity.
     pub fn phys(&mut self, map: &TileMap, plats: &[Platform], dt: f64) {
         let was = self.on_ground;
+        // The belt moves the body as a step of its own: if it only pushes the body into a wall, that
+        // is not a hit of the body's own motion, so its velocity survives and it can walk away.
+        let drift = if was { self.ground_drift(map) } else { 0.0 };
+        if drift != 0.0 {
+            self.move_x(map, drift * dt, was);
+        }
         self.hit_x = self.move_x(map, self.vx * dt, was);
         if self.hit_x {
             self.vx = 0.0;
@@ -186,18 +222,28 @@ impl Body {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tilemap::{TileProps, ONEWAY, SLOPE_R45, SOLID};
+    use crate::tilemap::{
+        TileProps, CONVEYOR_SPEED, CONVEY_L, CONVEY_R, LADDER, ONEWAY, SLOPE_R45, SOLID,
+    };
     use crate::STEP;
 
     const FLOOR: u8 = 1;
     const PLAT: u8 = 2;
     const RAMP: u8 = 3;
+    const BELT_R: u8 = 4;
+    const BELT_L: u8 = 5;
+    const RUNG: u8 = 6;
+    const RUNG_TOP: u8 = 7;
 
     fn world() -> TileMap {
         let mut p = TileProps::default();
         p.set_flags(FLOOR, SOLID);
         p.set_flags(PLAT, ONEWAY);
         p.set_slope(RAMP, SLOPE_R45);
+        p.set_flags(BELT_R, SOLID | CONVEY_R);
+        p.set_flags(BELT_L, SOLID | CONVEY_L);
+        p.set_flags(RUNG, LADDER);
+        p.set_flags(RUNG_TOP, LADDER | ONEWAY);
         let mut m = TileMap::new(40, 20, p);
         for x in 0..40 {
             m.set(x, 0, FLOOR);
@@ -372,5 +418,142 @@ mod tests {
         }
         assert_eq!(b.on_plat, Some(0));
         assert!(b.x > start + 0.1, "carried right: {} -> {}", start, b.x);
+    }
+
+    #[test]
+    fn a_conveyor_carries_a_standing_body_at_its_speed() {
+        let mut m = world();
+        for x in 5..20 {
+            m.set(x, 1, BELT_R);
+        }
+        let mut b = Body::new(6.0, 2.0, 0.7, 1.4);
+        settle(&mut b, &m, 5);
+        let start = b.x;
+        for _ in 0..60 {
+            b.fall(STEP, 22.0);
+            b.vx = 0.0;
+            b.phys(&m, &[], STEP);
+        }
+        assert!(b.on_ground);
+        assert!(
+            (b.x - start - CONVEYOR_SPEED).abs() < 0.1,
+            "carried {} in 1 s",
+            b.x - start
+        );
+    }
+
+    #[test]
+    fn a_conveyor_adds_to_walking_and_runs_both_ways() {
+        let mut m = world();
+        for x in 5..20 {
+            m.set(x, 1, BELT_L);
+        }
+        let mut b = Body::new(15.0, 2.0, 0.7, 1.4);
+        settle(&mut b, &m, 5);
+        let start = b.x;
+        for _ in 0..30 {
+            b.fall(STEP, 22.0);
+            b.vx = 2.0;
+            b.phys(&m, &[], STEP);
+        }
+        assert!(
+            (b.x - start - (2.0 - CONVEYOR_SPEED) * 0.5).abs() < 0.1,
+            "net drift {}",
+            b.x - start
+        );
+    }
+
+    #[test]
+    fn a_body_can_walk_away_from_a_wall_a_belt_is_pushing_it_into() {
+        let mut m = world();
+        for x in 5..20 {
+            m.set(x, 1, BELT_R);
+        }
+        for y in 2..6 {
+            m.set(18, y, FLOOR);
+        }
+        // Pinned against the wall by the belt, then pushing left at less than the belt's speed:
+        // with the old combined-move collision the wall hit zeroed the velocity every tick, so
+        // it never built up and the body stayed trapped.
+        let mut b = Body::new(17.2, 2.0, 0.7, 1.4);
+        settle(&mut b, &m, 20);
+        assert!(b.x + b.w <= 18.0 + 1e-3, "against the wall, x = {}", b.x);
+        let start = b.x;
+        for _ in 0..120 {
+            b.fall(STEP, 22.0);
+            // Ground acceleration as the game applies it: build up towards 7 tiles/s.
+            b.vx = (b.vx - 55.0 * STEP).max(-7.0);
+            b.phys(&m, &[], STEP);
+        }
+        assert!(
+            b.x < start - 3.0,
+            "walked away from the wall against the belt, x = {} from {}",
+            b.x,
+            start
+        );
+    }
+
+    #[test]
+    fn a_conveyor_does_not_push_through_walls_or_carry_airborne_bodies() {
+        let mut m = world();
+        for x in 5..20 {
+            m.set(x, 1, BELT_R);
+        }
+        for y in 2..6 {
+            m.set(10, y, FLOOR);
+        }
+        let mut b = Body::new(6.0, 2.0, 0.7, 1.4);
+        settle(&mut b, &m, 5);
+        for _ in 0..180 {
+            b.fall(STEP, 22.0);
+            b.vx = 0.0;
+            b.phys(&m, &[], STEP);
+        }
+        assert!(b.x + b.w <= 10.0 + 1e-3, "stopped by the wall, x = {}", b.x);
+        let mut a = Body::new(12.0, 8.0, 0.7, 1.4);
+        a.vx = 0.0;
+        let x0 = a.x;
+        a.fall(STEP, 22.0);
+        a.phys(&m, &[], STEP);
+        assert_eq!(a.x, x0, "airborne bodies are not carried");
+        assert_eq!(a.ground_drift(&m), 0.0);
+    }
+
+    #[test]
+    fn ladder_overlap_and_ladder_below_are_detected() {
+        let mut m = world();
+        for y in 2..8 {
+            m.set(5, y, RUNG);
+        }
+        m.set(5, 8, RUNG_TOP);
+        let on = Body::new(4.8, 3.0, 0.7, 1.4);
+        assert!(on.on_ladder(&m), "centre column inside the ladder");
+        let off = Body::new(7.0, 3.0, 0.7, 1.4);
+        assert!(!off.on_ladder(&m));
+        let beside = Body::new(3.9, 3.0, 0.7, 1.4);
+        assert!(!beside.on_ladder(&m), "only the centre column counts");
+        let atop = Body::new(4.8, 9.0, 0.7, 1.4);
+        assert!(atop.ladder_below(&m), "feet rest on the ladder top");
+    }
+
+    #[test]
+    fn a_ladder_top_can_be_stood_on_from_above_but_walked_through_from_below() {
+        let mut m = world();
+        for y in 2..8 {
+            m.set(5, y, RUNG);
+        }
+        m.set(5, 8, RUNG_TOP);
+        let mut b = Body::new(4.85, 12.0, 0.7, 1.4);
+        settle(&mut b, &m, 90);
+        assert!(b.on_ground);
+        assert!((b.y - 9.0).abs() < 1e-3, "standing on the top, y = {}", b.y);
+        // Rising from the rungs below, the body's head and then its feet cross the ladder-top tile
+        // (row 8) and it ends up above it.
+        let mut up = Body::new(4.85, 6.0, 0.7, 1.4);
+        up.vy = 14.0;
+        for _ in 0..30 {
+            up.phys(&m, &[], STEP);
+        }
+        assert!(up.y > 9.5, "rose through the ladder top, y = {}", up.y);
     }
 }

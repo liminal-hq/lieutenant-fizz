@@ -19,6 +19,10 @@ pub struct Platform {
     pub ph: f64,
     pub dx: f64,
     pub dy: f64,
+    /// Seconds to rest at each anchor before moving again; 0 keeps the platform in constant motion.
+    pub dwell: f64,
+    /// Seconds of rest remaining.
+    pub wait: f64,
 }
 
 impl Platform {
@@ -37,9 +41,34 @@ impl Platform {
         }
     }
 
+    /// Sets the platform's width and height in tiles.
+    pub fn sized(mut self, w: f64, h: f64) -> Self {
+        self.w = w;
+        self.h = h;
+        self
+    }
+
+    /// Makes the platform rest for `secs` at each anchor (a lift that waits at every floor).
+    pub fn with_dwell(mut self, secs: f64) -> Self {
+        self.dwell = secs;
+        self
+    }
+
     /// Advances the cosine ease and records the movement delta for riders.
     pub fn tick(&mut self, dt: f64) {
+        if self.wait > 0.0 {
+            self.wait = (self.wait - dt).max(0.0);
+            self.dx = 0.0;
+            self.dy = 0.0;
+            return;
+        }
+        let before = self.ph;
         self.ph += dt * self.speed;
+        if self.dwell > 0.0 && self.ph.floor() > before.floor() {
+            // Phase boundaries are the anchors: stop exactly on the one just reached.
+            self.ph = self.ph.floor();
+            self.wait = self.dwell;
+        }
         let k = 0.5 - 0.5 * (self.ph * std::f64::consts::PI).cos();
         let nx = self.ax + (self.bx - self.ax) * k;
         let ny = self.ay + (self.by - self.ay) * k;
@@ -108,5 +137,40 @@ mod tests {
             (paused.x, paused.y, paused.dx, paused.dy),
             (1.0, 1.0, 0.0, 0.0)
         );
+    }
+
+    #[test]
+    fn dwell_rests_at_each_anchor_then_resumes() {
+        let mut p = Platform::new(0.0, 0.0, 4.0, 0.0, 1.0).with_dwell(0.5);
+        let mut at_b = 0;
+        for _ in 0..90 {
+            p.tick(1.0 / 60.0);
+            if (p.x - 4.0).abs() < 1e-9 && p.dx == 0.0 {
+                at_b += 1;
+            }
+        }
+        // 1 s to reach B (plus a tick of slack), then 0.5 s of rest at 60 Hz.
+        assert!((29..=31).contains(&at_b), "rested {at_b} ticks at B");
+        for _ in 0..30 {
+            p.tick(1.0 / 60.0);
+        }
+        assert!(p.x < 4.0 - 1e-6, "left B after the rest, x = {}", p.x);
+    }
+
+    #[test]
+    fn dwell_lands_exactly_on_the_anchor_even_when_the_step_overshoots() {
+        let mut p = Platform::new(0.0, 0.0, 4.0, 2.0, 1.0).with_dwell(1.0);
+        p.tick(1.3);
+        assert!((p.x - 4.0).abs() < 1e-9 && (p.y - 2.0).abs() < 1e-9);
+        assert!(p.wait > 0.99);
+    }
+
+    #[test]
+    fn no_dwell_means_no_rest_and_sized_sets_the_footprint() {
+        let mut p = Platform::new(0.0, 0.0, 4.0, 0.0, 1.0).sized(3.0, 1.0);
+        assert_eq!((p.w, p.h), (3.0, 1.0));
+        p.tick(1.0);
+        p.tick(0.1);
+        assert!(p.dx < 0.0 && p.wait == 0.0, "turned straight back");
     }
 }

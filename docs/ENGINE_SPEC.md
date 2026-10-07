@@ -41,9 +41,9 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 ### 4.2 Physics — Proven
 - 60 Hz fixed step with an accumulator (max 0.25 s catch-up) and render interpolation between the previous and current state.
 - AABB versus tile grid, with separate X then Y resolution.
-- Tile types: solid, one-way platform, 45° and 22.5° slopes (two tiles per 22.5° rise), spike, chocolate (liquid hazard), keyed doors, switchable bridge.
+- Tile types: solid, one-way platform, 45° and 22.5° slopes (two tiles per 22.5° rise), spike, chocolate (liquid hazard), keyed doors, switchable tiles on up to 32 independent switch channels, conveyors (left and right, 3 tiles/s), ladders (a ladder top is a one-way ladder tile).
 - 0.55-tile step-up when grounded; slope snapping keeps walking downhill glued to the surface.
-- Moving platforms carry riders by their per-tick delta.
+- Moving platforms carry riders by their per-tick delta, and can rest for a set time at each end (lifts that wait at every floor). A body standing on a conveyor is carried along it as a step of its own, on top of its own velocity, so a belt that pushes it into a wall never cancels its own motion and it can still walk away.
 - **Done:** the Rust port with f64 state (`crates/sim` and `episodes/episode-1/game`).
 - **Planned:** sparse grid or quadtree for entity–entity tests (currently O(n) per level).
 
