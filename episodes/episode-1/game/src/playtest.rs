@@ -486,6 +486,23 @@ mod tests {
     }
 
     #[test]
+    fn sugar_glass_gallery_can_be_finished_and_its_mural_room_reached() {
+        use crate::levels::SUGAR_GLASS_GALLERY;
+        let route = [
+            wp(46.5, 10.0),  // red key
+            wp(100.5, 14.0), // blue key
+            wp(130.5, 10.0), // the mural alcove
+            exit_of(SUGAR_GLASS_GALLERY),
+        ];
+        let r = play_level(SUGAR_GLASS_GALLERY, &route, &Options::default());
+        assert!(
+            r.finished,
+            "bot stalled at wp {} after {} ticks; best states {:?}",
+            r.waypoint, r.ticks, r.top
+        );
+    }
+
+    #[test]
     fn meteor_mesa_can_be_finished() {
         let r = play_level(METEOR_MESA, &[exit_of(METEOR_MESA)], &Options::default());
         assert!(

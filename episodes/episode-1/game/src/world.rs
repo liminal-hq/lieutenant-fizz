@@ -1100,13 +1100,18 @@ impl World {
     /// Fades each hidden room's front wall away while Ben is inside it and back once he leaves.
     fn tick_rooms(&mut self, dt: f64) {
         let b = &self.p.b;
+        let mut found = false;
         for (r, a) in self.rooms.iter().zip(self.room_alpha.iter_mut()) {
-            let target = if r.overlaps(b.x, b.y, b.w, b.h) {
-                ROOM_SEEN_ALPHA
-            } else {
-                1.0
-            };
+            let inside = r.overlaps(b.x, b.y, b.w, b.h);
+            found |= inside && r.secret;
+            let target = if inside { ROOM_SEEN_ALPHA } else { 1.0 };
             *a += (target - *a) * (6.0 * dt).min(1.0);
+        }
+        if found && self.game.done & SECRET_FOUND == 0 {
+            self.game.done |= SECRET_FOUND;
+            let (x, y) = (self.p.b.x, self.p.b.y);
+            self.cap(x, y + 1.5, Cap::Vworp);
+            self.toast(Toast::SecretFound);
         }
     }
 

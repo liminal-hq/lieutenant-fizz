@@ -641,6 +641,9 @@ impl World {
         } else {
             (0, w - 1, 0, h - 1)
         };
+        // A mural is drawn from its bottom-left tile but spans three columns and two rows, so scan
+        // a little beyond the view or its edge pops out while most of it is still on screen.
+        let (tx0, ty0) = ((tx0 - 2).max(0), (ty0 - 1).max(0));
         let b = self.theme.tiles();
         for y in ty0..=ty1 {
             for x in tx0..=tx1 {
@@ -681,6 +684,16 @@ impl World {
                     BLOCK => tileset_tile(b, BT_BLOCK),
                     PLAT => tileset_tile(b, BT_PLAT),
                     WALLBG => tileset_tile(b, BT_BACK),
+                    MURAL => {
+                        // One instance draws the whole 3-by-2 picture from its bottom-left tile.
+                        self.push(
+                            f64::from(x) + 1.5,
+                            f64::from(y) + 1.0,
+                            Spr::Mural,
+                            &PushOpts::default(),
+                        );
+                        continue;
+                    }
                     RUNG => Spr::Ladder as u16,
                     RUNG_TOP => Spr::LadderTop as u16,
                     SPIKE => Spr::SpikeTile as u16,
@@ -1011,10 +1024,14 @@ impl World {
         if !self.rooms.is_empty() {
             for y in ty0..=ty1 {
                 for x in tx0..=tx1 {
-                    if self.map.get(x, y) != FACADE {
+                    let room = self.room_at(x, y);
+                    let t = self.map.get(x, y);
+                    // The flat also covers a mural hung in the room: it is a tile, not an empty
+                    // cell, so no flat was laid there, yet it must stay hidden with the rest.
+                    if t != FACADE && !(room.is_some() && (t == MURAL || t == MURAL_PART)) {
                         continue;
                     }
-                    let a = self.room_at(x, y).map_or(1.0, |i| self.room_alpha[i]);
+                    let a = room.map_or(1.0, |i| self.room_alpha[i]);
                     if a < 0.02 {
                         continue;
                     }

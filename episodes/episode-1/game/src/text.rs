@@ -47,6 +47,7 @@ toasts! {
     BridgeOn = "Somewhere ahead, a bridge rumbles into place",
     BridgeOff = "The bridge folds away",
     GateOpen = "A crystal chimes, and the gate above slides open",
+    SecretFound = "A mural of the crystal forest — a ring of trees glows in the far south-east",
 }
 
 /// Event kinds shared with the shell (`events.ts` mirrors these).

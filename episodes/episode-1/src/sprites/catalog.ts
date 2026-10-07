@@ -172,5 +172,6 @@ export function defineSprites(): SpriteDef[] {
   add('fill', sc.fillSolid(), true);
   add('star', sc.star());
   add('cloud', sc.cloud());
+  add('mural', sc.mural());
   return d;
 }

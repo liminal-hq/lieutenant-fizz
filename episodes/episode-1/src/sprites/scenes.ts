@@ -125,6 +125,33 @@ export function owShaft(): Grid {
   return p.outline();
 }
 
+/** A painted map of the crystal forest: rivers, grass and a ring of trees in the south-east. */
+export function mural(): Grid {
+  const p = new Pen(48, 32);
+  p.rect(0, 0, 48, 32, 'N');
+  p.rect(2, 2, 44, 28, 'G');
+  p.rect(2, 12, 44, 3, 'b');
+  p.rect(22, 2, 3, 28, 'b');
+  for (let i = 0; i < 40; i++) p.px(4 + ((i * 7) % 40), 4 + ((i * 5) % 24), 'g');
+  // A ring of five trees with a gap on its west side, matching the clearing on the map. They are
+  // spaced so none overlaps another, and drawn in magenta so they stand out from the grass.
+  const ring = [
+    [36, 20],
+    [42, 20],
+    [43, 25],
+    [42, 29],
+    [36, 29],
+  ] as const;
+  for (const [x, y] of ring) {
+    p.px(x, y - 4, 'y');
+    p.rect(x - 1, y - 3, 3, 1, 'm');
+    p.rect(x - 2, y - 2, 5, 1, 'm');
+    p.rect(x - 2, y - 1, 5, 1, 'M');
+    p.rect(x, y, 1, 1, 'N');
+  }
+  return p.outline();
+}
+
 export function owCave(): Grid {
   const p = new Pen(16, 16);
   p.ell(8, 11, 7.5, 8, 'D', (_i, j) => j < 16);

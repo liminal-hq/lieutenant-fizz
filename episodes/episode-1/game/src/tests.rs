@@ -1003,6 +1003,61 @@ fn the_second_shot_through_the_swivel_reaches_the_switch() {
 }
 
 #[test]
+fn the_secret_room_sets_the_found_bit_once_and_toasts() {
+    use crate::text::Toast;
+    let mut w = level(crate::levels::SUGAR_GLASS_GALLERY);
+    w.ents.clear();
+    assert_eq!(w.game.done & crate::world::SECRET_FOUND, 0);
+    let toasts = |w: &World| {
+        events_of(w, ev::TOAST)
+            .iter()
+            .filter(|e| e.a == Toast::SecretFound as u16 as f32)
+            .count()
+    };
+    // Walk past the clue without going in: nothing happens.
+    w.p.b.x = 119.0;
+    w.p.b.y = 4.0;
+    run(&mut w, 30, 0);
+    assert_eq!(w.game.done & crate::world::SECRET_FOUND, 0);
+    assert_eq!(toasts(&w), 0);
+    // Step into the mural room.
+    w.p.b.x = 130.0;
+    w.p.b.y = 10.0;
+    run(&mut w, 30, 0);
+    assert_ne!(w.game.done & crate::world::SECRET_FOUND, 0, "bit 15 set");
+    assert_eq!(toasts(&w), 1, "one toast");
+    // Leave and come back: still found, no second toast.
+    w.p.b.x = 119.0;
+    w.p.b.y = 4.0;
+    run(&mut w, 30, 0);
+    w.p.b.x = 130.0;
+    w.p.b.y = 10.0;
+    run(&mut w, 30, 0);
+    assert_eq!(toasts(&w), 1, "found once");
+}
+
+#[test]
+fn ordinary_hidden_rooms_do_not_count_as_the_secret() {
+    let mut w = playhouse();
+    w.p.b.x = 22.0;
+    w.p.b.y = 6.0;
+    run(&mut w, 60, 0);
+    assert_eq!(w.game.done & crate::world::SECRET_FOUND, 0);
+}
+
+#[test]
+fn the_secret_bit_survives_loading_a_save() {
+    // A save that carries the secret bit and the first two levels loads all three, and only those.
+    let mut w = World::new();
+    w.game_new();
+    w.game
+        .load_done(crate::world::SECRET_FOUND | 0b11 | (1 << 20));
+    assert!(w.game.is_done(CRATER) && w.game.is_done(CAVES));
+    assert_ne!(w.game.done & crate::world::SECRET_FOUND, 0);
+    assert_eq!(w.game.done & (1 << 20), 0, "stray bits are dropped");
+}
+
+#[test]
 fn every_gate_tile_is_drawn_and_fades_when_its_gate_opens() {
     use crate::sprites::Spr;
     use lf_sim::{SpriteRect, STRIDE};
@@ -1050,6 +1105,39 @@ fn every_gate_tile_is_drawn_and_fades_when_its_gate_opens() {
 }
 
 #[test]
+fn the_mural_stays_drawn_while_only_part_of_it_is_on_screen() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = level(crate::levels::SUGAR_GLASS_GALLERY);
+    w.ents.clear();
+    w.spr[Spr::Mural as usize] = SpriteRect {
+        u: 0.77,
+        v: 0.77,
+        uw: 0.01,
+        vh: 0.01,
+        w: 48.0,
+        h: 32.0,
+    };
+    // The mural's bottom-left tile is (130, 11). Put the left edge of the view at column 131, so
+    // that tile is off screen while the mural's other two columns are still in view.
+    w.half_w = 5.0;
+    w.half_h = 4.0;
+    w.cam_x = 137.5;
+    w.cam_y = 12.5;
+    w.pcx = w.cam_x;
+    w.pcy = w.cam_y;
+    w.render(0.5, crate::render::flags::CULLING);
+    let data = w.inst.as_slice();
+    let murals = (0..w.inst.len())
+        .filter(|&i| data[i * STRIDE + 16] == 0.77)
+        .count();
+    assert_eq!(
+        murals, 1,
+        "the mural is drawn although its anchor tile is off screen"
+    );
+}
+
+#[test]
 fn enemies_in_a_hidden_room_wait_there_until_ben_walks_in() {
     let mut w = level(crate::levels::BONBON_PLAYHOUSE);
     // The tutorial room on the path holds a gloop that would otherwise pace out of it.
@@ -1090,6 +1178,44 @@ fn enemies_outside_hidden_rooms_are_not_held_back() {
     let x0 = w.ents[g].b.x;
     run(&mut w, 120, 0);
     assert!((w.ents[g].b.x - x0).abs() > 0.5, "it paces as usual");
+}
+
+#[test]
+fn the_secret_mural_is_covered_by_the_flat_until_ben_walks_in() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = level(crate::levels::SUGAR_GLASS_GALLERY);
+    w.ents.clear();
+    let rect = |u: f32| SpriteRect {
+        u,
+        v: u,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h: 16.0,
+    };
+    w.spr[Spr::Mural as usize] = rect(0.77);
+    w.spr[Spr::Facade as usize] = rect(0.31);
+    w.half_w = 12.0;
+    w.half_h = 8.0;
+    w.render(0.5, 0);
+    let data = w.inst.as_slice();
+    let n = w.inst.len();
+    let mural = (0..n)
+        .find(|&i| data[i * STRIDE + 16] == 0.77)
+        .expect("the mural is drawn");
+    // Every one of the mural's six cells has a flat drawn over it, after the mural.
+    for dx in 0..3 {
+        for dy in 0..2 {
+            let (cx, cy) = (130.5 + dx as f32, 11.5 + dy as f32);
+            let covered = (mural + 1..n).any(|i| {
+                data[i * STRIDE + 16] == 0.31
+                    && (data[i * STRIDE + 12] - cx).abs() < 0.01
+                    && (data[i * STRIDE + 13] - cy).abs() < 0.01
+            });
+            assert!(covered, "no flat over mural cell {cx},{cy}");
+        }
+    }
 }
 
 #[test]
