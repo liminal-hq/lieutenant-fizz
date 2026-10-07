@@ -25,6 +25,7 @@ export function layoutVars(width: number, height: number, large: boolean): Recor
     '--lf-cw-mul': String(steps.bullet),
     '--lf-pad-x': `${padX}px`,
     '--lf-pad-y': `${verticalPadding(height)}px`,
+    '--lf-keys-bottom': `${Math.min(36, Math.max(16, Math.round(height * 0.04)))}px`,
     '--lf-cols': String(wrapColumns(width - 2 * padX, steps.small)),
   };
 }
@@ -34,4 +35,16 @@ export function applyLayout(el: HTMLElement, width: number, height: number, larg
   for (const [name, value] of Object.entries(layoutVars(width, height, large))) {
     el.style.setProperty(name, value);
   }
+}
+
+/**
+ * Calls `onChange` whenever the window is resized. Returns a function that stops listening, so a
+ * disposed game does not stay reachable through the window.
+ */
+export function watchResize(
+  onChange: () => void,
+  target: Pick<Window, 'addEventListener' | 'removeEventListener'> = window,
+): () => void {
+  target.addEventListener('resize', onChange);
+  return () => target.removeEventListener('resize', onChange);
 }

@@ -224,7 +224,7 @@ body {
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: clamp(14px, 4.5vh, 44px);
+  gap: calc(var(--n) * 8px);
   box-sizing: border-box;
   padding: var(--lf-pad-y) var(--lf-pad-x) calc(var(--lf-pad-y) + 40px);
   overflow-y: auto;
@@ -429,7 +429,7 @@ body {
   --n: var(--lf-n-hint);
   position: absolute;
   left: var(--lf-pad-x);
-  bottom: clamp(16px, 4vh, 36px);
+  bottom: var(--lf-keys-bottom);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -446,7 +446,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: clamp(14px, 4.5vh, 44px);
+  gap: calc(var(--n) * 8px);
   max-width: 100%;
 }
 #overlay h2 {
@@ -772,7 +772,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(44px, 9vh, 88px);
+  gap: calc(var(--lf-n) * 16px);
   padding: 0 24px;
   box-sizing: border-box;
   transform: translateY(100vh);
@@ -845,7 +845,7 @@ body {
   text-wrap: pretty;
 }
 #credits .end {
-  padding-bottom: clamp(40px, 10vh, 120px);
+  padding-bottom: calc(var(--lf-n) * 20px);
 }
 #credits .thanks {
   --n: var(--lf-n-head);
@@ -861,7 +861,7 @@ body {
   left: 50%;
   top: 100%;
   transform: translateX(-50%);
-  margin-top: clamp(-40px, -4vh, -16px);
+  margin-top: calc(var(--lf-n) * -8px);
   width: max-content;
   max-width: 100vw;
   display: flex;
@@ -916,8 +916,8 @@ body {
 }
 #credits .foot {
   position: absolute;
-  right: clamp(16px, 4vw, 48px);
-  bottom: clamp(14px, 3vh, 28px);
+  right: var(--lf-pad-x);
+  bottom: var(--lf-keys-bottom);
 }
 .hint {
   display: inline-flex;
@@ -1004,7 +1004,7 @@ body {
   position: absolute;
   left: 0;
   right: 0;
-  top: calc(42% + clamp(70px, 24vh, 190px));
+  top: round(calc(42% + clamp(70px, 24vh, 190px)), 1px);
   text-align: center;
   font-weight: 700;
   color: var(--lf-accent);
@@ -1032,11 +1032,11 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  min-height: clamp(130px, 22vh, 210px);
+  min-height: calc(var(--lf-n) * 50px);
   background: #000;
   display: flex;
   justify-content: center;
-  padding: clamp(14px, 3vh, 26px) clamp(20px, 5vw, 64px);
+  padding: calc(var(--lf-n) * 6px) calc(var(--lf-n) * 12px);
   box-sizing: border-box;
   opacity: 0;
   transition: opacity 1s ease;
