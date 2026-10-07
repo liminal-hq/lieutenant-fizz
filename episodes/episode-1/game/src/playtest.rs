@@ -183,9 +183,19 @@ pub fn solve(mut start: World, route: &[Waypoint], o: &Options) -> Outcome {
                 let mut w = n.w.fork();
                 let alive = play(&mut w, *a);
                 if w.won {
-                    best.finished = true;
-                    best.ticks = w.tick_count;
-                    return best;
+                    // Touching the exit only counts once every waypoint before it has been reached,
+                    // so a route's optional-looking stops (a key, a switch, a secret room) cannot be
+                    // skipped by a path that happens to win without them.
+                    let mut reached_to = n.wp;
+                    while reached_to < route.len() && reached(&w, route[reached_to]) {
+                        reached_to += 1;
+                    }
+                    if reached_to + 1 >= route.len() {
+                        best.finished = true;
+                        best.ticks = w.tick_count;
+                        return best;
+                    }
+                    continue;
                 }
                 if !alive {
                     continue;
@@ -299,6 +309,19 @@ mod tests {
             "bot stalled at x={:.1} y={:.1} wp {} after {} ticks",
             r.best_x, r.best_y, r.waypoint, r.ticks
         );
+    }
+
+    #[test]
+    fn a_win_does_not_count_while_a_waypoint_before_the_exit_is_unreached() {
+        // The exit is easy to reach, but the first waypoint is in mid-air above the start where
+        // nobody can stand: the bot may touch the exit and still must not be called finished.
+        let route = [wp(12.5, 25.0), exit_of(METEOR_MESA)];
+        let o = Options {
+            max_ticks: 2500,
+            ..Options::default()
+        };
+        let r = play_level(METEOR_MESA, &route, &o);
+        assert!(!r.finished, "a skipped waypoint must not pass");
     }
 
     #[test]
