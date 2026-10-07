@@ -71,6 +71,15 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 - HUD, menus, dialogue, cinematic text and world-anchored "sound captions" render in the DOM at native resolution.
 - The engine emits events (`hud`, `stats`, `toast`, `levelComplete`, `dialogue`, …); the shell never reads simulation state directly.
 
+### 5.3 Credits and stinger — Done (shell logic and Episode 1 credits); Episode 3 stinger content Planned
+- **Flow:** ending panels, then the credits, then (only if the episode has one) the stinger, then the score card. Both scenes are skippable with Esc or gamepad Start. Screen state lives in the TypeScript shell; the Rust simulation is not involved and stays deterministic.
+- **Content:** an episode supplies an `EpisodeConfig` (`packages/engine/src/episode.ts`) with `credits` (title card, sections of role and name, a closing heading, a closing line and a final return line) and `stinger` (`null` for no stinger). Episode 1's credits are data in `episodes/episode-1/src/credits.ts`; its config sets `stinger: null`.
+- **Credits roll:** `CreditsRoll` (`packages/engine/src/credits.ts`) is a pure state machine driven by frame times. The text scrolls up from below the viewport over the Afterglow wash and faint stars at the larger of 40 px/s and 10% of the viewport height per second, and holds with the closing card centred. Jump (or Enter, or a click) speeds up to four times and slows back down; once held it continues. Esc or Start skips. Frame steps are capped at 50 ms. Music is the ending track.
+- **Reduced motion:** with `prefers-reduced-motion: reduce` the roll does not scroll; it shows one page at a time (title card, each section, the close), and Jump turns the page, then continues.
+- **Stinger:** `StingerScene` (`packages/engine/src/stinger.ts`) is a pure timing state machine: silence until 1.2 s, then the low sting (the `stinger` effect, with the sound caption `♪ low sting`) and a slit of light, at 2.6 s the slit opens into a doorway with the figure, at 4.6 s the name and line type out at 83 characters per second. Jump is ignored until the line appears, then completes the typing, then continues. Esc or Start skips at any time. Music is off from the credits' end until the score card. The Mortimer figure is the `billyAlt` sprite.
+- **Preview:** Episode 1 does not show the stinger (it belongs to Episode 3). Add `?previewStinger` to the page URL to see the Mortimer stinger after the Episode 1 credits.
+- **Planned:** Episode 3's own stinger content and a gamepad-only pass on real hardware.
+
 ## 6. Audio (new)
 - **Target:** Undertone 0.2 patterns (`@liminal-hq/undertone` ^0.2.0). Each sound effect is a `stack` of voices (`note|sound`, ADSR, `lpf/hpf`, `slide`, `nudge`); music is a looped `stack` of mini-notation parts at a fixed BPM, with `room` and `delay` sends.
 - **Fallback:** the built-in synth parses the same subset of mini-notation (`[ ]`, `< >`, `,`, `*n`, `~`) and schedules voices 300 ms ahead.

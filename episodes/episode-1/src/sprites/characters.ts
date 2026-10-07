@@ -144,3 +144,34 @@ export function billy(caged: boolean): Grid {
   }
   return p;
 }
+
+/** Mortimer McMire: black and red, with shades and a red-striped helmet (the stinger figure). */
+export function mortimer(): Grid {
+  const p = new Pen(16, 24);
+  p.ell(8, 7, 4.5, 4, 'D', (_i, j) => j <= 8);
+  p.rect(7, 3, 2, 6, 'r');
+  p.rect(4, 8, 9, 1, 'k');
+  p.rect(5, 9, 6, 4, 'W');
+  p.rect(4, 10, 1, 2, 'L');
+  p.rect(11, 10, 1, 2, 'L');
+  p.rect(4, 10, 8, 1, 'k');
+  p.rect(5, 11, 2, 1, 'k');
+  p.rect(9, 11, 2, 1, 'k');
+  p.px(5, 10, 'D');
+  p.px(9, 10, 'D');
+  p.px(8, 12, 'r');
+  p.rect(4, 13, 8, 5, 'k');
+  p.rect(7, 13, 2, 5, 'r');
+  p.rect(4, 17, 8, 1, 'R');
+  p.rect(3, 14, 1, 3, 'k');
+  p.rect(12, 14, 1, 3, 'k');
+  p.px(3, 16, 'r');
+  p.px(12, 16, 'r');
+  p.rect(5, 18, 2, 4, 'k');
+  p.rect(9, 18, 2, 4, 'k');
+  p.px(5, 19, 'r');
+  p.px(10, 19, 'r');
+  p.rect(4, 22, 3, 2, 'r');
+  p.rect(9, 22, 3, 2, 'r');
+  return p.outline();
+}

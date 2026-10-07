@@ -3,23 +3,45 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
+import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
 import { Input as Bits, InputManager, type Command } from '@lieutenant-fizz/engine/input';
 import { FixedStepper, InstanceWriter } from '@lieutenant-fizz/engine/instances';
+import type { Grid } from '@lieutenant-fizz/engine/pen';
 import { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
 import simUrl from './wasm/sim.wasm?url';
 import { PATTERNS } from './audio/patterns';
 import { Cinematic, CINE_TALL } from './cine';
+import { EPISODE } from './episode';
 import { applyProgress, captureProgress, readProgress, safeStorage, writeProgress } from './save';
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
 import { CINE, CINE_TRACK, CLEARED_TEXT, DIALOGUE, END, LEVELS, type Line } from './story';
+import { MORTIMER_STINGER } from './stinger';
 import { Ui, type HudState, type MenuItem, type OptionKey, type Prompt } from './ui';
 
 export type Screen =
-  'loading' | 'title' | 'cine' | 'play' | 'pause' | 'card' | 'dialogue' | 'ending';
+  | 'loading'
+  | 'title'
+  | 'cine'
+  | 'play'
+  | 'pause'
+  | 'card'
+  | 'dialogue'
+  | 'ending'
+  | 'credits'
+  | 'stinger';
+
+/** Options the host page passes in (from the query string). */
+export interface GameOptions {
+  /** Shows the Mortimer stinger after the credits, though Episode 1 does not ship one. */
+  previewStinger?: boolean;
+  /** Forces the reduced-motion credits; otherwise the system preference decides. */
+  reducedMotion?: boolean;
+}
 
 interface Card {
   title: string;
@@ -50,6 +72,12 @@ export class Game {
   private readonly store = safeStorage();
   private captionNames: string[] = [];
   private toastNames: string[] = [];
+  private readonly previewStinger: boolean;
+  private readonly reducedMotion: boolean;
+  private roll: CreditsRoll | null = null;
+  private rollViewport = 0;
+  private scene: StingerScene | null = null;
+  private stingerGrid: Grid | null = null;
   private readonly capSeen = new Map<number, number>();
 
   private raf = 0;
@@ -87,7 +115,16 @@ export class Game {
     night: false,
   };
 
-  private constructor(sim: Sim, atlas: Atlas, ui: Ui, renderer: InstancedRenderer) {
+  private constructor(
+    sim: Sim,
+    atlas: Atlas,
+    ui: Ui,
+    renderer: InstancedRenderer,
+    options: GameOptions,
+  ) {
+    this.previewStinger = options.previewStinger ?? false;
+    this.reducedMotion =
+      options.reducedMotion ?? window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.sim = sim;
     this.atlas = atlas;
     this.ui = ui;
@@ -103,7 +140,7 @@ export class Game {
   }
 
   /** Builds the atlas, loads the WASM sim and starts the loop on the title screen. */
-  static async start(host: HTMLElement): Promise<Game> {
+  static async start(host: HTMLElement, options: GameOptions = {}): Promise<Game> {
     let game: Game | null = null;
     const ui = new Ui(host, {
       menuClick: (i) => game?.activate(i),
@@ -113,13 +150,17 @@ export class Game {
       toggle: (k) => game?.toggle(k),
       zoom: (f) => game?.setZoom(f),
       backFromControls: () => game?.backFromControls(),
+      creditsPress: () => game?.primary(),
+      creditsSkip: () => game?.skipEnding(),
+      stingerPress: () => game?.primary(),
+      stingerSkip: () => game?.skipEnding(),
     });
     try {
       const [sim] = await Promise.all([Sim.load(simUrl)]);
       const atlas = buildAtlas(defineSprites());
       sim.setSprites(atlas.rects);
       const renderer = new InstancedRenderer(ui.gl, atlas);
-      game = new Game(sim, atlas, ui, renderer);
+      game = new Game(sim, atlas, ui, renderer, options);
     } catch (e) {
       console.error(e);
       ui.setLoading(false);
@@ -183,6 +224,16 @@ export class Game {
       });
       if (screen === 'play') this.levelSeconds += dt;
       this.handleEvents();
+    } else if (screen === 'credits') {
+      this.stepper.reset();
+      this.alpha = 1;
+      sim.drainEvents().forEach((e) => this.onEvent(e));
+      this.tickCredits(dt);
+    } else if (screen === 'stinger') {
+      this.stepper.reset();
+      this.alpha = 1;
+      sim.drainEvents().forEach((e) => this.onEvent(e));
+      this.tickStinger(dt);
     } else if (screen === 'cine') {
       this.alpha = this.stepper.advance(dt, () => this.cine.tick(STEP));
     } else {
@@ -437,6 +488,8 @@ export class Game {
       s === 'cine' ||
       s === 'dialogue' ||
       s === 'ending' ||
+      s === 'credits' ||
+      s === 'stinger' ||
       s === 'title' ||
       s === 'pause' ||
       s === 'card'
@@ -458,6 +511,7 @@ export class Game {
           this.syncUi();
         } else if (this.screen === 'pause') this.resume();
         else if (this.screen === 'cine') this.skipCine();
+        else if (this.screen === 'credits' || this.screen === 'stinger') this.skipEnding();
         else if (this.screen === 'title' && this.sub) this.backFromControls();
         break;
       case 'quickSave':
@@ -607,6 +661,8 @@ export class Game {
     if (s === 'cine') this.typeOrNext(() => this.nextCine());
     else if (s === 'dialogue') this.typeOrNext(() => this.nextLine());
     else if (s === 'ending') this.typeOrNext(() => this.nextEnd());
+    else if (s === 'credits') this.pressCredits();
+    else if (s === 'stinger') this.pressStinger();
     else if (s === 'title' || s === 'pause' || s === 'card') {
       if (s === 'title' && this.sub) return this.backFromControls();
       this.activate();
@@ -711,6 +767,117 @@ export class Game {
       this.syncUi();
       return;
     }
+    this.startCredits();
+  }
+
+  // ---------- Credits and stinger ----------
+
+  private startCredits(): void {
+    const content = EPISODE.credits;
+    this.roll = new CreditsRoll({
+      reduced: this.reducedMotion,
+      pages: creditsPageCount(content),
+    });
+    this.rollViewport = 0;
+    this.screen = 'credits';
+    this.syncUi();
+    this.layoutCredits();
+  }
+
+  /** Measures the rendered credits and hands the geometry to the roll. */
+  private layoutCredits(): void {
+    const m = this.ui.creditsMetrics();
+    if (!m || !this.roll) return;
+    this.rollViewport = m.viewport;
+    this.roll.layout(m.viewport, m.total);
+  }
+
+  private tickCredits(dt: number): void {
+    const roll = this.roll;
+    if (!roll) return;
+    if (!roll.reduced && this.ui.creditsMetrics()?.viewport !== this.rollViewport) {
+      this.layoutCredits();
+    }
+    const wasHeld = roll.held;
+    roll.tick(dt);
+    this.showCredits();
+    if (roll.held !== wasHeld) this.syncUi();
+  }
+
+  private showCredits(): void {
+    const roll = this.roll;
+    if (!roll) return;
+    this.ui.showCredits({
+      content: EPISODE.credits,
+      reduced: roll.reduced,
+      page: roll.page,
+      held: roll.held,
+      fast: roll.sped,
+      offset: roll.offset,
+    });
+  }
+
+  private pressCredits(): void {
+    if (!this.roll) return;
+    if (this.roll.press() === 'finish') this.finishCredits();
+    else this.showCredits();
+  }
+
+  /** Leaves the credits for the stinger when the episode has one (or previews one), else the card. */
+  private finishCredits(): void {
+    this.roll = null;
+    const stinger = EPISODE.stinger ?? (this.previewStinger ? MORTIMER_STINGER : null);
+    if (stinger) this.startStinger(stinger);
+    else this.showScoreCard();
+  }
+
+  private startStinger(content: StingerContent): void {
+    this.scene = new StingerScene(content);
+    this.stingerGrid = defineSprites().find((d) => d.name === content.sprite)?.grid ?? null;
+    this.screen = 'stinger';
+    this.syncUi();
+  }
+
+  private tickStinger(dt: number): void {
+    const scene = this.scene;
+    if (!scene) return;
+    if (scene.tick(dt)) this.audio.caption(scene.content.caption);
+    this.showStinger();
+  }
+
+  private showStinger(): void {
+    const scene = this.scene;
+    if (!scene) return;
+    const text = scene.content.text;
+    this.ui.showStinger(
+      {
+        content: scene.content,
+        phase: scene.phase,
+        shown: text.slice(0, scene.typed),
+        hidden: text.slice(scene.typed),
+        done: scene.done,
+        caption: this.opts.captions,
+      },
+      this.stingerGrid ?? undefined,
+    );
+  }
+
+  private pressStinger(): void {
+    if (this.scene?.press() === 'finish') this.finishStinger();
+  }
+
+  private finishStinger(): void {
+    this.scene = null;
+    this.showScoreCard();
+  }
+
+  /** Esc, Start or the Skip control: leaves the credits or the stinger straight away. */
+  skipEnding(): void {
+    if (this.screen === 'credits') this.finishCredits();
+    else if (this.screen === 'stinger') this.finishStinger();
+  }
+
+  private showScoreCard(): void {
     const score = this.sim.get(State.SCORE);
     const lives = this.sim.get(State.LIVES);
     this.showCard({
@@ -773,6 +940,10 @@ export class Game {
     ui.setBoss(this.bossHp !== null && this.bossHp > 0 && s === 'play' ? this.bossHp : null);
     ui.setPrompt(s === 'play' ? this.prompt : null);
     ui.allowPanel(s === 'play' || s === 'title');
+    if (s !== 'credits') ui.showCredits(null);
+    else this.showCredits();
+    if (s !== 'stinger') ui.showStinger(null);
+    else this.showStinger();
 
     const items = this.menuItems();
     const sel = Math.min(this.menuIdx, Math.max(0, items.length - 1));
@@ -823,7 +994,8 @@ export class Game {
     const s = this.screen;
     if (s === 'title' || s === 'loading') return 'title';
     if (s === 'cine') return CINE_TRACK[this.cineIdx] ?? 'cine';
-    if (s === 'ending') return 'ending';
+    if (s === 'ending' || s === 'credits') return 'ending';
+    if (s === 'stinger') return null;
     if (s === 'card' && this.card?.title.startsWith('The end of Episode')) return 'ending';
     if (s === 'pause') return null;
     const mode = this.sim.x.mode();
@@ -841,6 +1013,13 @@ export class Game {
   }
 
   // ---------- Debug hooks (only exposed with ?debug) ----------
+
+  /** Test hook: jumps straight into the credits, as if the ending panels had just finished. */
+  debugStartCredits(): void {
+    this.sim.x.game_new();
+    this.sim.x.enter_none();
+    this.startCredits();
+  }
 
   /** Test hook: jumps straight into a level. */
   debugEnterLevel(id: number): void {

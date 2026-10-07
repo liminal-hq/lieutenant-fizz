@@ -3,6 +3,10 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { CreditsContent } from '@lieutenant-fizz/engine/credits';
+import { EGA } from '@lieutenant-fizz/engine/palette';
+import type { Grid } from '@lieutenant-fizz/engine/pen';
+import type { StingerContent, StingerPhase } from '@lieutenant-fizz/engine/stinger';
 import './ui.css';
 
 export interface MenuItem {
@@ -24,6 +28,26 @@ export interface Prompt {
   title: string;
   text: string;
   action: string | null;
+}
+
+export interface CreditsView {
+  content: CreditsContent;
+  reduced: boolean;
+  page: number;
+  held: boolean;
+  fast: boolean;
+  /** Pixels travelled from the off-screen start (scrolling form only). */
+  offset: number;
+}
+
+export interface StingerView {
+  content: StingerContent;
+  phase: StingerPhase;
+  shown: string;
+  hidden: string;
+  done: boolean;
+  /** Whether to show the sound caption pill while the sting lands. */
+  caption: boolean;
 }
 
 export interface Stats {
@@ -50,6 +74,10 @@ export interface UiHandlers {
   toggle(k: OptionKey): void;
   zoom(f: number | 'reset'): void;
   backFromControls(): void;
+  creditsPress(): void;
+  creditsSkip(): void;
+  stingerPress(): void;
+  stingerSkip(): void;
 }
 
 const el = <K extends keyof HTMLElementTagNameMap>(
@@ -93,6 +121,13 @@ export class Ui {
   private readonly dialogue: HTMLElement;
   private readonly panel: HTMLElement;
   private readonly panelBtn: HTMLElement;
+  private readonly credits: HTMLElement;
+  private readonly stinger: HTMLElement;
+  private creditsFor: CreditsContent | null = null;
+  private creditsTrack: HTMLElement | null = null;
+  private creditsEnd: HTMLElement | null = null;
+  private creditsBlocks: HTMLElement[] = [];
+  private creditsOffset = Number.NaN;
   private readonly err: HTMLElement;
   private readonly loading: HTMLElement;
   private toastTimer = 0;
@@ -158,6 +193,21 @@ export class Ui {
       <div class="foot"><button class="btn next">Continue</button></div>`;
     this.dialogue.querySelector('.next')?.addEventListener('click', () => h.advance());
 
+    this.credits = el('div', { id: 'credits', class: 'lf', hidden: '' });
+    this.credits.addEventListener('click', () => h.creditsPress());
+    this.stinger = el('div', { id: 'stinger', class: 'lf', hidden: '', 'data-phase': 'silence' });
+    this.stinger.innerHTML = `<div class="slit"></div><canvas class="figure" aria-label="" role="img"></canvas>
+      <div class="name"></div><span class="sound" hidden></span>
+      <div class="box"><div class="in"><span class="place"></span>
+        <span class="line"><span class="shown"></span><span class="hidden-text"></span></span>
+        <div class="hints"><button class="hint skip"><kbd>Esc</kbd>Skip</button>
+          <span class="hint go"><span class="cursor">▌</span><kbd>Jump</kbd>Continue</span></div></div></div>`;
+    this.stinger.addEventListener('click', () => h.stingerPress());
+    need(this.stinger, '.skip').addEventListener('click', (e) => {
+      e.stopPropagation();
+      h.stingerSkip();
+    });
+
     this.panelBtn = el(
       'button',
       {
@@ -185,6 +235,8 @@ export class Ui {
       this.overlay,
       this.letterbox,
       this.dialogue,
+      this.credits,
+      this.stinger,
       this.panelBtn,
       this.panel,
       this.loading,
@@ -376,6 +428,158 @@ export class Ui {
     q('.shown').textContent = o.shown;
     q('.hidden-text').textContent = o.hidden;
     q('.next').textContent = o.done ? 'Continue' : 'Hurry';
+  }
+
+  // ----- Credits and stinger -----
+
+  private buildCredits(c: CreditsContent): void {
+    const blocks: HTMLElement[] = [];
+    const title = el('div', { class: 'blk card' });
+    title.innerHTML = '<span class="big"></span><span class="sub"></span>';
+    need(title, '.big').textContent = c.title;
+    need(title, '.sub').textContent = c.subtitle;
+    blocks.push(title);
+    for (const sec of c.sections) {
+      const b = el('div', { class: 'blk section' });
+      const head = el('span', { class: 'head' });
+      head.textContent = sec.head;
+      const lines = el('div', { class: 'lines' });
+      for (const ln of sec.lines) {
+        const row = el(
+          'div',
+          { class: 'ln' },
+          '<span class="role"></span><span class="who"></span>',
+        );
+        need(row, '.role').textContent = ln.role;
+        need(row, '.who').textContent = ln.name;
+        lines.append(row);
+      }
+      b.append(head, lines);
+      blocks.push(b);
+    }
+    const end = el('div', { class: 'blk end' });
+    end.innerHTML =
+      '<span class="thanks"></span><span class="line"></span><div class="echo"><span class="big"></span><span class="sub"></span><span class="ret"></span></div>';
+    need(end, '.echo .big').textContent = c.title;
+    need(end, '.echo .sub').textContent = c.subtitle;
+    need(end, '.thanks').textContent = c.thanks;
+    need(end, '.line').textContent = c.thanksLine;
+    need(end, '.ret').textContent = c.returnLine;
+    blocks.push(end);
+    const track = el('div', { class: 'track' });
+    track.append(...blocks);
+    this.credits.replaceChildren();
+    this.credits.innerHTML = '<div class="glow"></div><div class="stars"></div>';
+    const stars = need(this.credits, '.stars');
+    for (let i = 0; i < 30; i++) {
+      const d = el('i');
+      d.style.left = `${((i * 37 + 11) % 97) + 1}%`;
+      d.style.top = `${((i * 53 + 7) % 93) + 2}%`;
+      d.style.width = d.style.height = `${i % 5 === 0 ? 3 : 2}px`;
+      d.style.opacity = String(0.25 + (i % 4) * 0.15);
+      stars.append(d);
+    }
+    const foot = el('div', { class: 'foot' });
+    foot.innerHTML =
+      '<button class="hint skip"><kbd>Esc</kbd>Skip credits</button><span class="hint go"><kbd>Jump</kbd><span class="act"></span></span>';
+    need(foot, '.skip').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.h.creditsSkip();
+    });
+    this.credits.append(
+      track,
+      el('div', { class: 'fade top' }),
+      el('div', { class: 'fade bot' }),
+      foot,
+    );
+    this.creditsFor = c;
+    this.creditsTrack = track;
+    this.creditsEnd = end;
+    this.creditsBlocks = blocks;
+    this.creditsOffset = Number.NaN;
+  }
+
+  /** Shows, updates or hides the credits. Returns nothing; read `creditsMetrics` to lay out the roll. */
+  showCredits(v: CreditsView | null): void {
+    this.credits.hidden = !v;
+    if (!v) {
+      this.creditsFor = null;
+      return;
+    }
+    if (this.creditsFor !== v.content) this.buildCredits(v.content);
+    const root = this.credits;
+    root.classList.toggle('reduced', v.reduced);
+    root.classList.toggle('held', v.held);
+    this.creditsBlocks.forEach((b, i) => b.classList.toggle('on', !v.reduced || i === v.page));
+    const act = !v.reduced
+      ? v.held
+        ? 'Continue'
+        : v.fast
+          ? 'Normal speed'
+          : 'Speed up'
+      : v.held
+        ? 'Continue'
+        : 'Next';
+    need(root, '.act').textContent = act;
+    if (!v.reduced && this.creditsTrack && v.offset !== this.creditsOffset) {
+      this.creditsOffset = v.offset;
+      const y = root.clientHeight - v.offset;
+      this.creditsTrack.style.transform = `translateY(${y.toFixed(1)}px)`;
+    }
+    if (v.reduced && this.creditsTrack) {
+      this.creditsTrack.style.transform = 'none';
+      this.creditsOffset = Number.NaN;
+    }
+  }
+
+  /** Visible height and the distance the roll travels to centre the closing card, in pixels. */
+  creditsMetrics(): { viewport: number; total: number } | null {
+    const end = this.creditsEnd;
+    if (!end || this.credits.hidden) return null;
+    const viewport = this.credits.clientHeight;
+    const target = viewport / 2 - (end.offsetTop + end.offsetHeight / 2);
+    return { viewport, total: viewport - target };
+  }
+
+  private stingerFor: StingerContent | null = null;
+
+  /** Shows, updates or hides the stinger scene. `grid` is the figure sprite, drawn once per scene. */
+  showStinger(v: StingerView | null, grid?: Grid): void {
+    this.stinger.hidden = !v;
+    if (!v) {
+      this.stingerFor = null;
+      return;
+    }
+    const root = this.stinger;
+    if (this.stingerFor !== v.content) {
+      this.stingerFor = v.content;
+      need(root, '.name').textContent = v.content.name;
+      need(root, '.place').textContent = v.content.place;
+      need(root, '.sound').textContent = v.content.caption;
+      const canvas = need(root, '.figure') as HTMLCanvasElement;
+      canvas.setAttribute('aria-label', v.content.name);
+      if (grid) this.paintGrid(canvas, grid);
+    }
+    root.dataset.phase = v.phase;
+    root.classList.toggle('typed', v.done);
+    need(root, '.sound').hidden = !(v.caption && v.phase === 'slit');
+    need(root, '.shown').textContent = v.shown;
+    need(root, '.hidden-text').textContent = v.hidden;
+  }
+
+  private paintGrid(canvas: HTMLCanvasElement, grid: Grid): void {
+    canvas.width = grid.w;
+    canvas.height = grid.h;
+    const g = canvas.getContext('2d');
+    if (!g) return;
+    for (let y = 0; y < grid.h; y++) {
+      for (let x = 0; x < grid.w; x++) {
+        const c = grid.at(x, y);
+        if (!c) continue;
+        g.fillStyle = EGA[c];
+        g.fillRect(x, y, 1, 1);
+      }
+    }
   }
 
   // ----- Captions and stats -----

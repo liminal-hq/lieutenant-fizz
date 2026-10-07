@@ -7,12 +7,26 @@ import { evalMini, parseMini, type MiniEvent } from '@lieutenant-fizz/engine/aud
 import { describe, expect, it } from 'vitest';
 import { CAPTION_SFX, MUSIC, SFX } from './patterns';
 import { CINE_TRACK, LEVELS } from '../story';
+import { MORTIMER_STINGER } from '../stinger';
 
 describe('audio patterns', () => {
   it('maps every caption sound to an existing effect', () => {
     for (const [text, sfx] of Object.entries(CAPTION_SFX)) {
       expect(SFX[sfx], `${text} -> ${sfx}`).toBeDefined();
     }
+  });
+
+  it('has a low sting for the stinger, tied to its sound caption', () => {
+    const voices = SFX['stinger'] ?? [];
+    expect(voices.length).toBeGreaterThanOrEqual(3);
+    expect(CAPTION_SFX[MORTIMER_STINGER.caption]).toBe('stinger');
+    for (const v of voices) {
+      expect(v.g).toBeGreaterThan(0);
+      expect(v.g).toBeLessThanOrEqual(0.5);
+      expect(v.d ?? 0).toBeGreaterThan(0);
+    }
+    // A sting is low: the lowest voice sits well under the first octave above middle C.
+    expect(voices.some((v) => v.n === 'e2')).toBe(true);
   });
 
   it('has every track the game asks for', () => {

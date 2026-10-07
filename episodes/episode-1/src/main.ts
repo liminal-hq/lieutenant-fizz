@@ -8,9 +8,11 @@ import { Game } from './game';
 const stage = document.getElementById('stage');
 if (!stage) throw new Error('missing #stage');
 
-Game.start(stage)
+const query = new URLSearchParams(location.search);
+
+Game.start(stage, { previewStinger: query.has('previewStinger') })
   .then((game) => {
-    if (new URLSearchParams(location.search).has('debug')) {
+    if (query.has('debug')) {
       (window as unknown as { __lf: Game }).__lf = game;
     }
   })
