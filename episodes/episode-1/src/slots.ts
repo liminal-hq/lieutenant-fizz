@@ -57,12 +57,14 @@ export function formatPlayed(seconds: number): string {
 
 /** A short en-CA date such as `Wed, Oct. 7`. */
 export function formatDate(at: number, timeZone?: string): string {
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat('en-CA', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
     ...(timeZone ? { timeZone } : {}),
-  }).format(new Date(at));
+  }).format(date);
 }
 
 /** Builds the row for one slot. `place` is the overworld area name where the save was made. */

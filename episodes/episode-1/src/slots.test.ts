@@ -59,6 +59,11 @@ describe('slot text', () => {
     expect(d).toMatch(/7/);
   });
 
+  it('does not throw for a date outside the range a Date can hold', () => {
+    expect(formatDate(1e300)).toBe('');
+    expect(formatDate(Number.NaN)).toBe('');
+  });
+
   it('names areas and falls back to the first for an unknown id', () => {
     expect(areaName(1)).toBe('Marshmallow Meadows');
     expect(areaName(99)).toBe(AREA_NAMES[0]);

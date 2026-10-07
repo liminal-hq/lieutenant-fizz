@@ -53,6 +53,9 @@ export interface Stored {
   progress: Progress;
 }
 
+/** The largest time, in milliseconds, a JavaScript Date can represent. */
+const MAX_TIME = 8.64e15;
+
 const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
 
 export function serialise(progress: Progress, now = Date.now()): string {
@@ -69,6 +72,8 @@ export function parseSave(json: string | null): Stored | null {
     if (!raw || (raw.v !== 1 && raw.v !== 2 && raw.v !== SAVE_VERSION) || !p || !finite(raw.at)) {
       return null;
     }
+    // A timestamp a Date cannot hold would break the slot screen's date, so the save is ignored.
+    if (Math.abs(raw.at) > MAX_TIME) return null;
     const { lives, score, nextLife, ammo, doneMask } = p;
     if (
       !finite(lives) ||

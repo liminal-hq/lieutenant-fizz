@@ -85,6 +85,13 @@ describe('save', () => {
     expect(parsed?.progress.played).toBe(0);
   });
 
+  it('rejects a timestamp outside the range a Date can hold', () => {
+    expect(parseSave(JSON.stringify({ v: 3, at: 1e300, progress }))).toBeNull();
+    expect(parseSave(JSON.stringify({ v: 3, at: 8.64e15 + 1, progress }))).toBeNull();
+    expect(parseSave(JSON.stringify({ v: 3, at: 8.64e15, progress }))?.at).toBe(8.64e15);
+    expect(parseSave(JSON.stringify({ v: 3, at: -8.64e15, progress }))).not.toBeNull();
+  });
+
   it('drops an invalid map position but keeps the rest', () => {
     const json = JSON.stringify({ v: 3, at: 1, progress: { ...progress, map: { x: 'a', y: 2 } } });
     const p = parseSave(json)?.progress;
