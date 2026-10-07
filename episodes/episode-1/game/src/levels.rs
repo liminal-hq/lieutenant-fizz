@@ -1663,11 +1663,9 @@ fn whisper_hollow() -> LevelData {
     // The starting hall, with a fudge pool in the middle that only the rope crosses.
     b.fill(1, 29, 3, 11, EMPTY)
         .fill(8, 22, 1, 2, CHOC)
-        .fill(8, 22, 1, 2, CHOC)
         .fill(7, 7, 3, 8, VINE)
         .fill(23, 23, 3, 8, VINE)
         .fill(7, 23, 8, 8, VINE);
-    // Pillar stubs at both ends of the pool keep the ends of the rope above the floor.
     // The chimney: a door at the bottom, then three tiles between two walls all the way up.
     b.fill(30, 30, 3, 5, EMPTY)
         .fill(31, 33, 3, 25, EMPTY)
