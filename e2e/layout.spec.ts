@@ -173,7 +173,22 @@ for (const [w, h] of SIZES) {
     test('the title shows Ben, the attract label and a soda bullet', async ({ page }) => {
       await show(page, 'title');
       await expect(page.locator('#title .ben')).toBeVisible();
+      if (w >= 560) await expect(page.locator('#attractTag')).toBeVisible();
       await expect(page.locator('#attractTag')).toHaveText(/^Attract · /);
+      // Nothing may paint over the label, such as the title's scrim.
+      const covered = await page.evaluate(() => {
+        const tag = document.getElementById('attractTag') as HTMLElement;
+        // The label ignores the pointer, so let it be hit-tested while we look.
+        tag.style.pointerEvents = 'auto';
+        const r = tag.getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        tag.style.pointerEvents = '';
+        return !(top && (top === tag || tag.contains(top)));
+      });
+      // The label is hidden below 560 px wide by design.
+      if (w >= 560) {
+        expect(covered, 'the attract label is covered by another element').toBe(false);
+      }
       await expect(page.locator('#title > .menu button.sel .bullet')).toBeVisible();
     });
   });

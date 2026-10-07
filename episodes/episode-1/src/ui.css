@@ -303,6 +303,8 @@ body {
   display: none;
 }
 #attractTag {
+  /* Above the title and pause scrims, which sit later in the stack. */
+  z-index: 1;
   --n: var(--lf-n-small);
   right: var(--lf-pad-x);
   bottom: var(--lf-keys-bottom);
