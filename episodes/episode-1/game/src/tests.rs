@@ -1207,6 +1207,7 @@ fn belts_carry_enemies_too_and_they_still_turn_at_the_end() {
         x: 14.0,
         y: 4.0,
         dir: -1.0,
+        ride: false,
     };
     let e = w.init_ent(&g);
     w.ents.push(e);
@@ -1928,6 +1929,7 @@ fn shooting_a_lantern_pops_it_into_snacks() {
         x: 12.0,
         y: 3.0,
         dir: 4.0,
+        ride: false,
     };
     let e = w.init_ent(&t);
     w.ents.push(e);
@@ -1950,6 +1952,7 @@ fn a_wall_painting_shows_its_line_once_per_visit() {
         x: 8.0,
         y: 2.0,
         dir: 2.0,
+        ride: false,
     };
     let e = w.init_ent(&g);
     w.ents.push(e);
@@ -2165,6 +2168,7 @@ fn chalk_drawings_of_billy_and_mortimer_have_their_say() {
             x,
             y: 2.0,
             dir,
+            ride: false,
         });
         w.ents.push(e);
         w.p.b.x = x + 0.1;
@@ -2278,6 +2282,7 @@ fn enemies_ignore_lift_trays_and_are_not_carried_off() {
         x: 8.0,
         y: 6.6,
         dir: -1.0,
+        ride: false,
     });
     w.ents.push(g);
     run(&mut w, 120, 0);
@@ -2297,6 +2302,7 @@ fn an_enemy_found_far_from_its_floor_is_sent_home() {
         x: 12.0,
         y: 4.0,
         dir: -1.0,
+        ride: false,
     });
     let home = (g.b.x, g.b.y);
     w.ents.push(g);
@@ -2348,4 +2354,29 @@ fn holding_up_or_down_on_the_ground_starts_a_look_that_ends_on_release() {
     assert_eq!(w.p.look_up, 0.0);
     run(&mut w, 10, DOWN);
     assert!(w.p.look_down > 0.0);
+}
+
+#[test]
+fn a_rider_is_carried_by_a_moving_platform_and_is_never_sent_home() {
+    use lf_sim::Platform;
+    let mut w = level(CRATER);
+    w.ents.clear();
+    w.plats = vec![Platform::new(8.0, 8.0, 14.0, 8.0, 1.0).sized(3.0, 0.5)];
+    let spawn = |ride| crate::ents::Spawn {
+        kind: Kind::Beetle,
+        x: 9.0,
+        y: 8.5,
+        dir: -1.0,
+        ride,
+    };
+    let rider = w.init_ent(&spawn(true));
+    w.ents.push(rider);
+    let start = w.ents[0].b.x;
+    run(&mut w, 150, 0);
+    assert!(
+        w.ents[0].b.y > 7.5,
+        "still up on the tray, at {:.1}",
+        w.ents[0].b.y
+    );
+    assert!((w.ents[0].b.x - start).abs() > 0.5, "carried along");
 }

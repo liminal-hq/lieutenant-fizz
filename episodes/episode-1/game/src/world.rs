@@ -572,6 +572,7 @@ impl World {
             touch: false,
             dead: false,
             stray: 0.0,
+            ride: s.ride,
         };
         e.ax = e.b.x;
         e.ay = e.b.y;
@@ -1537,6 +1538,13 @@ impl World {
                     continue;
                 }
             }
+            if e.ride {
+                // A rider moves with the platform it stands on, as Ben does.
+                if let Some(i) = e.b.on_plat {
+                    e.b.x += self.plats[i].dx;
+                    e.b.y += self.plats[i].dy;
+                }
+            }
             self.ai(&mut e, dt);
             if matches!(
                 e.kind,
@@ -1576,7 +1584,7 @@ impl World {
             if !d.fly {
                 e.b.vx = 0.0;
                 e.b.fall(dt, 20.0);
-                e.b.phys(&self.map, &[], dt);
+                e.b.phys(&self.map, if e.ride { &self.plats } else { &[] }, dt);
             } else if e.kind == Kind::Bat {
                 e.b.move_y(&self.map, -4.0 * dt);
             }
@@ -1590,7 +1598,7 @@ impl World {
             Kind::Gloop => {
                 e.b.vx = e.dir * 1.5;
                 e.b.fall(dt, 20.0);
-                e.b.phys(&self.map, &[], dt);
+                e.b.phys(&self.map, if e.ride { &self.plats } else { &[] }, dt);
                 if e.b.hit_x || (e.b.on_ground && !ground_ahead(&self.map, e)) {
                     e.dir *= -1.0;
                 }
@@ -1608,12 +1616,12 @@ impl World {
                         e.cd = 0.55;
                     }
                 }
-                e.b.phys(&self.map, &[], dt);
+                e.b.phys(&self.map, if e.ride { &self.plats } else { &[] }, dt);
             }
             Kind::Marsh => {
                 e.b.vx = e.dir * 2.2;
                 e.b.fall(dt, 20.0);
-                e.b.phys(&self.map, &[], dt);
+                e.b.phys(&self.map, if e.ride { &self.plats } else { &[] }, dt);
                 if e.b.on_ground {
                     e.b.vy = 11.0;
                 }
@@ -1626,7 +1634,7 @@ impl World {
                 if e.state == St::Charge {
                     e.b.vx = e.dir * 9.0;
                     e.st -= dt;
-                    e.b.phys(&self.map, &[], dt);
+                    e.b.phys(&self.map, if e.ride { &self.plats } else { &[] }, dt);
                     if e.b.hit_x {
                         e.state = St::Idle;
                         e.stun = 1.2;
@@ -1638,7 +1646,7 @@ impl World {
                     }
                 } else {
                     e.b.vx = 0.0;
-                    e.b.phys(&self.map, &[], dt);
+                    e.b.phys(&self.map, if e.ride { &self.plats } else { &[] }, dt);
                     if ben && dy.abs() < 1.2 && dx.abs() < 11.0 {
                         e.state = St::Charge;
                         e.dir = sign_or1(dx);
@@ -1686,7 +1694,7 @@ impl World {
             Kind::Phantom => {
                 e.b.fall(dt, 20.0);
                 e.b.vx = 0.0;
-                e.b.phys(&self.map, &[], dt);
+                e.b.phys(&self.map, if e.ride { &self.plats } else { &[] }, dt);
                 e.dir = sign_or1(dx);
                 e.cd -= dt;
                 e.fire_t -= dt;
@@ -1732,7 +1740,7 @@ impl World {
                 }
                 e.b.vx = e.b.vx.clamp(-8.5, 8.5);
                 let vx = e.b.vx;
-                e.b.phys(&self.map, &[], dt);
+                e.b.phys(&self.map, if e.ride { &self.plats } else { &[] }, dt);
                 if e.b.hit_x {
                     e.b.vx = -vx * 0.6;
                     let s = sign(e.b.vx);
