@@ -11,6 +11,7 @@ import {
   inside,
   placeControls,
   safeRect,
+  sideGutters,
   type Insets,
   type TouchSpec,
 } from './touch-layout';
@@ -108,6 +109,23 @@ describe('placeControls', () => {
   it('applies the Size multiplier', () => {
     const spec: TouchSpec = { ...DEFAULT_TOUCH_SPEC, scale: 1.25 };
     expect(placeControls(844, 390, NONE, spec).face.jump.r).toBe(50);
+  });
+
+  it('keeps menu content right of the D-pad and left of the buttons', () => {
+    const placed = placeControls(844, 390, NONE);
+    // The D-pad's right edge is 24 + 150 = 174 px from the left, plus a 16 px margin.
+    expect(sideGutters(placed, 844, ['dpad', 'jump', 'pause'])).toEqual({ left: 190, right: 120 });
+    // Without the D-pad nothing is kept on the left; Pause alone keeps 8 + 48 / 2 + 18 + 16.
+    expect(sideGutters(placed, 844, ['pause'])).toEqual({ left: 0, right: 66 });
+    expect(sideGutters(placed, 844, [])).toEqual({ left: 0, right: 0 });
+    // A notch on the left moves the D-pad, and the gutter with it.
+    expect(sideGutters(placeControls(844, 390, NOTCH), 844, ['dpad']).left).toBe(190 + NOTCH.left);
+  });
+
+  it('swaps the gutters for a left-handed layout', () => {
+    const left = placeControls(844, 390, NONE, { ...DEFAULT_TOUCH_SPEC, leftHanded: true });
+    const g = sideGutters(left, 844, ['dpad', 'jump']);
+    expect(g).toEqual({ left: 120, right: 190 });
   });
 
   it('mirrors the layout, with the insets swapped, when left-handed', () => {

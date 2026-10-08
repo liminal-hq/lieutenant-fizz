@@ -21,7 +21,11 @@ import {
   captionAnimation,
   captionPosition,
   creditsTransform,
+  NO_GUTTERS,
+  rowHeight,
+  TOUCH_ROW,
   watchResize,
+  type TouchGutters,
 } from './layout';
 import { pillItems, type PillIcon } from './hud';
 import type { BenFrame, BenPose } from './titleBen';
@@ -108,6 +112,8 @@ export type OptionKey =
 export interface UiHandlers {
   menuClick(i: number): void;
   menuHover(i: number): void;
+  /** A tap on an Options row's ◄ (-1) or ► (+1) stepper. */
+  menuStep(i: number, d: number): void;
   advance(): void;
   skipCine(): void;
   toggle(k: OptionKey): void;
@@ -193,6 +199,11 @@ export class Ui {
   private panelOpen = false;
   private panelVisibleAllowed = true;
   private readonly toggles = new Map<OptionKey, HTMLButtonElement>();
+  private gutters: TouchGutters = NO_GUTTERS;
+  /** What each menu does when a row is chosen, for the taps handled on the menu itself. */
+  private readonly choose = new WeakMap<HTMLElement, (i: number) => void>();
+  /** A touch tap chose a row until this time, so the click the browser sends after it is ignored. */
+  private tapUntil = 0;
 
   constructor(
     host: HTMLElement,
@@ -227,6 +238,8 @@ export class Ui {
     this.backMenu = el('div', { class: 'menu' });
     this.renderMenu(this.backMenu, [{ label: 'Back' }], 0, () => h.backFromControls());
     this.controls.append(this.backMenu);
+    this.bindTaps(this.menuEl);
+    this.bindTaps(this.backMenu);
     this.titleKeys = el('div', { class: 'keys' });
     this.title.append(this.menuEl, this.controls, this.titleKeys);
 
@@ -234,10 +247,15 @@ export class Ui {
     const box = el('div', { class: 'box' });
     box.innerHTML = '<h2></h2><p class="text"></p>';
     this.overlayMenu = el('div', { class: 'menu' });
+    this.bindTaps(this.overlayMenu);
     this.overlayNote = el('p', { class: 'note' });
     box.append(this.overlayMenu, this.overlayNote);
     this.overlayKeys = el('div', { class: 'keys' });
     this.overlay.append(box, this.overlayKeys);
+    // A card's text chooses its highlighted row on a tap, as Select does.
+    this.onTap(need(box, '.text'), () => {
+      if (this.overlayKind === 'list') h.advance();
+    });
 
     this.letterbox = el('div', { id: 'letterbox', class: 'lf', hidden: '' });
     this.letterbox.innerHTML = `<div class="bar"><span class="place"></span><button class="btn ghost skip">Skip</button></div>
@@ -245,11 +263,13 @@ export class Ui {
       <div class="foot"><span class="pips"></span><button class="btn next">Continue</button></div></div>`;
     this.letterbox.querySelector('.skip')?.addEventListener('click', () => h.skipCine());
     this.letterbox.querySelector('.next')?.addEventListener('click', () => h.advance());
+    this.onTap(this.letterbox, () => h.advance());
 
     this.dialogue = el('div', { id: 'dialogue', class: 'lf lf-panel', hidden: '' });
     this.dialogue.innerHTML = `<div class="who"></div><div class="text"><span class="shown"></span><span class="hidden-text"></span></div>
       <div class="foot"><button class="btn next">Continue</button></div>`;
     this.dialogue.querySelector('.next')?.addEventListener('click', () => h.advance());
+    this.onTap(this.dialogue, () => h.advance());
 
     this.credits = el('div', { id: 'credits', class: 'lf', hidden: '' });
     this.credits.addEventListener('click', () => h.creditsPress());
@@ -373,7 +393,97 @@ export class Ui {
       Math.round(vv?.width ?? window.innerWidth),
       Math.round(vv?.height ?? window.innerHeight),
       this.large,
+      this.touchMode ? this.gutters : NO_GUTTERS,
     );
+    this.fitRows();
+  }
+
+  /** Sets the room the touch controls take on each side, so menus start right of the D-pad. */
+  setTouchGutters(g: TouchGutters): void {
+    if (g.left === this.gutters.left && g.right === this.gutters.right) return;
+    this.gutters = g;
+    this.relayout();
+  }
+
+  /**
+   * On touch, makes each menu row 48 px tall where the screen has room, and as tall as fits where it
+   * does not, so a short phone never scrolls the menu. Measured after the menu is drawn.
+   */
+  private fitRows(): void {
+    for (const screen of [this.title, this.overlay]) {
+      const menus = [...screen.querySelectorAll<HTMLElement>('.menu')];
+      if (!this.touchMode || screen.hidden) {
+        for (const m of menus) m.style.removeProperty('--lf-row-h');
+        continue;
+      }
+      const shown = menus.find((m) => !m.hidden && m.offsetParent);
+      const rows = shown?.querySelectorAll('button');
+      const first = rows?.[0];
+      if (!rows || !first) continue;
+      for (const m of menus) m.style.setProperty('--lf-row-h', `${TOUCH_ROW}px`);
+      const overflow = screen.scrollHeight - screen.clientHeight;
+      const glyph = Math.round(Number.parseFloat(getComputedStyle(first).fontSize));
+      const h = rowHeight(overflow, rows.length, glyph);
+      for (const m of menus) m.style.setProperty('--lf-row-h', `${h}px`);
+    }
+  }
+
+  /**
+   * Handles a touch tap on a menu: one tap on a row chooses it (the browser's own hover-then-click
+   * would take two on some phones), and a tap on a stepper changes the setting. A finger that moves
+   * (a scroll) or is cancelled chooses nothing. The mouse keeps its hover and click.
+   */
+  private bindTaps(menu: HTMLElement): void {
+    type Hit = { row: number; step: number };
+    let press: (Hit & { id: number; x: number; y: number }) | null = null;
+    const hitAt = (e: PointerEvent): Hit | null => {
+      const at = document.elementFromPoint(e.clientX, e.clientY);
+      const b = at?.closest<HTMLElement>('button[data-i]');
+      if (!at || !b || !menu.contains(b) || b.classList.contains('dis')) return null;
+      const step = at.closest<HTMLElement>('[data-step]');
+      return { row: Number(b.dataset.i), step: step ? Number(step.dataset.step) : 0 };
+    };
+    menu.addEventListener('pointerdown', (e) => {
+      press = null;
+      if (e.pointerType === 'mouse') return;
+      // Without the implicit capture, the lift is hit-tested where it lands, even if the row was redrawn.
+      try {
+        (e.target as Element).releasePointerCapture(e.pointerId);
+      } catch {
+        // Nothing was captured.
+      }
+      const hit = hitAt(e);
+      if (hit) press = { ...hit, id: e.pointerId, x: e.clientX, y: e.clientY };
+    });
+    menu.addEventListener('pointercancel', () => (press = null));
+    menu.addEventListener('pointerup', (e) => {
+      const p = press;
+      press = null;
+      if (!p || e.pointerId !== p.id || Math.hypot(e.clientX - p.x, e.clientY - p.y) > 12) return;
+      const hit = hitAt(e);
+      if (!hit || hit.row !== p.row || hit.step !== p.step) return;
+      this.tapUntil = performance.now() + 600;
+      if (hit.step) this.h.menuStep(hit.row, hit.step);
+      else this.choose.get(menu)?.(hit.row);
+    });
+  }
+
+  /** Runs `fn` on a touch tap on `target` that is not on one of its buttons (they have their own). */
+  private onTap(target: HTMLElement, fn: () => void): void {
+    let press: { id: number; x: number; y: number } | null = null;
+    target.addEventListener('pointerdown', (e) => {
+      const onButton = (e.target as Element).closest('button');
+      press =
+        e.pointerType === 'mouse' || onButton
+          ? null
+          : { id: e.pointerId, x: e.clientX, y: e.clientY };
+    });
+    target.addEventListener('pointercancel', () => (press = null));
+    target.addEventListener('pointerup', (e) => {
+      const p = press;
+      press = null;
+      if (p && e.pointerId === p.id && Math.hypot(e.clientX - p.x, e.clientY - p.y) <= 12) fn();
+    });
   }
 
   /** Switches between normal and large text (one step up), for Options › Text size. */
@@ -511,6 +621,7 @@ export class Ui {
     this.touchMode = on;
     this.stage.toggleAttribute('data-touch', on);
     this.setHud(this.hudState);
+    this.relayout();
   }
 
   /** Shows or hides the "Rotate your phone" screen. */
@@ -602,10 +713,22 @@ export class Ui {
     onClick: (i: number) => void = (i) => this.h.menuClick(i),
   ): void {
     into.replaceChildren();
+    this.choose.set(into, onClick);
+    const click = (i: number) => (): void => {
+      // A touch tap already chose the row on its lift; this is the browser's click that follows it.
+      if (performance.now() < this.tapUntil) return;
+      onClick(i);
+    };
+    const hover =
+      (i: number) =>
+      (e: PointerEvent): void => {
+        if (e.pointerType === 'mouse') this.h.menuHover(i);
+      };
     items.forEach((it, i) => {
       const selected = i === sel && !it.disabled;
       const b = el('button', {
         class: `${selected ? 'sel' : ''} ${it.disabled ? 'dis' : ''}`.trim(),
+        'data-i': String(i),
       });
       const gut = el('span', { class: 'gut' });
       if (this.bulletUrl) gut.append(el('img', { class: 'bullet', alt: '', src: this.bulletUrl }));
@@ -614,26 +737,41 @@ export class Ui {
         b.classList.add('slot');
         this.fillSlot(plate, it.slot);
         b.append(gut, plate);
-        b.addEventListener('click', () => onClick(i));
-        b.addEventListener('mouseenter', () => this.h.menuHover(i));
+        b.addEventListener('click', click(i));
+        b.addEventListener('pointerenter', hover(i));
         into.append(b);
         return;
       }
       const l = el('span', { class: 'lbl' });
       l.textContent = it.label;
       plate.append(l);
+      // On touch an Options row has its own ◄ and ► steppers, so a tap can go either way.
+      const steppers = this.touchMode && !!it.kind;
+      const stepper = (d: number): HTMLElement => {
+        const st = el('span', {
+          class: 'step',
+          'data-step': String(d),
+          role: 'button',
+          'aria-label': `${d < 0 ? 'Less' : 'More'} ${it.label}`,
+        });
+        st.textContent = d < 0 ? '◄' : '►';
+        return st;
+      };
+      if (steppers) plate.append(stepper(-1));
       if (it.kind === 'meter') {
         const m = el('span', { class: 'meter' });
         for (let k = 0; k < 8; k++) m.append(el('i', { class: k < (it.meter ?? 0) ? 'on' : '' }));
         plate.append(m);
       } else if (it.value) {
         const v = el('span', { class: 'val' });
-        v.textContent = it.kind === 'choice' && selected ? `◄ ${it.value} ►` : it.value;
+        v.textContent =
+          it.kind === 'choice' && selected && !steppers ? `◄ ${it.value} ►` : it.value;
         plate.append(v);
       }
+      if (steppers) plate.append(stepper(1));
       b.append(gut, plate);
-      b.addEventListener('click', () => onClick(i));
-      b.addEventListener('mouseenter', () => this.h.menuHover(i));
+      b.addEventListener('click', click(i));
+      b.addEventListener('pointerenter', hover(i));
       into.append(b);
     });
   }
@@ -664,6 +802,7 @@ export class Ui {
     if (items) this.renderMenu(this.menuEl, items, sel);
     this.menuEl.hidden = controls || items === null;
     this.controls.hidden = !controls;
+    if (this.touchMode && !this.title.hidden) this.fitRows();
   }
 
   showOverlay(
@@ -691,6 +830,7 @@ export class Ui {
     this.overlayNote.textContent = o.note ?? '';
     this.overlayNote.hidden = !o.note;
     this.renderMenu(this.overlayMenu, o.items, o.sel);
+    if (this.touchMode) this.fitRows();
   }
 
   showLetterbox(

@@ -143,6 +143,32 @@ describe('TouchState', () => {
     expect(t.held(501).pogo).toBe(false);
   });
 
+  it('counts a tap that ends on lift like a quick press', () => {
+    const t = state();
+    t.tap('jump', 100);
+    expect(t.held(120).jump).toBe(true);
+    expect(t.sample(900).jump).toBe(true);
+    expect(t.held(901).jump).toBe(false);
+  });
+
+  it('keeps a quick D-pad tap until a step has sampled it', () => {
+    const t = state();
+    // The thumb lands on the right arm and lifts before any frame has run.
+    t.down(1, 100 + 60, 300, 0);
+    t.up(1);
+    expect(t.held(400)).toMatchObject({ right: true, left: false });
+    expect(t.sample(400).right).toBe(true);
+    expect(t.held(401).right).toBe(false);
+  });
+
+  it('does not keep a D-pad direction the thumb has slid away from once sampled', () => {
+    const t = state();
+    t.down(1, 100 + 60, 300, 0);
+    expect(t.sample(5).right).toBe(true);
+    t.move(1, 100 - 60, 300);
+    expect(t.held(10)).toMatchObject({ left: true, right: false });
+  });
+
   it('does not let a sample end a button that is still held', () => {
     const t = state();
     t.down(1, 700, 320, 0);
@@ -155,7 +181,7 @@ describe('TouchState', () => {
   it('re-evaluates the D-pad as the thumb slides, without lifting', () => {
     const t = state();
     t.down(1, 100 - 60, 300, 0);
-    expect(t.held(1)).toMatchObject({ left: true, down: false });
+    expect(t.sample(1)).toMatchObject({ left: true, down: false });
     t.move(1, 100 - 10, 300 + 60);
     expect(t.held(2)).toMatchObject({ left: false, down: true });
     t.move(1, 100, 300);
@@ -165,6 +191,7 @@ describe('TouchState', () => {
   it('releases a finger on up', () => {
     const t = state();
     t.down(1, 160, 300, 0);
+    t.sample(0);
     t.up(1);
     expect(t.held(1)).toEqual(NO_TOUCH);
     expect(t.active).toBe(false);
@@ -190,6 +217,7 @@ describe('TouchState', () => {
   it('forgets a finger whose id is reused after a lost pointerup', () => {
     const t = state();
     t.down(1, 160, 300, 0);
+    t.sample(1);
     t.down(1, 400, 100, 5); // lands on nothing
     expect(t.held(6)).toEqual(NO_TOUCH);
   });

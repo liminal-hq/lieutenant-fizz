@@ -16,12 +16,14 @@ import {
 import { FixedStepper, InstanceWriter } from '@lieutenant-fizz/engine/instances';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
+import { HeldRepeat } from '@lieutenant-fizz/engine/repeat';
 import { TouchControls } from '@lieutenant-fizz/engine/touch-ui';
 import simUrl from './wasm/sim.wasm?url';
 import { PATTERNS } from './audio/patterns';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { Cinematic, CINE_TALL } from './cine';
 import { isPortrait, watchResize } from './layout';
+import { touchFaces, type ShellScreen, type TouchFaces } from './touch-menus';
 import { EPISODE } from './episode';
 import {
   DEFAULT_OPTIONS,
@@ -67,17 +69,7 @@ import { MORTIMER_STINGER } from './stinger';
 import { BEN_LOOK, BEN_WAVE, benFrame, benScale, type BenPose } from './titleBen';
 import { Ui, type HudState, type MenuItem, type OptionKey, type Prompt, type SlotRow } from './ui';
 
-export type Screen =
-  | 'loading'
-  | 'title'
-  | 'cine'
-  | 'play'
-  | 'pause'
-  | 'card'
-  | 'dialogue'
-  | 'ending'
-  | 'credits'
-  | 'stinger';
+export type Screen = ShellScreen;
 
 /** Options the host page passes in (from the query string). */
 export interface GameOptions {
@@ -117,6 +109,13 @@ export class Game {
   private touchMode = false;
   /** Whether the phone is held upright, so the Rotate screen is showing. */
   private rotated = false;
+  /** The Jump and Pogo faces' text, swapped between play and the menus. */
+  private faceText: { jump: HTMLElement; pogo: HTMLElement; pogoIcon: HTMLElement | null } | null =
+    null;
+  /** Held directions repeat in menus (keys, pad and the touch D-pad alike). */
+  private readonly repeat = new HeldRepeat(Bits.LEFT | Bits.RIGHT | Bits.UP | Bits.DOWN);
+  /** The menu the last frame's input went to, so a direction held into a new one waits for a release. */
+  private menuKey = '';
   private unwatchViewport: () => void = () => {};
   private readonly audio: GameAudio;
   private readonly ui: Ui;
@@ -226,6 +225,7 @@ export class Game {
     const ui = new Ui(host, {
       menuClick: (i) => game?.activate(i),
       menuHover: (i) => game?.hover(i),
+      menuStep: (i, d) => game?.stepRow(i, d),
       advance: () => game?.primary(),
       skipCine: () => game?.skipCine(),
       toggle: (k) => game?.toggle(k),
@@ -312,11 +312,11 @@ export class Game {
     this.halfW = (this.halfH * this.renderer.width) / this.renderer.height;
     sim.x.set_view(this.halfW, this.halfH);
 
-    // Touch controls drive play only, so a thumb on a control never moves a menu.
-    this.input.setTouchEnabled(this.screen === 'play');
     const bits = this.input.peek();
     this.menuInput(bits);
     this.lastBits = bits;
+    // The sim samples touch presses in play; a menu has no step, so it marks them seen itself.
+    if (screen !== 'play') this.input.markTouchSeen();
 
     if (screen === 'play' || screen === 'title') {
       this.alpha = this.stepper.advance(dt, () => {
@@ -325,11 +325,8 @@ export class Game {
       if (screen === 'play') {
         this.levelSeconds += dt;
         this.played += dt;
-        if (this.touchMode) {
-          // Toggling pogo raises no event, so the lit state is read each frame (it writes on a change only).
-          this.touchUi.setLit(sim.get(State.POGO_ON) === 1);
-          this.touchUi.frame(performance.now());
-        }
+        // Toggling pogo raises no event, so the lit state is read each frame (it writes on a change only).
+        if (this.touchMode) this.touchUi.setLit(sim.get(State.POGO_ON) === 1);
       }
       this.handleEvents();
     } else if (screen === 'credits') {
@@ -349,6 +346,7 @@ export class Game {
       this.alpha = 1;
       sim.drainEvents().forEach((e) => this.onEvent(e));
     }
+    if (this.touchMode) this.touchUi.frame(performance.now());
     this.tickTypewriter(dt);
     this.tickTitle();
     this.draw();
@@ -666,17 +664,28 @@ export class Game {
 
   // ---------- Input: menus, commands ----------
 
+  /**
+   * Menus read the same bits from every source, so the touch controls drive them as a gamepad does.
+   * Choosing and going back need a fresh press (a button held as a screen opens chooses nothing until
+   * it is pressed again); a held direction moves once, then repeats after a delay.
+   */
   private menuInput(bits: number): void {
     const edge = bits & ~this.lastBits;
     const s = this.screen;
+    const key = `${s}:${this.sub ?? ''}`;
+    if (key !== this.menuKey) {
+      this.menuKey = key;
+      this.repeat.hold(bits);
+    }
+    const move = this.repeat.update(bits, performance.now());
     if (s === 'title' || s === 'pause' || s === 'card') {
       if (this.sub !== 'controls') {
-        if (edge & Bits.UP) this.nav(-1);
-        if (edge & Bits.DOWN) this.nav(1);
+        if (move & Bits.UP) this.nav(-1);
+        if (move & Bits.DOWN) this.nav(1);
       }
       if (this.sub === 'options') {
-        if (edge & Bits.LEFT) this.adjust(-1);
-        if (edge & Bits.RIGHT) this.adjust(1);
+        if (move & Bits.LEFT) this.adjust(-1);
+        if (move & Bits.RIGHT) this.adjust(1);
       }
       // B (the pogo button) goes back from a screen opened over a menu.
       if (this.sub && edge & Bits.POGO) this.closeSub();
@@ -805,22 +814,28 @@ export class Game {
 
   /** Puts the icons inside the touch buttons (the engine builds the buttons, the episode draws on them). */
   private initTouchFaces(pogo: Grid | undefined, soda: Grid | undefined): void {
-    const text = (id: 'jump', label: string): void => {
+    const text = (id: 'jump' | 'pogo', label: string): HTMLElement => {
       const t = document.createElement('span');
       t.className = 'lbl';
       t.textContent = label;
       this.touchUi.face(id).append(t);
+      return t;
     };
-    const icon = (id: 'pogo' | 'fire', grid: Grid | undefined): void => {
-      if (!grid) return;
+    const icon = (id: 'pogo' | 'fire', grid: Grid | undefined): HTMLElement | null => {
+      if (!grid) return null;
       const img = document.createElement('img');
       img.src = this.ui.spriteUrl(grid);
       img.alt = '';
       img.draggable = false;
       this.touchUi.face(id).prepend(img);
+      return img;
     };
-    text('jump', 'Jump');
-    icon('pogo', pogo);
+    const jump = text('jump', 'Jump');
+    const pogoIcon = icon('pogo', pogo);
+    // Pogo shows its icon in play and the word Back in a menu.
+    const pogoText = text('pogo', '');
+    pogoText.hidden = true;
+    this.faceText = { jump, pogo: pogoText, pogoIcon };
     icon('fire', soda);
     const bars = document.createElement('span');
     bars.className = 'bars';
@@ -847,6 +862,33 @@ export class Game {
       this.syncUi();
     }
     this.touchUi.relayout();
+    this.ui.setTouchGutters(this.touchUi.gutters());
+  }
+
+  /**
+   * Shows the on-screen controls on every screen but loading and Rotate, with the set and the labels
+   * the screen uses. Touch input counts exactly while they show; hiding them drops every finger.
+   */
+  private syncTouch(): void {
+    const s = this.screen;
+    const on = this.touchMode && s !== 'loading' && !this.rotated;
+    this.touchUi.setVisible(on);
+    this.input.setTouchEnabled(on);
+    const faces: TouchFaces = touchFaces(s, this.sub);
+    this.ui.touchLayer.dataset.mode = faces.play ? 'play' : 'menu';
+    this.touchUi.setDeferred(!faces.play);
+    this.touchUi.setShown(faces.shown);
+    this.touchUi.setName('jump', faces.jump);
+    this.touchUi.setName('pogo', faces.pogo);
+    const t = this.faceText;
+    if (t) {
+      if (t.jump.textContent !== faces.jump) t.jump.textContent = faces.jump;
+      if (t.pogo.textContent !== faces.pogo) t.pogo.textContent = faces.pogo;
+      t.pogo.hidden = faces.play;
+      if (t.pogoIcon) t.pogoIcon.hidden = !faces.play;
+    }
+    if (!faces.play) this.touchUi.setLit(false);
+    this.ui.setTouchGutters(this.touchUi.gutters());
   }
 
   // ---------- Menus ----------
@@ -927,8 +969,9 @@ export class Game {
     if (this.screen === 'pause') {
       const items: MenuItem[] = [
         { id: 'resume', label: 'Resume' },
-        { id: 'save', label: 'Save game', value: 'F5' },
-        { id: 'load', label: 'Load game', value: 'F9' },
+        // F5 and F9 are keyboard shortcuts, so a touch screen leaves them out.
+        { id: 'save', label: 'Save game', ...(this.touchMode ? {} : { value: 'F5' }) },
+        { id: 'load', label: 'Load game', ...(this.touchMode ? {} : { value: 'F9' }) },
         { id: 'options', label: 'Options' },
       ];
       if (this.sim.x.mode() === Mode.LEVEL) items.push({ id: 'leave', label: 'Leave level' });
@@ -1020,6 +1063,16 @@ export class Game {
     this.audio.play('menu');
     this.applySettings();
     this.syncUi();
+  }
+
+  /** A tap on an Options row's stepper: selects the row and steps its setting down or up. */
+  private stepRow(i: number, d: number): void {
+    if (this.sub !== 'options' || !Game.OPTION_ROWS[i]) return;
+    if (this.menuIdx !== i) {
+      this.menuIdx = i;
+      this.syncUi();
+    }
+    this.adjust(d);
   }
 
   /** Activates a menu item by index (mouse click or keyboard). */
@@ -1415,12 +1468,13 @@ export class Game {
     ui.setBoss(this.bossHp !== null && this.bossHp > 0 && s === 'play' ? this.bossHp : null);
     ui.setPrompt(s === 'play' ? this.prompt : null);
     ui.allowPanel(!this.touchMode && (s === 'play' || s === 'title'));
-    this.touchUi.setVisible(this.touchMode && s === 'play' && !this.rotated);
     if (s !== 'credits') ui.showCredits(null);
     else this.showCredits();
     if (s !== 'stinger') ui.showStinger(null);
     else this.showStinger();
 
+    // Before the menus are drawn, so they are laid out around the controls this screen shows.
+    this.syncTouch();
     const items = this.menuItems();
     const sel = Math.min(this.menuIdx, Math.max(0, items.length - 1));
     const onTitle = s === 'title';
@@ -1525,11 +1579,22 @@ export class Game {
       | 'play'
       | 'map'
       | 'pause'
+      | 'card'
       | 'cine'
       | 'dialogue'
       | 'credits',
   ): void {
     if (what === 'credits') return this.debugStartCredits();
+    if (what === 'card') {
+      // The level-cleared card, as it appears over Crater Fields.
+      this.debugEnterLevel(0);
+      return this.showCard({
+        title: `${LEVELS[0]?.name ?? 'Level'} cleared`,
+        text: LEVELS[0]?.cleared ?? '',
+        primaryLabel: 'Back to the map',
+        primary: () => this.enterMap(),
+      });
+    }
     if (what === 'map') {
       this.sim.x.game_new();
       this.sim.x.enter_map();
@@ -1569,6 +1634,8 @@ export class Game {
   get debugState(): Record<string, unknown> {
     return {
       screen: this.screen,
+      sub: this.sub,
+      menu: this.menuIdx,
       mode: this.sim.x.mode(),
       level: this.sim.get(State.LEVEL_ID),
       score: this.sim.get(State.SCORE),

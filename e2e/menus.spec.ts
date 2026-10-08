@@ -36,6 +36,21 @@ for (const [label, key] of [
   });
 }
 
+test('a held arrow key repeats down the Options rows', async ({ page }) => {
+  await open(page, 'options');
+  const menu = (): Promise<number> =>
+    page.evaluate(
+      () => (window as unknown as { __lf: { debugState: { menu: number } } }).__lf.debugState.menu,
+    );
+  expect(await menu()).toBe(0);
+  // The browser's own key repeat is ignored: the game repeats a held direction itself, after 350 ms.
+  await page.keyboard.down('ArrowDown');
+  await expect.poll(menu).toBeGreaterThanOrEqual(1);
+  // Wait for the repeats by what they do, not by the clock: a slow frame rate delays every one of them.
+  await expect.poll(menu, { timeout: 10_000 }).toBeGreaterThanOrEqual(3);
+  await page.keyboard.up('ArrowDown');
+});
+
 test('Escape goes back from the Options screen', async ({ page }) => {
   await open(page, 'options');
   await expect(page.locator('#overlay')).toBeVisible();
