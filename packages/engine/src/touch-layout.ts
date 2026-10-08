@@ -152,29 +152,28 @@ export function controlSide(
   return placed.face[id].cx < width / 2 ? 'left' : 'right';
 }
 
-/** How far down from the top of the window the highest low control on each side starts (0 for none). */
+/** How far down from the top of the window the highest raised control on each side starts (0 for none). */
 export interface SideTops {
   left: number;
   right: number;
 }
 
 /**
- * Where content that sits above the controls must stop, for a `width` × `height` window: on each
- * side, the top edge of the highest shown face in the lower half of the window, minus `margin`, or 0
- * when that side has none. The corner controls (Pause) do not count: they are handled by the gutters,
- * and the content they would limit sits well below them.
+ * Where content that sits above the controls must stop, for a `width` px wide window: on each side,
+ * the top edge of the highest shown face, minus `margin`, or 0 when that side has none. Pause does not
+ * count: the gutters handle it, and the content it would limit sits well below it. Every other control
+ * does, wherever it has been moved to.
  */
 export function sideTops(
   placed: PlacedControls,
   width: number,
-  height: number,
   shown: readonly ControlId[],
   margin = 16,
 ): SideTops {
   const tops: SideTops = { left: 0, right: 0 };
   for (const id of shown) {
+    if (id === 'pause') continue;
     const f = placed.face[id];
-    if (f.cy < height / 2) continue;
     const side = controlSide(placed, width, id);
     const top = Math.floor(f.cy - f.r - margin);
     if (tops[side] === 0 || top < tops[side]) tops[side] = top;

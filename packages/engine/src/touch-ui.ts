@@ -206,8 +206,7 @@ export class TouchControls {
   tops(margin = 16): SideTops {
     if (!this.visible || !this.placed) return { left: 0, right: 0 };
     const w = this.layer.clientWidth || window.innerWidth;
-    const h = this.layer.clientHeight || window.innerHeight;
-    return sideTops(this.placed, w, h, this.shown, margin);
+    return sideTops(this.placed, w, this.shown, margin);
   }
 
   /** The hand the layout is for: `right` has the D-pad on the left, `left` has it on the right. */

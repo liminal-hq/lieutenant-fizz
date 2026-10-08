@@ -180,29 +180,40 @@ describe('controlSide and sideTops', () => {
   it('stops content 16 px above the highest low control on each side', () => {
     // The D-pad face is 150 px across with its centre 97 px up, so its top is at 390 - 22 - 150 = 218.
     // Jump is 80 px across with its bottom 26 px up, so its top is at 390 - 26 - 80 = 284.
-    expect(sideTops(right, 844, 390, ['dpad', 'jump', 'pause'])).toEqual({ left: 202, right: 268 });
+    expect(sideTops(right, 844, ['dpad', 'jump', 'pause'])).toEqual({ left: 202, right: 268 });
     // Pogo sits above Jump when it shows; the highest control wins.
-    expect(sideTops(right, 844, 390, ['dpad', 'jump', 'pogo', 'pause']).right).toBe(
+    expect(sideTops(right, 844, ['dpad', 'jump', 'pogo', 'pause']).right).toBe(
       Math.floor(390 - 118 - 62 - 16),
     );
   });
 
   it('is 0 for a side with no low control, and ignores Pause in the corner', () => {
-    expect(sideTops(right, 844, 390, ['pause'])).toEqual({ left: 0, right: 0 });
-    expect(sideTops(right, 844, 390, ['dpad'])).toEqual({ left: 202, right: 0 });
-    expect(sideTops(right, 844, 390, [])).toEqual({ left: 0, right: 0 });
+    expect(sideTops(right, 844, ['pause'])).toEqual({ left: 0, right: 0 });
+    expect(sideTops(right, 844, ['dpad'])).toEqual({ left: 202, right: 0 });
+    expect(sideTops(right, 844, [])).toEqual({ left: 0, right: 0 });
+  });
+
+  it('counts a raised D-pad, and skips Pause by id rather than by height', () => {
+    const raised = placeControls(844, 390, NONE, {
+      ...DEFAULT_TOUCH_SPEC,
+      moved: { dpad: { side: 75, bottom: 115 } },
+    });
+    // The face is centred at y 200 with r 75, so its top is 125 and content stops at 109.
+    expect(sideTops(raised, 844, ['dpad', 'jump', 'pause'])).toEqual({ left: 109, right: 268 });
+    // Pause is the only control skipped, even though a raised control is in the upper half.
+    expect(sideTops(raised, 844, ['pause'])).toEqual({ left: 0, right: 0 });
   });
 
   it('swaps the sides when left-handed', () => {
-    expect(sideTops(left, 844, 390, ['dpad', 'jump'])).toEqual({ left: 268, right: 202 });
+    expect(sideTops(left, 844, ['dpad', 'jump'])).toEqual({ left: 268, right: 202 });
   });
 
   it('moves with a notch', () => {
     const notched = placeControls(844, 390, NOTCH);
     // The bottom inset lifts the D-pad by 20 px.
-    expect(sideTops(notched, 844, 390, ['dpad']).left).toBe(182);
+    expect(sideTops(notched, 844, ['dpad']).left).toBe(182);
     const flipped = placeControls(844, 390, NOTCH, { ...DEFAULT_TOUCH_SPEC, leftHanded: true });
-    expect(sideTops(flipped, 844, 390, ['dpad']).right).toBe(182);
+    expect(sideTops(flipped, 844, ['dpad']).right).toBe(182);
   });
 });
 
