@@ -72,7 +72,7 @@ The repository is a monorepo for every Lieutenant Fizz episode.
 | `packages/engine`        | The shared TypeScript engine: pixel DSL and atlas builder, Three.js instanced renderer, input, audio and the WASM loader |
 | `episodes/episode-1`     | *The Cocoa Caper*: the Vite app with its sprites, cinematic, DOM overlay, saves, music and story text       |
 | `episodes/episode-1/game` | `lf-episode-1`, the episode's own Rust crate: levels, player, enemies, boss, overworld and scene drawing, compiled to `sim.wasm` |
-| `site/`                  | The static landing page and game guide (`guide/`) published at the Pages root; episodes are listed in `site/episodes.json`            |
+| `site/`                  | The website published at the Pages root, styled as the Fizz BBS: the front page and the game guide (`guide/`), sharing `css/bbs.css`; episodes are listed in `site/episodes.json` |
 | `scripts/`               | Shell scripts for the WASM build, the Pages site assembly and the licence header check, plus the Bun scripts that build the Fizz font, the hero banner text and the guide sprites |
 | `docs/`                  | The engine specification, game design, story text and port status — the ground truth for implementation     |
 | `design/`                | The original playable prototype and the Liminal HQ design system, kept for reference                        |
