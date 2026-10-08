@@ -1,12 +1,17 @@
-// Renders the landing page episode cards from episodes.json.
+// Builds the front page's main menu rows and release log from episodes.json.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-// All URLs are relative so the site works under any subpath.
+// Playable episodes get a menu row at the top (newest first) and an EPISODEn.TXT block in the log:
+// the newest beside the menu, the rest below it. Coming-soon episodes get a locked row at the bottom
+// of the menu and nothing in the log. Without JavaScript, or if the fetch fails, the page keeps its
+// static Episode 1 row and block. All URLs are relative so the site works under any subpath.
 (function () {
-  var grid = document.getElementById('grid');
-  if (!grid || !window.fetch) return;
+  var menu = document.getElementById('menu');
+  var latest = document.getElementById('latest');
+  var older = document.getElementById('older');
+  if (!menu || !latest || !older || !window.fetch) return;
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -15,46 +20,85 @@
     return n;
   }
 
-  function card(ep) {
-    var playable = ep.status === 'playable';
-    var li = el('li', 'card ' + (playable ? 'playable' : 'soon'));
-    if (ep.thumbnail) {
-      var img = el('img', 'thumb');
-      img.src = ep.thumbnail;
-      img.alt = ep.thumbnailAlt || '';
-      img.width = 800; img.height = 468; img.loading = 'lazy';
-      li.appendChild(img);
-    }
-    var body = el('div', 'card-body');
-    body.appendChild(el('span', 'badge ' + (playable ? 'ok' : 'wait'), playable ? 'Playable' : 'Coming soon'));
-    body.appendChild(el('p', 'ep-no', (ep.series ? ep.series + ' — ' : '') + 'Episode ' + ep.number));
-    var h = el('h3');
-    if (playable) {
-      var a = el('a', 'card-link', ep.title);
-      a.href = ep.path;
-      h.appendChild(a);
-    } else {
-      h.textContent = ep.title;
-    }
-    body.appendChild(h);
-    body.appendChild(el('p', 'tag', ep.tagline));
-    if (playable) body.appendChild(el('span', 'cta', 'Play now →'));
-    li.appendChild(body);
+  function row(parent, label, file, fileCls) {
+    parent.appendChild(el('span', 'num'));
+    parent.lastChild.setAttribute('aria-hidden', 'true');
+    parent.appendChild(el('span', 'label', label));
+    parent.appendChild(el('span', 'file' + (fileCls ? ' ' + fileCls : ''), file));
+  }
+
+  function playRow(ep) {
+    var li = el('li', 'ep');
+    var a = el('a');
+    a.href = ep.path;
+    row(a, 'Play Episode ' + ep.number, ep.file || 'FIZZ' + ep.number + '.EXE', 'ok');
+    li.appendChild(a);
     return li;
+  }
+
+  function lockedRow(ep) {
+    var li = el('li', 'ep locked');
+    var div = el('div', 'row');
+    row(div, 'Episode ' + ep.number + ' · coming soon', 'LOCKED', 'lock');
+    li.appendChild(div);
+    return li;
+  }
+
+  function block(ep, newest, isNew, menuNumber) {
+    var id = ep.id + '-h';
+    var s = el('section', 'episode');
+    s.setAttribute('aria-labelledby', id);
+    var p = el('p', 'prompt');
+    p.appendChild(el('span', 'ps', 'C:\\FIZZ>'));
+    p.appendChild(document.createTextNode(' type EPISODE' + ep.number + '.TXT'));
+    s.appendChild(p);
+
+    var box = el('div', 'box ' + (newest ? 'yellow' : 'grey'));
+    var head = el('p', 'box-head');
+    var tag = el('b', 'tag', 'EPISODE ' + ep.number + (ep.kind ? ' · ' + ep.kind : ''));
+    if (isNew) {
+      tag.appendChild(document.createTextNode(' '));
+      tag.appendChild(el('span', 'badge', 'NEW'));
+    }
+    head.appendChild(tag);
+    head.appendChild(el('span', 'ok', 'STATUS: PLAYABLE'));
+    box.appendChild(head);
+    var h = el('h2', 'ep-title', ep.title);
+    h.id = id;
+    box.appendChild(h);
+    if (ep.blurb) box.appendChild(el('p', null, ep.blurb));
+    var a = el('a', 'btn' + (newest ? '' : ' grey'));
+    a.href = ep.path;
+    a.textContent = (newest ? '' : '[' + menuNumber + '] ') + 'Play Episode ' + ep.number + ' ►';
+    box.appendChild(a);
+    if (newest) box.appendChild(el('p', null, 'Runs in your browser. No install, no modem.'));
+    s.appendChild(box);
+    return s;
   }
 
   fetch('episodes.json', { cache: 'no-cache' })
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (data) {
-      var eps = (data.episodes || []).slice().sort(function (a, b) { return a.number - b.number; });
-      grid.textContent = '';
-      eps.forEach(function (ep) { grid.appendChild(card(ep)); });
-      var more = el('li', 'card more');
-      var b = el('div', 'card-body');
-      b.appendChild(el('h3', null, 'More episodes soon'));
-      b.appendChild(el('p', 'tag', 'Zargoth is a big planet. Watch the repository for news.'));
-      more.appendChild(b);
-      grid.appendChild(more);
+      var eps = data.episodes || [];
+      var playable = eps.filter(function (e) { return e.status === 'playable'; })
+        .sort(function (a, b) { return b.number - a.number; });
+      var locked = eps.filter(function (e) { return e.status !== 'playable'; })
+        .sort(function (a, b) { return a.number - b.number; });
+      if (!playable.length) return;
+
+      [].slice.call(menu.querySelectorAll('li.ep')).forEach(function (li) { li.remove(); });
+      var first = menu.firstChild;
+      playable.forEach(function (ep) { menu.insertBefore(playRow(ep), first); });
+      locked.forEach(function (ep) { menu.appendChild(lockedRow(ep)); });
+      var nums = menu.querySelectorAll('.num');
+      for (var i = 0; i < nums.length; i++) nums[i].textContent = '[' + (i + 1) + ']';
+
+      latest.textContent = '';
+      older.textContent = '';
+      playable.forEach(function (ep, i) {
+        var log = i === 0 ? latest : older;
+        log.appendChild(block(ep, i === 0, i === 0 && playable.length > 1, i + 1));
+      });
     })
-    .catch(function () { /* keep the no-JS fallback link */ });
+    .catch(function () { /* keep the static Episode 1 row and block */ });
 })();

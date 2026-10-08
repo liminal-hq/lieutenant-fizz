@@ -3,13 +3,22 @@
     {
       "id": "episode-1",
       "number": 1,
-      "series": "Lieutenant Fizz",
       "title": "The Cocoa Caper",
-      "tagline": "Billy is missing, the Zargs are stealing Earth's cocoa beans, and Ben has a pogo stick, a Fizz Blaster and a spaghetti saucer.",
       "status": "playable",
       "path": "./episode-1/",
-      "thumbnail": "assets/episode-1.jpg",
-      "thumbnailAlt": "The spaghetti and meatballs saucer trailing marinara exhaust through space in the Episode 1 opening cinematic"
+      "file": "FIZZ.EXE",
+      "kind": "DOOR GAME",
+      "blurb": "The Zargs are stealing Earth’s cocoa beans and Ben’s cousin Billy has gone missing. Pogo, fizz and wall-kick across fifteen levels of Planet Zargoth to bring him home."
+    },
+    {
+      "id": "episode-2",
+      "number": 2,
+      "status": "coming-soon"
+    },
+    {
+      "id": "episode-3",
+      "number": 3,
+      "status": "coming-soon"
     }
   ]
 }
