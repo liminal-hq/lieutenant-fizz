@@ -43,6 +43,11 @@ Verified by `cargo test`, `vitest` (including the real WASM) and a real browser 
 - **Fizz pixel font in the overlay:** every overlay surface (HUD, menus, prompts, toasts, dialogue, letterbox, credits, stinger, engine panel, loading and errors) is set in Fizz at whole-pixel sizes chosen from the window height. Menus use the stepped plate and the soda bullet. The webfonts (Space Grotesk, Inter, JetBrains Mono) are gone.
 - **Fizz pixel font:** the family (Regular, Bold, Oblique, Bold Oblique, Condensed, and Mono Regular and Bold) is generated from the glyph grids in `packages/engine/src/font` into OTF and WOFF2 files under `packages/engine/assets/fonts`, with Canadian French accents, box drawing, the 24 pictures and button and keycap glyphs. `bun run check:font` (part of `validate`) fails if the committed files are stale. See [FONT.md](FONT.md).
 
+## Planned
+Written down in `docs/` before any code, and iterated in pull requests. None of it is built.
+- **Tauri app and React launcher** (`docs/APP.md`): one Android and desktop app for every episode, with a React launcher that replaces each episode's title screen when launched from the app, a shared options key and a launch contract.
+- **Mobile** (`docs/MOBILE.md`): touch controls, a UI layout tailored to phones, and haptics through the Tauri haptics plugin, driven by the same events as audio and captions.
+
 ## Known gaps and deviations
 - **Quick-save is progress-only.** The prototype serialised the whole simulation mid-level; the port saves progress at map granularity (F5 in a level saves progress, F9 returns to the map). Full mid-level snapshots need a serialisable world in Rust (planned).
 - **Playability is only partly tested.** The playtest bot proves Crater Fields, Crystal Caves, Meteor Mesa, Zarg Lookout, Marshmallow Meadows, Bonbon Playhouse, Fudge Bog, Mirror Shafts, the Sugar Glass Gallery, Frosting Flats, Frosting Spire, the Cocoa Foundry and Whisper Hollow can be finished without enemies. No human has played them, difficulty tuning and secret areas are still open questions, and the boss fight is untested.
@@ -50,7 +55,7 @@ Verified by `cargo test`, `vitest` (including the real WASM) and a real browser 
 - **Cinematic text** uses the prototype's eight panels, which `STORY.md` records in full.
 - **Design-system tokens:** the overlay uses the Afterglow colours, scrims and panels as hard-coded values, not the Liminal HQ design-system tokens or components.
 - **Sparse spatial grid / quadtree** for entity-entity tests is not built (O(n) per level, as in the prototype). Entities are cloned per tick; shots and effects still allocate, so the "no GC / no allocation in play" target is not met yet.
-- **Cast shadows, WebGPU, Tauri shell, React overlay** from the spec are not started.
+- **Cast shadows, WebGPU, Tauri shell, React overlay** from the spec are not started. The Tauri app and the React launcher are planned in `docs/APP.md`.
 - **Gamepad** mapping is unit-tested but not exercised against real hardware.
-- **Mobile and touch controls** are not implemented.
+- **Mobile and touch controls** are not implemented. Touch controls, a mobile UI layout and haptics are planned in `docs/MOBILE.md`.
 - **Bundle:** three.js dominates (~590 kB minified); no code splitting.
