@@ -1,0 +1,42 @@
+// Browser checks that desktop is unchanged and that a UHD canvas can still go Sharp.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+import { expect, test } from '@playwright/test';
+import { measure, openLevel, view } from './pixels';
+
+for (const [w, h] of [
+  [1280, 720],
+  [2560, 1440],
+] as const) {
+  test(`desktop at ${w}x${h} stays Soft with 13 tiles`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await openLevel(page, '/?debug');
+    const v = await view(page);
+    expect(v.sharp).toBe(false);
+    expect(v.scale).toBe(0);
+    expect(v.tiles).toBe(13);
+    expect(v.dpr).toBe(1);
+    expect([v.canvasW, v.canvasH]).toEqual([w, h]);
+    expect(v.budgeted).toBe(false);
+  });
+}
+
+// A 3840 x 2160 canvas: about 7 s in software GL, so it runs by default.
+test.describe('UHD', () => {
+  test.use({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 2 });
+
+  test('?pixels=sharp at 3840x2160 is scale 10 with 13.5 tiles', async ({ page }) => {
+    test.slow();
+    await openLevel(page, '/?debug&pixels=sharp');
+    const v = await view(page);
+    expect([v.canvasW, v.canvasH]).toEqual([3840, 2160]);
+    expect(v.k).toBe(1);
+    expect(v.scale).toBe(10);
+    expect(v.tiles).toBe(13.5);
+    const m = await measure(page, v);
+    expect(m.divisor).toBe(10);
+    expect(m.congruent).toBe(true);
+  });
+});
