@@ -9,12 +9,16 @@ import { contains, undersizedTargets } from './touch';
 import {
   DEFAULT_TOUCH_SPEC,
   controlSide,
+  controlZone,
   inside,
   placeControls,
   safeRect,
   sideGutters,
   sideTops,
+  validPlacement,
+  type EdgeOffset,
   type Insets,
+  type MovableId,
   type TouchSpec,
 } from './touch-layout';
 
@@ -200,4 +204,230 @@ describe('controlSide and sideTops', () => {
     const flipped = placeControls(844, 390, NOTCH, { ...DEFAULT_TOUCH_SPEC, leftHanded: true });
     expect(sideTops(flipped, 844, 390, ['dpad']).right).toBe(182);
   });
+});
+
+describe('moved controls', () => {
+  const moved = (m: Partial<Record<MovableId, EdgeOffset>>, extra: Partial<TouchSpec> = {}) => ({
+    ...DEFAULT_TOUCH_SPEC,
+    moved: m,
+    ...extra,
+  });
+
+  it('is the default layout, and not custom, when nothing moved', () => {
+    const base = placeControls(844, 390, NONE);
+    expect(base.custom).toBe(false);
+    expect(base.face.dpad).toEqual({ cx: 99, cy: 293, r: 75 });
+    expect(placeControls(844, 390, NONE, moved({})).custom).toBe(false);
+    expect(placeControls(844, 390, NONE, moved({})).face).toEqual(base.face);
+  });
+
+  it('has the D-pad zone x 91 to 181 and y 171 to 299 at 844×390', () => {
+    expect(controlZone('dpad', 844, 390, NONE)).toEqual({ x: 91, y: 171, w: 90, h: 128 });
+  });
+
+  it('keeps every default place inside its zone', () => {
+    for (const [w, h] of SIZES) {
+      for (const insets of [NONE, NOTCH]) {
+        for (const leftHanded of [false, true]) {
+          const spec = { ...DEFAULT_TOUCH_SPEC, leftHanded };
+          const p = placeControls(w, h, insets, spec);
+          for (const id of ['dpad', 'jump', 'pogo', 'fire'] as const) {
+            const z = controlZone(id, w, h, insets, spec);
+            const c = p.face[id];
+            const where = `${id} ${w}×${h} ${leftHanded ? 'left' : 'right'}`;
+            expect(c.cx, where).toBeGreaterThanOrEqual(z.x - 1e-9);
+            expect(c.cx, where).toBeLessThanOrEqual(z.x + z.w + 1e-9);
+            expect(c.cy, where).toBeGreaterThanOrEqual(z.y - 1e-9);
+            expect(c.cy, where).toBeLessThanOrEqual(z.y + z.h + 1e-9);
+          }
+        }
+      }
+    }
+  });
+
+  it('places a D-pad at (150, 200) and leaves 483 px for Options', () => {
+    // 150 - 75 = 75 from the left edge; 390 - 200 - 75 = 115 up from the bottom.
+    const p = placeControls(844, 390, NONE, moved({ dpad: { side: 75, bottom: 115 } }));
+    expect(p.custom).toBe(true);
+    expect(p.face.dpad).toEqual({ cx: 150, cy: 200, r: 75 });
+    const g = sideGutters(p, 844, ['dpad', 'jump', 'pause']);
+    expect(g.left).toBe(241);
+    expect(844 - g.left - g.right).toBe(483);
+  });
+
+  it('clamps the same offset into the zone at 740×360 and keeps the stored value', () => {
+    const spec = moved({ dpad: { side: 75, bottom: 115 } });
+    const p = placeControls(740, 360, NONE, spec);
+    expect(p.face.dpad).toEqual({ cx: 129, cy: 171, r: 75 });
+    expect(spec.moved?.dpad).toEqual({ side: 75, bottom: 115 });
+  });
+
+  it('clamps an offset of 2000 to the zone corner', () => {
+    const p = placeControls(844, 390, NONE, moved({ dpad: { side: 2000, bottom: 2000 } }));
+    expect(p.custom).toBe(true);
+    expect(p.face.dpad.cy).toBe(0 + 96 + 75);
+    expect(p.face.dpad.cx).toBe(181);
+    const q = placeControls(844, 390, NONE, moved({ jump: { side: 2000, bottom: 200 } }));
+    const z = controlZone('jump', 844, 390, NONE);
+    expect(q.face.jump.cx).toBeCloseTo(z.x, 9);
+  });
+
+  it('falls back to the defaults for the whole layout when two controls overlap', () => {
+    const same = { side: 30, bottom: 30 };
+    const base = placeControls(844, 390, NONE);
+    const p = placeControls(
+      844,
+      390,
+      NONE,
+      moved({ jump: same, pogo: same, dpad: { side: 75, bottom: 115 } }),
+    );
+    expect(p.custom).toBe(false);
+    expect(p.face).toEqual(base.face);
+    expect(p.hit).toEqual(base.hit);
+  });
+
+  it('validPlacement rejects overlap, closeness and a hit area outside the safe rectangle', () => {
+    const safe = safeRect(844, 390, NONE);
+    const ok = placeControls(844, 390, NONE);
+    expect(validPlacement(ok, safe, 8)).toBe(true);
+    expect(validPlacement(ok, { ...safe, w: 700 }, 8)).toBe(false);
+    expect(validPlacement(ok, safe, 500)).toBe(false);
+    const stacked = {
+      ...ok,
+      face: { ...ok.face, pogo: ok.face.jump },
+      hit: { ...ok.hit, pogo: ok.hit.jump },
+    };
+    expect(validPlacement(stacked, safe, 8)).toBe(false);
+  });
+
+  it('mirrors a custom position when left-handed', () => {
+    const m = { dpad: { side: 75, bottom: 115 }, jump: { side: 200, bottom: 150 } };
+    const right = placeControls(844, 390, NONE, moved(m));
+    const left = placeControls(844, 390, NONE, moved(m, { leftHanded: true }));
+    expect(left.custom).toBe(true);
+    expect(left.face.dpad.cx).toBe(844 - right.face.dpad.cx);
+    expect(left.face.jump.cx).toBe(844 - right.face.jump.cx);
+    expect(left.face.dpad.cy).toBe(right.face.dpad.cy);
+  });
+
+  it('scales a custom layout about its corner with the Size setting', () => {
+    const m = moved({ dpad: { side: 40, bottom: 115 } }, { scale: 1.2 });
+    const p = placeControls(844, 390, NONE, m);
+    // The face edge stays 40 × 1.2 from the left.
+    expect(p.face.dpad.cx - p.face.dpad.r).toBeCloseTo(48, 9);
+  });
+
+  it('keeps the moved D-pad at its distance from a notch', () => {
+    const p = placeControls(844, 390, NOTCH, moved({ dpad: { side: 40, bottom: 115 } }));
+    expect(p.face.dpad.cx - p.face.dpad.r).toBeCloseTo(NOTCH.left + 40, 9);
+    expect(p.hit.dpad.cx - p.hit.dpad.r).toBeGreaterThanOrEqual(NOTCH.left + 8);
+  });
+});
+
+describe('placement invariants', () => {
+  const windows: [number, number][] = [
+    [844, 390],
+    [740, 360],
+    [640, 320],
+    [915, 412],
+  ];
+  const offsetSets: [string, Partial<Record<MovableId, EdgeOffset>>][] = [
+    ['none', {}],
+    [
+      'all 0',
+      {
+        dpad: { side: 0, bottom: 0 },
+        jump: { side: 0, bottom: 0 },
+        pogo: { side: 0, bottom: 0 },
+        fire: { side: 0, bottom: 0 },
+      },
+    ],
+    [
+      'all 2000',
+      {
+        dpad: { side: 2000, bottom: 2000 },
+        jump: { side: 2000, bottom: 2000 },
+        pogo: { side: 2000, bottom: 2000 },
+        fire: { side: 2000, bottom: 2000 },
+      },
+    ],
+    ['D-pad at 0', { dpad: { side: 0, bottom: 0 } }],
+    ['D-pad at 2000', { dpad: { side: 2000, bottom: 2000 } }],
+    ['Jump at 2000', { jump: { side: 2000, bottom: 2000 } }],
+    ['Fizz at 2000', { fire: { side: 2000, bottom: 2000 } }],
+    ['overlapping', { jump: { side: 40, bottom: 40 }, pogo: { side: 40, bottom: 40 } }],
+    [
+      'inward max',
+      {
+        dpad: { side: 2000, bottom: 0 },
+        jump: { side: 2000, bottom: 0 },
+        pogo: { side: 2000, bottom: 200 },
+        fire: { side: 2000, bottom: 400 },
+      },
+    ],
+  ];
+  const sizes = [0.85, 1, 1.2];
+  const ids: ControlId[] = ['dpad', 'jump', 'pogo', 'fire', 'pause'];
+
+  for (const [w, h] of windows) {
+    for (const [iname, insets] of [
+      ['no insets', NONE],
+      ['a notch', NOTCH],
+    ] as const) {
+      for (const scale of sizes) {
+        for (const leftHanded of [false, true]) {
+          for (const [oname, m] of offsetSets) {
+            const name = `${w}×${h}, ${iname}, ×${scale}, ${leftHanded ? 'left' : 'right'}-handed, ${oname}`;
+            it(name, () => {
+              const spec: TouchSpec = { ...DEFAULT_TOUCH_SPEC, scale, leftHanded, moved: m };
+              const p = placeControls(w, h, insets, spec);
+              const safe = safeRect(w, h, insets);
+              // The D-pad alone cannot reach another control, so these sets must keep their custom placement
+              // (the clamping is what is being checked, not the fallback).
+              if (oname.startsWith('D-pad')) {
+                expect(p.custom, 'custom').toBe(true);
+              }
+              expect(undersizedTargets(p.hit)).toEqual([]);
+              for (const id of ids) expect(inside(safe, p.hit[id]), `${id} hit inside`).toBe(true);
+              for (let i = 0; i < ids.length; i++) {
+                for (let j = i + 1; j < ids.length; j++) {
+                  const a = circleOf(p.hit[ids[i]!]!);
+                  const b = circleOf(p.hit[ids[j]!]!);
+                  expect(
+                    Math.hypot(a.cx - b.cx, a.cy - b.cy),
+                    `${ids[i]} and ${ids[j]} hit areas`,
+                  ).toBeGreaterThan(a.r + b.r - 1e-6);
+                  const fa = p.face[ids[i]!];
+                  const fb = p.face[ids[j]!];
+                  expect(
+                    Math.hypot(fa.cx - fb.cx, fa.cy - fb.cy) - fa.r - fb.r,
+                    `${ids[i]} and ${ids[j]} faces`,
+                  ).toBeGreaterThanOrEqual(8 - 1e-6);
+                }
+              }
+              if (p.custom) {
+                for (const id of ['dpad', 'jump', 'pogo', 'fire'] as const) {
+                  if (m[id]) {
+                    expect(
+                      p.face[id].cy - p.face[id].r,
+                      `${id} below the top band`,
+                    ).toBeGreaterThanOrEqual(safe.y + 96 - 1e-6);
+                  }
+                }
+              }
+              const menu = sideGutters(p, w, ['dpad', 'jump', 'pause']);
+              const base = sideGutters(placeControls(w, h, insets, { ...spec, moved: {} }), w, [
+                'dpad',
+                'jump',
+                'pause',
+              ]);
+              expect(menu.left + menu.right).toBeLessThanOrEqual(
+                Math.max(w - 300, base.left + base.right) + 1e-6,
+              );
+            });
+          }
+        }
+      }
+    }
+  }
 });

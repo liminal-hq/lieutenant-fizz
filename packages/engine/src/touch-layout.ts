@@ -54,6 +54,20 @@ export interface TouchSpec {
   leftHanded: boolean;
   /** Controls the player moved, by their offset from the safe corner; absent means the default place. */
   moved?: Partial<Record<MovableId, EdgeOffset>>;
+  /** Room kept free when controls are moved, in CSS pixels. */
+  reserve: Reserve;
+}
+
+/** The space a moved control must leave alone. */
+export interface Reserve {
+  /** From the top of the safe area down: clears the HUD pills, the boss and toast lines and Pause. */
+  top: number;
+  /** The narrowest menu column, kept free between the two sides. */
+  content: number;
+  /** The least space between two faces. */
+  gap: number;
+  /** The least space between a hit area and the edge of the safe area. */
+  edge: number;
 }
 
 export const DEFAULT_TOUCH_SPEC: TouchSpec = {
@@ -67,6 +81,7 @@ export const DEFAULT_TOUCH_SPEC: TouchSpec = {
   pause: { d: 36, hit: 48, right: 8, top: 8 },
   scale: 1,
   leftHanded: false,
+  reserve: { top: 96, content: 300, gap: 8, edge: 8 },
 };
 
 export interface PlacedControls {
@@ -74,6 +89,8 @@ export interface PlacedControls {
   hit: TouchLayout;
   /** The drawn faces, for the DOM (a face can be smaller than its hit area, never the reverse). */
   face: Record<ControlId, Circle>;
+  /** Whether the player's moved controls are in use; false when none moved or the layout fell back to the defaults. */
+  custom: boolean;
 }
 
 /** The window minus the insets: where controls and the HUD may sit. */
@@ -96,6 +113,9 @@ export function inside(r: Rect, s: Shape): boolean {
   return s.x >= r.x && s.x + s.w <= r.x + r.w && s.y >= r.y && s.y + s.h <= r.y + r.h;
 }
 
+/** Rounds up to a whole pixel, ignoring floating-point noise a few billionths over a whole number. */
+const up = (v: number): number => Math.ceil(v - 1e-9);
+
 /** How far menu content keeps from each side so it never sits under a control, in CSS pixels. */
 export interface Gutters {
   left: number;
@@ -117,8 +137,8 @@ export function sideGutters(
   let right = 0;
   for (const id of shown) {
     const f = placed.face[id];
-    if (f.cx < width / 2) left = Math.max(left, Math.ceil(f.cx + f.r + margin));
-    else right = Math.max(right, Math.ceil(width - (f.cx - f.r) + margin));
+    if (f.cx < width / 2) left = Math.max(left, up(f.cx + f.r + margin));
+    else right = Math.max(right, up(width - (f.cx - f.r) + margin));
   }
   return { left, right };
 }
@@ -169,41 +189,180 @@ const fit = (height: number, spec: TouchSpec): number => {
   return Math.min(1, Math.max(floor, height / 360));
 };
 
-/** Places every control for a window of `width` × `height` CSS pixels with these safe-area insets. */
-export function placeControls(
+const MOVABLE: readonly MovableId[] = ['dpad', 'jump', 'pogo', 'fire'];
+/** The gap menu content keeps from a control (the default margin of `sideGutters`). */
+const GUTTER_MARGIN = 16;
+
+/** The numbers placement shares: the scale, and the window in mirror space (the hand side on the left). */
+interface Frame {
+  w: number;
+  h: number;
+  insets: Insets;
+  spec: TouchSpec;
+  s: number;
+  mirror: boolean;
+  /** The inset on the hand side and on the action side. */
+  left: number;
+  right: number;
+}
+
+function frameOf(w: number, h: number, insets: Insets, spec: TouchSpec): Frame {
+  const smallest = Math.min(spec.jump.d, spec.pogo.d, spec.fire.d);
+  // The Size scale applies after the short-screen fit, so a Small layout on a short screen would
+  // shrink the smallest button below minHit; the floor is applied to the product.
+  const s = Math.max(spec.minHit / smallest, fit(h, spec) * spec.scale);
+  // Right-handed puts the D-pad on the left. Left-handed lays everything out as a mirror image, with
+  // the insets swapped, and flips x at the end.
+  const mirror = spec.leftHanded;
+  return {
+    w,
+    h,
+    insets,
+    spec,
+    s,
+    mirror,
+    left: mirror ? insets.right : insets.left,
+    right: mirror ? insets.left : insets.right,
+  };
+}
+
+const flipX = (f: Frame, x: number): number => (f.mirror ? f.w - x : x);
+const diameter = (f: Frame, id: MovableId): number => f.spec[id].d;
+
+/** Where a control starts, as the offset the spec holds. */
+const defaultOffset = (spec: TouchSpec, id: MovableId): EdgeOffset =>
+  id === 'dpad'
+    ? { side: spec.dpad.left, bottom: spec.dpad.bottom }
+    : { side: spec[id].right, bottom: spec[id].bottom };
+
+/** A control's face in mirror space, at an offset from its own safe corner. */
+function faceAt(f: Frame, id: MovableId, off: EdgeOffset): Circle {
+  const d = diameter(f, id);
+  const r = (d / 2) * f.s;
+  const cy = f.h - f.insets.bottom - (off.bottom + d / 2) * f.s;
+  const cx =
+    id === 'dpad' ? f.left + (off.side + d / 2) * f.s : f.w - f.right - (off.side + d / 2) * f.s;
+  return { cx, cy, r };
+}
+
+/** The radius of a control's hit area, given its face radius. */
+const hitRadius = (f: Frame, id: MovableId, r: number): number =>
+  id === 'dpad' ? r + f.spec.dpadSlop : Math.max(r, f.spec.minHit / 2);
+
+/**
+ * How much room each side of a menu may take, in whole pixels: the gutter of the D-pad on the hand side
+ * and of the buttons on the other. A menu keeps `reserve.content` between them, so together they take
+ * at most `w - content`, split evenly, except that a side's default place is always allowed and the
+ * other side then gives up what it needs (the sum never exceeds `max(w - content, the default sum)`).
+ */
+function gutterLimits(f: Frame): { hand: number; action: number } {
+  const dp = faceAt(f, 'dpad', defaultOffset(f.spec, 'dpad'));
+  const jp = faceAt(f, 'jump', defaultOffset(f.spec, 'jump'));
+  const defHand = up(dp.cx + dp.r + GUTTER_MARGIN);
+  const defAction = up(f.w - (jp.cx - jp.r) + GUTTER_MARGIN);
+  const budget = f.w - f.spec.reserve.content;
+  const half = Math.ceil(budget / 2);
+  return {
+    hand: Math.max(defHand, budget - Math.max(defAction, half)),
+    action: Math.max(defAction, budget - Math.max(defHand, half)),
+  };
+}
+
+/** The box a control's face centre may be in, in mirror space. */
+function zoneMirror(f: Frame, id: MovableId): Rect {
+  const def = faceAt(f, id, defaultOffset(f.spec, id));
+  const rh = hitRadius(f, id, def.r);
+  const { top, edge } = f.spec.reserve;
+  const yLo = f.insets.top + top + def.r;
+  const yHi = f.h - f.insets.bottom - edge - rh;
+  const limit = gutterLimits(f);
+  let xLo: number;
+  let xHi: number;
+  if (id === 'dpad') {
+    xLo = f.left + edge + rh;
+    xHi = limit.hand - GUTTER_MARGIN - def.r;
+  } else {
+    xLo = f.w + GUTTER_MARGIN - limit.action + def.r;
+    xHi = f.w - f.right - edge - rh;
+  }
+  // A window too small to hold the zone keeps the default place.
+  if (xLo > xHi || yLo > yHi) return { x: def.cx, y: def.cy, w: 0, h: 0 };
+  // The default place is always allowed, so a layout that was never moved is never pushed.
+  xLo = Math.min(xLo, def.cx);
+  xHi = Math.max(xHi, def.cx);
+  const y0 = Math.min(yLo, def.cy);
+  const y1 = Math.max(yHi, def.cy);
+  return { x: xLo, y: y0, w: xHi - xLo, h: y1 - y0 };
+}
+
+/**
+ * The box the centre of a movable control's face may be in, in window coordinates: on its own side of
+ * the screen, below the top band, inside the safe area, and leaving menus a column of
+ * `spec.reserve.content` px. The default place is always inside it.
+ */
+export function controlZone(
+  id: MovableId,
   width: number,
   height: number,
   insets: Insets,
   spec: TouchSpec = DEFAULT_TOUCH_SPEC,
-): PlacedControls {
-  // The Size scale applies after the short-screen fit, so a Small layout on a short screen would
-  // shrink the smallest button below minHit; the floor is applied to the product.
-  const smallest = Math.min(spec.jump.d, spec.pogo.d, spec.fire.d);
-  const s = Math.max(spec.minHit / smallest, fit(height, spec) * spec.scale);
-  // Right-handed puts the D-pad on the left. Left-handed lays everything out as a mirror image, with
-  // the insets swapped, and flips x at the end.
-  const mirror = spec.leftHanded;
-  const left = mirror ? insets.right : insets.left;
-  const right = mirror ? insets.left : insets.right;
-  const flip = (x: number): number => (mirror ? width - x : x);
+): Rect {
+  const f = frameOf(width, height, insets, spec);
+  const z = zoneMirror(f, id);
+  return f.mirror ? { ...z, x: width - z.x - z.w } : z;
+}
 
-  const dpad: Circle = {
-    cx: flip(left + (spec.dpad.left + spec.dpad.d / 2) * s),
-    cy: height - insets.bottom - (spec.dpad.bottom + spec.dpad.d / 2) * s,
-    r: (spec.dpad.d / 2) * s,
-  };
-  const button = (b: ButtonSpec): Circle => ({
-    cx: flip(width - right - (b.right + b.d / 2) * s),
-    cy: height - insets.bottom - (b.bottom + b.d / 2) * s,
-    r: (b.d / 2) * s,
-  });
-  const jump = button(spec.jump);
-  const pogo = button(spec.pogo);
-  const fire = button(spec.fire);
+const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
+
+const EPS = 1e-6;
+
+/** The distance between two hit areas' edges: negative when they overlap. */
+function hitClearance(a: Shape, b: Shape): number {
+  if ('r' in a && 'r' in b) return Math.hypot(a.cx - b.cx, a.cy - b.cy) - a.r - b.r;
+  const [c, r] = 'r' in a ? [a, b as Rect] : [b as Circle, a as Rect];
+  const nx = clamp(c.cx, r.x, r.x + r.w);
+  const ny = clamp(c.cy, r.y, r.y + r.h);
+  return Math.hypot(c.cx - nx, c.cy - ny) - c.r;
+}
+
+/**
+ * Whether a placement is usable: every hit area inside the safe rectangle, no two hit areas
+ * overlapping, and every two faces at least `gap` apart.
+ */
+export function validPlacement(placed: PlacedControls, safe: Rect, gap: number): boolean {
+  const ids: ControlId[] = ['dpad', 'jump', 'pogo', 'fire', 'pause'];
+  for (const id of ids) if (!inside(safe, placed.hit[id])) return false;
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      const a = ids[i]!;
+      const b = ids[j]!;
+      if (hitClearance(placed.hit[a], placed.hit[b]) < -EPS) return false;
+      const fa = placed.face[a];
+      const fb = placed.face[b];
+      if (hitClearance(fa, fb) < gap - EPS) return false;
+    }
+  }
+  return true;
+}
+
+/** Builds the placement for a frame, with these controls moved (clamped into their zones). */
+function build(f: Frame, moved: TouchSpec['moved']): PlacedControls {
+  const { spec } = f;
+  const circle = {} as Record<MovableId, Circle>;
+  for (const id of MOVABLE) {
+    const off = moved?.[id];
+    let c = faceAt(f, id, off ?? defaultOffset(spec, id));
+    if (off) {
+      const z = zoneMirror(f, id);
+      c = { ...c, cx: clamp(c.cx, z.x, z.x + z.w), cy: clamp(c.cy, z.y, z.y + z.h) };
+    }
+    circle[id] = { ...c, cx: flipX(f, c.cx) };
+  }
+  const { dpad, jump, pogo, fire } = circle;
 
   const pauseRect: Rect = {
-    x: width - insets.right - spec.pause.right - spec.pause.hit,
-    y: insets.top + spec.pause.top,
+    x: f.w - f.insets.right - spec.pause.right - spec.pause.hit,
+    y: f.insets.top + spec.pause.top,
     w: spec.pause.hit,
     h: spec.pause.hit,
   };
@@ -223,5 +382,28 @@ export function placeControls(
       pause: pauseRect,
     },
     face: { dpad, jump, pogo, fire, pause: pauseFace },
+    custom: false,
   };
+}
+
+/**
+ * Places every control for a window of `width` × `height` CSS pixels with these safe-area insets.
+ * Moved controls are clamped into their zones; if the result is not a valid placement (two controls
+ * on top of each other, say) the whole layout falls back to the default places.
+ */
+export function placeControls(
+  width: number,
+  height: number,
+  insets: Insets,
+  spec: TouchSpec = DEFAULT_TOUCH_SPEC,
+): PlacedControls {
+  const f = frameOf(width, height, insets, spec);
+  const moved = spec.moved;
+  if (moved && MOVABLE.some((id) => moved[id])) {
+    const custom = build(f, moved);
+    if (validPlacement(custom, safeRect(width, height, insets), spec.reserve.gap)) {
+      return { ...custom, custom: true };
+    }
+  }
+  return build(f, undefined);
 }
