@@ -112,6 +112,16 @@ Until slice 2 lands the game has no touch controls, so a phone can show the titl
 - **A preview without the dev server:** the GitHub Pages build of a branch works for anything that does not need the dev server.
 - **Checking on a phone, today:** the layout and type at phone sizes, the pixel scale and blur on a high-DPI screen, audio unlock on the first tap, and frame rate and heat.
 
+## First phone test
+The first run on a real phone, with the slice 0 dev loop (Firefox for Android, landscape, a 120 Hz screen, the URL bar showing, over Wi-Fi).
+- **It runs well.** The engine panel reported 114 to 119 fps (about 8.5 ms a frame) with the simulation steady at 60 Hz, one draw call and about 350 instances. The Fizz type is crisp and readable, the title menu and the in-level HUD look right at that size, and the level shows 13.0 tiles as designed. Firefox for Android is a supported target alongside Chrome.
+- **A black strip on the left.** The browser keeps the page out of the display cutout, so there is a black band down the left edge. With `viewport-fit=cover` (slice 2) the page draws into it, so the HUD, controls and menus must then use the safe-area insets.
+- **The Engine button and panel get in the way on touch.** The panel is tall enough to run off the bottom of the screen (its last toggles are cut off) and covers the "Attract" label. It is hidden on touch, as planned for slice 2, and the panel scrolls if it is ever opened on a small screen.
+- **Keyboard hints on a touch screen.** The title shows "Enter Select" and "↑↓ Choose". Touch hints are slice 5.
+- **The URL bar takes about 100 px of height**, so the visible height changes as it shows and hides. This confirms the `dvh` and `visualViewport` work in slice 2 and the fullscreen request in slice 7.
+- **120 Hz.** The game renders at the display rate while the simulation stays at 60 Hz. It holds that easily here, but a cap of 60 fps on touch devices would save battery and heat, so it is an option in slice 9 once there are battery numbers.
+- **The HUD** is the desktop panel (Score, Lives, Fizz and "Next life at 100"). It is large at this size and is replaced by the glass pills in slice 2.
+
 ## Testing
 - **Unit (vitest):** `slideDpad` (dead zone, rolling between arms, diagonals), `touchToBits` (multi-pointer), `latch` (a quick tap survives a step, a hold stays held), `nextDevice` with touch, touch hints, the cue table (every caption id in the mapping exists, cooldowns, scaling), `lf-touch-v1` parsing, and the scale maths.
 - **E2E (Playwright):** a touch project with `hasTouch`, `isMobile`, `deviceScaleFactor` and landscape viewports. `page.touchscreen.tap` for single taps, and the DevTools protocol (`Input.dispatchTouchEvent`) for multi-touch and slides. Audits: every control at least 48 × 48 dp, nothing under a safe-area inset, no control overlapping the HUD or the pause button, all pixel text `11 × n`, no horizontal overflow. `debugShow('play')` makes the in-level screen reachable.
