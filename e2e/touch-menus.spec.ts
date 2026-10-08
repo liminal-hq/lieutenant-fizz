@@ -1,0 +1,306 @@
+// Browser checks that the on-screen controls drive the menus like a gamepad on a landscape phone.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+import { expect, test, type CDPSession, type Page } from '@playwright/test';
+import { hintText } from '../packages/engine/src/font/tokens';
+import { audit } from './audit';
+
+interface Circle {
+  cx: number;
+  cy: number;
+  r: number;
+}
+type ControlId = 'dpad' | 'jump' | 'pogo' | 'fire' | 'pause';
+interface Lf {
+  debugShow(s: string): void;
+  debugState: { screen: string; sub: string | null; menu: number };
+  debugTouch: { face: Record<ControlId, Circle> } | null;
+}
+interface Point {
+  x: number;
+  y: number;
+  id: number;
+}
+
+const state = (page: Page): Promise<Lf['debugState']> =>
+  page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugState);
+const faces = async (page: Page): Promise<Record<ControlId, Circle>> => {
+  const p = await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugTouch);
+  if (!p) throw new Error('the touch controls are not showing');
+  return p.face;
+};
+
+/** Two saved slots, so Continue and Load game are enabled and the slot screen has content. */
+const SAVE = {
+  v: 3,
+  at: Date.UTC(2026, 9, 7, 16),
+  progress: {
+    lives: 3,
+    score: 12340,
+    nextLife: 12400,
+    ammo: 5,
+    doneMask: 0b10111,
+    played: 5400,
+    map: { x: 12.4, y: 29 },
+  },
+};
+
+/** Opens a screen with the controls pinned on (`?touch`), as a phone shows it. */
+async function open(page: Page, screen: string): Promise<void> {
+  await page.addInitScript((save) => {
+    localStorage.setItem('lf-ep1-slot-1', JSON.stringify(save));
+  }, SAVE);
+  await page.goto('/?debug&touch');
+  const gl = await page.evaluate(() => !!document.createElement('canvas').getContext('webgl2'));
+  if (!gl)
+    throw new Error('This Chromium has no WebGL2. Try LF_CHROMIUM_ARGS="--use-angle=gl-egl".');
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+    timeout: 20_000,
+  });
+  await page.evaluate((s) => (window as unknown as { __lf: Lf }).__lf.debugShow(s), screen);
+  await expect(page.locator('#touch')).toBeVisible();
+  await page.waitForTimeout(400);
+}
+
+/** Touch events through the DevTools protocol, so a finger can be held down. */
+async function fingers(page: Page): Promise<{
+  down(p: Point): Promise<void>;
+  up(): Promise<void>;
+}> {
+  const cdp: CDPSession = await page.context().newCDPSession(page);
+  return {
+    down: async (p) =>
+      void (await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x: p.x, y: p.y, id: p.id }],
+      })),
+    up: async () =>
+      void (await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })),
+  };
+}
+
+/** A short press on a D-pad arm. */
+async function dpad(page: Page, dir: 'up' | 'down' | 'left' | 'right', holdMs = 80): Promise<void> {
+  const d = (await faces(page)).dpad;
+  const off = d.r * 0.7;
+  const at = {
+    up: { x: d.cx, y: d.cy - off },
+    down: { x: d.cx, y: d.cy + off },
+    left: { x: d.cx - off, y: d.cy },
+    right: { x: d.cx + off, y: d.cy },
+  }[dir];
+  const f = await fingers(page);
+  await f.down({ ...at, id: 1 });
+  await page.waitForTimeout(holdMs);
+  await f.up();
+  await page.waitForTimeout(80);
+}
+
+async function tapControl(page: Page, id: ControlId): Promise<void> {
+  const c = (await faces(page))[id];
+  await page.touchscreen.tap(c.cx, c.cy);
+  await page.waitForTimeout(120);
+}
+
+const selected = (page: Page): Promise<string> =>
+  page.locator('#ui .menu:visible button.sel .lbl').first().innerText();
+
+/** The controls showing now. */
+const shown = (page: Page): Promise<string[]> =>
+  page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('#touch [data-control]')]
+      .filter((e) => !e.hidden && e.getBoundingClientRect().width > 0)
+      .map((e) => e.dataset.control ?? ''),
+  );
+
+/** The hint bar's text on the screen showing. */
+const hints = (page: Page): Promise<string[]> =>
+  page.evaluate(() => {
+    const bar = [...document.querySelectorAll<HTMLElement>('#ui .keys')].find(
+      (e) => e.getBoundingClientRect().width > 0,
+    );
+    return bar ? [...bar.children].map((s) => s.textContent ?? '') : [];
+  });
+
+/** Text and rows of the menu screens that overlap a shown control's face. */
+const underControls = (page: Page): Promise<string[]> =>
+  page.evaluate(() => {
+    const faces = [...document.querySelectorAll<HTMLElement>('#touch [data-control]')]
+      .filter((e) => !e.hidden)
+      .map((e) => e.querySelector('.face')?.getBoundingClientRect())
+      .filter((r): r is DOMRect => !!r && r.width > 0);
+    const content = [
+      ...document.querySelectorAll<HTMLElement>(
+        '#title :is(h1, p, button, table, .keys span), #overlay :is(h2, p, button, .keys span)',
+      ),
+    ].filter((e) => {
+      const r = e.getBoundingClientRect();
+      return r.width > 0 && getComputedStyle(e).visibility !== 'hidden';
+    });
+    const out: string[] = [];
+    for (const e of content) {
+      const r = e.getBoundingClientRect();
+      for (const f of faces) {
+        const hit =
+          Math.min(r.right, f.right) > Math.max(r.left, f.left) + 1 &&
+          Math.min(r.bottom, f.bottom) > Math.max(r.top, f.top) + 1;
+        if (hit) out.push(`${e.tagName} “${(e.textContent ?? '').trim().slice(0, 20)}”`);
+      }
+    }
+    return out;
+  });
+
+test('on the pause menu the D-pad moves and Select chooses', async ({ page }) => {
+  await open(page, 'pause');
+  expect(await selected(page)).toBe('Resume');
+  await dpad(page, 'down');
+  expect(await selected(page)).toBe('Save game');
+  await dpad(page, 'up');
+  expect(await selected(page)).toBe('Resume');
+  await tapControl(page, 'jump');
+  await expect.poll(() => state(page).then((s) => s.screen)).toBe('play');
+  // Back in play, every control shows again and Jump is Jump.
+  expect(await shown(page)).toEqual(['dpad', 'jump', 'pogo', 'fire', 'pause']);
+  await expect(page.locator('#touch [data-control="jump"] .lbl')).toHaveText('Jump');
+});
+
+test('Back (Pogo) closes Options', async ({ page }) => {
+  await open(page, 'options');
+  await expect(page.locator('#overlay')).toBeVisible();
+  await expect(page.locator('#touch [data-control="pogo"]')).toHaveAttribute('aria-label', 'Back');
+  await tapControl(page, 'pogo');
+  await expect(page.locator('#overlay')).toBeHidden();
+  await expect(page.locator('#title > .menu')).toBeVisible();
+  expect((await state(page)).sub).toBe(null);
+});
+
+for (const screen of ['pause', 'card', 'title', 'options', 'saves'] as const) {
+  test(`${screen}: the controls stay up, the hints are for touch and nothing sits under a control`, async ({
+    page,
+  }) => {
+    await open(page, screen);
+    const controls = await shown(page);
+    expect(controls).toContain('dpad');
+    expect(controls).toContain('jump');
+    expect(controls).not.toContain('fire');
+    await expect(page.locator('#touch [data-control="jump"] .lbl')).toHaveText('Select');
+    // Touch hints: the controls' names, with no key or gamepad glyph.
+    const bar = await hints(page);
+    expect(bar.length).toBeGreaterThan(0);
+    for (const h of bar) {
+      for (const ch of h) {
+        const cp = ch.codePointAt(0) ?? 0;
+        // Button glyphs (A, B, Start…) and whole keycaps (Esc, Enter, F5, F9…).
+        expect(cp >= 0xe000 && cp <= 0xe015, `${h} has a button glyph`).toBe(false);
+        expect(cp >= 0xe200 && cp <= 0xe2ff, `${h} has a keycap`).toBe(false);
+      }
+    }
+    expect(bar.some((h) => h.startsWith(hintText('{[D-pad]}')))).toBe(true);
+    // The pause menu shows no F5 or F9 on its rows.
+    await expect(page.locator('#overlay .menu .val', { hasText: /F5|F9/ })).toHaveCount(0);
+    expect(await underControls(page)).toEqual([]);
+    const report = await page.evaluate(audit, { roots: ['#ui', '#touch'] });
+    const { checked, ...problems } = report;
+    expect(checked).toBeGreaterThan(3);
+    expect(problems, JSON.stringify(problems, null, 2)).toMatchObject({
+      pageOverflow: [],
+      outside: [],
+      badSize: [],
+      clipped: [],
+      crowdsHints: [],
+    });
+  });
+}
+
+test('the pause hints read D-pad Choose, Select, Pause Resume', async ({ page }) => {
+  await open(page, 'pause');
+  expect(await hints(page)).toEqual([
+    hintText('{[D-pad]} Choose'),
+    hintText('{[Select]}'),
+    hintText('{[Pause]} Resume'),
+  ]);
+});
+
+test('a held D-pad direction repeats', async ({ page }) => {
+  await open(page, 'pause');
+  expect((await state(page)).menu).toBe(0);
+  // One press and then repeats from 350 ms, every 90 ms.
+  await dpad(page, 'down', 600);
+  const moved = (await state(page)).menu;
+  expect(moved).toBeGreaterThanOrEqual(2);
+});
+
+test('a Jump held as the level-cleared card appears chooses nothing until pressed again', async ({
+  page,
+}) => {
+  await open(page, 'play');
+  const jump = (await faces(page)).jump;
+  const f = await fingers(page);
+  await f.down({ x: jump.cx, y: jump.cy, id: 2 });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('card'));
+  await page.waitForTimeout(400);
+  expect((await state(page)).screen).toBe('card');
+  await f.up();
+  await page.waitForTimeout(300);
+  expect((await state(page)).screen).toBe('card');
+  await tapControl(page, 'jump');
+  await expect.poll(() => state(page).then((s) => s.screen)).toBe('play');
+});
+
+test('one tap on a row chooses it', async ({ page }) => {
+  await open(page, 'pause');
+  const row = page.locator('#overlay .menu button', { hasText: 'Options' });
+  const r = (await row.boundingBox())!;
+  await page.touchscreen.tap(r.x + r.width / 2, r.y + r.height / 2);
+  await expect(page.locator('#overlay h2')).toHaveText('Options');
+  expect((await state(page)).sub).toBe('options');
+});
+
+test('the Options steppers go down and up', async ({ page }) => {
+  await open(page, 'options');
+  const music = page.locator('#overlay .menu button').first();
+  const lit = (): Promise<number> => music.locator('.meter i.on').count();
+  const before = await lit();
+  const less = (await music.locator('[data-step="-1"]').boundingBox())!;
+  const more = (await music.locator('[data-step="1"]').boundingBox())!;
+  expect(Math.min(less.width, more.width)).toBeGreaterThanOrEqual(47.9);
+  await page.touchscreen.tap(less.x + less.width / 2, less.y + less.height / 2);
+  await expect.poll(lit).toBe(before - 1);
+  const more2 = (await music.locator('[data-step="1"]').boundingBox())!;
+  await page.touchscreen.tap(more2.x + more2.width / 2, more2.y + more2.height / 2);
+  await expect.poll(lit).toBe(before);
+  // The row a stepper is on becomes the selected one.
+  expect((await state(page)).menu).toBe(0);
+});
+
+test('a tap on the cinematic text finishes the line, then moves on', async ({ page }) => {
+  await open(page, 'cine');
+  await expect(page.locator('#touch [data-control="dpad"]')).toBeHidden();
+  const text = (await page.locator('#letterbox .bar.bottom .text').boundingBox())!;
+  const at = { x: text.x + 40, y: text.y + 10 };
+  await page.touchscreen.tap(at.x, at.y);
+  await expect(page.locator('#letterbox .hidden-text')).toHaveText('');
+  const pips = await page.locator('#letterbox .pips').innerText();
+  await page.waitForTimeout(150);
+  await page.touchscreen.tap(at.x, at.y);
+  await expect(page.locator('#letterbox .pips')).not.toHaveText(pips);
+});
+
+test('a tap on the dialogue moves to the next line', async ({ page }) => {
+  await open(page, 'dialogue');
+  const first = await page.locator('#dialogue .shown').innerText();
+  const box = (await page.locator('#dialogue .text').boundingBox())!;
+  await page.touchscreen.tap(box.x + 30, box.y + 10);
+  await expect(page.locator('#dialogue .shown')).not.toHaveText(first);
+});
+
+test('Skip and Continue are at least 48 dp', async ({ page }) => {
+  await open(page, 'cine');
+  for (const sel of ['#letterbox .skip', '#letterbox .next']) {
+    const b = (await page.locator(sel).boundingBox())!;
+    expect(Math.min(b.width, b.height), sel).toBeGreaterThanOrEqual(47.9);
+  }
+});

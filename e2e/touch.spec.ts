@@ -236,13 +236,14 @@ test('Fizz shows the ammo and a tap fires', async ({ page }) => {
   await expect(page.locator('#touch .count')).toHaveText(String(start - 1));
 });
 
-test('Pause opens the pause menu and hides the controls', async ({ page }) => {
+test('Pause opens the pause menu, which keeps the controls up for the menu', async ({ page }) => {
   await play(page);
   const { pause } = (await placed(page)).face;
   await page.touchscreen.tap(pause.cx, pause.cy);
   await expect.poll(() => state(page).then((s) => s.screen)).toBe('pause');
-  await expect(page.locator('#touch')).toBeHidden();
   await expect(page.locator('#overlay')).toBeVisible();
+  await expect(page.locator('#touch')).toBeVisible();
+  await expect(page.locator('#touch [data-control="fire"]')).toBeHidden();
 });
 
 test('turning the phone upright pauses and shows Rotate, and landscape leaves it paused', async ({

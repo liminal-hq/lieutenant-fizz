@@ -27,11 +27,11 @@ export default defineConfig({
   },
   projects: [
     // The desktop checks. The touch specs run in their own projects, with a phone's viewport and touch.
-    { name: 'desktop', testIgnore: /touch\.spec/ },
+    { name: 'desktop', testIgnore: /touch(-[a-z-]+)?\.spec/ },
     // A landscape phone: the touch specs run at two sizes, with touch and a high pixel ratio.
     {
       name: 'touch-844',
-      testMatch: /touch\.spec/,
+      testMatch: /touch(-[a-z-]+)?\.spec/,
       use: {
         viewport: { width: 844, height: 390 },
         deviceScaleFactor: 3,
@@ -41,7 +41,7 @@ export default defineConfig({
     },
     {
       name: 'touch-740',
-      testMatch: /touch\.spec/,
+      testMatch: /touch(-[a-z-]+)?\.spec/,
       use: {
         viewport: { width: 740, height: 360 },
         deviceScaleFactor: 2.6,
