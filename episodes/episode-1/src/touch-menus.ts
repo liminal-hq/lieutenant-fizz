@@ -19,8 +19,8 @@ export type ShellScreen =
   | 'credits'
   | 'stinger';
 
-/** A screen opened over the title or pause menu. */
-export type SubScreen = 'controls' | 'options' | 'saves' | null;
+/** A screen opened over the title or pause menu, or over another such screen (Touch controls, then its editor). */
+export type SubScreen = 'controls' | 'options' | 'saves' | 'touch' | 'touchEdit' | null;
 
 export interface TouchFaces {
   /** The controls to show, in a fixed order. */

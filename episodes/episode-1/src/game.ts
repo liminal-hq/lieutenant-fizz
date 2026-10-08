@@ -36,7 +36,7 @@ import { attractFade, attractLabel, nextAttract } from './attract';
 import { backAction, backEnabled } from './back';
 import { Cinematic, CINE_TALL } from './cine';
 import { isPortrait, watchResize, type TouchGutters } from './layout';
-import { touchFaces, type ShellScreen, type TouchFaces } from './touch-menus';
+import { touchFaces, type ShellScreen, type SubScreen, type TouchFaces } from './touch-menus';
 import { EPISODE } from './episode';
 import {
   DEFAULT_OPTIONS,
@@ -232,8 +232,9 @@ export class Game {
   private card: Card | null = null;
   private menuIdx = 0;
   /** A screen opened from the title or pause menu; the menu underneath keeps its place. */
-  private sub: 'controls' | 'options' | 'saves' | null = null;
-  private subReturn = 0;
+  private sub: SubScreen = null;
+  /** The screens underneath `sub`, each with the row to put the selection back on, innermost last. */
+  private subStack: { sub: SubScreen; idx: number }[] = [];
   private saveMode: 'save' | 'load' = 'load';
   private slotRows = new Map<SlotId, { summary: SlotSummary; thumb: string }>();
   private bossHp: number | null = null;
@@ -1140,8 +1141,8 @@ export class Game {
   }
 
   /** Opens a screen over the title or pause menu, remembering which row opened it. */
-  private openSub(sub: 'controls' | 'options' | 'saves', menuIdx = 0): void {
-    this.subReturn = this.menuIdx;
+  private openSub(sub: NonNullable<SubScreen>, menuIdx = 0): void {
+    this.subStack.push({ sub: this.sub, idx: this.menuIdx });
     this.sub = sub;
     this.menuIdx = menuIdx;
     this.syncUi();
@@ -1151,8 +1152,9 @@ export class Game {
   private closeSub(): void {
     if (!this.sub) return;
     this.audio.play('click');
-    this.sub = null;
-    this.menuIdx = this.subReturn;
+    const under = this.subStack.pop();
+    this.sub = under?.sub ?? null;
+    this.menuIdx = under?.idx ?? 0;
     this.syncUi();
   }
 
@@ -1440,6 +1442,7 @@ export class Game {
     applyProgress(this.sim, save.progress);
     this.played = save.progress.played;
     this.sub = null;
+    this.subStack = [];
     this.enterMap();
     this.ui.toast(`Loaded ${slotName(id)}`);
     return true;
@@ -1650,6 +1653,7 @@ export class Game {
     this.screen = 'title';
     this.card = null;
     this.sub = null;
+    this.subStack = [];
     this.prompt = null;
     this.bossHp = null;
     this.hasSave = newestSlot(this.store) !== null;
@@ -1954,8 +1958,8 @@ export class Game {
       return this.syncUi();
     }
     this.quitToTitle();
-    this.sub = what === 'title' ? null : what === 'saves' ? 'saves' : what;
-    if (what === 'saves') this.openSaves('load');
+    if (what === 'saves') return this.openSaves('load');
+    this.sub = what === 'title' ? null : what;
     this.syncUi();
   }
 
