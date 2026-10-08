@@ -8,144 +8,213 @@
   <meta name="theme-color" content="#0000aa">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230000aa'/%3E%3Crect x='3' y='9' width='10' height='3' fill='%23ffff55'/%3E%3Crect x='5' y='6' width='6' height='3' fill='%2355ffff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="../css/fonts.css">
-  <link rel="stylesheet" href="../css/colours.css">
-  <link rel="stylesheet" href="../css/site.css">
+  <link rel="stylesheet" href="../css/bbs.css">
   <link rel="stylesheet" href="../css/guide.css">
 </head>
 <body class="guide">
-  <a class="skip" href="#story">Skip to the guide</a>
-  <header class="top">
-    <div class="wrap top-row">
-      <a class="wordmark" href="../">lieutenant fizz</a>
-      <nav aria-label="Site">
-        <a href="../">Home</a>
-        <a href="../episode-1/">Play Episode 1</a>
-        <a href="https://github.com/liminal-hq/lieutenant-fizz">GitHub</a>
-      </nav>
-    </div>
+  <a class="skip" href="#guide-menu">Skip to the guide</a>
+  <header>
+    <div class="status"><div class="wrap"><span>FIZZ BBS · NODE 1</span><span>CONNECT 14400 · ANSI OK</span><span>SYSOP: LIMINAL HQ</span></div></div>
+    <nav class="menubar" aria-label="Site">
+      <ul class="wrap">
+        <li><a href="../">Home</a></li>
+        <li><a href="./" aria-current="page">Game guide</a></li>
+        <li><a href="https://github.com/liminal-hq/lieutenant-fizz">GitHub</a></li>
+        <li><a href="https://github.com/liminal-hq/lieutenant-fizz/tree/main/docs">Docs</a></li>
+        <li><a href="https://liminalhq.ca/">Liminal HQ</a></li>
+      </ul>
+    </nav>
   </header>
 
-  <main class="wrap">
-    <div class="screen">
-      <p class="titlebar"><span>LIEUTENANT FIZZ</span><span>GAME GUIDE</span></p>
-      <h1>The Cocoa <span class="y">Caper</span></h1>
-      <p class="lede">A field guide to Episode 1. Read it before you play, or keep it open while you do. Spoilers are kept to a minimum, but the boss is mentioned.</p>
+  <main class="wrap screen">
+    <header class="masthead">
+      <div class="ega" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="masthead-row">
+        <div class="masthead-text">
+          <p class="greet">*** LIEUTENANT FIZZ · GAME GUIDE ***</p>
+          <h1>The Cocoa <span class="y">Caper</span></h1>
+          <p class="lede">A field guide to Episode 1. Read it before you play, or keep it open while you do. Spoilers are kept to a minimum, but the boss is mentioned.</p>
+        </div>
+        <div class="sprites">
+          <img class="spr x4" src="../assets/sprites/ben_stand.svg" width="16" height="24" alt="Ben">
+          <img class="spr x4" src="../assets/sprites/saucer.svg" width="32" height="16" alt="The saucer">
+        </div>
+      </div>
+    </header>
 
-      <nav class="toc" aria-label="Guide sections">
-        <ol>
-          <li><a href="#story"><kbd>1</kbd> The story</a></li>
-          <li><a href="#cast"><kbd>2</kbd> The cast</a></li>
-          <li><a href="#enemies"><kbd>3</kbd> The Zargs and friends</a></li>
-          <li><a href="#snacks"><kbd>4</kbd> Snacks and scoring</a></li>
-          <li><a href="#world"><kbd>5</kbd> The world</a></li>
-          <li><a href="#moves"><kbd>6</kbd> Moves and tricks</a></li>
-          <li><a href="#controls"><kbd>7</kbd> Controls</a></li>
+    <div class="top-row">
+      <nav class="box pink" id="guide-menu" aria-labelledby="guide-menu-h">
+        <h2 class="box-title" id="guide-menu-h">MAIN MENU</h2>
+        <ol class="menu">
+          <li><a href="#story"><span class="num" aria-hidden="true">[1]</span><span class="label">The story</span><span class="file">STORY.TXT</span></a></li>
+          <li><a href="#cast"><span class="num" aria-hidden="true">[2]</span><span class="label">The cast</span><span class="file">CAST.TXT</span></a></li>
+          <li><a href="#enemies"><span class="num" aria-hidden="true">[3]</span><span class="label">The Zargs and friends</span><span class="file">ZARGS.TXT</span></a></li>
+          <li><a href="#snacks"><span class="num" aria-hidden="true">[4]</span><span class="label">Snacks and scoring</span><span class="file">SNACKS.TXT</span></a></li>
+          <li><a href="#world"><span class="num" aria-hidden="true">[5]</span><span class="label">The world</span><span class="file">WORLD.TXT</span></a></li>
+          <li><a href="#moves"><span class="num" aria-hidden="true">[6]</span><span class="label">Moves and tricks</span><span class="file">MOVES.TXT</span></a></li>
+          <li><a href="#controls"><span class="num" aria-hidden="true">[7]</span><span class="label">Controls</span><span class="file">KEYS.TXT</span></a></li>
+          <li><a href="../"><span class="num" aria-hidden="true">[8]</span><span class="label">Back to the front page</span><span class="file">..\</span></a></li>
         </ol>
       </nav>
+      <div class="box dark">
+        <h2 class="box-title y">DOOR GAMES</h2>
+        <p>Episode 1 runs in your browser. No install, no modem.</p>
+        <a class="btn" href="../episode-1/">Play Episode 1 ►</a>
+      </div>
+    </div>
 
-      <section id="story" aria-labelledby="story-h">
-        <h2 id="story-h">1. The story</h2>
+    <section class="log" id="story" aria-labelledby="story-h">
+      <p class="prompt"><span class="ps">C:\FIZZ\GUIDE&gt;</span> type STORY.TXT</p>
+      <div class="box cyan">
+        <h2 id="story-h">The story</h2>
         <p>Ben Blaze is ten, lives for tinkering and has never once left his street. Then his cousin Billy goes missing, and a map in Billy’s handwriting points off the planet.</p>
         <p>The Zargs of Planet Zargoth have been stealing Earth’s cocoa beans to refill their drying chocolate rivers. Their boss, Mildred McMire, has bigger plans: every river is being poured into the galaxy’s largest chocolate castle, and she intends to live in it.</p>
         <p>Ben follows the map in a spaghetti-and-meatballs saucer, with a pogo stick for high ledges and a Fizz Blaster that fires cream soda bubbles. The bubbles stun. They never harm.</p>
-      </section>
+      </div>
+    </section>
 
-      <section id="cast" aria-labelledby="cast-h">
-        <h2 id="cast-h">2. The cast</h2>
-        <ul class="entries cast">
-        <li class="entry"><img class="spr big" src="../assets/sprites/ben_stand.svg" alt=""><div><h3>Ben Blaze, “Lieutenant Fizz”</h3><p>A ten-year-old neighbourhood tinkerer in a bicycle helmet. Armed with a modified pogo stick and the Fizz Blaster, which stuns instead of harming.</p></div></li>
-        <li class="entry"><img class="spr big" src="../assets/sprites/billy.svg" alt=""><div><h3>Billy</h3><p>Ben’s cousin, fourteen. He went after the Zargs and now sits in a cage at the heart of the citadel.</p></div></li>
-        <li class="entry"><img class="spr big" src="../assets/sprites/boss0.svg" alt=""><div><h3>Mildred McMire</h3><p>Ten years old and the Zargs’ boss. She is turning every chocolate river into the galaxy’s largest chocolate castle, and pilots the Cocoa Colossus from its glass dome.</p></div></li>
-        <li class="entry"><img class="spr big" src="../assets/sprites/saucer.svg" alt=""><div><h3>The saucer</h3><p>A spaghetti-and-meatballs flying saucer with a noodle seat and meatball thrusters, found in a secret lab under the treehouse. Parked where Ben lands.</p></div></li>
+    <section class="log" id="cast" aria-labelledby="cast-h">
+      <p class="prompt"><span class="ps">C:\FIZZ\GUIDE&gt;</span> type CAST.TXT</p>
+      <div class="box cyan">
+        <h2 id="cast-h">The cast</h2>
+        <ul class="list cast">
+          <li><div class="pic"><img class="spr x4" src="../assets/sprites/ben_stand.svg" width="16" height="24" alt=""></div><div class="txt"><h3>Ben Blaze, “Lieutenant Fizz”</h3><p>A ten-year-old neighbourhood tinkerer in a bicycle helmet. Armed with a modified pogo stick and the Fizz Blaster, which stuns instead of harming.</p></div></li>
+          <li><div class="pic"><img class="spr x4" src="../assets/sprites/billy.svg" width="16" height="24" alt=""></div><div class="txt"><h3>Billy</h3><p>Ben’s cousin, fourteen. He went after the Zargs and now sits in a cage at the heart of the citadel.</p></div></li>
+          <li><div class="pic"><img class="spr" src="../assets/sprites/boss0.svg" width="48" height="48" alt=""></div><div class="txt"><h3>Mildred McMire</h3><p>Ten years old and the Zargs’ boss. She is turning every chocolate river into the galaxy’s largest chocolate castle, and pilots the Cocoa Colossus from its glass dome.</p></div></li>
+          <li><div class="pic"><img class="spr" src="../assets/sprites/saucer.svg" width="32" height="16" alt=""></div><div class="txt"><h3>The saucer</h3><p>A spaghetti-and-meatballs flying saucer with a noodle seat and meatball thrusters, found in a secret lab under the treehouse. Parked where Ben lands.</p></div></li>
         </ul>
-      </section>
+      </div>
+    </section>
 
-      <section id="enemies" aria-labelledby="enemies-h">
-        <h2 id="enemies-h">3. The Zargs and friends</h2>
+    <section class="log" id="enemies" aria-labelledby="enemies-h">
+      <p class="prompt"><span class="ps">C:\FIZZ\GUIDE&gt;</span> type ZARGS.TXT</p>
+      <div class="box cyan">
+        <h2 id="enemies-h">The Zargs and friends</h2>
         <p>Every creature has a trick and a way around it. Stunned enemies are harmless for a few seconds, and fizz never defeats them for good.</p>
-        <ul class="entries">
-        <li class="entry"><img class="spr" src="../assets/sprites/gloop0.svg" alt=""><div><h3>Gloop slug <span class="role">Patroller</span></h3><p>Paces back and forth, turning at walls, ledges and hazards.</p><p class="beat"><b>Beat it:</b> Fizz it, stomp it or hop over.</p></div></li>
-        <li class="entry"><img class="spr" src="../assets/sprites/hopper0.svg" alt=""><div><h3>Crater hopper <span class="role">Chaser</span></h3><p>Sits still while Ben faces it. Turn your back and it hops after you.</p><p class="beat"><b>Beat it:</b> Keep facing it, or stun it.</p></div></li>
-        <li class="entry"><img class="spr" src="../assets/sprites/marsh0.svg" alt=""><div><h3>Marshmallow blob <span class="role">Bouncer</span></h3><p>Invincible. Shoves Ben aside without hurting him.</p><p class="beat"><b>Beat it:</b> Pogo onto it for a springboard.</p></div></li>
-        <li class="entry"><img class="spr" src="../assets/sprites/beetle0.svg" alt=""><div><h3>Cocoa beetle <span class="role">Charger</span></h3><p>Rams when Ben crosses its row, and is dazed by walls.</p><p class="beat"><b>Beat it:</b> Bait it into a wall.</p></div></li>
-        <li class="entry"><img class="spr" src="../assets/sprites/bat0.svg" alt=""><div><h3>Crystal bat <span class="role">Ambusher</span></h3><p>Drops from the ceiling when Ben walks underneath.</p><p class="beat"><b>Beat it:</b> Fizz upward first.</p></div></li>
-        <li class="entry"><img class="spr" src="../assets/sprites/pod1.svg" alt=""><div><h3>Spore pod <span class="role">Hazard-maker</span></h3><p>Puffs every 3 seconds, making the ground on either side deadly.</p><p class="beat"><b>Beat it:</b> Time your crossing, or stun it.</p></div></li>
-        <li class="entry"><img class="spr" src="../assets/sprites/phantom0.svg" alt=""><div><h3>Zarg phantom <span class="role">Teleporter</span></h3><p>Vanishes from incoming shots, reappears and fires a three-way spread.</p><p class="beat"><b>Beat it:</b> Shoot during its cooldown.</p></div></li>
-        <li class="entry"><img class="spr" src="../assets/sprites/roller.svg" alt=""><div><h3>Rock roller <span class="role">Bulldozer</span></h3><p>A fizz-proof boulder that speeds up downhill.</p><p class="beat"><b>Beat it:</b> Pogo over it.</p></div></li>
-        <li class="entry"><img class="spr" src="../assets/sprites/sentry0.svg" alt=""><div><h3>Zargoth sentry <span class="role">Heavy gunner</span></h3><p>Tracks Ben’s height and fires a three-shot burst within nine tiles.</p><p class="beat"><b>Beat it:</b> Approach outside its height range.</p></div></li>
-        <li class="entry"><img class="spr" src="../assets/sprites/drone0.svg" alt=""><div><h3>Gravity drone <span class="role">Aerial patroller</span></h3><p>Invincible, tracing a figure-eight path.</p><p class="beat"><b>Beat it:</b> Jump timing.</p></div></li>
-        <li class="entry"><img class="spr" src="../assets/sprites/boss0.svg" alt=""><div><h3>Cocoa Colossus <span class="role">Boss</span></h3><p>Hovers, drops globs, slams, charges, then overheats with its dome open.</p><p class="beat"><b>Beat it:</b> Three hits while the dome is open.</p></div></li>
-        </ul>
-      </section>
+        <table class="zargs" role="table">
+          <caption class="sr">Enemies, what they do and how to beat them</caption>
+          <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader"><span class="sr">Sprite</span></th><th scope="col" role="columnheader">Name</th><th scope="col" role="columnheader">Class</th><th scope="col" role="columnheader">Habit</th><th scope="col" role="columnheader">Beat it</th></tr></thead>
+          <tbody role="rowgroup">
+              <tr role="row"><td class="pic" role="cell"><img class="spr" src="../assets/sprites/gloop0.svg" width="16" height="16" alt=""></td><th scope="row" role="rowheader">Gloop slug</th><td class="cls" role="cell">Patroller</td><td role="cell" data-label="Habit">Paces back and forth, turning at walls, ledges and hazards.</td><td class="counter" role="cell" data-label="Beat it">Fizz it, stomp it or hop over.</td></tr>
+              <tr role="row"><td class="pic" role="cell"><img class="spr" src="../assets/sprites/hopper0.svg" width="16" height="16" alt=""></td><th scope="row" role="rowheader">Crater hopper</th><td class="cls" role="cell">Chaser</td><td role="cell" data-label="Habit">Sits still while Ben faces it. Turn your back and it hops after you.</td><td class="counter" role="cell" data-label="Beat it">Keep facing it, or stun it.</td></tr>
+              <tr role="row"><td class="pic" role="cell"><img class="spr" src="../assets/sprites/marsh0.svg" width="16" height="16" alt=""></td><th scope="row" role="rowheader">Marshmallow blob</th><td class="cls" role="cell">Bouncer</td><td role="cell" data-label="Habit">Invincible. Shoves Ben aside without hurting him.</td><td class="counter" role="cell" data-label="Beat it">Pogo onto it for a springboard.</td></tr>
+              <tr role="row"><td class="pic" role="cell"><img class="spr" src="../assets/sprites/beetle0.svg" width="16" height="16" alt=""></td><th scope="row" role="rowheader">Cocoa beetle</th><td class="cls" role="cell">Charger</td><td role="cell" data-label="Habit">Rams when Ben crosses its row, and is dazed by walls.</td><td class="counter" role="cell" data-label="Beat it">Bait it into a wall.</td></tr>
+              <tr role="row"><td class="pic" role="cell"><img class="spr" src="../assets/sprites/bat0.svg" width="16" height="16" alt=""></td><th scope="row" role="rowheader">Crystal bat</th><td class="cls" role="cell">Ambusher</td><td role="cell" data-label="Habit">Drops from the ceiling when Ben walks underneath.</td><td class="counter" role="cell" data-label="Beat it">Fizz upward first.</td></tr>
+              <tr role="row"><td class="pic" role="cell"><img class="spr" src="../assets/sprites/pod1.svg" width="16" height="16" alt=""></td><th scope="row" role="rowheader">Spore pod</th><td class="cls" role="cell">Hazard-maker</td><td role="cell" data-label="Habit">Puffs every 3 seconds, making the ground on either side deadly.</td><td class="counter" role="cell" data-label="Beat it">Time your crossing, or stun it.</td></tr>
+              <tr role="row"><td class="pic" role="cell"><img class="spr" src="../assets/sprites/phantom0.svg" width="16" height="24" alt=""></td><th scope="row" role="rowheader">Zarg phantom</th><td class="cls" role="cell">Teleporter</td><td role="cell" data-label="Habit">Vanishes from incoming shots, reappears and fires a three-way spread.</td><td class="counter" role="cell" data-label="Beat it">Shoot during its cooldown.</td></tr>
+              <tr role="row"><td class="pic" role="cell"><img class="spr x1" src="../assets/sprites/roller.svg" width="32" height="32" alt=""></td><th scope="row" role="rowheader">Rock roller</th><td class="cls" role="cell">Bulldozer</td><td role="cell" data-label="Habit">A fizz-proof boulder that speeds up downhill.</td><td class="counter" role="cell" data-label="Beat it">Pogo over it.</td></tr>
+              <tr role="row"><td class="pic" role="cell"><img class="spr" src="../assets/sprites/sentry0.svg" width="24" height="16" alt=""></td><th scope="row" role="rowheader">Zargoth sentry</th><td class="cls" role="cell">Heavy gunner</td><td role="cell" data-label="Habit">Tracks Ben’s height and fires a three-shot burst within nine tiles.</td><td class="counter" role="cell" data-label="Beat it">Approach outside its height range.</td></tr>
+              <tr role="row"><td class="pic" role="cell"><img class="spr" src="../assets/sprites/drone0.svg" width="16" height="16" alt=""></td><th scope="row" role="rowheader">Gravity drone</th><td class="cls" role="cell">Aerial patroller</td><td role="cell" data-label="Habit">Invincible, tracing a figure-eight path.</td><td class="counter" role="cell" data-label="Beat it">Jump timing.</td></tr>
+              <tr role="row"><td class="pic" role="cell"><img class="spr x1" src="../assets/sprites/boss0.svg" width="48" height="48" alt=""></td><th scope="row" role="rowheader">Cocoa Colossus</th><td class="cls" role="cell">Boss</td><td role="cell" data-label="Habit">Hovers, drops globs, slams, charges, then overheats with its dome open.</td><td class="counter" role="cell" data-label="Beat it">Three hits while the dome is open.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-      <section id="snacks" aria-labelledby="snacks-h">
-        <h2 id="snacks-h">4. Snacks and scoring</h2>
-        <ul class="items">
-        <li class="item"><img class="spr" src="../assets/sprites/cheezie.svg" alt=""><span class="nm">Cheezies</span><span class="dots" aria-hidden="true"></span><span class="val">1 point</span></li>
-        <li class="item"><img class="spr" src="../assets/sprites/choc.svg" alt=""><span class="nm">Choc bar</span><span class="dots" aria-hidden="true"></span><span class="val">2 points</span></li>
-        <li class="item"><img class="spr" src="../assets/sprites/cookie.svg" alt=""><span class="nm">Fudge cookie</span><span class="dots" aria-hidden="true"></span><span class="val">5 points</span></li>
-        <li class="item"><img class="spr" src="../assets/sprites/soda.svg" alt=""><span class="nm">Cream soda</span><span class="dots" aria-hidden="true"></span><span class="val">+5 fizz shots</span></li>
-        <li class="item"><img class="spr" src="../assets/sprites/keyRed.svg" alt=""><span class="nm">Red gumdrop</span><span class="dots" aria-hidden="true"></span><span class="val">Opens red cookie doors</span></li>
-        <li class="item"><img class="spr" src="../assets/sprites/keyBlue.svg" alt=""><span class="nm">Blue gumdrop</span><span class="dots" aria-hidden="true"></span><span class="val">Opens blue cookie doors</span></li>
-        <li class="item"><img class="spr" src="../assets/sprites/keyGreen.svg" alt=""><span class="nm">Green gumdrop</span><span class="dots" aria-hidden="true"></span><span class="val">Opens green cookie doors</span></li>
-        <li class="item"><img class="spr" src="../assets/sprites/usb.svg" alt=""><span class="nm">Gold USB drive</span><span class="dots" aria-hidden="true"></span><span class="val">Dropped by the boss; hacks the terminal</span></li>
+    <section class="log" id="snacks" aria-labelledby="snacks-h">
+      <p class="prompt"><span class="ps">C:\FIZZ\GUIDE&gt;</span> type SNACKS.TXT</p>
+      <div class="box cyan">
+        <h2 id="snacks-h">Snacks and scoring</h2>
+        <ul class="list snacks">
+          <li><img class="spr" src="../assets/sprites/cheezie.svg" width="16" height="16" alt=""><span class="nm">Cheezies</span><span class="dots" aria-hidden="true"></span><span class="val">1 point</span></li>
+          <li><img class="spr" src="../assets/sprites/choc.svg" width="16" height="16" alt=""><span class="nm">Choc bar</span><span class="dots" aria-hidden="true"></span><span class="val">2 points</span></li>
+          <li><img class="spr" src="../assets/sprites/cookie.svg" width="16" height="16" alt=""><span class="nm">Fudge cookie</span><span class="dots" aria-hidden="true"></span><span class="val">5 points</span></li>
+          <li><img class="spr" src="../assets/sprites/soda.svg" width="16" height="16" alt=""><span class="nm">Cream soda</span><span class="dots" aria-hidden="true"></span><span class="val">+5 fizz shots</span></li>
+          <li><img class="spr" src="../assets/sprites/keyRed.svg" width="16" height="16" alt=""><span class="nm">Red gumdrop</span><span class="dots" aria-hidden="true"></span><span class="val">Opens red cookie doors</span></li>
+          <li><img class="spr" src="../assets/sprites/keyBlue.svg" width="16" height="16" alt=""><span class="nm">Blue gumdrop</span><span class="dots" aria-hidden="true"></span><span class="val">Opens blue cookie doors</span></li>
+          <li><img class="spr" src="../assets/sprites/keyGreen.svg" width="16" height="16" alt=""><span class="nm">Green gumdrop</span><span class="dots" aria-hidden="true"></span><span class="val">Opens green cookie doors</span></li>
+          <li><img class="spr" src="../assets/sprites/usb.svg" width="16" height="16" alt=""><span class="nm">Gold USB drive</span><span class="dots" aria-hidden="true"></span><span class="val">Dropped by the boss; hacks the terminal</span></li>
         </ul>
-        <p class="note">You start with 3 lives and earn another for every 100 points. Losing a life returns you to the map. Press <kbd>F5</kbd> to save and <kbd>F9</kbd> to load, or use the pause menu: there are four slots plus a read-only autosave.</p>
-      </section>
+        <p>You start with 3 lives and earn another for every 100 points. Losing a life returns you to the map. Press <kbd>F5</kbd> to save and <kbd>F9</kbd> to load, or use the pause menu: there are four slots plus a read-only autosave.</p>
+      </div>
+    </section>
 
-      <section id="world" aria-labelledby="world-h">
-        <h2 id="world-h">5. The world</h2>
+    <section class="log" id="world" aria-labelledby="world-h">
+      <p class="prompt"><span class="ps">C:\FIZZ\GUIDE&gt;</span> type WORLD.TXT</p>
+      <div class="box cyan">
+        <h2 id="world-h">The world</h2>
         <p>Fifteen levels sit on a top-down map of crystal forest split by chocolate rivers. Teleporters link the regions and power up as you clear levels. The map saves itself every time you visit it.</p>
-        <div class="areas">
-        <div class="area"><h3>Crater Fields <span class="role">south-west, where Ben lands</span></h3><ul><li><b>Crater Fields.</b> Slopes, pogo, fizz and chocolate pools. The tutorial.</li><li><b>Meteor Mesa.</b> Daylight mesas, clouds and a hover platform.</li><li><b>Zarg Lookout.</b> A nine-floor watchtower. Climb to the roof for the red key, then come back down.</li></ul></div>
-        <div class="area"><h3>Marshmallow Meadows <span class="role">north-west</span></h3><ul><li><b>Marshmallow Meadows.</b> Soft hills and corrals of bouncing marshmallows.</li><li><b>Bonbon Playhouse.</b> A candy theatre with rooms hidden behind painted flats.</li><li><b>Fudge Bog.</b> Optional. Wide fudge pools, spike runs and spore pods.</li></ul></div>
-        <div class="area"><h3>Rock Candy Reach <span class="role">north-east</span></h3><ul><li><b>Crystal Caves.</b> Dark tunnels lit by crystals and your lantern.</li><li><b>Mirror Shafts.</b> Bounce fizz off mirrors to wake the crystal switches.</li><li><b>Whisper Hollow.</b> Optional. Vines, chimneys and wall-kicks.</li><li><b>Sugar Glass Gallery.</b> Optional. A long theatre of hidden rooms, and a secret.</li></ul></div>
-        <div class="area"><h3>Frosting Frontier <span class="role">south-east</span></h3><ul><li><b>Frosting Flats.</b> Optional. The hardest open-sky level.</li><li><b>Frosting Spire.</b> Twelve floors, three lifts and a key in every colour.</li><li><b>Cocoa Foundry.</b> Conveyor belts, crushing presses and molten metal.</li><li><b>Mildred’s Citadel.</b> Boulder ramp, sentries, phantoms, then the boss and Billy’s cage.</li></ul></div>
-        <div class="area"><h3>Gumdrop Isle <span class="role">a secret island in the lake</span></h3><ul><li><b>Gumdrop Isle.</b> A short bonus course, packed with snacks. Find the way in.</li></ul></div>
-        </div>
-      </section>
-
-      <section id="moves" aria-labelledby="moves-h">
-        <h2 id="moves-h">6. Moves and tricks</h2>
-        <ul class="plain">
-          <li><b>Jump.</b> Release early for a short hop.</li>
-          <li><b>Pogo.</b> Toggle it on and Ben bounces by himself. Hold jump for a high bounce, high enough for the ledges about seven tiles up that hold a cookie and two cheezies. Stomping while pogoing bounces higher still.</li>
-          <li><b>Fizz.</b> Hold <kbd>&uarr;</kbd> to aim up, or <kbd>&darr;</kbd> in the air to aim down. Cans of cream soda refill your ammunition.</li>
-          <li><b>Wall-kick.</b> Press jump against a wall in mid air. Two facing walls, at least three tiles apart, make a climb.</li>
-          <li><b>Mantle.</b> Just miss a ledge by about a tile and Ben hauls himself up.</li>
-          <li><b>Ladders and vines.</b> Press <kbd>&uarr;</kbd> to grab on, jump to let go. You can shoot while climbing.</li>
-          <li><b>Cracked walls.</b> Shoot one and it crumbles. A crack is always a promise, never a trap.</li>
-          <li><b>Mirrors.</b> A bubble bounces off a 45-degree mirror. Use that to reach switches you cannot see directly.</li>
-          <li><b>Paintings.</b> Touch one for a line of lore. Some of them point at secrets.</li>
+        <ul class="list world">
+          <li><h3 class="dirname"><span class="y">CRATER FIELDS</span> <span class="dim">&lt;DIR&gt; south-west, where Ben lands</span></h3><ul class="list">
+            <li><span class="tree" aria-hidden="true">├─</span><span><b>Crater Fields.</b> Slopes, pogo, fizz and chocolate pools. The tutorial.</span></li>
+            <li><span class="tree" aria-hidden="true">├─</span><span><b>Meteor Mesa.</b> Daylight mesas, clouds and a hover platform.</span></li>
+            <li><span class="tree" aria-hidden="true">└─</span><span><b>Zarg Lookout.</b> A nine-floor watchtower. Climb to the roof for the red key, then come back down.</span></li>
+          </ul></li>
+          <li><h3 class="dirname"><span class="y">MARSHMALLOW MEADOWS</span> <span class="dim">&lt;DIR&gt; north-west</span></h3><ul class="list">
+            <li><span class="tree" aria-hidden="true">├─</span><span><b>Marshmallow Meadows.</b> Soft hills and corrals of bouncing marshmallows.</span></li>
+            <li><span class="tree" aria-hidden="true">├─</span><span><b>Bonbon Playhouse.</b> A candy theatre with rooms hidden behind painted flats.</span></li>
+            <li><span class="tree" aria-hidden="true">└─</span><span><b>Fudge Bog.</b> Optional. Wide fudge pools, spike runs and spore pods.</span></li>
+          </ul></li>
+          <li><h3 class="dirname"><span class="y">ROCK CANDY REACH</span> <span class="dim">&lt;DIR&gt; north-east</span></h3><ul class="list">
+            <li><span class="tree" aria-hidden="true">├─</span><span><b>Crystal Caves.</b> Dark tunnels lit by crystals and your lantern.</span></li>
+            <li><span class="tree" aria-hidden="true">├─</span><span><b>Mirror Shafts.</b> Bounce fizz off mirrors to wake the crystal switches.</span></li>
+            <li><span class="tree" aria-hidden="true">├─</span><span><b>Whisper Hollow.</b> Optional. Vines, chimneys and wall-kicks.</span></li>
+            <li><span class="tree" aria-hidden="true">└─</span><span><b>Sugar Glass Gallery.</b> Optional. A long theatre of hidden rooms, and a secret.</span></li>
+          </ul></li>
+          <li><h3 class="dirname"><span class="y">FROSTING FRONTIER</span> <span class="dim">&lt;DIR&gt; south-east</span></h3><ul class="list">
+            <li><span class="tree" aria-hidden="true">├─</span><span><b>Frosting Flats.</b> Optional. The hardest open-sky level.</span></li>
+            <li><span class="tree" aria-hidden="true">├─</span><span><b>Frosting Spire.</b> Twelve floors, three lifts and a key in every colour.</span></li>
+            <li><span class="tree" aria-hidden="true">├─</span><span><b>Cocoa Foundry.</b> Conveyor belts, crushing presses and molten metal.</span></li>
+            <li><span class="tree" aria-hidden="true">└─</span><span><b>Mildred’s Citadel.</b> Boulder ramp, sentries, phantoms, then the boss and Billy’s cage.</span></li>
+          </ul></li>
+          <li><h3 class="dirname"><span class="y">GUMDROP ISLE</span> <span class="dim">&lt;DIR&gt; a secret island in the lake</span></h3><ul class="list">
+            <li><span class="tree" aria-hidden="true">└─</span><span><b>Gumdrop Isle.</b> A short bonus course, packed with snacks. Find the way in.</span></li>
+          </ul></li>
         </ul>
-      </section>
+      </div>
+    </section>
 
-      <section id="controls" aria-labelledby="controls-h">
-        <h2 id="controls-h">7. Controls</h2>
-        <div class="table-wrap">
-          <table>
-            <caption class="sr">Default controls</caption>
-            <thead><tr><th scope="col">Action</th><th scope="col">Keen-style</th><th scope="col">Modern</th><th scope="col">Gamepad</th></tr></thead>
-            <tbody>
-              <tr><th scope="row">Move</th><td data-label="Keen-style"><kbd>&larr;</kbd> <kbd>&rarr;</kbd></td><td data-label="Modern"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> or <kbd>A</kbd> <kbd>D</kbd></td><td data-label="Gamepad">D-pad or stick</td></tr>
-              <tr><th scope="row">Jump</th><td data-label="Keen-style"><kbd>Ctrl</kbd></td><td data-label="Modern"><kbd>Z</kbd></td><td data-label="Gamepad">A</td></tr>
-              <tr><th scope="row">Pogo</th><td data-label="Keen-style"><kbd>Alt</kbd></td><td data-label="Modern"><kbd>X</kbd></td><td data-label="Gamepad">B or Y</td></tr>
-              <tr><th scope="row">Fizz</th><td data-label="Keen-style"><kbd>Space</kbd></td><td data-label="Modern"><kbd>C</kbd></td><td data-label="Gamepad">X or RT</td></tr>
-              <tr><th scope="row">Menu</th><td data-label="Keen-style"><kbd>Esc</kbd></td><td data-label="Modern"><kbd>Esc</kbd> or <kbd>P</kbd></td><td data-label="Gamepad">Start</td></tr>
-              <tr><th scope="row">Save / load</th><td data-label="Keen-style"><kbd>F5</kbd> / <kbd>F9</kbd></td><td data-label="Modern"><kbd>F5</kbd> / <kbd>F9</kbd></td><td data-label="Gamepad">Pause menu</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <p class="note">Both keyboard layouts always work. The Options screen picks which one the on-screen hints show.</p>
-      </section>
+    <section class="log" id="moves" aria-labelledby="moves-h">
+      <p class="prompt"><span class="ps">C:\FIZZ\GUIDE&gt;</span> type MOVES.TXT</p>
+      <div class="box cyan">
+        <h2 id="moves-h">Moves and tricks</h2>
+        <ul class="list moves">
+          <li><span class="bullet" aria-hidden="true">&gt;</span><span><b>JUMP</b> Release early for a short hop.</span></li>
+          <li><span class="bullet" aria-hidden="true">&gt;</span><span><b>POGO</b> Toggle it on and Ben bounces by himself. Hold jump for a high bounce, high enough for the ledges about seven tiles up that hold a cookie and two cheezies. Stomping while pogoing bounces higher still.</span></li>
+          <li><span class="bullet" aria-hidden="true">&gt;</span><span><b>FIZZ</b> Hold <kbd>↑</kbd> to aim up, or <kbd>↓</kbd> in the air to aim down. Cans of cream soda refill your ammunition.</span></li>
+          <li><span class="bullet" aria-hidden="true">&gt;</span><span><b>WALL-KICK</b> Press jump against a wall in mid air. Two facing walls, at least three tiles apart, make a climb.</span></li>
+          <li><span class="bullet" aria-hidden="true">&gt;</span><span><b>MANTLE</b> Just miss a ledge by about a tile and Ben hauls himself up.</span></li>
+          <li><span class="bullet" aria-hidden="true">&gt;</span><span><b>LADDERS AND VINES</b> Press <kbd>↑</kbd> to grab on, jump to let go. You can shoot while climbing.</span></li>
+          <li><span class="bullet" aria-hidden="true">&gt;</span><span><b>CRACKED WALLS</b> Shoot one and it crumbles. A crack is always a promise, never a trap.</span></li>
+          <li><span class="bullet" aria-hidden="true">&gt;</span><span><b>MIRRORS</b> A bubble bounces off a 45-degree mirror. Use that to reach switches you cannot see directly.</span></li>
+          <li><span class="bullet" aria-hidden="true">&gt;</span><span><b>PAINTINGS</b> Touch one for a line of lore. Some of them point at secrets.</span></li>
+        </ul>
+      </div>
+    </section>
 
-      <p class="cta-row"><a class="play" href="../episode-1/">Play Episode 1 &rarr;</a></p>
-    </div>
+    <section class="log" id="controls" aria-labelledby="controls-h">
+      <p class="prompt"><span class="ps">C:\FIZZ\GUIDE&gt;</span> type KEYS.TXT</p>
+      <div class="box cyan">
+        <h2 id="controls-h">Controls</h2>
+        <table class="keys-table" role="table">
+          <caption class="sr">Default controls</caption>
+          <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Action</th><th scope="col" role="columnheader">Keen-style</th><th scope="col" role="columnheader">Modern</th><th scope="col" role="columnheader">Gamepad</th></tr></thead>
+          <tbody role="rowgroup">
+            <tr role="row"><th scope="row" role="rowheader">Move</th><td role="cell" data-label="Keen-style"><kbd>←</kbd> <kbd>→</kbd></td><td role="cell" data-label="Modern"><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd></td><td role="cell" data-label="Gamepad">D-pad or stick</td></tr>
+            <tr role="row"><th scope="row" role="rowheader">Jump</th><td role="cell" data-label="Keen-style"><kbd>Ctrl</kbd></td><td role="cell" data-label="Modern"><kbd>Z</kbd></td><td role="cell" data-label="Gamepad">A</td></tr>
+            <tr role="row"><th scope="row" role="rowheader">Pogo</th><td role="cell" data-label="Keen-style"><kbd>Alt</kbd></td><td role="cell" data-label="Modern"><kbd>X</kbd></td><td role="cell" data-label="Gamepad">B or Y</td></tr>
+            <tr role="row"><th scope="row" role="rowheader">Fizz</th><td role="cell" data-label="Keen-style"><kbd>Space</kbd></td><td role="cell" data-label="Modern"><kbd>C</kbd></td><td role="cell" data-label="Gamepad">X or RT</td></tr>
+            <tr role="row"><th scope="row" role="rowheader">Menu</th><td role="cell" data-label="Keen-style"><kbd>Esc</kbd></td><td role="cell" data-label="Modern"><kbd>Esc</kbd> or <kbd>P</kbd></td><td role="cell" data-label="Gamepad">Start</td></tr>
+            <tr role="row"><th scope="row" role="rowheader">Save / load</th><td role="cell" data-label="Keen-style"><kbd>F5</kbd> / <kbd>F9</kbd></td><td role="cell" data-label="Modern"><kbd>F5</kbd> / <kbd>F9</kbd></td><td role="cell" data-label="Gamepad">Pause menu</td></tr>
+          </tbody>
+        </table>
+        <p>Both keyboard layouts always work. The Options screen picks which one the on-screen hints show.</p>
+      </div>
+    </section>
+
+    <section class="log" aria-label="Play">
+      <p class="prompt"><span class="ps">C:\FIZZ\GUIDE&gt;</span> fizz.exe</p>
+      <div class="launch"><p>Loading Episode 1...</p><a class="btn" href="../episode-1/">Play Episode 1 ►</a></div>
+      <p class="prompt"><span class="ps">C:\FIZZ\GUIDE&gt;</span> cd .. <a href="../">Back to the front page</a></p>
+      <p class="prompt" aria-hidden="true"><span class="ps">C:\FIZZ&gt;</span> <span class="cur"></span></p>
+    </section>
   </main>
 
   <footer class="wrap foot">
-    <p>Made by <a href="https://liminalhq.ca/">Liminal HQ</a> &middot; Open source under Apache-2.0 or MIT &middot; <a href="https://github.com/liminal-hq/lieutenant-fizz">Source on GitHub</a></p>
-    <p>Designed &amp; coded in Canada &#127809;</p>
+    <p class="prompt"><span class="ps">C:\FIZZ&gt;</span> logoff</p>
+    <p>Made by <a href="https://liminalhq.ca/">Liminal HQ</a> · Open source under Apache-2.0 or MIT · <a href="https://github.com/liminal-hq/lieutenant-fizz">Source on GitHub</a> · <a href="https://github.com/liminal-hq/lieutenant-fizz/tree/main/docs">Docs</a></p>
+    <p>Designed &amp; coded in Canada 🍁</p>
+    <p class="dim">NO CARRIER</p>
   </footer>
 </body>
 </html>

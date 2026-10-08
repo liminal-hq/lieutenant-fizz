@@ -99,7 +99,7 @@ The outline tracer (`outline.ts`) walks the edge of each shape's ink instead of 
 
 ### The hero banner
 
-The text in `assets/hero.svg` (and its copy `site/assets/hero.svg`, used by the landing page) is drawn from the glyph grids as vector shapes, so the banner needs no font to display and looks the same as an image anywhere, including the README on GitHub. `bun run build:hero` rewrites the generated block between the `hero-text` markers; `bun run check:hero` (part of `validate`) fails if the committed SVGs are stale. Edit the text, colours and positions in `scripts/build-hero.ts`, not in the SVG.
+The text in `assets/hero.svg`, the banner at the top of the README, is drawn from the glyph grids as vector shapes, so the banner needs no font to display and looks the same as an image anywhere, including the README on GitHub. `bun run build:hero` rewrites the generated block between the `hero-text` markers; `bun run check:hero` (part of `validate`) fails if the committed SVG is stale. Edit the text, colours and positions in `scripts/build-hero.ts`, not in the SVG.
 
 ### Adding a glyph
 

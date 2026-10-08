@@ -1,0 +1,150 @@
+/* Fizz BBS: the shared look of every page on the site. A dial-up bulletin board in the 16-colour EGA
+   palette: a status bar, a menu bar, the colour strip, caller greetings, double-ruled boxes, numbered
+   menus, C:\FIZZ> prompts and a blinking cursor. Page stylesheets (site.css, guide.css) only add what
+   is particular to one page.
+
+   All text is Fizz, a pixel font eleven rows tall. It is only crisp when font-size is 11px times a
+   whole number n (2 to 6 here), so every size is written as calc(11px * n), never rem, em, vw or clamp;
+   line heights are whole multiples of n and there is no letter spacing. Set `--n` on an element to pick
+   its scale. Sprites are scaled with `zoom` by whole numbers so every pixel stays square. */
+:root {
+  color-scheme: dark;
+  /* The EGA palette, by its traditional names. */
+  --ega-black: #000000; --ega-blue: #0000aa; --ega-green: #00aa00; --ega-cyan: #00aaaa;
+  --ega-red: #aa0000; --ega-magenta: #aa00aa; --ega-brown: #aa5500; --ega-grey: #aaaaaa;
+  --ega-dark-grey: #555555; --ega-light-blue: #5555ff; --ega-light-green: #55ff55;
+  --ega-light-cyan: #55ffff; --ega-light-red: #ff5555; --ega-pink: #ff55ff;
+  --ega-yellow: #ffff55; --ega-white: #ffffff;
+  /* Dim labels. EGA dark grey is too faint on black to read, so labels use a lighter grey (5.9:1). */
+  --dim: #888888;
+
+  --font-head: "Fizz", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-mono: "Fizz Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --n: 2;
+  --n-h1: 3;
+  --gutter: 16px;
+}
+@media (min-width: 560px) { :root { --n-h1: 4; --gutter: 24px; } }
+@media (min-width: 900px) { :root { --n-h1: 6; } }
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ega-black); color: var(--ega-grey);
+  font: 400 calc(11px * var(--n)) / calc(15px * var(--n)) var(--font-mono);
+  font-synthesis: none; font-kerning: none; letter-spacing: 0;
+  text-rendering: optimizeSpeed; -webkit-font-smoothing: none; font-smooth: never;
+}
+a { color: var(--ega-light-cyan); text-underline-offset: 4px; }
+a:hover { color: var(--ega-white); }
+:focus-visible { outline: 4px solid var(--ega-pink); outline-offset: 2px; }
+p { margin: 0; }
+b, strong { font-weight: 400; color: var(--ega-white); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: var(--gutter); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: var(--gutter); top: -100px; z-index: 10; background: var(--ega-yellow); color: var(--ega-black); padding: 0 16px; }
+.skip:focus { top: 8px; }
+
+/* Text colours, named for what they show. */
+.y { color: var(--ega-yellow); }
+.w { color: var(--ega-white); }
+.ok { color: var(--ega-light-green); }
+.dim { color: var(--dim); }
+.lock { color: var(--ega-light-red); }
+
+/* ── Status bar and menu bar ── */
+.status { background: var(--ega-blue); color: var(--ega-white); }
+.status .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 24px; }
+.menubar { background: var(--ega-grey); }
+.menubar ul { list-style: none; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 0 8px; }
+.menubar a { display: block; padding: 0 8px; color: var(--ega-black); text-decoration: none; }
+.menubar a:hover, .menubar a:focus-visible { background: var(--ega-black); color: var(--ega-white); }
+.menubar a:focus-visible { outline-offset: -4px; }
+.menubar a[aria-current="page"] { background: var(--ega-blue); color: var(--ega-white); }
+
+/* ── Page frame ── */
+.screen { display: flex; flex-direction: column; gap: 32px; padding-block: 32px 40px; }
+.masthead { display: flex; flex-direction: column; gap: 16px; }
+.ega { display: flex; border: 2px solid var(--ega-dark-grey); }
+.ega span { flex: 1; height: 22px; }
+.ega span:nth-child(1) { background: var(--ega-black); }
+.ega span:nth-child(2) { background: var(--ega-blue); }
+.ega span:nth-child(3) { background: var(--ega-green); }
+.ega span:nth-child(4) { background: var(--ega-cyan); }
+.ega span:nth-child(5) { background: var(--ega-red); }
+.ega span:nth-child(6) { background: var(--ega-magenta); }
+.ega span:nth-child(7) { background: var(--ega-brown); }
+.ega span:nth-child(8) { background: var(--ega-grey); }
+.ega span:nth-child(9) { background: var(--ega-dark-grey); }
+.ega span:nth-child(10) { background: var(--ega-light-blue); }
+.ega span:nth-child(11) { background: var(--ega-light-green); }
+.ega span:nth-child(12) { background: var(--ega-light-cyan); }
+.ega span:nth-child(13) { background: var(--ega-light-red); }
+.ega span:nth-child(14) { background: var(--ega-pink); }
+.ega span:nth-child(15) { background: var(--ega-yellow); }
+.ega span:nth-child(16) { background: var(--ega-white); }
+.masthead-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 24px 32px; }
+.masthead-text { flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.greet { color: var(--ega-pink); }
+h1, h2, h3 { font-family: var(--font-head); font-weight: 700; color: var(--ega-white); margin: 0; }
+h1 { --n: var(--n-h1); font-size: calc(11px * var(--n)); line-height: calc(13px * var(--n)); }
+h2, h3 { font-size: calc(11px * 2); line-height: calc(15px * 2); }
+.lede { max-width: 760px; }
+.sprites { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; }
+
+/* Pixel art from assets/sprites, scaled by a whole number. `zoom` also scales any min-width, so none
+   is set on a sprite. */
+.spr { display: block; flex: none; image-rendering: pixelated; zoom: 2; }
+.spr.x1 { zoom: 1; }
+.spr.x4 { zoom: 4; }
+@media (max-width: 559px) { .sprites .spr.x4 { zoom: 2; } .sprites .spr { zoom: 1; } }
+
+/* ── Boxes and prompts ── */
+.box { border: 4px double var(--box, var(--ega-grey)); padding: 16px 24px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.box.pink { --box: var(--ega-pink); }
+.box.yellow { --box: var(--ega-yellow); }
+.box.cyan { --box: var(--ega-light-cyan); }
+.box.grey { --box: var(--ega-grey); }
+.box.dark { --box: var(--ega-dark-grey); }
+@media (max-width: 559px) { .box { padding: 12px; } }
+.box-title { font-size: calc(11px * 2); line-height: calc(15px * 2); color: var(--box, var(--ega-grey)); }
+.box-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 16px; }
+.box-head .tag { font-family: var(--font-head); font-weight: 700; color: var(--box, var(--ega-grey)); }
+.badge { background: var(--ega-pink); color: var(--ega-black); padding: 0 8px; }
+.prompt { color: var(--ega-white); overflow-wrap: anywhere; }
+.prompt .ps { color: var(--ega-light-green); }
+.log { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.cur { display: inline-block; width: 12px; height: 22px; vertical-align: -4px; background: var(--ega-grey); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* A numbered menu: [n] label, with a file name pushed to the right. */
+.menu { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.menu a, .menu .row { display: flex; flex-wrap: wrap; gap: 0 16px; color: var(--ega-white); text-decoration: none; }
+.menu a:hover .label, .menu a:focus-visible .label { background: var(--ega-grey); color: var(--ega-black); }
+.menu .num { color: var(--ega-yellow); flex: none; }
+/* The label takes the room left on the line and wraps inside it; on the narrowest screens the file name
+   drops to its own line instead. */
+.menu .label { flex: 1 1 144px; min-width: 0; }
+.menu .file { margin-left: auto; color: var(--dim); flex: none; }
+.menu .file.ok { color: var(--ega-light-green); }
+.menu .file.lock { color: var(--ega-light-red); }
+.menu .locked .row { color: var(--ega-grey); }
+.menu .locked .num { color: var(--dim); }
+
+/* A big yellow button, like a highlighted menu choice. */
+.btn {
+  align-self: flex-start; display: inline-block; background: var(--ega-yellow); color: var(--ega-black);
+  padding: 4px 24px; text-decoration: none; font-family: var(--font-head); font-weight: 700;
+  font-size: calc(11px * 3); line-height: calc(13px * 3);
+}
+.btn.grey { background: var(--ega-grey); }
+.btn:hover, .btn:focus-visible { background: var(--ega-white); color: var(--ega-black); }
+@media (max-width: 559px) { .btn { font-size: calc(11px * 2); line-height: calc(15px * 2); padding-inline: 16px; } }
+
+kbd { font-family: var(--font-mono); color: var(--ega-black); background: var(--ega-grey); padding: 0 4px; white-space: nowrap; }
+
+/* ── Footer ── */
+.foot { border-top: 4px double var(--ega-dark-grey); padding-block: 24px 40px; display: flex; flex-direction: column; gap: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
