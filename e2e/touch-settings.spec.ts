@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type CDPSession, type Page } from '@playwright/test';
 import { audit } from './audit';
 
 // Times out under software GL on the shared CI runner. Disabled for now and kept, to be profiled and
@@ -33,7 +33,7 @@ interface Settings {
 }
 interface Lf {
   debugShow(s: string): void;
-  debugState: { custom: boolean; screen: string; sub: string | null; menu: number };
+  debugState: { custom: boolean; screen: string; sub: string | null; menu: number; bits: number };
   debugTouch: Placed | null;
   debugTouchSettings: Settings;
 }
@@ -514,14 +514,6 @@ test('the Touch controls screen shows defaults when storage is corrupt', async (
   expect(errors).toEqual([]);
 });
 
-test('Move controls only says it is coming', async ({ page }) => {
-  const errors = await openScreen(page);
-  await tapAt(page, row(page, 'Move controls'));
-  await expect(page.locator('#toast')).toBeVisible();
-  expect(await lf(page, (g) => g.debugState.sub)).toBe('touch');
-  expect(errors).toEqual([]);
-});
-
 // Large controls pushed as far in as they go must still leave the menus clear of them.
 for (const [w, h] of [
   [844, 390],
@@ -576,5 +568,358 @@ test('the Back button closes Touch controls to Options, then Options to the titl
   await back();
   await expect.poll(() => lf(page, (g) => g.debugState.sub)).toBe(null);
   expect((await lf(page, (g) => g.debugState)).screen).toBe('title');
+  expect(errors).toEqual([]);
+});
+
+// ---------- The editor ----------
+
+interface Pt {
+  x: number;
+  y: number;
+}
+
+const sessions = new WeakMap<Page, CDPSession>();
+
+/** One finger sent through the DevTools protocol, with enough steps for the page to see a drag. */
+async function finger(page: Page): Promise<{
+  down(p: Pt): Promise<void>;
+  to(p: Pt, steps?: number): Promise<void>;
+  up(): Promise<void>;
+}> {
+  let cdp = sessions.get(page);
+  if (!cdp) {
+    cdp = await page.context().newCDPSession(page);
+    sessions.set(page, cdp);
+  }
+  const session = cdp;
+  const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', p?: Pt): Promise<unknown> =>
+    session.send('Input.dispatchTouchEvent', {
+      type,
+      touchPoints: p ? [{ x: p.x, y: p.y, id: 1 }] : [],
+    });
+  let at: Pt = { x: 0, y: 0 };
+  return {
+    down: async (p) => {
+      at = p;
+      await send('touchStart', p);
+    },
+    to: async (p, steps = 8) => {
+      for (let i = 1; i <= steps; i++) {
+        await send('touchMove', {
+          x: at.x + ((p.x - at.x) * i) / steps,
+          y: at.y + ((p.y - at.y) * i) / steps,
+        });
+      }
+      at = p;
+    },
+    up: async () => void (await send('touchEnd')),
+  };
+}
+
+type Id = 'dpad' | 'jump' | 'pogo' | 'fire';
+
+/** Drags a control's face from where it is to `to` (the finger lands on its centre) and lifts. */
+async function dragTo(page: Page, id: Id, to: Pt, hold = false): Promise<void> {
+  const f = (await placed(page)).face[id];
+  const t = await finger(page);
+  await t.down({ x: f.cx, y: f.cy });
+  await t.to(to);
+  if (hold) return;
+  await t.up();
+  // The control is let go once the page has seen the lift.
+  await expect(page.locator('#touch .drag')).toHaveCount(0);
+}
+
+/** Opens the editor the way a player does: Touch controls screen, then the Move controls row. */
+async function openEditor(page: Page, query = ''): Promise<string[]> {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(`/?debug&touch${query}`);
+  const gl = await page.evaluate(() => !!document.createElement('canvas').getContext('webgl2'));
+  if (!gl)
+    throw new Error('This Chromium has no WebGL2. Try LF_CHROMIUM_ARGS="--use-angle=gl-egl".');
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+    timeout: 20_000,
+  });
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('touchEdit'));
+  await expect(page.locator('#touchEdit')).toBeVisible();
+  await expect.poll(() => lf(page, (g) => g.debugTouch !== null)).toBe(true);
+  return errors;
+}
+
+/**
+ * A tap by the same CDP finger the drags use, after a short settle. Chrome drops the click of a tap that
+ * starts within about 50 ms of a drag's lift (it reads it as a tap that stops a fling), which a person's
+ * hand does not do; there is no page state to poll for it, so the helper waits that long.
+ */
+async function fingerTap(page: Page, selector: string): Promise<void> {
+  await page.waitForTimeout(150);
+  const b = (await page.locator(selector).boundingBox())!;
+  const t = await finger(page);
+  await t.down({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+  await t.up();
+}
+
+const tapDone = (page: Page): Promise<void> => fingerTap(page, '#touchEdit .done');
+
+const sub = (page: Page): Promise<string | null> => lf(page, (g) => g.debugState.sub);
+
+const view = (page: Page): Promise<{ w: number; h: number }> =>
+  page.evaluate(() => ({ w: innerWidth, h: innerHeight }));
+
+test('Move controls opens the editor, and Done, Escape and Enter close it', async ({ page }) => {
+  const errors = await openScreen(page);
+  const back = (await page.locator('#backBtn').boundingBox())!;
+  const labels = await rowLabels(page);
+  await tapAt(page, row(page, 'Move controls'));
+  await expect.poll(() => sub(page)).toBe('touchEdit');
+  await expect(page.locator('#touchEdit')).toBeVisible();
+  // Done sits where Back sat, and is a full-size target.
+  const done = (await page.locator('#touchEdit .done').boundingBox())!;
+  expect(done.x).toBeCloseTo(back.x, 0);
+  expect(done.y).toBeCloseTo(back.y, 0);
+  expect(done.width).toBeGreaterThanOrEqual(47.9);
+  expect(done.height).toBeGreaterThanOrEqual(47.9);
+  await tapDone(page);
+  await expect.poll(() => sub(page)).toBe('touch');
+  expect((await lf(page, (g) => g.debugState)).menu).toBe(labels.indexOf('Move controls'));
+  for (const key of ['Escape', 'Enter']) {
+    await tapAt(page, row(page, 'Move controls'));
+    await expect.poll(() => sub(page)).toBe('touchEdit');
+    await page.keyboard.press(key);
+    await expect.poll(() => sub(page), key).toBe('touch');
+  }
+  expect(errors).toEqual([]);
+});
+
+test('the editor dims the game, outlines the four controls and hides Pause and Back', async ({
+  page,
+}) => {
+  const errors = await openEditor(page);
+  await expect(page.locator('#touchEdit h2')).toHaveText('Move controls');
+  await expect(page.locator('#touchEdit .hint')).toHaveText('Drag a control to move it');
+  await expect(page.locator('#touchEdit .reset')).toHaveText('Reset');
+  await expect(page.locator('#touch')).toHaveAttribute('data-mode', 'edit');
+  await expect(page.locator('#touch [data-control="pause"]')).toBeHidden();
+  await expect(page.locator('#backBtn')).toBeHidden();
+  await expect(page.locator('#overlay')).toBeHidden();
+  const look = await page.evaluate(() => {
+    const css = (e: Element): CSSStyleDeclaration => getComputedStyle(e);
+    const shown = [...document.querySelectorAll<HTMLElement>('#touch [data-control]')].filter(
+      (e) => !e.hidden,
+    );
+    const bar = document.querySelector('#touchEdit .hint')!.getBoundingClientRect();
+    return {
+      scrim: css(document.querySelector('#touchEdit')!).backgroundColor,
+      controls: shown.map((e) => e.dataset.control),
+      labels: shown.map((e) => e.getAttribute('aria-label')),
+      borders: shown.map((e) => css(e.querySelector('.face')!).borderTopStyle),
+      opacity: css(document.querySelector('#touch')!).opacity,
+      hintBottom: bar.bottom,
+    };
+  });
+  expect(look.scrim).toBe('rgba(5, 5, 7, 0.55)');
+  expect(look.controls).toEqual(['dpad', 'jump', 'pogo', 'fire']);
+  expect(look.labels).toEqual(['Move D-pad', 'Move Jump', 'Move Pogo', 'Move Fizz']);
+  expect(look.borders).toEqual(['dashed', 'dashed', 'dashed', 'dashed']);
+  expect(look.opacity).toBe('0.85');
+  // Everything in the bar and under it stays inside the band the controls may not enter.
+  expect(look.hintBottom).toBeLessThanOrEqual(96);
+  await auditScreen(page);
+  expect(errors).toEqual([]);
+});
+
+test('the editor bar fits above the 96 px band at 640×320', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 320 });
+  const errors = await openEditor(page);
+  const bar = await page.evaluate(() => {
+    const r = (s: string): DOMRect => document.querySelector(s)!.getBoundingClientRect();
+    return {
+      done: r('#touchEdit .done').toJSON(),
+      reset: r('#touchEdit .reset').toJSON(),
+      title: r('#touchEdit h2').toJSON(),
+      hint: r('#touchEdit .hint').toJSON(),
+    };
+  });
+  expect(bar.done.right).toBeLessThanOrEqual(bar.title.left + 1);
+  expect(bar.title.right).toBeLessThanOrEqual(bar.reset.left + 1);
+  expect(bar.hint.bottom).toBeLessThanOrEqual(96);
+  expect(bar.reset.height).toBeGreaterThanOrEqual(47.9);
+  await auditScreen(page);
+  expect(errors).toEqual([]);
+});
+
+test('dragging the D-pad moves it with the finger and saves the place', async ({ page }) => {
+  const errors = await openEditor(page);
+  const { w, h } = await view(page);
+  const start = (await placed(page)).face.dpad;
+  const t = await finger(page);
+  await t.down({ x: start.cx, y: start.cy });
+  await t.to({ x: start.cx + 40, y: start.cy - 80 });
+  // The zone stops the D-pad at (w - 300) / 2 - 91 across and 171 down (the menu column and the HUD band).
+  const wantX = Math.min(start.cx + 40, Math.max(start.cx, (w - 300) / 2 - 91));
+  const wantY = Math.max(start.cy - 80, 171);
+  await expect
+    .poll(async () => {
+      const f = (await placed(page)).face.dpad;
+      return Math.hypot(f.cx - wantX, f.cy - wantY);
+    })
+    .toBeLessThan(1);
+  // A finger on a control in the editor is not a press: nothing is held while it drags.
+  expect((await lf(page, (g) => g.debugState)).bits).toBe(0);
+  await expect(page.locator('#touch [data-control="dpad"]')).toHaveClass(/drag/);
+  await t.up();
+  await expect(page.locator('#touch [data-control="dpad"]')).not.toHaveClass(/drag/);
+  await expect.poll(async () => (await stored(page))?.pos.dpad).toBeDefined();
+  const pos = (await stored(page))!.pos.dpad!;
+  expect(Number.isInteger(pos.side) && Number.isInteger(pos.bottom)).toBe(true);
+  // 24 + 75 = 99 across and 22 + 75 = 97 up for the default D-pad.
+  expect(pos.side + 75).toBeCloseTo(wantX, 0);
+  expect(pos.bottom + 75).toBeCloseTo(h - wantY, 0);
+  await tapDone(page);
+  await expect.poll(() => sub(page)).toBe('touch');
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('play'));
+  await expect.poll(async () => (await lf(page, (g) => g.debugState)).screen).toBe('play');
+  const f = (await placed(page)).face.dpad;
+  expect(Math.hypot(f.cx - wantX, f.cy - wantY)).toBeLessThan(1);
+  expect((await lf(page, (g) => g.debugState)).custom).toBe(true);
+  await expectNoOverlap(page);
+  expect(errors).toEqual([]);
+});
+
+test('a drag cannot leave its zone or sit on another control', async ({ page }) => {
+  const errors = await openEditor(page);
+  const { w } = await view(page);
+  // Straight to the top middle: stopped by the HUD band and the menu column.
+  await dragTo(page, 'dpad', { x: w / 2, y: 0 });
+  await expect.poll(async () => (await stored(page))?.pos.dpad).toBeDefined();
+  const d = (await placed(page)).face.dpad;
+  expect(d.cy - d.r).toBeGreaterThanOrEqual(95.5);
+  expect(d.cy - d.r).toBeLessThanOrEqual(96.5);
+  // Menus keep a column: the D-pad's gutter ends at (w - 300) / 2.
+  expect(Math.ceil(d.cx + d.r + 16)).toBeLessThanOrEqual((w - 300) / 2 + 0.5);
+  // Jump dropped on Pogo is pushed off it, to the 8 px gap between faces.
+  const pogo = (await placed(page)).face.pogo;
+  await dragTo(page, 'jump', { x: pogo.cx, y: pogo.cy });
+  await expect.poll(async () => (await stored(page))?.pos.jump).toBeDefined();
+  const p = await placed(page);
+  const gap = Math.hypot(p.face.jump.cx - pogo.cx, p.face.jump.cy - pogo.cy);
+  expect(gap - p.face.jump.r - pogo.r).toBeGreaterThanOrEqual(7.5);
+  expect(p.custom).toBe(true);
+  await expectNoOverlap(page);
+  expect(errors).toEqual([]);
+});
+
+test('dragged controls keep clear of a notch and the bottom bar', async ({ page }) => {
+  const errors = await openEditor(page);
+  const insets = { left: 48, right: 32, bottom: 20 };
+  await page.addStyleTag({
+    content: `:root { --lf-safe-left: ${insets.left}px; --lf-safe-right: ${insets.right}px; --lf-safe-bottom: ${insets.bottom}px; }`,
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+  const { w, h } = await view(page);
+  await expect
+    .poll(async () => (await placed(page)).face.dpad.cx)
+    .toBeGreaterThanOrEqual(insets.left + 8);
+  // Push the D-pad into the bottom left corner and Jump into the bottom right.
+  await dragTo(page, 'dpad', { x: 0, y: h });
+  await dragTo(page, 'jump', { x: w, y: h });
+  await expect.poll(async () => (await stored(page))?.pos.jump).toBeDefined();
+  const hits = await box(page, '#touch [data-control]');
+  const dpad = hits[0]!;
+  const jump = hits[1]!;
+  expect(dpad.left).toBeGreaterThanOrEqual(insets.left + 8 - 0.5);
+  expect(dpad.bottom).toBeLessThanOrEqual(h - insets.bottom - 8 + 0.5);
+  expect(jump.right).toBeLessThanOrEqual(w - insets.right - 8 + 0.5);
+  expect(jump.bottom).toBeLessThanOrEqual(h - insets.bottom - 8 + 0.5);
+  expect(errors).toEqual([]);
+});
+
+test('a moved layout mirrors when Left-handed is turned on', async ({ page }) => {
+  const errors = await openEditor(page);
+  const { w } = await view(page);
+  await dragTo(page, 'dpad', { x: 150, y: 190 });
+  await expect.poll(async () => (await stored(page))?.pos.dpad).toBeDefined();
+  const before = (await placed(page)).face.dpad;
+  await tapDone(page);
+  await expect.poll(() => sub(page)).toBe('touch');
+  await tapStep(page, 'Left-handed', 1);
+  await expect.poll(async () => (await placed(page)).face.dpad.cx).toBeGreaterThan(w / 2);
+  const after = (await placed(page)).face.dpad;
+  expect(after.cx).toBeCloseTo(w - before.cx, 0);
+  expect(after.cy).toBeCloseTo(before.cy, 0);
+  expect((await lf(page, (g) => g.debugState)).custom).toBe(true);
+  expect(await underControls(page)).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('Reset in the editor needs two taps and puts back only the positions', async ({ page }) => {
+  await store(
+    page,
+    JSON.stringify({ v: 1, size: 'S', opacity: 60, leftHanded: false, haptics: true, pos: {} }),
+  );
+  const errors = await openEditor(page);
+  await dragTo(page, 'jump', { x: 700, y: 250 });
+  await dragTo(page, 'dpad', { x: 150, y: 200 });
+  await expect.poll(async () => Object.keys((await stored(page))?.pos ?? {}).length).toBe(2);
+  expect((await lf(page, (g) => g.debugState)).custom).toBe(true);
+  await fingerTap(page, '#touchEdit .reset');
+  await expect(page.locator('#touchEdit .reset')).toHaveText('Tap again');
+  expect(Object.keys((await stored(page))!.pos)).toHaveLength(2);
+  await fingerTap(page, '#touchEdit .reset');
+  await expect.poll(async () => (await stored(page))?.pos).toEqual({});
+  await expect.poll(async () => (await lf(page, (g) => g.debugState)).custom).toBe(false);
+  await expect(page.locator('#touchEdit .reset')).toHaveText('Reset');
+  expect(await stored(page)).toMatchObject({ size: 'S', opacity: 60 });
+  expect(await sub(page)).toBe('touchEdit');
+  expect(errors).toEqual([]);
+});
+
+test('the split title falls back to one column when a raised D-pad leaves no room', async ({
+  page,
+}) => {
+  const errors = await openEditor(page, '&title=split');
+  const fit = (): Promise<string | undefined> =>
+    page.evaluate(() => document.getElementById('stage')!.dataset.titleFit);
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('title'));
+  await expect(page.locator('#title')).toBeVisible();
+  // With the D-pad where it starts, the split layout fits.
+  await expect.poll(fit).toBeUndefined();
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('touchEdit'));
+  await dragTo(page, 'dpad', { x: 130, y: 0 });
+  await expect.poll(async () => (await stored(page))?.pos.dpad).toBeDefined();
+  await tapDone(page);
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('title'));
+  await expect(page.locator('#title')).toBeVisible();
+  await expect.poll(fit).toBe('column');
+  expect(await underControls(page)).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('turning the phone upright and back keeps the moved controls', async ({ page }) => {
+  const errors = await openEditor(page);
+  const { w, h } = await view(page);
+  await dragTo(page, 'dpad', { x: 150, y: 200 });
+  await dragTo(page, 'fire', { x: 650, y: 180 });
+  await expect.poll(async () => Object.keys((await stored(page))?.pos ?? {}).length).toBe(2);
+  const before = await placed(page);
+  await page.setViewportSize({ width: h, height: w });
+  await expect(page.locator('#rotate')).toBeVisible();
+  await expect(page.locator('#touch')).toBeHidden();
+  await page.setViewportSize({ width: w, height: h });
+  await expect(page.locator('#rotate')).toBeHidden();
+  await expect.poll(async () => (await lf(page, (g) => g.debugTouch)) !== null).toBe(true);
+  const after = await placed(page);
+  for (const id of ['dpad', 'jump', 'pogo', 'fire'] as const) {
+    expect(after.face[id].cx, id).toBeCloseTo(before.face[id].cx, 3);
+    expect(after.face[id].cy, id).toBeCloseTo(before.face[id].cy, 3);
+  }
+  expect(after.custom).toBe(true);
+  // The editor is still the screen, and a control still drags.
+  expect(await sub(page)).toBe('touchEdit');
+  await dragTo(page, 'fire', { x: 600, y: 200 });
+  await expect
+    .poll(async () => Math.round((await placed(page)).face.fire.cx))
+    .not.toBe(Math.round(before.face.fire.cx));
   expect(errors).toEqual([]);
 });
