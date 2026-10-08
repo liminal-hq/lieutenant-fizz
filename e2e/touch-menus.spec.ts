@@ -244,8 +244,8 @@ test('a Jump held as the level-cleared card appears chooses nothing until presse
   await f.down({ x: jump.cx, y: jump.cy, id: 2 });
   await page.waitForTimeout(150);
   await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('card'));
+  await expect.poll(() => state(page).then((s) => s.screen)).toBe('card');
   await page.waitForTimeout(400);
-  expect((await state(page)).screen).toBe('card');
   await f.up();
   await page.waitForTimeout(300);
   expect((await state(page)).screen).toBe('card');
