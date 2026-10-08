@@ -9,7 +9,7 @@ Where the real game stands against `ENGINE_SPEC.md` and `GAME_DESIGN.md`. The be
 | `episodes/episode-1/game` | Episode 1 sim (Rust, cdylib to WASM): levels, player, enemies, boss, overworld, scene drawing, raw C-ABI exports |
 | `packages/engine` | Engine shell (TypeScript): pixel DSL and atlas builder, Three.js instanced renderer, input, audio, fixed-step accumulator, WASM loader |
 | `episodes/episode-1` | Episode 1 app: sprites, cinematic, DOM overlay, story text, saves, game flow, Vite entry |
-| `site/` | Static landing page, episodes listed in `site/episodes.json` |
+| `site/` | Static landing page and game guide, episodes listed in `site/episodes.json` |
 
 ## Run it
 ```sh

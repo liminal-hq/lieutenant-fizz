@@ -183,8 +183,8 @@ Bun workspaces + Cargo workspace:
 - `episodes/episode-N/game` — the episode's own Rust crate (for Episode 1, `lf-episode-1`), compiled to that episode's WASM
 - `docs/` — engine spec and cross-episode design (the source of truth)
 - `design/` — original design prototypes, reference only
-- `site/` — static landing page published at the Pages root, with episodes listed in `site/episodes.json`
-- `scripts/` — shell scripts for the WASM build, the site assembly and repository checks, and `build-font.ts`, the Bun script that builds the Fizz font (its logic lives in `packages/engine/src/font`; see `docs/FONT.md`)
+- `site/` — static landing page and game guide published at the Pages root, with episodes listed in `site/episodes.json`
+- `scripts/` — shell scripts for the WASM build, the site assembly and repository checks, and `build-font.ts`, the Bun script that builds the Fizz font (and `build-sprites.ts`, which exports the guide's sprites; its logic lives in `packages/engine/src/font`; see `docs/FONT.md`)
 - `.github/` — workflows (Pages deploy and CI), pull request and issue templates
 
 **Adding an episode:** create `episodes/episode-N/` as a Bun workspace package that depends on `packages/engine`, add its design and story docs, add it to the workspaces list, and extend the Pages build so it publishes under `/lieutenant-fizz/episode-N/` (the site base path is `/lieutenant-fizz/`). If the episode needs engine changes, make them in `crates/sim` or `packages/engine` in a separate focused commit (or PR) and update `docs/ENGINE_SPEC.md`.

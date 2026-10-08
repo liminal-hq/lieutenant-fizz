@@ -18,6 +18,8 @@
     "check:font": "bun scripts/build-font.ts --check",
     "build:hero": "bun scripts/build-hero.ts",
     "check:hero": "bun scripts/build-hero.ts --check",
+    "build:sprites": "bun scripts/build-sprites.ts",
+    "check:sprites": "bun scripts/build-sprites.ts --check",
     "preview": "bun run --cwd episodes/episode-1 preview",
     "test": "vitest run",
     "test:rust": "cargo test --workspace",
@@ -28,7 +30,7 @@
     "typecheck": "tsc -p packages/engine --noEmit && tsc -p episodes/episode-1 --noEmit && tsc -p scripts --noEmit && tsc -p e2e --noEmit",
     "test:e2e": "playwright test",
     "check:headers": "bash scripts/check-headers.sh",
-    "validate": "bun run check:headers && bun run check:font && bun run check:hero && bun run format:check && bun run lint && bun run typecheck && bun run test && bun run lint:rust && bun run test:rust && bun run build"
+    "validate": "bun run check:headers && bun run check:font && bun run check:hero && bun run check:sprites && bun run format:check && bun run lint && bun run typecheck && bun run test && bun run lint:rust && bun run test:rust && bun run build"
   },
   "devDependencies": {
     "@eslint/js": "^10",
