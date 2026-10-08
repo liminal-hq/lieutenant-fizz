@@ -35,3 +35,17 @@ test('an unknown level in the URL is ignored', async ({ page }) => {
   await page.waitForTimeout(500);
   expect((await state(page)).screen).not.toBe('play');
 });
+
+test('?touch pins touch mode on a desktop, and without it the desktop HUD shows', async ({
+  page,
+}) => {
+  await ready(page, '/?debug&touch');
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('play'));
+  await expect(page.locator('#hud.pills')).toBeVisible();
+  await expect(page.locator('#panelBtn')).toBeHidden();
+  await page.goto('/?debug');
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf);
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('play'));
+  await expect(page.locator('#hud.pills')).toHaveCount(0);
+  await expect(page.locator('#panelBtn')).toBeVisible();
+});
