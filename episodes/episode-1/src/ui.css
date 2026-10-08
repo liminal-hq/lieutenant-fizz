@@ -1272,3 +1272,218 @@ body {
 #ui.rm .menu button.sel .bullet {
   animation: none;
 }
+
+/* ── Touch controls and the phone HUD ──
+   `#touch` is the layer the engine builds the controls in. Each control's element is its hit area (at
+   least 48 dp); the glass face drawn inside may be smaller. Only the controls take touches. */
+#touch {
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--lf-touch-opacity);
+  --n: var(--lf-n);
+  font-family: var(--lf-font);
+  font-synthesis: none;
+  font-kerning: none;
+  letter-spacing: 0;
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  color: var(--lf-text);
+}
+:where(#touch, #touch *) {
+  font-size: calc(var(--lf-cell) * var(--n));
+  line-height: calc(var(--lf-line) * var(--n));
+}
+#touch [data-control] {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+#touch [data-control='pause'] {
+  border-radius: 12px;
+}
+#touch .face {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: var(--face);
+  height: var(--face);
+  box-sizing: border-box;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 20, 25, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+#touch .face img {
+  display: block;
+  image-rendering: pixelated;
+}
+#touch [data-control='fire'] .face img {
+  width: 32px;
+}
+#touch .lbl {
+  font-weight: 700;
+  color: #fff;
+}
+#touch .count {
+  --n: var(--lf-n-small);
+  font-family: var(--lf-mono);
+  font-weight: 700;
+  color: #55ffff;
+}
+#touch .on .face {
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 2px var(--lf-accent);
+}
+#touch .lit .face {
+  background: rgba(85, 255, 255, 0.22);
+  box-shadow: 0 0 0 2px #55ffff;
+}
+#touch .bars {
+  display: flex;
+  gap: 6px;
+}
+#touch .bars::before,
+#touch .bars::after {
+  content: '';
+  width: 4px;
+  height: 16px;
+  background: #fff;
+}
+#touch .tc-dpad {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  border-radius: 50%;
+}
+#touch .arm {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 0 solid transparent;
+  opacity: 0.5;
+}
+#touch .arm[data-held] {
+  opacity: 1;
+}
+#touch .arm[data-arm='up'] {
+  top: 14%;
+  left: calc(50% - 14px);
+  border-width: 0 14px 20px;
+  border-bottom-color: #fff;
+}
+#touch .arm[data-arm='down'] {
+  bottom: 14%;
+  left: calc(50% - 14px);
+  border-width: 20px 14px 0;
+  border-top-color: #fff;
+}
+#touch .arm[data-arm='left'] {
+  left: 14%;
+  top: calc(50% - 14px);
+  border-width: 14px 20px 14px 0;
+  border-right-color: #fff;
+}
+#touch .arm[data-arm='right'] {
+  right: 14%;
+  top: calc(50% - 14px);
+  border-width: 14px 0 14px 20px;
+  border-left-color: #fff;
+}
+#touch .arm[data-held][data-arm='up'] {
+  border-bottom-color: var(--lf-accent);
+}
+#touch .arm[data-held][data-arm='down'] {
+  border-top-color: var(--lf-accent);
+}
+#touch .arm[data-held][data-arm='left'] {
+  border-right-color: var(--lf-accent);
+}
+#touch .arm[data-held][data-arm='right'] {
+  border-left-color: var(--lf-accent);
+}
+
+/* The phone HUD: glass pills with an icon and a number. */
+#stage {
+  --lf-pill-h: 32px;
+}
+#hud.pills {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 0;
+}
+#hud .pillrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+#hud .pill {
+  --n: var(--lf-n-small);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 12px 2px 8px;
+  border-radius: 999px;
+  background: rgba(20, 20, 25, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(10px);
+}
+#hud .pill b {
+  font-family: var(--lf-mono);
+  font-weight: 700;
+}
+#hud .pill .ico {
+  display: block;
+  image-rendering: pixelated;
+}
+#hud .chip {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+/* The boss bar, toast and prompt step out of the pills' and the controls' way. */
+#stage[data-touch] #boss,
+#stage[data-touch] #toast {
+  top: calc(var(--lf-safe-top) + 14px + var(--lf-pill-h) + 8px);
+}
+#stage[data-touch] #prompt {
+  bottom: calc(var(--lf-safe-bottom) + 200px);
+  max-width: min(60vw, 480px);
+}
+
+/* Shown over everything while a touch device is held upright. */
+#rotate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #000;
+  padding: var(--lf-pad-y) var(--lf-pad-x);
+}
+#rotate h2 {
+  --n: var(--lf-n-head);
+  margin: 0 0 calc(var(--lf-n) * 6px);
+}
+#rotate p {
+  --n: var(--lf-n);
+  margin: 0;
+  color: var(--lf-muted);
+}

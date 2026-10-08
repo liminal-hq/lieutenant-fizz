@@ -23,6 +23,7 @@ import {
   creditsTransform,
   watchResize,
 } from './layout';
+import { pillItems, type PillIcon } from './hud';
 import type { BenFrame, BenPose } from './titleBen';
 import './ui.css';
 
@@ -143,6 +144,9 @@ export class Ui {
   readonly stage: HTMLElement;
   readonly gl: HTMLElement;
   readonly fx: HTMLElement;
+  /** The layer the on-screen touch controls are built in (hidden until they are shown). */
+  readonly touchLayer: HTMLElement;
+  private readonly rotate: HTMLElement;
   private readonly sky: HTMLElement;
   private readonly root: HTMLElement;
   private readonly hud: HTMLElement;
@@ -171,6 +175,9 @@ export class Ui {
   private readonly loading: HTMLElement;
   private toastTimer = 0;
   private bulletUrl = '';
+  private touchMode = false;
+  private hudState: HudState | null = null;
+  private hudIcons: Partial<Record<PillIcon, string>> = {};
   private benUrls: Partial<Record<BenPose, string>> = {};
   private readonly benEl: HTMLImageElement;
   private readonly heroEl: HTMLElement;
@@ -195,14 +202,20 @@ export class Ui {
     this.sky = el('div', { id: 'sky', hidden: '' });
     this.gl = el('div', { id: 'gl' });
     this.fx = el('div', { id: 'fx' });
+    this.touchLayer = el('div', { id: 'touch', class: 'lf' });
     this.root = el('div', { id: 'ui' });
-    host.append(this.sky, this.gl, this.fx, this.root);
+    host.append(this.sky, this.gl, this.fx, this.touchLayer, this.root);
 
     this.hud = el('div', { id: 'hud', class: 'lf lf-panel', hidden: '' });
     this.boss = el('div', { id: 'boss', class: 'lf lf-panel', hidden: '' });
     this.prompt = el('div', { id: 'prompt', class: 'lf lf-panel', hidden: '' });
     this.toastEl = el('div', { id: 'toast', class: 'lf lf-panel', hidden: '' });
 
+    this.rotate = el(
+      'div',
+      { id: 'rotate', class: 'lf screen', hidden: '' },
+      '<div><h2>Rotate your phone</h2><p>Lieutenant Fizz plays in landscape.</p></div>',
+    );
     this.title = el('div', { id: 'title', class: 'lf screen', hidden: '' });
     this.title.innerHTML = `<div class="head"><h1 class="wordmark"><span class="kicker">Ben Blaze in</span><span class="logo"><span class="hero"><span class="w">Lieutenant</span> <span class="w">Fizz</span></span><img class="ben" alt="" hidden></span></h1>
       <p class="episode">Episode 1 · The Cocoa Caper</p></div>`;
@@ -290,6 +303,7 @@ export class Ui {
       this.panel,
       this.loading,
       this.err,
+      this.rotate,
     );
     this.relayout();
     this.refreshHints();
@@ -491,9 +505,42 @@ export class Ui {
 
   // ----- HUD, prompt, toast, boss -----
 
+  /** Switches the HUD between the desktop panel and the phone's pills, and marks the stage as touch. */
+  setTouchMode(on: boolean): void {
+    if (on === this.touchMode) return;
+    this.touchMode = on;
+    this.stage.toggleAttribute('data-touch', on);
+    this.setHud(this.hudState);
+  }
+
+  /** Shows or hides the "Rotate your phone" screen. */
+  setRotate(on: boolean): void {
+    this.rotate.hidden = !on;
+  }
+
+  /** A sprite grid as a PNG data URL, for an image the page draws at a whole-number size. */
+  spriteUrl(grid: Grid): string {
+    const c = document.createElement('canvas');
+    this.paintGrid(c, grid);
+    return c.toDataURL();
+  }
+
+  /** Sets the sprites on the phone HUD's pills (lives, snacks, fizz). */
+  setHudIcons(grids: Record<PillIcon, Grid>): void {
+    for (const [name, grid] of Object.entries(grids) as [PillIcon, Grid][]) {
+      const c = document.createElement('canvas');
+      this.paintGrid(c, grid);
+      this.hudIcons[name] = c.toDataURL();
+    }
+    this.setHud(this.hudState);
+  }
+
   setHud(s: HudState | null): void {
+    this.hudState = s;
     this.hud.hidden = !s;
+    this.hud.classList.toggle('pills', this.touchMode);
     if (!s) return;
+    if (this.touchMode) return this.renderPills(s);
     this.hud.innerHTML = `<div class="row"><span class="lbl">Score</span><span class="lbl">Lives</span><span class="lbl">Fizz</span>
       <span class="num" style="color:#ffff55">${fmt(s.score)}</span>
       <span class="num" style="color:#55ff55">${Math.max(0, s.lives)}</span>
@@ -503,6 +550,21 @@ export class Ui {
       ${s.blue ? '<span class="badge" style="color:#8888ff">Blue gumdrop</span>' : ''}
       ${s.green ? '<span class="badge" style="color:#55ff55">Green gumdrop</span>' : ''}
       ${s.usb ? '<span class="badge" style="color:#ffff55">Gold USB</span>' : ''}</div>`;
+  }
+
+  /** The phone HUD: an icon and a number per pill, then a chip for each key held. */
+  private renderPills(s: HudState): void {
+    const { pills, chips } = pillItems(s);
+    const pillHtml = pills.map((p) => {
+      const url = this.hudIcons[p.icon];
+      const img = url ? `<img class="ico" src="${url}" alt="">` : '';
+      return `<span class="pill" role="img" aria-label="${p.label}" style="color:${p.colour}">${img}<b>${p.value}</b></span>`;
+    });
+    const chipHtml = chips.map(
+      (c) =>
+        `<span class="chip" role="img" aria-label="${c.label}" style="background:${c.colour}"></span>`,
+    );
+    this.hud.innerHTML = `<div class="pillrow">${pillHtml.join('')}${chipHtml.join('')}</div>`;
   }
 
   setBoss(hp: number | null): void {
@@ -518,7 +580,9 @@ export class Ui {
     need(this.prompt, '.t').textContent = p.title;
     need(this.prompt, '.d').textContent = p.text;
     need(this.prompt, '.a').textContent = p.action
-      ? `Jump, fire or Enter to ${p.action.toLowerCase()}`
+      ? this.touchMode
+        ? `Tap Jump or Fizz to ${p.action.toLowerCase()}`
+        : `Jump, fire or Enter to ${p.action.toLowerCase()}`
       : '';
   }
 
