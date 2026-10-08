@@ -156,6 +156,22 @@ export class TouchControls {
     if (this.count.textContent !== text) this.count.textContent = text;
   }
 
+  /** The spec the controls are placed with now. */
+  get currentSpec(): TouchSpec {
+    return this.spec;
+  }
+
+  /**
+   * Changes the size, hand or moved controls. When the controls are showing they are placed again at
+   * once, and a changed placement drops every held finger (see `relayout`); when hidden, the next
+   * `setVisible(true)` places them. A button held through a step of the Size setting is released by the
+   * change, so holding the arrow on a menu steps once.
+   */
+  setSpec(spec: TouchSpec): void {
+    this.spec = spec;
+    this.relayout();
+  }
+
   /** Reads the window size and the safe-area insets and places every control. */
   relayout(): void {
     if (!this.visible) return;
