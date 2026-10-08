@@ -37,11 +37,11 @@ describe('touchFaces', () => {
     expect(touchFaces('card', null).shown).toEqual(['dpad', 'jump']);
   });
 
-  it('adds Back on a screen opened over a menu', () => {
+  it('adds Back, and drops Pause, on a screen opened over a menu', () => {
     for (const sub of ['options', 'saves', 'controls'] as const) {
       for (const screen of ['title', 'pause'] as const) {
         const f = touchFaces(screen, sub);
-        expect(f.shown).toEqual(['dpad', 'jump', 'pogo', 'pause']);
+        expect(f.shown).toEqual(['dpad', 'jump', 'pogo']);
         expect(f.pogo).toBe('Back');
       }
     }
