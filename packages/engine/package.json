@@ -16,6 +16,7 @@
     "./palette": "./src/palette.ts",
     "./pen": "./src/pen.ts",
     "./renderer": "./src/renderer.ts",
+    "./repeat": "./src/repeat.ts",
     "./stinger": "./src/stinger.ts",
     "./touch": "./src/touch.ts",
     "./touch-layout": "./src/touch-layout.ts",

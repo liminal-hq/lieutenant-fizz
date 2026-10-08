@@ -9,10 +9,12 @@
 // (CSS) and the icons inside each face.
 
 import type { InputManager } from './input';
-import { contains, type ControlId } from './touch';
+import { contains, type ControlId, type TouchLayout } from './touch';
 import {
   DEFAULT_TOUCH_SPEC,
   placeControls,
+  sideGutters,
+  type Gutters,
   type Insets,
   type PlacedControls,
   type TouchSpec,
@@ -22,6 +24,9 @@ type Arm = 'left' | 'right' | 'up' | 'down';
 type PressButton = 'jump' | 'pogo' | 'fire';
 
 const ARMS: readonly Arm[] = ['left', 'right', 'up', 'down'];
+const ALL: readonly ControlId[] = ['dpad', 'jump', 'pogo', 'fire', 'pause'];
+/** A hit area nothing can land on, for a control that is hidden. */
+const NOWHERE = { cx: Number.NaN, cy: Number.NaN, r: 0 };
 const BUTTONS: readonly Exclude<ControlId, 'dpad'>[] = ['jump', 'pogo', 'fire', 'pause'];
 
 export interface TouchControlsOptions {
@@ -52,6 +57,7 @@ export class TouchControls {
   private pausePointer: number | null = null;
   private heldKey = '';
   private lit = false;
+  private shown: readonly ControlId[] = ALL;
 
   constructor(
     private readonly layer: HTMLElement,
@@ -157,7 +163,42 @@ export class TouchControls {
       this.apply(placed);
     }
     this.placed = placed;
-    this.input.touch.layout = placed.hit;
+    this.input.touch.layout = this.liveHits();
+  }
+
+  /**
+   * Shows only these controls (menus use a reduced set). A hidden control takes no new touch, but a
+   * finger already on it stays tracked until it lifts, so nothing is pressed or released by the change.
+   */
+  setShown(ids: readonly ControlId[]): void {
+    if (ids.length === this.shown.length && ids.every((id, i) => this.shown[i] === id)) return;
+    this.shown = [...ids];
+    for (const id of ALL) {
+      const el = id === 'dpad' ? this.dpad : this.buttons[id];
+      el.hidden = !this.shown.includes(id);
+    }
+    if (this.visible && this.placed) this.input.touch.layout = this.liveHits();
+  }
+
+  /** Changes a control's accessible name (Jump reads "Select" in a menu). */
+  setName(id: ControlId, name: string): void {
+    const el = id === 'dpad' ? this.dpad : this.buttons[id];
+    if (el.getAttribute('aria-label') !== name) el.setAttribute('aria-label', name);
+  }
+
+  /** The room menu content should leave on each side for the controls showing now (0 when hidden). */
+  gutters(margin = 16): Gutters {
+    if (!this.visible || !this.placed) return { left: 0, right: 0 };
+    const w = this.layer.clientWidth || window.innerWidth;
+    return sideGutters(this.placed, w, this.shown, margin);
+  }
+
+  /** The hit areas with every hidden control moved out of reach. */
+  private liveHits(): TouchLayout | null {
+    if (!this.placed) return null;
+    const hit = { ...this.placed.hit };
+    for (const id of ALL) if (!this.shown.includes(id)) hit[id] = NOWHERE;
+    return hit;
   }
 
   /** Shows what is held: the pressed buttons and the D-pad arm under the thumb. Call once a frame. */
@@ -269,7 +310,7 @@ export class TouchControls {
     if (e.detail !== 0 || !this.visible) return;
     const el = (e.target as Element).closest<HTMLElement>('[data-control]');
     const id = el?.dataset.control as ControlId | undefined;
-    if (!id || id === 'dpad' || !this.placed) return;
+    if (!id || id === 'dpad' || !this.placed || !this.shown.includes(id)) return;
     if (id === 'pause') {
       this.input.command({ type: 'pause' });
       return;

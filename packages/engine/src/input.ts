@@ -120,8 +120,8 @@ export function touchToBits(t: TouchHeld): number {
 }
 
 /**
- * Combines the held bits from each source. Touch counts only while `touchEnabled` (in play), so a
- * thumb on a control never drives a menu. `blocked` silences every source.
+ * Combines the held bits from each source. Touch counts only while `touchEnabled` (while the
+ * on-screen controls show, so a hidden control never holds a bit). `blocked` silences every source.
  */
 export function inputBits(
   src: { keys: number; pad: number; touch: number },
@@ -255,7 +255,7 @@ export class InputManager {
     this.setDevice('touch');
   }
 
-  /** Turns the touch controls on or off (on in play only). Turning them off drops any held finger. */
+  /** Turns the touch controls on or off (on while they show). Turning them off drops any held finger. */
   setTouchEnabled(enabled: boolean): void {
     if (!enabled && this.touchEnabled) this.releaseTouch();
     this.touchEnabled = enabled;

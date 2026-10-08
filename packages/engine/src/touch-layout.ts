@@ -80,6 +80,33 @@ export function inside(r: Rect, s: Shape): boolean {
   return s.x >= r.x && s.x + s.w <= r.x + r.w && s.y >= r.y && s.y + s.h <= r.y + r.h;
 }
 
+/** How far menu content keeps from each side so it never sits under a control, in CSS pixels. */
+export interface Gutters {
+  left: number;
+  right: number;
+}
+
+/**
+ * The room menu content leaves on each side of a `width` px window for the controls in `shown`: the
+ * outer edge of the furthest face on that side plus `margin`, or 0 when no shown control is on that
+ * side. A control counts on the side its centre is on, so a left-handed layout works the same way.
+ */
+export function sideGutters(
+  placed: PlacedControls,
+  width: number,
+  shown: readonly ControlId[],
+  margin = 16,
+): Gutters {
+  let left = 0;
+  let right = 0;
+  for (const id of shown) {
+    const f = placed.face[id];
+    if (f.cx < width / 2) left = Math.max(left, Math.ceil(f.cx + f.r + margin));
+    else right = Math.max(right, Math.ceil(width - (f.cx - f.r) + margin));
+  }
+  return { left, right };
+}
+
 /** The scale that keeps the smallest button at least `minHit` on a short screen, and never above 1. */
 const fit = (height: number, spec: TouchSpec): number => {
   const smallest = Math.min(spec.jump.d, spec.pogo.d, spec.fire.d);
