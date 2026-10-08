@@ -1,6 +1,6 @@
 # Landing page
 
-The static landing page published at <https://liminalhq.ca/lieutenant-fizz/>. It has no build step and no dependencies. Every link is relative, so it works under any subpath.
+The static landing page published at <https://liminalhq.ca/lieutenant-fizz/>. It has no build step and no dependencies. It is set in the Fizz pixel font: `assets/fonts` is a link to `packages/engine/assets/fonts` (the Pages build copies the real files, with their `OFL.txt` licence), and `css/site.css` sizes every piece of text as 11px times a whole number so the pixels stay crisp. Every link is relative, so it works under any subpath.
 
 ## Adding an episode
 
