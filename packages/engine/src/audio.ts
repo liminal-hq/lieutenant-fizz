@@ -168,6 +168,33 @@ interface VoiceSpec {
   delay?: number;
 }
 
+/** One Undertone voice. Music parts hold their envelope for the note length; effects are percussive. */
+export function buildVoice(
+  U: UndertoneModule,
+  v: SfxVoice | MusicPart,
+  vol: number,
+  gated: boolean,
+): Voice {
+  const text = 'notes' in v ? v.notes : v.n;
+  const noisy = 'noise' in v ? !!v.noise : isNoise(text);
+  let p: Voice = noisy
+    ? U.sound(text as SoundType)
+    : U.note(text).sound((v.w ?? 'triangle') as SoundType);
+  p = p
+    .attack(v.a ?? 0.001)
+    .decay(v.d ?? 0.1)
+    .sustain(gated ? ('s' in v ? (v.s ?? 0.3) : 0.3) : 0)
+    .release(v.r ?? 0.05)
+    .gain(v.g * vol);
+  if (v.lpf) p = p.lpf(v.lpf);
+  if (v.hpf) p = p.hpf(v.hpf);
+  if (v.slide) p = p.slide(v.slide);
+  if ('nudge' in v && v.nudge) p = p.nudge(v.nudge);
+  if ('room' in v && v.room) p = p.room(v.room).roomsize(6).orbit(1);
+  if ('delay' in v && v.delay) p = p.delay(v.delay).delaytime(0.33).delayfeedback(0.35).orbit(2);
+  return p;
+}
+
 /** Built-in Web Audio synth: plays the same patterns as Undertone, plus music loops. */
 export class MiniSynth {
   private readonly noise: Partial<Record<string, AudioBuffer>> = {};
@@ -385,33 +412,11 @@ export class GameAudio {
     return this.ctx;
   }
 
-  /** One Undertone voice. Music parts hold their envelope for the note length; effects are percussive. */
-  private utVoice(U: UndertoneModule, v: SfxVoice | MusicPart, vol: number, gated: boolean): Voice {
-    const text = 'notes' in v ? v.notes : v.n;
-    const noisy = 'noise' in v ? !!v.noise : isNoise(text);
-    let p: Voice = noisy
-      ? U.sound(text as SoundType)
-      : U.note(text).sound((v.w ?? 'triangle') as SoundType);
-    p = p
-      .attack(v.a ?? 0.001)
-      .decay(v.d ?? 0.1)
-      .sustain(gated ? ('s' in v ? (v.s ?? 0.3) : 0.3) : 0)
-      .release(v.r ?? 0.05)
-      .gain(v.g * vol);
-    if (v.lpf) p = p.lpf(v.lpf);
-    if (v.hpf) p = p.hpf(v.hpf);
-    if (v.slide) p = p.slide(v.slide);
-    if ('nudge' in v && v.nudge) p = p.nudge(v.nudge);
-    if ('room' in v && v.room) p = p.room(v.room).roomsize(6).orbit(1);
-    if ('delay' in v && v.delay) p = p.delay(v.delay).delaytime(0.33).delayfeedback(0.35).orbit(2);
-    return p;
-  }
-
   private undertoneEffect(U: UndertoneModule, name: string, voices: readonly SfxVoice[]): Voice {
     const key = `${name}@${this.sfxVol}`;
     const hit = this.cache.get(key);
     if (hit) return hit;
-    const fx = U.stack(...voices.map((v) => this.utVoice(U, v, this.sfxVol, false)));
+    const fx = U.stack(...voices.map((v) => buildVoice(U, v, this.sfxVol, false)));
     this.cache.set(key, fx);
     return fx;
   }
@@ -457,7 +462,7 @@ export class GameAudio {
     if (this.ut) {
       try {
         const U = this.ut;
-        this.handle = U.stack(...t.parts.map((p) => this.utVoice(U, p, this.musicVol, true))).loop({
+        this.handle = U.stack(...t.parts.map((p) => buildVoice(U, p, this.musicVol, true))).loop({
           ctx: this.ctx,
           bpm: t.bpm,
         });
