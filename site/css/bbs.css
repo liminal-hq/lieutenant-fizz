@@ -145,6 +145,43 @@ kbd { font-family: var(--font-mono); color: var(--ega-black); background: var(--
 /* ── Footer ── */
 .foot { border-top: 4px double var(--ega-dark-grey); padding-block: 24px 40px; display: flex; flex-direction: column; gap: 4px; }
 
+/* ── Motion ──
+   A dial-up screen drawing itself: the colour strip lights cell by cell, prompts are typed and boxes are
+   painted down the screen in coarse steps, and the sprites idle on a two-frame loop. Every step is
+   stepped (never eased) to keep the retro feel and whole-pixel moves. Content is always in the page and
+   already laid out: the animations only reveal it, so nothing depends on script, and the reduced-motion
+   rule at the end turns all of it off. Where the browser can tie an animation to scrolling, prompts and
+   boxes below the fold play as they scroll into view instead of on load. */
+@keyframes cell-on { from { opacity: 0; } to { opacity: 1; } }
+@keyframes type-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes paint-in { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes idle { 50% { transform: translateY(-1px); } }
+.ega span { animation: cell-on 1ms steps(1) both; }
+.ega span:nth-child(1) { animation-delay: 50ms; }
+.ega span:nth-child(2) { animation-delay: 100ms; }
+.ega span:nth-child(3) { animation-delay: 150ms; }
+.ega span:nth-child(4) { animation-delay: 200ms; }
+.ega span:nth-child(5) { animation-delay: 250ms; }
+.ega span:nth-child(6) { animation-delay: 300ms; }
+.ega span:nth-child(7) { animation-delay: 350ms; }
+.ega span:nth-child(8) { animation-delay: 400ms; }
+.ega span:nth-child(9) { animation-delay: 450ms; }
+.ega span:nth-child(10) { animation-delay: 500ms; }
+.ega span:nth-child(11) { animation-delay: 550ms; }
+.ega span:nth-child(12) { animation-delay: 600ms; }
+.ega span:nth-child(13) { animation-delay: 650ms; }
+.ega span:nth-child(14) { animation-delay: 700ms; }
+.ega span:nth-child(15) { animation-delay: 750ms; }
+.ega span:nth-child(16) { animation-delay: 800ms; }
+.prompt { width: fit-content; max-width: 100%; animation: type-in 700ms steps(24) 300ms both; }
+.box { animation: paint-in 600ms steps(12) 500ms both; }
+/* The saucer has one frame, so it hovers a pixel up and down. The other characters cycle their game frames
+   inside their own SVG files (scripts/build-sprites.ts). */
+.masthead .spr[src*="saucer"] { animation: idle 1s steps(1) infinite; }
+@supports (animation-timeline: view()) {
+  .screen .prompt, .screen .box { animation-delay: 0s; animation-duration: 1ms; animation-timeline: view(); animation-range: entry 0% entry 35%; animation-fill-mode: both; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
