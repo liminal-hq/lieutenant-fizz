@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/colours.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/base.css">
+  <link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/styles.css">
+  <script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
+  <script src="./image-slot.js"></script>
+  <style>html,body{margin:0;background:#0c0c10} a{color:#ffaa40} a:hover{color:#ffc46e}</style>
+</helmet>
+<div style="display:flex;flex-direction:column;gap:56px;padding:48px;font-family:var(--font-body);color:#e0e0e0;width:max-content;">
+  <header style="display:flex;flex-direction:column;gap:6px;max-width:760px;">
+    <span style="font-family:var(--font-heading);font-weight:700;font-size:28px;letter-spacing:-0.02em;color:#fff;">Lieutenant Fizz · Credits and stinger</span>
+    <span style="font-size:14px;color:#b4bfce;text-wrap:pretty;">Per <code style="font-family:var(--font-mono);">docs/SERIES.md</code>: credits run after the ending panels and before the score card, and can be skipped. The Mortimer stinger belongs to Episode 3, after its credits. In the prototype, turn on the “previewStinger” tweak to see it after the Episode 1 credits.</span>
+  </header>
+
+  <section id="1a" style="display:flex;flex-direction:column;gap:16px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="padding:3px 10px;border-radius:999px;background:#ffaa40;color:#050507;font-family:var(--font-mono);font-size:12px;font-weight:600;">1a</span>
+      <span style="font-family:var(--font-heading);font-weight:600;font-size:20px;color:#fff;">Credits roll</span>
+      <span style="font-size:13px;color:#7c8796;">Scrolls on the void with Afterglow wash and faint stars. It holds on “Thanks for playing”.</span>
+    </div>
+    <div style="display:flex;gap:24px;align-items:flex-start;">
+      <sc-for list="{{ credFrames }}" as="f" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="position:relative;width:640px;height:360px;overflow:hidden;border-radius:8px;border:1px solid rgba(255,255,255,0.10);background:radial-gradient(120% 70% at 50% 100%, rgba(244,63,94,0.28), rgba(167,139,250,0.12) 45%, rgba(5,5,7,0) 75%), #050507;">
+            <sc-for list="{{ stars }}" as="s" hint-placeholder-count="0"><div style="position:absolute;left:{{ s.x }};top:{{ s.y }};width:{{ s.z }};height:{{ s.z }};border-radius:50%;background:#fff;opacity:{{ s.o }};"></div></sc-for>
+            <div style="position:absolute;left:0;right:0;top:{{ f.top }};display:flex;flex-direction:column;align-items:center;gap:26px;padding:0 24px;box-sizing:border-box;">
+              <sc-if value="{{ f.brand }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><span style="font-family:var(--font-heading);font-weight:700;font-size:46px;line-height:0.95;letter-spacing:-0.03em;color:#fff;text-shadow:0 3px 0 #f43f5e, 0 6px 0 #000;">Lieutenant Fizz</span><span style="font-size:13px;color:#b4bfce;">Episode 1 · The Cocoa Caper</span></div>
+              </sc-if>
+              <sc-for list="{{ f.sections }}" as="sec" hint-placeholder-count="1">
+                <div style="width:460px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+                  <span style="font-family:var(--font-heading);font-weight:600;font-size:16px;color:#ffaa40;text-shadow:0 2px 0 #000;">{{ sec.head }}</span>
+                  <div style="width:100%;display:flex;flex-direction:column;gap:7px;">
+                    <sc-for list="{{ sec.lines }}" as="ln" hint-placeholder-count="3">
+                      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 20px;align-items:baseline;"><span style="text-align:right;font-size:12px;color:#b4bfce;">{{ ln.role }}</span><span style="font-family:var(--font-heading);font-weight:600;font-size:15px;color:#fff;">{{ ln.name }}</span></div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ f.end }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;"><span style="font-family:var(--font-heading);font-weight:700;font-size:34px;letter-spacing:-0.02em;color:#fff;text-shadow:0 3px 0 #f43f5e, 0 6px 0 #000;">Thanks for playing</span><span style="font-size:13px;color:#b4bfce;max-width:300px;text-wrap:balance;">Billy’s home and the cocoa’s back. Lieutenant Fizz will return.</span></div>
+              </sc-if>
+            </div>
+            <div style="position:absolute;left:0;right:0;top:0;height:60px;background:linear-gradient(180deg,#050507 15%,rgba(5,5,7,0));"></div>
+            <div style="position:absolute;left:0;right:0;bottom:0;height:56px;background:linear-gradient(0deg,#050507 15%,rgba(5,5,7,0));"></div>
+            <div style="position:absolute;right:16px;bottom:12px;display:flex;align-items:center;gap:14px;font-size:11px;color:#b4bfce;">
+              <span style="display:flex;align-items:center;gap:6px;"><span style="padding:2px 6px;border:1px solid rgba(255,255,255,0.22);border-bottom-width:2px;border-radius:4px;font-family:var(--font-mono);font-size:10px;color:#e0e0e0;">Esc</span>Skip credits</span>
+              <span style="display:flex;align-items:center;gap:6px;"><span style="padding:2px 6px;border:1px solid rgba(255,255,255,0.22);border-bottom-width:2px;border-radius:4px;font-family:var(--font-mono);font-size:10px;color:#e0e0e0;">Jump</span>{{ f.hint }}</span>
+            </div>
+          </div>
+          <span style="font-size:12px;color:#7c8796;">{{ f.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section id="1b" style="display:flex;flex-direction:column;gap:16px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="padding:3px 10px;border-radius:999px;background:#ffaa40;color:#050507;font-family:var(--font-mono);font-size:12px;font-weight:600;">1b</span>
+      <span style="font-family:var(--font-heading);font-weight:600;font-size:20px;color:#fff;">Mortimer stinger (Episode 3)</span>
+      <span style="font-size:13px;color:#7c8796;">Silence, a low sting, a slit of light that opens into a doorway, then one line. Skippable. Music stays off until the score card.</span>
+    </div>
+    <div style="display:flex;gap:24px;align-items:flex-start;">
+      <sc-for list="{{ stFrames }}" as="f" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="position:relative;width:640px;height:360px;overflow:hidden;border-radius:8px;border:1px solid rgba(255,255,255,0.10);background:#000;">
+            <div style="position:absolute;left:50%;top:29%;transform:translate(-50%,-50%);width:{{ f.w }};height:{{ f.h }};opacity:{{ f.o }};background:linear-gradient(180deg,#ffaa40,#f43f5e 70%,#a78bfa);box-shadow:0 0 {{ f.glow }} rgba(255,170,64,0.4);"></div>
+            <sc-if value="{{ f.slot }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:50%;top:29%;transform:translate(-50%,-50%);width:150px;height:230px;"><img src="{{ mortImg }}" alt="Mortimer McMire" style="width:100%;height:100%;object-fit:contain;object-position:bottom;image-rendering:pixelated;"></div></sc-if>
+            <div style="position:absolute;left:0;right:0;top:calc(29% + 112px);display:flex;justify-content:center;opacity:{{ f.nameO }};"><span style="font-family:var(--font-heading);font-weight:700;font-size:22px;letter-spacing:-0.02em;color:#ffaa40;text-shadow:0 2px 0 #000;">Mortimer McMire</span></div>
+            <div style="position:absolute;left:0;right:0;bottom:0;height:96px;background:#000;display:flex;justify-content:center;padding:12px 28px;box-sizing:border-box;opacity:{{ f.nameO }};">
+              <div style="width:100%;display:flex;flex-direction:column;gap:6px;"><span style="font-family:var(--font-heading);font-weight:600;font-size:12px;color:#ffaa40;">Far from the citadel</span><span style="font-size:13px;line-height:1.5;color:#e0e0e0;text-wrap:pretty;">A door hissed open in the dark, and a familiar figure stepped into the light. “Hi, Mildred. Remember me?”</span></div>
+            </div>
+            <sc-if value="{{ f.sound }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:16px;top:14px;padding:3px 10px;white-space:nowrap;border-radius:999px;background:rgba(22,22,28,0.92);border:1px solid rgba(255,255,255,0.14);font-size:12px;color:#e0e0e0;">♪ low sting</span></sc-if>
+          </div>
+          <span style="font-size:12px;color:#7c8796;">{{ f.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <span style="font-size:12px;color:#7c8796;max-width:760px;text-wrap:pretty;">Mortimer uses the black-and-red sprite with shades and a red-striped helmet (<code style="font-family:var(--font-mono);">billyAlt</code> in <code style="font-family:var(--font-mono);">melting/sprites.js</code>). Sound: <code style="font-family:var(--font-mono);">stinger</code> in <code style="font-family:var(--font-mono);">melting/audio.js</code>.</span>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1560,&quot;height&quot;:1100}}">
+class Component extends DCLogic {
+  stars = Array.from({ length: 30 }, (_, i) => ({ x: ((i * 37 + 11) % 97 + 1) + '%', y: ((i * 53 + 7) % 93 + 2) + '%', z: (i % 5 === 0 ? 3 : 2) + 'px', o: 0.25 + (i % 4) * 0.15 }));
+  state = { mortImg: '' };
+  componentDidMount() { import(new URL('melting/sprites.js', document.baseURI).href).then(m => this.setState({ mortImg: m.spriteDataURL('billyAlt', 8) })); }
+  renderVals() {
+    const S = (head, rows) => ({ head, lines: rows.map(r => ({ role: r[0], name: r[1] })) });
+    const starring = S('Starring', [['Neighbourhood tinkerer', 'Ben \u201cLieutenant Fizz\u201d Blaze'], ['Local genius', 'Billy Blaze'], ['Chocolate castle architect', 'Mildred McMire'], ['Hiding in the shadows somewhere', 'Mortimer McMire'], ['Itself', 'The Cocoa Colossus']]);
+    const made = S('Made by', [['Game design, story, and code', 'Scott Morris'], ['Studio', 'Liminal HQ']]);
+    const built = S('Built with', [['Engine', 'Liminal Retro Engine'], ['Sound and music', 'Undertone'], ['Rendering', 'Three.js'], ['Interface', 'Afterglow']]);
+    const credFrames = [
+      { top: '34px', brand: true, sections: [starring], end: false, hint: 'Speed up', label: 'Roll-in: title card, then the cast' },
+      { top: '-10px', brand: false, sections: [made, built], end: false, hint: 'Speed up', label: 'Mid-roll: studio, engine, sound' },
+      { top: '88px', brand: false, sections: [], end: true, hint: 'Continue', label: 'Hold: waits for Jump, then the score card' }
+    ];
+    const T = (label, w, h, o, glow, nameO, sound, slotId) => ({ label, w, h, o, glow, nameO, sound: !!sound, slot: !!slotId, slotId: slotId || '' });
+    const stFrames = [
+      T('0 s: black, music off', '360px', '2px', 0, '0px', 0),
+      T('1.2 s: sting; a slit of light', '300px', '3px', 1, '30px', 0, true),
+      T('2.6 s: the slit opens into a doorway', '110px', '210px', 1, '70px', 0, false, 'mortimer-stinger-3'),
+      T('4.6 s: name and line typed out', '110px', '210px', 1, '70px', 1, false, 'mortimer-stinger-4')
+    ];
+    return { stars: this.stars, credFrames, stFrames, mortImg: this.state.mortImg || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' };
+  }
+}
+</script>
+</body>
+</html>

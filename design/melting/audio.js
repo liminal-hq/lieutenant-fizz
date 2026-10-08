@@ -34,6 +34,7 @@ export const SFX = {
   sproing: [V('c3', { d: 0.2, g: 0.45 }), V('c4', { d: 0.15, g: 0.35, nudge: 0.05 }), V('g4', { d: 0.15, g: 0.3, nudge: 0.1 }), V('c5', { w: 'sine', d: 0.2, g: 0.25, nudge: 0.15 })],
   poof: [V('white', { a: 0.02, d: 0.15, g: 0.25, lpf: 2000 })],
   splorp: [V('e2', { w: 'sine', d: 0.15, g: 0.4, slide: 0.12 }), V('pink', { d: 0.06, g: 0.15, lpf: 1200 })],
+  stinger: [V('e2', { w: 'sawtooth', a: 0.02, d: 1.1, g: 0.22, lpf: 500 }), V('a#2', { w: 'sawtooth', a: 0.02, d: 1.1, g: 0.18, lpf: 500, nudge: 0.03 }), V('e5', { w: 'sine', d: 0.8, g: 0.1, nudge: 0.5 }), V('brown', { a: 0.05, d: 0.7, g: 0.2, lpf: 700 })],
   menu: [V('a5', { w: 'sine', d: 0.06, g: 0.3, lpf: 3000 }), V('white', { a: 0, d: 0.008, g: 0.1, lpf: 6000 })]
 };
 const CAPTION_SFX = { boing: 'boing', fzzt: 'fzzt', crunch: 'crunch', fsssht: 'soda', 'red gumdrop': 'key', 'blue gumdrop': 'key', 'gold USB drive': 'usb', fizzled: 'stun', plink: 'plink', blorp: 'bwomp', bonk: 'bonk', 'whoa!': 'hurt', clunk: 'clunk', 'click-clack': 'click', 'ding! extra life': 'life', vworp: 'vworp', 'zap zap zap': 'zap', brrrt: 'zap', THOOM: 'thoom', 'CLANG — dome open!': 'clang', ZZZAP: 'zzzap', 'ta-da!': 'win', 'beep boop': 'beep', pfff: 'pfff', snort: 'snort', thunk: 'clunk', skreee: 'skree', KRUNCH: 'krunch', bwomp: 'bwomp', sproing: 'sproing', poof: 'poof', splorp: 'splorp', 'click — no fizz': 'plink', 'needs a drive': 'plink' };

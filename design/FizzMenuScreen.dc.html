@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/fonts.css">
+<script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
+</helmet>
+<div ref="{{ rootRef }}" tabIndex="0" onKeyDown="{{ onKey }}" onMouseEnter="{{ onEnterFrame }}" data-screen-label="{{ label }}" style="position:relative;width:640px;height:400px;overflow:hidden;background:#050507;border-radius:4px;outline:none;box-shadow:0 4px 24px rgba(0,0,0,.45);font-family:Inter,sans-serif">
+<sc-if value="{{ showNight }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<img src="{{ art.night }}" alt="" style="position:absolute;left:0;top:0;width:640px;height:400px;image-rendering:pixelated">
+</sc-if>
+<sc-if value="{{ showWorld }}" hint-placeholder-val="{{ false }}">
+<img src="{{ art.world }}" alt="" style="position:absolute;left:-120px;top:-40px;width:960px;height:480px;image-rendering:pixelated">
+</sc-if>
+<sc-if value="{{ chromeOverlay }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:{{ overlayBg }}"></div>
+</sc-if>
+<sc-if value="{{ chromeText }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:10px;border:4px double #55ffff"></div>
+<div style="position:absolute;left:28px;top:4px;padding:0 6px;background:#000000">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ textTab }}" color="#ffff55" knock="#000000" scale="2" hint-size="160px,28px"></x-import>
+</div>
+</sc-if>
+<sc-if value="{{ showHud }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:{{ hudLeft }};top:{{ hudTop }};display:flex;gap:14px;padding:4px 10px;background:rgba(0,0,0,.72)">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" mono="true" cut="bold" text="Score 240" color="#ffff55" scale="2" hint-size="120px,28px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" mono="true" cut="bold" text="Lives 3" color="#55ff55" scale="2" hint-size="100px,28px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" mono="true" cut="bold" text="Fizz 5" color="#55ffff" scale="2" hint-size="90px,28px"></x-import>
+</div>
+</sc-if>
+<sc-if value="{{ isTitle }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:{{ logo.left }};right:{{ logo.right }};top:12px;display:flex;flex-direction:column;align-items:{{ logo.align }};gap:0">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Ben Blaze in" color="{{ logo.kicker }}" scale="2" hint-size="120px,28px"></x-import>
+<div ref="{{ logoRef }}" style="position:relative;display:inline-block">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="Lieutenant Fizz" scale="4" color="{{ logo.color }}" bands="{{ logo.bands }}" outline="{{ logo.outline }}" shadow="{{ logo.shadow }}" hint-size="400px,70px"></x-import>
+<sc-if value="{{ hasBen }}" hint-placeholder-val="{{ false }}"><img src="{{ ben.src }}" alt="" style="position:absolute;left:{{ ben.left }};bottom:{{ ben.bottom }};width:48px;image-rendering:pixelated;transform:{{ ben.tf }};transform-origin:50% 100%;pointer-events:none"></sc-if>
+</div>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Episode 1 · The Cocoa Caper" color="{{ logo.sub }}" scale="2" hint-size="260px,28px"></x-import>
+</div>
+</sc-if>
+<div style="position:absolute;left:0;right:0;top:{{ z.top }};bottom:{{ z.bottom }};display:flex;flex-direction:column;justify-content:{{ z.justify }}">
+<div style="position:relative;margin-left:{{ c.left }};margin-right:{{ c.right }};max-height:100%;box-sizing:border-box;background:{{ c.bg }};border:{{ c.border }};box-shadow:{{ c.shadow }};padding:{{ c.pad }};border-radius:{{ c.radius }};display:flex;flex-direction:column;align-items:{{ c.align }};gap:{{ c.gap }}">
+<sc-if value="{{ headTab }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;top:-17px;left:50%;transform:translateX(-50%);padding:0 8px;background:#0000aa;white-space:nowrap">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="{{ heading }}" color="#ffff55" knock="#0000aa" scale="2" hint-size="140px,28px"></x-import>
+</div>
+</sc-if>
+<sc-if value="{{ headInline }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="{{ heading }}" color="{{ headColor }}" shadow="{{ headShadow }}" scale="{{ headScale }}" hint-size="200px,56px"></x-import>
+</sc-if>
+<sc-if value="{{ hasLines }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;align-items:{{ c.align }};gap:0;margin-bottom:6px">
+<sc-for list="{{ lines }}" as="ln" hint-placeholder-count="2">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ ln.text }}" color="{{ v.muted }}" scale="2" hint-size="400px,28px"></x-import>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ hasRows }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:2px;align-self:stretch;align-items:{{ v.self }}">
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="5">
+<div onMouseEnter="{{ r.onEnter }}" onClick="{{ r.onClick }}" style="position:relative;display:flex;align-items:center;gap:14px;height:30px;padding:{{ v.rowPad }};background:{{ r.bg }};clip-path:{{ r.clip }};cursor:pointer">
+<sc-if value="{{ r.showCursor }}" hint-placeholder-val="{{ false }}">
+<img src="{{ cursorSrc }}" alt="" style="position:absolute;left:{{ v.cursorLeft }};top:50%;width:{{ v.cursorW }};image-rendering:pixelated;transform:{{ cursorTf }};pointer-events:none">
+</sc-if>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ r.label }}" color="{{ r.color }}" scale="3" hint-size="160px,42px"></x-import>
+<sc-if value="{{ r.hasValue }}" hint-placeholder-val="{{ false }}">
+<div style="margin-left:{{ v.valueGap }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ r.value }}" color="{{ r.vcolor }}" knock="{{ r.bgSolid }}" scale="2" hint-size="80px,28px"></x-import>
+</div>
+</sc-if>
+<sc-if value="{{ r.hasMeter }}" hint-placeholder-val="{{ false }}">
+<div style="margin-left:{{ v.valueGap }};display:flex;gap:3px">
+<sc-for list="{{ r.meter }}" as="m" hint-placeholder-count="8">
+<div style="width:10px;height:14px;background:{{ m.c }}"></div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ isControls }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:2px 12px;align-self:stretch;align-items:center;margin-bottom:4px">
+<sc-for list="{{ ctrlCells }}" as="cc" hint-placeholder-count="28">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ cc.text }}" color="{{ cc.color }}" knock="{{ v.knock }}" scale="2" hint-size="100px,30px"></x-import>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ isSaves }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:2px;align-self:stretch">
+<sc-for list="{{ slots }}" as="sl" hint-placeholder-count="5">
+<div onMouseEnter="{{ sl.onEnter }}" onClick="{{ sl.onClick }}" style="display:flex;align-items:center;gap:14px;height:46px;padding:0 12px;background:{{ sl.bg }};clip-path:{{ sl.clip }};cursor:pointer">
+<sc-if value="{{ sl.hasThumb }}" hint-placeholder-val="{{ false }}">
+<img src="{{ sl.thumb }}" alt="" style="width:72px;height:45px;image-rendering:pixelated;box-shadow:0 0 0 2px {{ sl.frame }}">
+</sc-if>
+<sc-if value="{{ sl.noThumb }}" hint-placeholder-val="{{ false }}">
+<div style="width:72px;height:45px;box-sizing:border-box;border:2px dashed {{ sl.frame }}"></div>
+</sc-if>
+<div style="display:flex;flex-direction:column;gap:0">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ sl.line1 }}" color="{{ sl.c1 }}" scale="2" hint-size="240px,28px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ sl.line2 }}" color="{{ sl.c2 }}" scale="2" hint-size="300px,28px"></x-import>
+</div>
+<div style="margin-left:auto;display:flex;gap:4px">
+<sc-for list="{{ sl.pips }}" as="p" hint-placeholder-count="3">
+<div style="width:10px;height:10px;background:{{ p.c }}"></div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ isPrompt }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="Crystal Caves" color="{{ v.accent }}" scale="3" hint-size="200px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Dark, glittering tunnels over chocolate rivers." color="{{ v.text }}" scale="2" hint-size="420px,28px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ promptAction }}" color="{{ v.accent }}" knock="{{ v.knock }}" scale="2" hint-size="200px,30px"></x-import>
+</sc-if>
+<sc-if value="{{ hasNote }}" hint-placeholder-val="{{ false }}">
+<div>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ note }}" color="{{ v.dim }}" scale="2" hint-size="300px,28px"></x-import>
+</div>
+</sc-if>
+</div>
+</div>
+<sc-if value="{{ hasBar }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:{{ bar.left }};right:{{ bar.right }};bottom:{{ bar.bottom }};height:{{ bar.h }};padding:{{ bar.pad }};background:{{ bar.bg }};display:flex;align-items:center;justify-content:{{ bar.justify }};gap:16px">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ hints }}" color="{{ bar.color }}" knock="{{ bar.knock }}" scale="2" hint-size="400px,30px"></x-import>
+<sc-if value="{{ showMode }}" hint-placeholder-val="{{ false }}">
+<div style="margin-left:auto">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ modeLabel }}" color="{{ bar.dim }}" scale="2" hint-size="100px,28px"></x-import>
+</div>
+</sc-if>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:640,&quot;height&quot;:400},&quot;variant&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;scrim&quot;,&quot;window&quot;,&quot;band&quot;,&quot;text&quot;],&quot;default&quot;:&quot;scrim&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;title&quot;,&quot;pause&quot;,&quot;options&quot;,&quot;controls&quot;,&quot;gameover&quot;,&quot;cleared&quot;,&quot;prompt&quot;,&quot;saves&quot;],&quot;default&quot;:&quot;title&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;hints&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;keyboard&quot;,&quot;gamepad&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;motion&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;reduced&quot;,&quot;full&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  state = { sel: 0, now: 0, mode: 'keyboard', art: {}, o: { music: 6, sfx: 4, captions: true, layout: 0, text: 0, motion: 0 }, flash: 0, wave: 0, look: 0, logoW: 400, logoH: 64 };
+  rootRef = React.createRef();
+  logoRef = React.createRef();
+
+  componentDidMount() {
+    this.t0 = performance.now() / 1000;
+    this.setState({ now: this.t0, mode: this.padConnected() ? 'gamepad' : 'keyboard', sel: this.props.screen === 'saves' ? 2 : 0 });
+    this.timer = setInterval(() => {
+      const now = performance.now() / 1000;
+      const l = this.logoRef.current;
+      const patch = {};
+      if (l && (l.offsetWidth !== this.state.logoW || l.offsetHeight !== this.state.logoH) && l.offsetWidth > 0) { patch.logoW = l.offsetWidth; patch.logoH = l.offsetHeight; }
+      if (!this.reduced() || this.state.flash > now - 0.3) patch.now = now;
+      if (Object.keys(patch).length) this.setState(patch);
+    }, 100);
+    this.onPad = () => this.setState({ mode: 'gamepad' });
+    this.onPadOff = () => this.setState({ mode: 'keyboard' });
+    window.addEventListener('gamepadconnected', this.onPad);
+    window.addEventListener('gamepaddisconnected', this.onPadOff);
+    this.loadArt();
+  }
+  componentWillUnmount() {
+    clearInterval(this.timer);
+    window.removeEventListener('gamepadconnected', this.onPad);
+    window.removeEventListener('gamepaddisconnected', this.onPadOff);
+  }
+  padConnected() {
+    try { return Array.from(navigator.getGamepads ? navigator.getGamepads() : []).some(Boolean); } catch (e) { return false; }
+  }
+  reduced() {
+    const m = this.props.motion;
+    if (m === 'reduced') return true;
+    if (m === 'full') return false;
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  async loadArt() {
+    if (!window.__lfMenuArt) window.__lfMenuArt = (async () => {
+      const m = await import('./melting/sprites.js');
+      const by = {};
+      m.defineSprites().forEach((d) => { by[d.name] = d; });
+      const E = m.EGA;
+      const cv = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
+      const put = (x, n, px, py, tint) => { const d = by[n]; if (!d) return; for (let j = 0; j < d.h; j++) for (let i = 0; i < d.w; i++) { const k = d.g[j][i]; if (!k || k === '.') continue; x.fillStyle = tint || E[k] || k; x.fillRect(px + i, py + j, 1, 1); } };
+      const one = (n) => { const d = by[n]; if (!d) return ''; const [c, x] = cv(d.w, d.h); put(x, n, 0, 0); return c.toDataURL(); };
+      const art = {};
+      ['ben_stand', 'ben_jump', 'ben_shoot', 'ben_pogo', 'ben_pogo2', 'benMap0', 'soda', 'saucer', 'cheezie'].forEach((n) => { art[n] = one(n); });
+      let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+      {
+        const [c, x] = cv(320, 200);
+        for (let i = 0; i < 46; i++) put(x, 'star', Math.floor(rnd() * 316), Math.floor(rnd() * 120));
+        put(x, 'moon', 262, 18);
+        for (let i = 0; i < 21; i++) put(x, 'mtnTop', i * 16 - 4, 126, '#0000aa');
+        x.fillStyle = '#0000aa'; x.fillRect(0, 142, 320, 10);
+        for (let i = 0; i < 21; i++) put(x, 'hillTop', i * 16, 140, '#00aa00');
+        x.fillStyle = '#00aa00'; x.fillRect(0, 156, 320, 4);
+        for (let i = 0; i < 20; i++) for (let j = 0; j < 3; j++) put(x, 'owGrass', i * 16, 160 + j * 16);
+        put(x, 'saucer', 230, 146);
+        art.night = c.toDataURL();
+      }
+      {
+        const [c, x] = cv(480, 240);
+        for (let i = 0; i < 30; i++) for (let j = 0; j < 15; j++) put(x, 'owGrass', i * 16, j * 16);
+        const path = [];
+        const seg = (a, b, y) => { for (let i = Math.min(a, b); i <= Math.max(a, b); i++) path.push([i, y]); };
+        const vseg = (a, b, xx) => { for (let j = Math.min(a, b); j <= Math.max(a, b); j++) path.push([xx, j]); };
+        seg(3, 9, 12); vseg(8, 12, 9); seg(9, 15, 8); vseg(6, 8, 15); seg(15, 23, 6); vseg(4, 6, 23); seg(23, 25, 4);
+        const onPath = new Set(path.map((p) => p.join(',')));
+        path.forEach(([i, j]) => put(x, 'owPath', i * 16, j * 16));
+        for (let k = 0; k < 40; k++) { const i = Math.floor(rnd() * 30), j = Math.floor(rnd() * 15); if (onPath.has(i + ',' + j)) continue; put(x, rnd() < 0.5 ? 'owTree0' : 'owTree1', i * 16, j * 16); }
+        for (let k = 0; k < 8; k++) { const i = Math.floor(rnd() * 30), j = Math.floor(rnd() * 15); if (!onPath.has(i + ',' + j)) put(x, 'owRock', i * 16, j * 16); }
+        put(x, 'owCrater', 2 * 16, 12 * 16); put(x, 'owFlag', 2 * 16, 11 * 16);
+        put(x, 'owTele1', 10 * 16, 12 * 16);
+        put(x, 'owCave', 15 * 16, 5 * 16);
+        put(x, 'owTele0', 16 * 16, 9 * 16);
+        put(x, 'owCastle', 24 * 16, 2 * 16);
+        put(x, 'benMap0', 15 * 16, 6 * 16);
+        art.world = c.toDataURL();
+        const crop = (sx, sy) => { const [t, tx] = cv(96, 60); tx.drawImage(c, sx, sy, 96, 60, 0, 0, 96, 60); return t.toDataURL(); };
+        art.thumbs = [crop(0, 150), crop(200, 50), crop(344, 0)];
+      }
+      return art;
+    })();
+    const art = await window.__lfMenuArt;
+    this.setState({ art });
+  }
+
+  cfg() {
+    const plateClip = 'polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)';
+    return {
+      scrim: { scene: true, cursor: 'soda', cursorKind: 'bob', cursorLeft: '-38px', cursorW: '32px', clip: plateClip, cycle: ['#ffaa40', '#ffb850', '#ffc860', '#ffb850'], text: '#e0e0e0', muted: '#b4bfce', dim: '#7c8796', accent: '#ffaa40', knock: '#050507', self: 'flex-start', rowPad: '0 16px', valueGap: '6px', meterOn: '#55ff55', meterOff: '#3a3a44', head: { color: '#ffffff', shadow: '#f43f5e,#000000', scale: '3' }, tab: false, logo: { left: '40px', right: 'auto', align: 'flex-start', color: '#ffffff', bands: '', outline: '', shadow: '#f43f5e,#000000', kicker: '#ffaa40', sub: '#b4bfce' }, bar: { left: '0', right: '0', bottom: '0', h: '32px', pad: '0 40px', bg: 'rgba(5,5,7,.9)', color: '#b4bfce', dim: '#7c8796', knock: '#050507', justify: 'flex-start' } },
+      window: { scene: true, cursor: 'soda', cursorKind: 'blink', cursorLeft: '6px', cursorW: '24px', clip: 'none', cycle: ['#55ffff', '#55ffff', '#ffffff', '#55ffff'], text: '#ffffff', muted: '#ffffff', dim: '#aaaaaa', accent: '#ffff55', knock: '#0000aa', self: 'stretch', rowPad: '0 10px 0 38px', valueGap: 'auto', meterOn: '#55ff55', meterOff: '#0000ff', head: { color: '#ffff55', shadow: '', scale: '3' }, tab: true, logo: { left: '0', right: '0', align: 'center', color: '#ffffff', bands: '#ffff55,#ffff55,#ff5555,#ff5555,#ff55ff,#aa00aa', outline: '#000000', shadow: '#000000', kicker: '#55ffff', sub: '#ffffff' }, bar: { left: '0', right: '0', bottom: '0', h: '28px', pad: '0 14px', bg: '#aaaaaa', color: '#000000', dim: '#555555', knock: '#aaaaaa', justify: 'flex-start' } },
+      band: { scene: true, cursor: 'saucer', cursorKind: 'hover', cursorLeft: '-64px', cursorW: '48px', clip: plateClip, cycle: ['#ffaa40', '#ffaa40', '#ffff55', '#ffaa40'], text: '#ffffff', muted: '#b4bfce', dim: '#7c8796', accent: '#ffaa40', knock: '#000000', self: 'center', rowPad: '0 22px', valueGap: '4px', meterOn: '#ffff55', meterOff: '#555555', head: { color: '#ffffff', shadow: '#f43f5e', scale: '3' }, tab: false, logo: { left: '0', right: '0', align: 'center', color: '#ffffff', bands: '', outline: '', shadow: '#f43f5e,#000000', kicker: '#ffaa40', sub: '#b4bfce' }, bar: { left: '0', right: '0', bottom: '0', h: '34px', pad: '0 20px', bg: '#000000', color: '#e0e0e0', dim: '#7c8796', knock: '#000000', justify: 'center' } },
+      text: { scene: false, cursor: 'cheezie', cursorKind: 'blink', cursorLeft: '6px', cursorW: '24px', clip: 'none', cycle: ['#aa00aa', '#aa00aa', '#ff55ff', '#aa00aa'], text: '#55ffff', muted: '#aaaaaa', dim: '#aaaaaa', accent: '#ff55ff', knock: '#000000', self: 'stretch', rowPad: '0 10px 0 38px', valueGap: 'auto', meterOn: '#55ffff', meterOff: '#00aaaa', head: { color: '#ffff55', shadow: '', scale: '3' }, tab: false, logo: { left: '44px', right: 'auto', align: 'flex-start', color: '#ffff55', bands: '', outline: '', shadow: '#aa5500,#000000', kicker: '#55ffff', sub: '#aaaaaa' }, bar: { left: '30px', right: '30px', bottom: '18px', h: '28px', pad: '0', bg: 'transparent', color: '#aaaaaa', dim: '#5555ff', knock: '#000000', justify: 'flex-start' } },
+    };
+  }
+
+  container(vk, group) {
+    const T = {
+      scrim: { base: { bg: 'transparent', border: '0', shadow: 'none', pad: '0', radius: '0', align: 'flex-start', gap: '10px' }, title: { left: '40px', right: '200px', top: '184px', tf: 'none' }, list: { left: '40px', right: '230px' }, card: { left: '40px', right: '150px' }, wide: { left: '40px', right: '40px' }, prompt: { left: '110px', right: '110px', top: 'auto', bottom: '40px', tf: 'none', bg: 'rgba(12,12,16,.88)', border: '1px solid rgba(255,255,255,.12)', pad: '14px 18px', radius: '12px', gap: '4px' } },
+      window: { base: { bg: '#0000aa', border: '6px double #55ffff', shadow: '8px 8px 0 #000000', pad: '22px 10px 12px', radius: '0', align: 'stretch', gap: '8px' }, title: { left: '170px', right: '170px', top: '184px', tf: 'none' }, list: { left: '150px', right: '150px' }, card: { left: '96px', right: '96px', pad: '26px 22px 16px' }, wide: { left: '34px', right: '34px' }, prompt: { left: '110px', right: '110px', top: 'auto', bottom: '40px', tf: 'none', pad: '22px 16px 12px', gap: '4px' } },
+      band: { base: { bg: '#000000', border: '0', shadow: 'inset 0 4px 0 #ffaa40, inset 0 -4px 0 #f43f5e', pad: '20px 40px', radius: '0', align: 'center', gap: '10px', left: '0px', right: '0px' }, title: { pad: '10px 40px' }, list: { pad: '8px 200px' }, card: { pad: '16px 90px' }, wide: { pad: '8px 40px' }, prompt: { top: 'auto', bottom: '30px', tf: 'none', pad: '16px 40px', gap: '4px' } },
+      text: { base: { bg: 'transparent', border: '0', shadow: 'none', pad: '0', radius: '0', align: 'stretch', gap: '8px' }, title: { left: '44px', right: '210px', top: '184px', tf: 'none' }, list: { left: '44px', right: '230px' }, card: { left: '44px', right: '150px' }, wide: { left: '44px', right: '44px' }, prompt: { left: '110px', right: '110px', top: 'auto', bottom: '40px', tf: 'none', bg: '#000000', border: '4px double #55ffff', pad: '14px 16px', gap: '4px' } },
+    }[vk];
+    const c = Object.assign({ left: '0px', right: '0px' }, T.base, T[group]);
+    if (c.left === 'auto') c.left = '0px';
+    if (c.right === 'auto') c.right = '0px';
+    return c;
+  }
+
+  items(screen, o) {
+    const L = ['Keen-style', 'Modern'], X = ['Normal', 'Large'], Mo = ['System', 'Reduced', 'Full'];
+    switch (screen) {
+      case 'title': return [{ label: 'New Game' }, { label: 'Continue', value: 'Slot 2' }, { label: 'Load game' }, { label: 'Options' }, { label: 'Controls' }];
+      case 'pause': return [{ label: 'Resume' }, { label: 'Save game', value: 'F5' }, { label: 'Load game', value: 'F9' }, { label: 'Options' }, { label: 'Leave level' }, { label: 'Quit to title' }];
+      case 'options': return [{ label: 'Music', meter: o.music, key: 'music' }, { label: 'Sound', meter: o.sfx, key: 'sfx' }, { label: 'Captions', value: o.captions ? 'On' : 'Off', key: 'captions' }, { label: 'Controls', value: L[o.layout], key: 'layout' }, { label: 'Text size', value: X[o.text], key: 'text' }, { label: 'Motion', value: Mo[o.motion], key: 'motion' }, { label: 'Back' }];
+      case 'gameover': return [{ label: 'Load last save' }, { label: 'Title screen' }];
+      case 'cleared': return [{ label: 'Back to the map' }];
+      case 'controls': return [{ label: 'Back' }];
+      default: return [];
+    }
+  }
+
+  slotsData() {
+    return [
+      { name: 'Autosave', place: 'Crystal Caves', cleared: 1, lives: 3, score: '1,240', time: '0:42', date: 'Wed, 7 Oct', thumb: 1 },
+      { name: 'Slot 1', place: 'Crater Fields', cleared: 0, lives: 3, score: '310', time: '0:09', date: 'Sun, 4 Oct', thumb: 0 },
+      { name: 'Slot 2', place: 'Crystal Caves', cleared: 1, lives: 2, score: '1,180', time: '0:39', date: 'Tue, 6 Oct', thumb: 1 },
+      { name: 'Slot 3', place: 'Mildred’s Citadel', cleared: 2, lives: 4, score: '2,960', time: '1:12', date: 'Tue, 6 Oct', thumb: 2 },
+      { name: 'Slot 4', empty: true },
+    ];
+  }
+
+  count() {
+    const s = this.props.screen;
+    if (s === 'saves') return 5;
+    return this.items(s, this.state.o).length;
+  }
+  select(i) {
+    if (i === this.state.sel) return;
+    this.setState({ sel: i, look: performance.now() / 1000 + 1.6, now: performance.now() / 1000 });
+  }
+  adjust(d) {
+    if (this.props.screen !== 'options') return;
+    const it = this.items('options', this.state.o)[this.state.sel];
+    if (!it || !it.key) return;
+    const o = Object.assign({}, this.state.o), k = it.key;
+    const mod = (v, n) => ((v % n) + n) % n;
+    if (k === 'music' || k === 'sfx') o[k] = Math.max(0, Math.min(8, o[k] + d));
+    else if (k === 'captions') o.captions = !o.captions;
+    else if (k === 'layout') o.layout = mod(o.layout + d, 2);
+    else if (k === 'text') o.text = mod(o.text + d, 2);
+    else if (k === 'motion') o.motion = mod(o.motion + d, 3);
+    this.setState({ o });
+  }
+  activate(i) {
+    const now = performance.now() / 1000;
+    if (i !== undefined && i !== this.state.sel) this.setState({ sel: i });
+    const sel = i ?? this.state.sel;
+    if (this.props.screen === 'options') {
+      const it = this.items('options', this.state.o)[sel];
+      if (it && it.key) {
+        const o = Object.assign({}, this.state.o);
+        if (it.key === 'music' || it.key === 'sfx') o[it.key] = (o[it.key] + 1) % 9;
+        else { this.state.sel = sel; this.adjust(1); }
+        if (it.key === 'music' || it.key === 'sfx') this.setState({ o });
+      }
+    }
+    this.setState({ flash: now + 0.16, wave: this.props.screen === 'title' ? now + 0.9 : 0, now });
+  }
+
+  wrap(text, max) {
+    const out = []; let line = '';
+    for (const w of text.split(' ')) { if ((line + ' ' + w).trim().length > max) { out.push(line); line = w; } else line = (line + ' ' + w).trim(); }
+    if (line) out.push(line);
+    return out;
+  }
+  ink(bg) {
+    const h = bg.replace('#', ''); if (h.length !== 6) return '#000000';
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.35 ? '#000000' : '#ffffff';
+  }
+
+  benState(now, reduced) {
+    const art = this.state.art, W = this.state.logoW, Hh = this.state.logoH;
+    const home = W + 4;
+    const mk = (pose, x, y, flip, rot) => ({ src: art['ben_' + pose] || '', left: Math.round(x) + 'px', bottom: Math.round(y) + 'px', tf: `scaleX(${flip ? -1 : 1}) rotate(${rot}deg)` });
+    if (reduced) return mk('stand', home, 0, false, 0);
+    if (this.state.wave > now) { const k = 1 - (this.state.wave - now) / 0.9; return mk('shoot', home, Math.sin(k * Math.PI) * 18, true, 0); }
+    const p = (now - this.t0) % 14;
+    const looking = this.state.look > now;
+    const bob = Math.floor(p * 1.5) % 2 ? 3 : 0;
+    if (p >= 4.5 && p < 6.5) return mk('stand', home - 8, 0, looking, -12);
+    if (p >= 9 && p < 13) {
+      const topY = Hh - 14, startX = home - 40, endX = -6;
+      if (p < 9.4) { const k = (p - 9) / 0.4; return mk('jump', home + (startX - home) * k, topY * k + Math.sin(k * Math.PI) * 26, true, 0); }
+      if (p < 12.6) {
+        const q = p < 11 ? (p - 9.4) / 1.6 : 1 - (p - 11) / 1.6;
+        const x = startX + (endX - startX) * q;
+        const hop = Math.abs(Math.sin((p - 9.4) * Math.PI * 2.5));
+        return mk(hop < 0.25 ? 'pogo2' : 'pogo', x, topY + hop * 22, p < 11, 0);
+      }
+      const k = (p - 12.6) / 0.4; return mk('jump', startX + (home - startX) * k, topY * (1 - k) + Math.sin(k * Math.PI) * 20, false, 0);
+    }
+    return mk('stand', home, bob, looking, 0);
+  }
+
+  renderVals() {
+    const P = this.props, s = this.state;
+    const C = this.cfg();
+    const vk = C[P.variant] ? P.variant : 'scrim';
+    const v = C[vk];
+    const screen = ['title', 'pause', 'options', 'controls', 'gameover', 'cleared', 'prompt', 'saves'].includes(P.screen) ? P.screen : 'title';
+    const reduced = this.reduced();
+    const now = s.now || this.t0 || 0;
+    const tt = now - (this.t0 || now);
+    const mode = P.hints && P.hints !== 'auto' ? P.hints : s.mode;
+    const pad = mode === 'gamepad';
+    const group = screen === 'title' ? 'title' : screen === 'pause' || screen === 'options' ? 'list' : screen === 'gameover' || screen === 'cleared' ? 'card' : screen === 'prompt' ? 'prompt' : 'wide';
+    const c = this.container(vk, group);
+    const hud = screen === 'pause' || screen === 'prompt';
+    const barH = { scrim: 32, window: 28, band: 34, text: 46 }[vk];
+    const z = group === 'title' ? { top: '148px', bottom: barH + 8 + 'px', justify: 'flex-start' } : group === 'prompt' ? { top: '60px', bottom: '28px', justify: 'flex-end' } : { top: hud ? (vk === 'text' ? '66px' : '54px') : (vk === 'text' ? '36px' : '16px'), bottom: barH + 8 + 'px', justify: 'center' };
+    const cyc = reduced ? v.cycle[0] : v.cycle[Math.floor(tt * 2.5) % v.cycle.length];
+    const selBg = s.flash > now ? '#ffffff' : cyc;
+    const selInk = this.ink(selBg);
+    const items = this.items(screen, s.o);
+    const sel = Math.min(s.sel, Math.max(0, (screen === 'saves' ? 5 : items.length) - 1));
+    const blinkOn = reduced || Math.floor(tt * 1.6) % 2 === 0;
+    let cursorTf = 'translateY(-50%)';
+    if (!reduced && v.cursorKind === 'bob') cursorTf = `translate(${Math.round(Math.sin(tt * 5) * 2) * 2}px,-50%)`;
+    if (!reduced && v.cursorKind === 'hover') cursorTf = `translateY(calc(-50% + ${Math.round(Math.sin(tt * 3) * 2) * 2}px))`;
+    const rows = items.map((it, i) => {
+      const on = i === sel;
+      const meter = it.meter !== undefined ? Array.from({ length: 8 }, (_, k) => ({ c: k < it.meter ? (on && v.clip !== 'none' ? selInk : v.meterOn) : (on && v.clip !== 'none' ? 'rgba(0,0,0,.25)' : v.meterOff) })) : [];
+      const adjustable = screen === 'options' && it.value !== undefined && on;
+      return {
+        label: it.label, bg: on ? selBg : 'transparent', bgSolid: on ? selBg : v.knock, clip: on ? v.clip : 'none',
+        color: on ? selInk : v.text, hasValue: it.value !== undefined, value: adjustable ? `◄ ${it.value} ►` : it.value || '',
+        vcolor: on ? selInk : v.dim, hasMeter: it.meter !== undefined, meter, showCursor: on && blinkOn && !!(s.art || {})[v.cursor],
+        onEnter: () => this.select(i), onClick: () => this.activate(i),
+      };
+    });
+    const headings = { pause: 'Paused', options: 'Options', controls: 'Controls', gameover: 'Out of lives', cleared: 'Crater Fields cleared', saves: 'Load game', title: vk === 'window' ? 'Main menu' : '' };
+    const heading = headings[screen] || '';
+    const bodies = { gameover: 'You finished with 240 snack points. Your last save is still on this device.', cleared: 'The first teleporter on the map is humming now. The Crystal Caves are waiting.' };
+    let lines = [];
+    if (bodies[screen]) {
+      const full = bodies[screen];
+      const shown = reduced ? full.length : Math.min(full.length, Math.floor(Math.max(0, tt - 0.4) * 40));
+      let left = shown;
+      lines = this.wrap(full, vk === 'window' ? 36 : 38).map((ln) => { const t = ln.slice(0, Math.max(0, left)); left -= ln.length + 1; return { text: t || ' ' }; });
+    }
+    const L = ['Keen-style', 'Modern'];
+    const activeCol = pad ? 3 : s.o.layout + 1;
+    const table = [['Action', 'Keen-style', 'Modern', 'Gamepad'], ['Move', '{[←→]}', '{[←→]} {[A]} {[D]}', 'D-pad'], ['Jump', '{Ctrl}', '{[Z]}', '{A}'], ['Pogo', '{Alt}', '{[X]}', '{B} {Y}'], ['Fizz', '{Space}', '{[C]}', '{X} {RT}'], ['Menu', '{Esc}', '{Esc} {[P]}', '{Start}'], ['Save, load', '{F5} {F9}', '{F5} {F9}', 'Pause menu']];
+    const ctrlCells = [];
+    table.forEach((row, ri) => row.forEach((cell, ci) => ctrlCells.push({ text: cell, color: ri === 0 ? (ci === activeCol ? v.accent : v.dim) : ci === 0 ? v.text : ci === activeCol ? v.accent : v.muted })));
+    const art = s.art || {};
+    const slots = this.slotsData().map((d, i) => {
+      const on = i === sel;
+      const bg = on ? selBg : 'transparent';
+      const k1 = on ? selInk : v.text, k2 = on ? selInk : v.dim;
+      return {
+        bg, clip: on ? v.clip : 'none', hasThumb: !d.empty && !!art.thumbs, noThumb: d.empty || !art.thumbs, thumb: art.thumbs ? art.thumbs[d.thumb || 0] : '', frame: on ? selInk : v.dim,
+        line1: d.empty ? `${d.name} · Empty` : `${d.name} · ${d.place}${i === 0 ? ' · read-only' : ''}`,
+        line2: d.empty ? 'Save from the pause menu to use this slot' : `Lives ${d.lives} · ${d.score} pts · ${d.time} played · ${d.date}`,
+        c1: k1, c2: k2,
+        pips: d.empty ? [] : [0, 1, 2].map((k) => ({ c: k < d.cleared ? (on ? selInk : v.accent) : on ? 'rgba(0,0,0,.25)' : v.meterOff })),
+        onEnter: () => this.select(i), onClick: () => this.activate(i),
+      };
+    });
+    const kb = { choose: '{[↑↓]} Choose', change: '{[←→]} Change', select: '{Enter} Select', back: '{Esc} Back', resume: '{Esc} Resume' };
+    const gp = { choose: '{[↑↓]} Choose', change: '{[←→]} Change', select: '{A} Select', back: '{B} Back', resume: '{Start} Resume' };
+    const H = pad ? gp : kb;
+    const hintSets = { title: [H.choose, H.select], pause: [H.choose, H.select, H.resume], options: [H.choose, H.change, H.back], controls: [H.select, H.back], gameover: [H.choose, H.select], cleared: [H.select], saves: [H.choose, H.select, H.back] };
+    const hints = (hintSets[screen] || []).join('  ');
+    const overlays = {
+      scrim: group === 'wide' ? 'rgba(5,5,7,.86)' : 'linear-gradient(90deg,rgba(5,5,7,.94) 0%,rgba(5,5,7,.76) 50%,rgba(5,5,7,.1) 85%)',
+      window: 'rgba(0,0,0,.42)', band: 'rgba(5,5,7,.5)', text: 'transparent',
+    };
+    const ben = this.benState(now, reduced);
+    return {
+      label: `${({ scrim: '2a', window: '2b', band: '2c', text: '2d' })[vk]} ${screen}`,
+      rootRef: this.rootRef, logoRef: this.logoRef,
+      onEnterFrame: () => { const el = this.rootRef.current; if (el && document.activeElement !== el) el.focus({ preventScroll: true }); },
+      onKey: (e) => {
+        const k = e.key;
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(k)) e.preventDefault();
+        if (s.mode !== 'keyboard' && !this.padConnected()) this.setState({ mode: 'keyboard' });
+        const n = this.count();
+        if (k === 'ArrowUp' || k === 'w') this.select((sel - 1 + n) % n);
+        else if (k === 'ArrowDown' || k === 's') this.select((sel + 1) % n);
+        else if (k === 'ArrowLeft') this.adjust(-1);
+        else if (k === 'ArrowRight') this.adjust(1);
+        else if (k === 'Enter' || k === ' ' || k === 'z') this.activate();
+      },
+      v, c, z, art,
+      showNight: v.scene && screen !== 'prompt' && !!art.night,
+      showWorld: screen === 'prompt' && !!art.world,
+      chromeOverlay: screen !== 'prompt' && (vk !== 'text') && (group !== 'title' || vk === 'scrim'),
+      overlayBg: overlays[vk],
+      chromeText: vk === 'text' && screen !== 'prompt',
+      textTab: `lfizz.exe · ${heading || 'Main menu'}`,
+      showHud: screen === 'pause' || screen === 'prompt',
+      hudLeft: vk === 'text' && screen !== 'prompt' ? '28px' : '12px', hudTop: vk === 'text' && screen !== 'prompt' ? '28px' : '12px',
+      isTitle: screen === 'title', logo: v.logo, ben, hasBen: !!ben.src,
+      headTab: v.tab && !!heading && screen !== 'prompt',
+      headInline: !v.tab && !!heading && vk !== 'text' && screen !== 'prompt',
+      heading, headColor: v.head.color, headShadow: v.head.shadow, headScale: v.head.scale,
+      hasLines: lines.length > 0, lines,
+      hasRows: rows.length > 0, rows,
+      cursorSrc: art[v.cursor] || '', cursorTf,
+      isControls: screen === 'controls', ctrlCells,
+      isSaves: screen === 'saves', slots,
+      isPrompt: screen === 'prompt',
+      promptAction: pad ? '{A} Enter level' : '{Enter} Enter level',
+      hasNote: screen === 'pause',
+      note: screen === 'pause' ? 'Saves stay on this device.' : `Showing ${pad ? 'gamepad' : L[s.o.layout]} · change layout in Options`,
+      hasBar: screen !== 'prompt', bar: v.bar, hints,
+      showMode: true, modeLabel: pad ? '🎮 Gamepad' : 'Keyboard',
+    };
+  }
+}
+</script>
+</body>
+</html>

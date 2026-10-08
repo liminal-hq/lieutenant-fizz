@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/colours.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/typography.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/base.css">
+<script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
+<style>body{margin:0;background:#050507}a{color:#ffaa40}a:hover{color:#ffc070}</style>
+</helmet>
+<section id="turn-3" data-screen-label="Turn 3" style="background:#050507;color:#e0e0e0;font-family:Inter,sans-serif;padding:56px;display:flex;flex-direction:column;gap:32px;box-sizing:border-box;border-bottom:1px solid rgba(255,255,255,.08)">
+<header style="display:flex;flex-direction:column;gap:8px;max-width:900px">
+<div style="font-size:13px;color:#7c8796">Lieutenant Fizz · Android · landscape · turn 3</div>
+<h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:36px;letter-spacing:-0.02em;color:#ffffff">The full mobile set, built on 2a</h1>
+<p style="margin:0;font-size:16px;line-height:1.55;color:#b4bfce;text-wrap:pretty">All text is now in the Fizz font. The menus use the desktop scrim style: a left list over a soft scrim, a stepped orange plate that slowly cycles colour, and a can of cream soda as the cursor. Rows are 44px tall so they're easy to tap. <a href="#3a">3a</a> is the whole game wired together: New game → cinematic → map → level, and the pause menu, controls, score card and game over all link up. The eight screens below can each be played on their own.</p>
+</header>
+<div id="3a" style="display:flex;flex-direction:column;gap:16px;width:824px">
+<div style="display:flex;align-items:center;gap:12px">
+<a href="#3a" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:999px;background:#ffaa40;color:#050507;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;text-decoration:none">3a</a>
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#ffffff">Play the flow</div>
+<div style="font-size:12px;color:#7c8796">Now showing · {{ flow.screen }}</div>
+<div onClick="{{ flow.restart }}" style="margin-left:auto;font-size:13px;color:#ffaa40;cursor:pointer">↺ Back to title</div>
+</div>
+<div style="position:relative;width:824px;height:384px;padding:12px;box-sizing:border-box;border-radius:44px;background:#16161c;box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)">
+<div style="position:relative;width:800px;height:360px;border-radius:32px;overflow:hidden;background:#000000">
+<sc-if value="{{ flow.isLevel }}" hint-placeholder-val="{{ false }}">
+<dc-import name="FizzMobileLevel" variant="pad" font="fizz" on-go="{{ flow.go }}" on-haptic="{{ flow.onHaptic }}" hint-size="800px,360px"></dc-import>
+</sc-if>
+<sc-if value="{{ flow.isScreen }}" hint-placeholder-val="{{ true }}">
+<dc-import name="FizzMobileScreen" screen="{{ flow.screen }}" on-go="{{ flow.go }}" on-haptic="{{ flow.onHaptic }}" hint-size="800px,360px"></dc-import>
+</sc-if>
+<div style="position:absolute;left:16px;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:999px;background:#000000;box-shadow:0 0 0 2px #1c1c22;pointer-events:none"></div>
+<div style="position:absolute;left:50%;bottom:6px;width:120px;height:4px;margin-left:-60px;border-radius:999px;background:rgba(255,255,255,.55);pointer-events:none"></div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:20px">
+<div style="font-size:13px;color:#7c8796">Reach the exit sign at the far right of the level for the score card, or lose all three lives for game over.</div>
+<div style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:#22d3ee">Haptic · {{ flow.haptic }}</div>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:40px 48px;max-width:1760px">
+<sc-for list="{{ shots }}" as="sh" hint-placeholder-count="8">
+<div style="display:flex;flex-direction:column;gap:12px;width:824px">
+<div style="display:flex;align-items:baseline;gap:12px">
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:18px;color:#ffffff;flex-shrink:0;white-space:nowrap">{{ sh.name }}</div>
+<div style="font-size:13px;color:#7c8796">{{ sh.note }}</div>
+</div>
+<div style="position:relative;width:824px;height:384px;padding:12px;box-sizing:border-box;border-radius:44px;background:#16161c;box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)">
+<div style="position:relative;width:800px;height:360px;border-radius:32px;overflow:hidden;background:#000000">
+<sc-if value="{{ sh.isLevel }}" hint-placeholder-val="{{ false }}">
+<dc-import name="FizzMobileLevel" variant="pad" font="fizz" start-paused="{{ sh.paused }}" hint-size="800px,360px"></dc-import>
+</sc-if>
+<sc-if value="{{ sh.isScreen }}" hint-placeholder-val="{{ true }}">
+<dc-import name="FizzMobileScreen" screen="{{ sh.screen }}" hint-size="800px,360px"></dc-import>
+</sc-if>
+<div style="position:absolute;left:16px;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:999px;background:#000000;box-shadow:0 0 0 2px #1c1c22;pointer-events:none"></div>
+<div style="position:absolute;left:50%;bottom:6px;width:120px;height:4px;margin-left:-60px;border-radius:999px;background:rgba(255,255,255,.55);pointer-events:none"></div>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</section>
+<section id="turn-2" data-screen-label="Turn 2" style="background:#050507;color:#e0e0e0;font-family:Inter,sans-serif;padding:56px;display:flex;flex-direction:column;gap:32px;box-sizing:border-box;border-bottom:1px solid rgba(255,255,255,.08)">
+<header style="display:flex;flex-direction:column;gap:8px;max-width:900px">
+<div style="font-size:13px;color:#7c8796">Lieutenant Fizz · Android · landscape · turn 2</div>
+<h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:36px;letter-spacing:-0.02em;color:#ffffff">Glass pad, in the Fizz font</h1>
+<p style="margin:0;font-size:16px;line-height:1.55;color:#b4bfce;text-wrap:pretty">Iterating on <a href="#1a">1a</a>: the HUD numbers and button labels now use the Fizz pixel font, with snacks in yellow and fizz in cyan to match the desktop scoreboard. The glass stays. Each option tries a different control layout.</p>
+</header>
+<div style="display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start">
+<div id="2a" style="display:flex;flex-direction:column;gap:16px;width:824px">
+<div style="display:flex;align-items:center;gap:12px">
+<a href="#2a" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:999px;background:#ffaa40;color:#050507;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;text-decoration:none">2a</a>
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#ffffff">D-pad + triangle</div>
+</div>
+<div style="position:relative;width:824px;height:384px;padding:12px;box-sizing:border-box;border-radius:44px;background:#16161c;box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)">
+<div style="position:relative;width:800px;height:360px;border-radius:32px;overflow:hidden;background:#000000">
+<dc-import name="FizzMobileLevel" variant="pad" font="fizz" mirror="{{ d.mirror }}" gamepad="{{ d.gamepad }}" safe="{{ d.safe }}" on-haptic="{{ d.onHaptic }}" hint-size="800px,360px"></dc-import>
+<div style="position:absolute;left:16px;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:999px;background:#000000;box-shadow:0 0 0 2px #1c1c22;pointer-events:none"></div>
+<div style="position:absolute;left:50%;bottom:6px;width:120px;height:4px;margin-left:-60px;border-radius:999px;background:rgba(255,255,255,.55);pointer-events:none"></div>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px">
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Left-handed" checked="{{ d.mirror }}" on-change="{{ d.tMirror }}" hint-size="110px,20px"></x-import>
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Controller connected" checked="{{ d.gamepad }}" on-change="{{ d.tGamepad }}" hint-size="170px,20px"></x-import>
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Show safe area" checked="{{ d.safe }}" on-change="{{ d.tSafe }}" hint-size="130px,20px"></x-import>
+<div style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:#22d3ee">Haptic · {{ d.haptic }}</div>
+</div>
+<p style="margin:0;font-size:14px;line-height:1.6;color:#b4bfce;text-wrap:pretty">The 1a layout with the new type. This is the baseline: one round pad, plus Jump, Pogo and Fizz in a triangle.</p>
+</div>
+<div id="2b" style="display:flex;flex-direction:column;gap:16px;width:824px">
+<div style="display:flex;align-items:center;gap:12px">
+<a href="#2b" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:999px;background:#ffaa40;color:#050507;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;text-decoration:none">2b</a>
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#ffffff">Split arrows + rising row</div>
+</div>
+<div style="position:relative;width:824px;height:384px;padding:12px;box-sizing:border-box;border-radius:44px;background:#16161c;box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)">
+<div style="position:relative;width:800px;height:360px;border-radius:32px;overflow:hidden;background:#000000">
+<dc-import name="FizzMobileLevel" variant="split" font="fizz" mirror="{{ e.mirror }}" gamepad="{{ e.gamepad }}" safe="{{ e.safe }}" on-haptic="{{ e.onHaptic }}" hint-size="800px,360px"></dc-import>
+<div style="position:absolute;left:16px;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:999px;background:#000000;box-shadow:0 0 0 2px #1c1c22;pointer-events:none"></div>
+<div style="position:absolute;left:50%;bottom:6px;width:120px;height:4px;margin-left:-60px;border-radius:999px;background:rgba(255,255,255,.55);pointer-events:none"></div>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px">
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Left-handed" checked="{{ e.mirror }}" on-change="{{ e.tMirror }}" hint-size="110px,20px"></x-import>
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Controller connected" checked="{{ e.gamepad }}" on-change="{{ e.tGamepad }}" hint-size="170px,20px"></x-import>
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Show safe area" checked="{{ e.safe }}" on-change="{{ e.tSafe }}" hint-size="130px,20px"></x-import>
+<div style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:#22d3ee">Haptic · {{ e.haptic }}</div>
+</div>
+<p style="margin:0;font-size:14px;line-height:1.6;color:#b4bfce;text-wrap:pretty">Big separate ◀ ▶ keys, so running never turns into an accidental aim. ▲ and ▼ get their own small column to aim the Fizz Blaster. The action buttons rise toward the corner, Fizz → Pogo → Jump, so the thumb rolls up the row.</p>
+</div>
+<div id="2c" style="display:flex;flex-direction:column;gap:16px;width:824px">
+<div style="display:flex;align-items:center;gap:12px">
+<a href="#2c" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:999px;background:#ffaa40;color:#050507;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;text-decoration:none">2c</a>
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#ffffff">Two buttons + pogo switch</div>
+</div>
+<div style="position:relative;width:824px;height:384px;padding:12px;box-sizing:border-box;border-radius:44px;background:#16161c;box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)">
+<div style="position:relative;width:800px;height:360px;border-radius:32px;overflow:hidden;background:#000000">
+<dc-import name="FizzMobileLevel" variant="duo" font="fizz" mirror="{{ f.mirror }}" gamepad="{{ f.gamepad }}" safe="{{ f.safe }}" on-haptic="{{ f.onHaptic }}" hint-size="800px,360px"></dc-import>
+<div style="position:absolute;left:16px;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:999px;background:#000000;box-shadow:0 0 0 2px #1c1c22;pointer-events:none"></div>
+<div style="position:absolute;left:50%;bottom:6px;width:120px;height:4px;margin-left:-60px;border-radius:999px;background:rgba(255,255,255,.55);pointer-events:none"></div>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px">
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Left-handed" checked="{{ f.mirror }}" on-change="{{ f.tMirror }}" hint-size="110px,20px"></x-import>
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Controller connected" checked="{{ f.gamepad }}" on-change="{{ f.tGamepad }}" hint-size="170px,20px"></x-import>
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Show safe area" checked="{{ f.safe }}" on-change="{{ f.tSafe }}" hint-size="130px,20px"></x-import>
+<div style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:#22d3ee">Haptic · {{ f.haptic }}</div>
+</div>
+<p style="margin:0;font-size:14px;line-height:1.6;color:#b4bfce;text-wrap:pretty">Pogo is a mode, not an action, so it becomes a pill switch above the thumb and stays out of the way. That leaves two large buttons, Jump and Fizz, which are much easier to hit without looking.</p>
+</div>
+</div>
+</section>
+<section id="turn-1" data-screen-label="Turn 1" style="background:#050507;color:#e0e0e0;font-family:Inter,sans-serif;padding:56px;display:flex;flex-direction:column;gap:32px;box-sizing:border-box">
+<header style="display:flex;flex-direction:column;gap:8px;max-width:900px">
+<div style="font-size:13px;color:#7c8796">Lieutenant Fizz · Android · landscape · turn 1</div>
+<h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:36px;letter-spacing:-0.02em;color:#ffffff">In-level HUD and touch controls</h1>
+<p style="margin:0;font-size:16px;line-height:1.55;color:#b4bfce;text-wrap:pretty">Three directions, all playable. Tap or hold the on-screen controls; with the mouse over a phone you can also use ← → move, ↑ ↓ aim, Z jump, X pogo, C fizz and P pause. Pick one and I'll build the other seven screens in that style. The D-pad and the floating joystick will both be options in Settings.</p>
+</header>
+<div style="display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start">
+<div id="1a" style="display:flex;flex-direction:column;gap:16px;width:824px">
+<div style="display:flex;align-items:center;gap:12px">
+<a href="#1a" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:999px;background:#ffaa40;color:#050507;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;text-decoration:none">1a</a>
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#ffffff">Glass pad</div>
+<div style="font-size:12px;color:#ffaa40;padding:3px 10px;border-radius:999px;background:rgba(255,170,64,.15)">Recommended</div>
+</div>
+<div style="position:relative;width:824px;height:384px;padding:12px;box-sizing:border-box;border-radius:44px;background:#16161c;box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)">
+<div style="position:relative;width:800px;height:360px;border-radius:32px;overflow:hidden;background:#000000">
+<dc-import name="FizzMobileLevel" variant="pad" mirror="{{ a.mirror }}" gamepad="{{ a.gamepad }}" safe="{{ a.safe }}" on-haptic="{{ a.onHaptic }}" hint-size="800px,360px"></dc-import>
+<div style="position:absolute;left:16px;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:999px;background:#000000;box-shadow:0 0 0 2px #1c1c22;pointer-events:none"></div>
+<div style="position:absolute;left:50%;bottom:6px;width:120px;height:4px;margin-left:-60px;border-radius:999px;background:rgba(255,255,255,.55);pointer-events:none"></div>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px">
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Left-handed" checked="{{ a.mirror }}" on-change="{{ a.tMirror }}" hint-size="110px,20px"></x-import>
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Controller connected" checked="{{ a.gamepad }}" on-change="{{ a.tGamepad }}" hint-size="170px,20px"></x-import>
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Show safe area" checked="{{ a.safe }}" on-change="{{ a.tSafe }}" hint-size="130px,20px"></x-import>
+<div style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:#22d3ee">Haptic · {{ a.haptic }}</div>
+</div>
+<p style="margin:0;font-size:14px;line-height:1.6;color:#b4bfce;text-wrap:pretty">Afterglow glass D-pad, with three round buttons in a triangle under the right thumb. Jump is the largest and sits where the thumb rests. ↑ and ↓ on the pad aim the Fizz Blaster, as they do on the keyboard. The HUD is three glass pills, and pause is always visible. This maps 1:1 to the gamepad, so the help text works for both.</p>
+</div>
+<div id="1b" style="display:flex;flex-direction:column;gap:16px;width:824px">
+<div style="display:flex;align-items:center;gap:12px">
+<a href="#1b" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:999px;background:#ffaa40;color:#050507;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;text-decoration:none">1b</a>
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#ffffff">Pixel joystick</div>
+</div>
+<div style="position:relative;width:824px;height:384px;padding:12px;box-sizing:border-box;border-radius:44px;background:#16161c;box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)">
+<div style="position:relative;width:800px;height:360px;border-radius:32px;overflow:hidden;background:#000000">
+<dc-import name="FizzMobileLevel" variant="pixel" mirror="{{ b.mirror }}" gamepad="{{ b.gamepad }}" safe="{{ b.safe }}" on-haptic="{{ b.onHaptic }}" hint-size="800px,360px"></dc-import>
+<div style="position:absolute;left:16px;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:999px;background:#000000;box-shadow:0 0 0 2px #1c1c22;pointer-events:none"></div>
+<div style="position:absolute;left:50%;bottom:6px;width:120px;height:4px;margin-left:-60px;border-radius:999px;background:rgba(255,255,255,.55);pointer-events:none"></div>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px">
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Left-handed" checked="{{ b.mirror }}" on-change="{{ b.tMirror }}" hint-size="110px,20px"></x-import>
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Controller connected" checked="{{ b.gamepad }}" on-change="{{ b.tGamepad }}" hint-size="170px,20px"></x-import>
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Show safe area" checked="{{ b.safe }}" on-change="{{ b.tSafe }}" hint-size="130px,20px"></x-import>
+<div style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:#22d3ee">Haptic · {{ b.haptic }}</div>
+</div>
+<p style="margin:0;font-size:14px;line-height:1.6;color:#b4bfce;text-wrap:pretty">Floating joystick: touch anywhere on the left half to plant it, then slide up or down to aim. The buttons are EGA plates in the pixel font, laid out in a row like Keen's keys, and the HUD is a Keen-style scoreboard. The overlay reads as part of the game rather than sitting on top of it.</p>
+</div>
+<div id="1c" style="display:flex;flex-direction:column;gap:16px;width:824px">
+<div style="display:flex;align-items:center;gap:12px">
+<a href="#1c" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:999px;background:#ffaa40;color:#050507;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;text-decoration:none">1c</a>
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#ffffff">Thumb arc</div>
+</div>
+<div style="position:relative;width:824px;height:384px;padding:12px;box-sizing:border-box;border-radius:44px;background:#16161c;box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)">
+<div style="position:relative;width:800px;height:360px;border-radius:32px;overflow:hidden;background:#000000">
+<dc-import name="FizzMobileLevel" variant="thumb" mirror="{{ c.mirror }}" gamepad="{{ c.gamepad }}" safe="{{ c.safe }}" on-haptic="{{ c.onHaptic }}" hint-size="800px,360px"></dc-import>
+<div style="position:absolute;left:16px;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:999px;background:#000000;box-shadow:0 0 0 2px #1c1c22;pointer-events:none"></div>
+<div style="position:absolute;left:50%;bottom:6px;width:120px;height:4px;margin-left:-60px;border-radius:999px;background:rgba(255,255,255,.55);pointer-events:none"></div>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px">
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Left-handed" checked="{{ c.mirror }}" on-change="{{ c.tMirror }}" hint-size="110px,20px"></x-import>
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Controller connected" checked="{{ c.gamepad }}" on-change="{{ c.tGamepad }}" hint-size="170px,20px"></x-import>
+<x-import component-from-global-scope="LiminalHQDesignSystem_6cba27.Checkbox" label="Show safe area" checked="{{ c.safe }}" on-change="{{ c.tSafe }}" hint-size="130px,20px"></x-import>
+<div style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:#22d3ee">Haptic · {{ c.haptic }}</div>
+</div>
+<p style="margin:0;font-size:14px;line-height:1.6;color:#b4bfce;text-wrap:pretty">Two tall move zones, so there's no stick to find. Jump, Pogo and Fizz sit on an arc the right thumb can reach without lifting. Slide up off Fizz to fire upward. The HUD stays hidden until a number changes, then fades out again. This is the calmest screen and the best one-handed reach.</p>
+</div>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    a: { mirror: false, gamepad: false, safe: false, haptic: 'tap a control' },
+    b: { mirror: false, gamepad: false, safe: false, haptic: 'tap a control' },
+    c: { mirror: false, gamepad: false, safe: false, haptic: 'tap a control' },
+    d: { mirror: false, gamepad: false, safe: false, haptic: 'tap a control' },
+    e: { mirror: false, gamepad: false, safe: false, haptic: 'tap a control' },
+    f: { mirror: false, gamepad: false, safe: false, haptic: 'tap a control' },
+  };
+  cb = {};
+  opt(id) {
+    if (!this.cb[id]) {
+      const set = (patch) => this.setState((s) => ({ [id]: Object.assign({}, s[id], patch) }));
+      this.cb[id] = {
+        onHaptic: (t) => set({ haptic: t }),
+        tMirror: () => set({ mirror: !this.state[id].mirror }),
+        tGamepad: () => set({ gamepad: !this.state[id].gamepad }),
+        tSafe: () => set({ safe: !this.state[id].safe }),
+      };
+    }
+    return Object.assign({}, this.state[id], this.cb[id]);
+  }
+  flowGo = (to) => {
+    this.setState((s) => {
+      const cur = s.flowScreen || 'title';
+      const next = to === 'back' ? (s.flowPrev && s.flowPrev !== 'controls' ? s.flowPrev : 'title') : to;
+      return { flowScreen: next, flowPrev: cur };
+    });
+  };
+  flowHap = (t) => this.setState({ flowHaptic: t });
+  renderVals() {
+    const fs = this.state.flowScreen || 'title';
+    const shots = [
+      { name: 'Title', note: 'Logo left, menu on the thumb side', screen: 'title' },
+      { name: 'Opening cinematic', note: 'Six panels · tap to finish the line, tap again for the next', screen: 'cinematic' },
+      { name: 'Overworld map', note: 'Same D-pad as the level · walk next to a level to open it', screen: 'map' },
+      { name: 'In level', note: 'Fizz-font HUD · exit sign at the far right', isLevel: true, paused: false },
+      { name: 'Pause menu', note: 'The desktop scrim menu over the frozen level', isLevel: true, paused: true },
+      { name: 'Touch controls', note: 'Drag to move · scheme, size, opacity, left-handed, haptics', screen: 'controls' },
+      { name: 'Score card', note: 'Totals count up, then one clear next step', screen: 'score' },
+      { name: 'Game over', note: 'Calm, with your last save offered first', screen: 'gameover' },
+    ].map((x) => Object.assign({ isScreen: !x.isLevel, screen: x.screen || 'title', isLevel: !!x.isLevel, paused: !!x.paused }, x));
+    return {
+      shots,
+      flow: {
+        screen: fs, isLevel: fs === 'level', isScreen: fs !== 'level', go: this.flowGo, onHaptic: this.flowHap, haptic: this.state.flowHaptic || 'tap a control',
+        restart: () => this.setState({ flowScreen: 'title', flowPrev: null }),
+      }, a: this.opt('a'), b: this.opt('b'), c: this.opt('c'), d: this.opt('d'), e: this.opt('e'), f: this.opt('f') };
+  }
+}
+</script>
+</body>
+</html>
