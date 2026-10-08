@@ -349,3 +349,35 @@ test('the controls become lighter glass on a menu and go back to dark glass in p
   await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('play'));
   await expect.poll(mode).toBe('play');
 });
+
+test('on a menu Select acts when the finger lifts inside it, not when it lands', async ({
+  page,
+}) => {
+  await open(page, 'pause');
+  const select = (await faces(page)).jump;
+  const f = await fingers(page);
+  await f.down({ x: select.cx, y: select.cy, id: 1 });
+  // While the finger is down nothing has happened yet, however long it stays.
+  await page.waitForTimeout(500);
+  expect((await state(page)).screen).toBe('pause');
+  await expect(page.locator('#touch [data-control="jump"]')).toHaveClass(/press/);
+  await f.up();
+  await expect.poll(() => state(page).then((s) => s.screen)).toBe('play');
+});
+
+test('sliding off Select before lifting cancels it', async ({ page }) => {
+  await open(page, 'pause');
+  const select = (await faces(page)).jump;
+  const cdp = await page.context().newCDPSession(page);
+  const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', points: Point[]): Promise<unknown> =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
+  await send('touchStart', [{ x: select.cx, y: select.cy, id: 1 }]);
+  await send('touchMove', [{ x: select.cx - 200, y: select.cy - 100, id: 1 }]);
+  await send('touchEnd', []);
+  await page.waitForTimeout(600);
+  expect((await state(page)).screen).toBe('pause');
+  await expect(page.locator('#touch [data-control="jump"]')).not.toHaveClass(/press/);
+  // A real tap afterwards still works.
+  await tapControl(page, 'jump');
+  await expect.poll(() => state(page).then((s) => s.screen)).toBe('play');
+});

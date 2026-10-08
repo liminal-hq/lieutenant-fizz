@@ -1345,7 +1345,8 @@ body {
   font-weight: 700;
   color: #55ffff;
 }
-#touch .on .face {
+#touch .on .face,
+#touch .press .face {
   background: rgba(255, 255, 255, 0.18);
   box-shadow: 0 0 0 2px var(--lf-accent);
 }

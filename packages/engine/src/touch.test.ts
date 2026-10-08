@@ -143,6 +143,14 @@ describe('TouchState', () => {
     expect(t.held(501).pogo).toBe(false);
   });
 
+  it('counts a tap that ends on lift like a quick press', () => {
+    const t = state();
+    t.tap('jump', 100);
+    expect(t.held(120).jump).toBe(true);
+    expect(t.sample(900).jump).toBe(true);
+    expect(t.held(901).jump).toBe(false);
+  });
+
   it('keeps a quick D-pad tap until a step has sampled it', () => {
     const t = state();
     // The thumb lands on the right arm and lifts before any frame has run.

@@ -876,6 +876,7 @@ export class Game {
     this.input.setTouchEnabled(on);
     const faces: TouchFaces = touchFaces(s, this.sub);
     this.ui.touchLayer.dataset.mode = faces.play ? 'play' : 'menu';
+    this.touchUi.setDeferred(!faces.play);
     this.touchUi.setShown(faces.shown);
     this.touchUi.setName('jump', faces.jump);
     this.touchUi.setName('pogo', faces.pogo);

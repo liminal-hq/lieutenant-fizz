@@ -9,7 +9,7 @@
 // (CSS) and the icons inside each face.
 
 import type { InputManager } from './input';
-import { contains, type ControlId, type TouchLayout } from './touch';
+import { contains, hitTest, type ControlId, type TouchLayout } from './touch';
 import {
   DEFAULT_TOUCH_SPEC,
   placeControls,
@@ -55,6 +55,10 @@ export class TouchControls {
   private visible = false;
   private placementKey = '';
   private pausePointer: number | null = null;
+  /** When set (on a menu), Jump and Pogo act on lift, so sliding off the button cancels the press. */
+  private deferred = false;
+  /** Fingers down on a button whose press waits for the lift. */
+  private readonly pending = new Map<number, PressButton>();
   private heldKey = '';
   private lit = false;
   private shown: readonly ControlId[] = ALL;
@@ -130,6 +134,7 @@ export class TouchControls {
       this.relayout();
     } else {
       this.input.releaseTouch();
+      this.clearPending();
       this.pausePointer = null;
       this.input.touch.layout = null;
     }
@@ -158,6 +163,7 @@ export class TouchControls {
     if (key !== this.placementKey) {
       // A moved control would turn a held finger into a phantom direction, so start clean.
       if (this.placementKey) this.input.releaseTouch();
+      this.clearPending();
       this.pausePointer = null;
       this.placementKey = key;
       this.apply(placed);
@@ -262,6 +268,32 @@ export class TouchControls {
     for (const id of BUTTONS) at(this.buttons[id], id);
   }
 
+  private capture(e: PointerEvent): void {
+    try {
+      (e.target as Element).setPointerCapture(e.pointerId);
+    } catch {
+      // A pointer that is already gone cannot be captured; there is nothing to track.
+    }
+  }
+
+  private dropPending(id: number): void {
+    const b = this.pending.get(id);
+    if (b) this.buttons[b].classList.remove('press');
+    this.pending.delete(id);
+  }
+
+  /** Forgets every deferred press (the controls hid or moved, or the mode changed). */
+  private clearPending(): void {
+    for (const id of [...this.pending.keys()]) this.dropPending(id);
+  }
+
+  /** Makes Jump and Pogo act on lift (a menu) or on press (play). Switching drops any press in flight. */
+  setDeferred(on: boolean): void {
+    if (on === this.deferred) return;
+    this.deferred = on;
+    this.clearPending();
+  }
+
   /** The layer's own pixel position of a pointer event. */
   private local(e: PointerEvent): { x: number; y: number } {
     const r = this.layer.getBoundingClientRect();
@@ -274,13 +306,18 @@ export class TouchControls {
     e.preventDefault();
     if (e.pointerType === 'touch') this.input.noteTouch();
     const { x, y } = this.local(e);
+    const layout = this.input.touch.layout;
+    const target = layout ? hitTest(layout, x, y) : null;
+    if (this.deferred && (target === 'jump' || target === 'pogo' || target === 'fire')) {
+      // On a menu a button acts when the finger lifts inside it, like Pause, so it can be cancelled.
+      this.capture(e);
+      this.pending.set(e.pointerId, target);
+      this.buttons[target].classList.add('press');
+      return;
+    }
     const control = this.input.touch.down(e.pointerId, x, y, performance.now());
     if (!control) return;
-    try {
-      (e.target as Element).setPointerCapture(e.pointerId);
-    } catch {
-      // A pointer that is already gone cannot be captured; there is nothing to track.
-    }
+    this.capture(e);
     if (control === 'pause') this.pausePointer = e.pointerId;
   };
 
@@ -292,6 +329,16 @@ export class TouchControls {
 
   private readonly onUp = (e: PointerEvent): void => {
     this.input.touch.up(e.pointerId);
+    const pressed = this.pending.get(e.pointerId);
+    if (pressed) {
+      this.pending.delete(e.pointerId);
+      this.buttons[pressed].classList.remove('press');
+      const { x, y } = this.local(e);
+      if (this.placed && contains(this.placed.hit[pressed], x, y)) {
+        this.input.touch.tap(pressed, performance.now());
+      }
+      return;
+    }
     if (e.pointerId !== this.pausePointer) return;
     this.pausePointer = null;
     // Pause runs on release inside its hit area, so sliding off cancels it and the finger never lands
@@ -302,6 +349,7 @@ export class TouchControls {
 
   private readonly onCancel = (e: PointerEvent): void => {
     this.input.touch.up(e.pointerId);
+    this.dropPending(e.pointerId);
     if (e.pointerId === this.pausePointer) this.pausePointer = null;
   };
 

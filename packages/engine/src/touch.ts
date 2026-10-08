@@ -171,6 +171,15 @@ export class TouchState {
     return control;
   }
 
+  /**
+   * A button press that is already over (the finger lifted inside its hit area): held for the minimum
+   * time and until a step has sampled it, exactly like a quick tap. Menus use this to act on lift.
+   */
+  tap(button: Button, now: number): void {
+    this.latchedUntil[button] = now + this.minHoldMs;
+    this.unseen[button] = true;
+  }
+
   /** A finger moved. The D-pad re-evaluates from the new position, so a thumb can roll between arms. */
   move(id: number, x: number, y: number): void {
     const p = this.pointers.get(id);
