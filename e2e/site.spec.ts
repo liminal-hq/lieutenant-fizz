@@ -74,8 +74,9 @@ for (const [w, h] of [
           wrap: wr.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
         };
       });
-      // Up to a readable 90 characters, the intro fills the content width instead of a narrow column.
-      expect(lede).toBeGreaterThanOrEqual(Math.min(wrap, 1000) - 2);
+      // Up to a readable 90 characters (6 px a character at 2×, so 1080 px), the intro fills the content
+      // width instead of a narrow column.
+      expect(lede).toBeGreaterThanOrEqual(Math.min(wrap, 90 * 6 * 2) - 2);
     });
 
     test('every row of the controls fits without scrolling sideways', async ({ page }) => {
