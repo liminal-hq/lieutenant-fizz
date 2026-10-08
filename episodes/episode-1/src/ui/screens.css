@@ -1,0 +1,132 @@
+/* Full-screen layers */
+.screen {
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+/* Title and pause/cards: a left-aligned, unboxed column that fills the viewport over a scrim. */
+#title,
+#overlay {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  /* Never push the top of a tall column out of reach: line up with the top and scroll instead. */
+  justify-content: safe center;
+  gap: calc(var(--n) * 8px);
+  box-sizing: border-box;
+  padding: calc(var(--lf-pad-y) + var(--lf-safe-top)) calc(var(--lf-pad-x) + var(--lf-safe-right))
+    calc(var(--lf-pad-y) + 40px + var(--lf-safe-bottom)) calc(var(--lf-pad-x) + var(--lf-safe-left));
+  overflow-y: auto;
+}
+#title {
+  background: linear-gradient(
+    90deg,
+    rgba(5, 5, 7, 0.88) 0%,
+    rgba(5, 5, 7, 0.6) 38%,
+    rgba(5, 5, 7, 0) 72%
+  );
+}
+#overlay {
+  background: rgba(5, 5, 7, 0.74);
+}
+@media (max-width: 719px) {
+  #title {
+    background: linear-gradient(180deg, rgba(5, 5, 7, 0.55), rgba(5, 5, 7, 0.85));
+  }
+}
+
+#overlay[data-side] {
+  background: linear-gradient(
+    90deg,
+    rgba(5, 5, 7, 0.92) 0%,
+    rgba(5, 5, 7, 0.78) 60%,
+    rgba(5, 5, 7, 0.5) 100%
+  );
+}
+
+#title .head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+#title .wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  font-weight: 700;
+}
+#title .wordmark span {
+  display: block;
+}
+#title .kicker {
+  --n: var(--lf-n-small);
+  color: var(--lf-accent);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+}
+#title .logo {
+  position: relative;
+  width: max-content;
+}
+#title .ben {
+  position: absolute;
+  image-rendering: pixelated;
+  pointer-events: none;
+  transform-origin: 50% 100%;
+}
+@media (max-height: 420px) {
+  #title .ben {
+    display: none;
+  }
+}
+#attractFade {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  pointer-events: none;
+}
+#attractFade[hidden] {
+  display: none;
+}
+#attractTag {
+  /* Above the title and pause scrims, which sit later in the stack. */
+  z-index: 1;
+  --n: var(--lf-n-small);
+  right: calc(var(--lf-pad-x) + var(--lf-safe-right));
+  bottom: calc(var(--lf-keys-bottom) + var(--lf-safe-bottom));
+  color: var(--lf-muted);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+  pointer-events: none;
+}
+@media (max-width: 559px) {
+  #attractTag {
+    display: none;
+  }
+}
+
+#title .hero {
+  --n: var(--lf-n-logo);
+  line-height: calc(var(--lf-cell) * var(--n));
+  margin-bottom: calc(var(--n) * 2px);
+  color: #fff;
+  text-shadow:
+    0 calc(var(--n) * 1px) 0 var(--lf-rose),
+    0 calc(var(--n) * 2px) 0 #000;
+}
+#title .hero .w {
+  display: inline;
+}
+@media (max-width: 719px) {
+  #title .hero .w {
+    display: block;
+  }
+}
+#title .episode {
+  --n: var(--lf-n-small);
+  margin: 0;
+  color: var(--lf-muted);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+}

@@ -1,0 +1,124 @@
+/* Post-credits stinger */
+#stinger {
+  inset: 0;
+  pointer-events: auto;
+  cursor: pointer;
+  overflow: hidden;
+  background: #000;
+}
+#stinger .slit {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  width: 360px;
+  height: 2px;
+  opacity: 0;
+  background: linear-gradient(180deg, #ffaa40, #f43f5e 70%, #a78bfa);
+  box-shadow: 0 0 0 rgba(255, 170, 64, 0.4);
+  transition:
+    width 1.4s cubic-bezier(0.22, 1, 0.36, 1),
+    height 1.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.8s ease,
+    box-shadow 1.4s ease;
+}
+#stinger[data-phase='slit'] .slit {
+  width: min(46vw, 420px);
+  height: 3px;
+  opacity: 1;
+  box-shadow: 0 0 30px rgba(255, 170, 64, 0.4);
+}
+#stinger[data-phase='doorway'] .slit,
+#stinger[data-phase='line'] .slit {
+  width: min(22vw, 170px);
+  height: min(44vh, 340px);
+  opacity: 1;
+  box-shadow: 0 0 90px rgba(255, 170, 64, 0.4);
+}
+#stinger .figure {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  height: min(40vh, 310px, 33vw);
+  aspect-ratio: 2 / 3;
+  image-rendering: pixelated;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+#stinger[data-phase='doorway'] .figure,
+#stinger[data-phase='line'] .figure {
+  opacity: 1;
+}
+#stinger .name {
+  --n: var(--lf-n);
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: round(calc(42% + clamp(70px, 24vh, 190px)), 1px);
+  text-align: center;
+  font-weight: 700;
+  color: var(--lf-accent);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+#stinger .sound {
+  --n: var(--lf-n-hint);
+  position: absolute;
+  left: calc(var(--lf-safe-left) + 16px);
+  top: calc(var(--lf-safe-top) + 14px);
+  padding: calc(var(--n) * 1px) calc(var(--n) * 5px);
+  white-space: nowrap;
+  border-radius: 999px;
+  background: rgba(22, 22, 28, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--lf-text);
+}
+#stinger .sound[hidden] {
+  display: none;
+}
+#stinger .box {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: calc(var(--lf-n) * 50px);
+  background: #000;
+  display: flex;
+  justify-content: center;
+  padding: calc(var(--lf-n) * 6px) calc(var(--lf-n) * 12px);
+  box-sizing: border-box;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+#stinger[data-phase='line'] .name,
+#stinger[data-phase='line'] .box {
+  opacity: 1;
+}
+#stinger .in {
+  --n: var(--lf-n-small);
+  --lf-line: 15px;
+  width: min(920px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--n) * 4px);
+}
+#stinger .place {
+  font-weight: 700;
+  color: var(--lf-accent);
+}
+#stinger .line {
+  color: var(--lf-text);
+  text-wrap: pretty;
+}
+#stinger .hints {
+  margin-top: auto;
+}
+#stinger .cursor {
+  display: none;
+  color: var(--lf-accent);
+}
+#stinger.typed .cursor {
+  display: inline;
+}

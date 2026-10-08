@@ -1,0 +1,68 @@
+/* Debug panel */
+#panelBtn {
+  --n: var(--lf-n-hint);
+  right: calc(var(--lf-safe-right) + 16px);
+  top: calc(var(--lf-safe-top) + 16px);
+  z-index: 5;
+  pointer-events: auto;
+  padding: calc(var(--n) * 1px) calc(var(--n) * 4px);
+  border: 0;
+  background: transparent;
+  color: var(--lf-muted) !important;
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+  cursor: pointer;
+}
+#panelBtn:hover {
+  color: var(--lf-accent) !important;
+}
+#panel {
+  --n: var(--lf-n-hint);
+  right: calc(var(--lf-safe-right) + 16px);
+  top: calc(var(--lf-safe-top) + 16px);
+  width: calc(var(--n) * 6px * 36);
+  max-width: calc(100vw - 32px - var(--lf-safe-left) - var(--lf-safe-right));
+  box-sizing: border-box;
+  padding: calc(var(--n) * 4px) calc(var(--n) * 5px);
+  pointer-events: auto;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px - var(--lf-safe-top) - var(--lf-safe-bottom));
+  overflow: auto;
+}
+#panel h3 {
+  margin: 0 0 calc(var(--n) * 3px);
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+#panel .kv {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(var(--n) * 3px);
+  padding: calc(var(--n) * 1px) 0;
+  color: #b8c0cc;
+}
+#panel .kv b {
+  font-family: var(--lf-mono);
+  font-weight: 400;
+  color: #fff;
+}
+#panel .tg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--n) * 2px);
+  margin-top: calc(var(--n) * 4px);
+}
+#panel .tg button {
+  border: 1px solid var(--lf-border);
+  background: transparent;
+  border-radius: 999px;
+  padding: 0 calc(var(--n) * 4px);
+  cursor: pointer;
+  color: var(--lf-dim);
+}
+#panel .tg button.on {
+  background: rgba(255, 170, 64, 0.2);
+  border-color: var(--lf-accent);
+  color: #fff;
+}

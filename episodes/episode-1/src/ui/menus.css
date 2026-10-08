@@ -1,0 +1,324 @@
+/* Menu rows: [bullet gutter][plate]. The soda bullet sits in a fixed gutter so rows never shift. */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.menu button {
+  /* One full glyph cell high, so the line box never spills out of the row or its plate. */
+  --lf-line: 11px;
+  display: flex;
+  align-items: center;
+  gap: max(6px, calc(var(--n) * 2px));
+  height: calc(var(--n) * 11px);
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: var(--lf-text);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+  cursor: pointer;
+}
+.menu .gut {
+  position: relative;
+  flex: none;
+  align-self: stretch;
+  width: calc(var(--lf-cw-mul) * 16px);
+}
+.menu .bullet {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  transform: translateY(-50%);
+  image-rendering: pixelated;
+  visibility: hidden;
+  pointer-events: none;
+}
+.menu button.sel .bullet {
+  visibility: visible;
+  animation: lf-bob 1.26s step-end infinite;
+}
+.menu .plate {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--n) * 3px);
+  align-self: stretch;
+  padding: 0 calc(var(--n) * 4px);
+}
+.menu button.sel .plate {
+  background: var(--lf-accent);
+  color: var(--lf-ink);
+  text-shadow: none;
+  clip-path: polygon(
+    4px 0,
+    calc(100% - 4px) 0,
+    calc(100% - 4px) 4px,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 4px) calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    4px calc(100% - 4px),
+    0 calc(100% - 4px),
+    0 4px,
+    4px 4px
+  );
+  animation: lf-plate 1.6s step-end infinite;
+}
+.menu button.dis {
+  color: var(--lf-dim);
+  text-shadow: none;
+  cursor: default;
+}
+.menu .val {
+  --n: var(--lf-n-small);
+  color: var(--lf-muted);
+}
+.menu button.sel .val {
+  color: var(--lf-ink);
+}
+.menu .meter {
+  display: flex;
+  gap: max(2px, calc((var(--n) - 1) * 1px));
+}
+.menu .meter i {
+  width: calc(var(--n) * 3px);
+  height: calc(var(--n) * 5px);
+  background: rgba(255, 255, 255, 0.18);
+}
+.menu .meter i.on {
+  background: #55ff55;
+}
+.menu button.sel .meter i {
+  background: rgba(26, 16, 0, 0.25);
+}
+.menu button.sel .meter i.on {
+  background: var(--lf-ink);
+}
+.menu[hidden],
+#controls[hidden] {
+  display: none;
+}
+#ui button:focus-visible {
+  outline: 2px solid var(--lf-accent);
+  outline-offset: 2px;
+}
+
+/* Save slot rows: thumbnail, two lines of text and a pip per level. */
+.menu {
+  max-width: 100%;
+}
+.menu button.slot {
+  height: auto;
+  min-height: calc(var(--n) * 10px);
+  max-width: 100%;
+  text-shadow: none;
+}
+.menu button.slot .plate {
+  min-width: 0;
+  gap: calc(var(--n) * 4px);
+  padding: calc(var(--n) * 2px) calc(var(--n) * 4px) calc(var(--n) * 2px) calc(var(--n) * 2px);
+  background: rgba(5, 5, 7, 0.6);
+}
+.menu .thumb {
+  flex: none;
+  width: calc(60px * var(--lf-thumb));
+  height: calc(44px * var(--lf-thumb));
+  box-sizing: border-box;
+  image-rendering: pixelated;
+  box-shadow: 0 0 0 2px var(--lf-dim);
+}
+.menu .thumb.none {
+  box-shadow: none;
+  border: 2px dashed var(--lf-dim);
+}
+.menu button.sel .thumb {
+  box-shadow: 0 0 0 2px var(--lf-ink);
+}
+.menu button.sel .thumb.none {
+  box-shadow: none;
+  border-color: var(--lf-ink);
+}
+.menu .txt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  text-align: left;
+}
+.menu .l1 {
+  --n: var(--lf-n-small);
+}
+.menu .l2 {
+  --n: var(--lf-n-hint);
+  color: var(--lf-muted);
+  overflow-wrap: anywhere;
+}
+.menu .l2.brief {
+  display: none;
+}
+/* Narrow windows: drop the thumbnail, pips and date so five slots still fit. */
+@media (max-width: 559px) {
+  .menu .thumb,
+  .menu .pips-row {
+    display: none;
+  }
+  .menu .l2.full {
+    display: none;
+  }
+  .menu .l2.brief {
+    display: block;
+  }
+  #controls th:not(.on, :first-child),
+  #controls td:not(.on, :first-child) {
+    display: none;
+  }
+}
+.menu button.sel .l2 {
+  color: var(--lf-ink);
+}
+.menu .pips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  max-width: calc(var(--n) * 2px * 8 + 8px);
+  margin-left: calc(var(--n) * 2px);
+}
+.menu .pips-row[hidden] {
+  display: none;
+}
+.menu .pips-row i {
+  width: calc(var(--n) * 2px);
+  height: calc(var(--n) * 3px);
+  background: rgba(255, 255, 255, 0.18);
+}
+.menu .pips-row i.on {
+  background: var(--lf-accent);
+}
+.menu button.sel .pips-row i {
+  background: rgba(26, 16, 0, 0.25);
+}
+.menu button.sel .pips-row i.on {
+  background: var(--lf-ink);
+}
+
+@keyframes lf-plate {
+  0% {
+    background: #ffaa40;
+  }
+  25% {
+    background: #ffb850;
+  }
+  50% {
+    background: #ffc860;
+  }
+  75% {
+    background: #ffb850;
+  }
+}
+@keyframes lf-bob {
+  0%,
+  100% {
+    transform: translate(0, -50%);
+  }
+  25% {
+    transform: translate(calc(var(--lf-cw-mul) * 1px), -50%);
+  }
+  75% {
+    transform: translate(calc(var(--lf-cw-mul) * -1px), -50%);
+  }
+}
+
+/* Hint bar: keycaps and button glyphs along the bottom, left-aligned with the content. */
+#ui .keys {
+  --n: var(--lf-n-hint);
+  position: absolute;
+  left: calc(var(--lf-pad-x) + var(--lf-safe-left));
+  bottom: calc(var(--lf-keys-bottom) + var(--lf-safe-bottom));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--n) * 4px) calc(var(--n) * 9px);
+  color: var(--lf-muted);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+  pointer-events: none;
+}
+#ui .keys span {
+  white-space: nowrap;
+}
+
+#overlay .box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--n) * 8px);
+  max-width: 100%;
+}
+#overlay h2 {
+  --n: var(--lf-n-head);
+  margin: 0;
+  font-weight: 700;
+  color: #fff;
+  text-wrap: balance;
+  text-shadow:
+    0 calc(var(--n) * 1px) 0 var(--lf-rose),
+    0 calc(var(--n) * 2px) 0 #000;
+}
+#overlay p {
+  --n: var(--lf-n-small);
+  --lf-line: 15px;
+  margin: 0;
+  max-width: calc(var(--lf-cols) * 6px * var(--n));
+  color: var(--lf-muted);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+  text-wrap: pretty;
+}
+#overlay .note {
+  --n: var(--lf-n-hint);
+  color: var(--lf-dim);
+}
+
+/* Controls table */
+#controls {
+  --n: var(--lf-n-small);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--n) * 6px);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+}
+#controls {
+  max-width: 100%;
+}
+#controls table {
+  border-collapse: collapse;
+  /* Narrow windows scroll the table sideways rather than pushing a column off screen. */
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+#controls td,
+#controls th {
+  padding: calc(var(--n) * 1px) calc(var(--n) * 6px) calc(var(--n) * 1px) 0;
+  text-align: left;
+  font-weight: 400;
+  color: var(--lf-muted);
+  white-space: nowrap;
+}
+#controls td:first-child {
+  color: #fff;
+}
+#controls th {
+  color: var(--lf-dim);
+}
+#controls th.on,
+#controls td.on {
+  color: var(--lf-accent);
+}
+#controls .note {
+  --n: var(--lf-n-hint);
+  --lf-line: 15px;
+  margin: 0;
+  max-width: calc(var(--lf-cols) * 6px * var(--n));
+  color: var(--lf-muted);
+}

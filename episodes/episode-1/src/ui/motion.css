@@ -1,0 +1,17 @@
+/* Reduced motion: from the system setting or the Motion option (the shell adds .rm). */
+@media (prefers-reduced-motion: reduce) {
+  #stinger .slit,
+  #stinger .figure,
+  #stinger .name,
+  #stinger .box {
+    transition: none;
+  }
+  .menu button.sel .plate,
+  .menu button.sel .bullet {
+    animation: none;
+  }
+}
+#ui.rm .menu button.sel .plate,
+#ui.rm .menu button.sel .bullet {
+  animation: none;
+}

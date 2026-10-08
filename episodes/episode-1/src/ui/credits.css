@@ -1,0 +1,205 @@
+/* Credits roll */
+#credits {
+  inset: 0;
+  pointer-events: auto;
+  cursor: pointer;
+  overflow: hidden;
+  background: #050507;
+}
+#credits .glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 70% at 50% 100%,
+    rgba(244, 63, 94, 0.28),
+    rgba(167, 139, 250, 0.12) 45%,
+    rgba(5, 5, 7, 0) 75%
+  );
+  pointer-events: none;
+}
+#credits .stars i {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+}
+#credits .track {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--lf-n) * 16px);
+  padding: 0 24px;
+  box-sizing: border-box;
+  transform: translateY(100vh);
+  transform: translateY(100dvh);
+  will-change: transform;
+}
+#credits .blk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: calc(var(--n) * 2px);
+  transition:
+    opacity 1.6s ease-out,
+    transform 2.2s ease-out;
+}
+#credits .blk:not(.on) {
+  display: none;
+}
+#credits .big,
+#credits .thanks {
+  font-weight: 700;
+  color: #fff;
+  text-shadow:
+    0 calc(var(--n) * 1px) 0 var(--lf-rose),
+    0 calc(var(--n) * 2px) 0 #000;
+}
+#credits .big {
+  --n: var(--lf-n-logo);
+  line-height: calc(var(--lf-cell) * var(--n));
+  margin-bottom: calc(var(--n) * 2px);
+}
+#credits .sub,
+#credits .line {
+  --n: var(--lf-n-small);
+  color: var(--lf-muted);
+  text-wrap: balance;
+}
+#credits .section {
+  width: min(calc(var(--lf-cols) * 6px * var(--lf-n-small) * 1.4), 100%);
+  gap: calc(var(--n) * 4px);
+}
+#credits .head {
+  --n: var(--lf-n);
+  font-weight: 700;
+  color: var(--lf-accent);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+}
+#credits .lines {
+  --n: var(--lf-n-small);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+#credits .ln {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 16px;
+  align-items: baseline;
+}
+#credits .role {
+  text-align: right;
+  font-family: var(--lf-condensed);
+  color: var(--lf-muted);
+  text-wrap: pretty;
+}
+#credits .who {
+  text-align: left;
+  color: #fff;
+  text-wrap: pretty;
+}
+#credits .end {
+  padding-bottom: calc(var(--lf-n) * 20px);
+}
+#credits .thanks {
+  --n: var(--lf-n-head);
+}
+#credits .end .line {
+  max-width: calc(var(--lf-cols) * 6px * var(--n));
+}
+#credits .end {
+  position: relative;
+}
+#credits .echo {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  margin-top: calc(var(--lf-n) * -8px);
+  width: max-content;
+  max-width: 100vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--n) * 2px);
+  text-align: center;
+  opacity: 0;
+  transition: opacity 2s ease 1.2s;
+  pointer-events: none;
+}
+#credits .echo .ret {
+  --n: var(--lf-n-small);
+  margin-top: calc(var(--n) * 4px);
+  color: var(--lf-muted);
+  opacity: 0;
+  transition: opacity 2s ease 3.4s;
+}
+#credits.held .echo,
+#credits.held .echo .ret {
+  opacity: 1;
+}
+#credits.held .blk:not(.end) {
+  opacity: 0;
+  transform: translateY(-90px);
+}
+#credits .fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+#credits .fade.top {
+  top: 0;
+  height: clamp(60px, 14vh, 140px);
+  background: linear-gradient(180deg, #050507 20%, rgba(5, 5, 7, 0));
+}
+#credits .fade.bot {
+  bottom: 0;
+  height: clamp(60px, 12vh, 120px);
+  background: linear-gradient(0deg, #050507 20%, rgba(5, 5, 7, 0) 100%);
+}
+#credits .foot,
+#stinger .hints {
+  --n: var(--lf-n-hint);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: calc(var(--n) * 4px) calc(var(--n) * 9px);
+  color: var(--lf-muted);
+}
+#credits .foot {
+  position: absolute;
+  right: calc(var(--lf-pad-x) + var(--lf-safe-right));
+  bottom: calc(var(--lf-keys-bottom) + var(--lf-safe-bottom));
+}
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--n) * 2px);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+/* Reduced motion: one page at a time, centred, with no scrolling or fades */
+#credits.reduced .track {
+  inset: 0;
+  justify-content: center;
+  transform: none !important;
+}
+#credits.reduced .blk {
+  transition: none;
+}
+#credits.reduced .echo,
+#credits.reduced .echo .ret {
+  transition: none;
+}
+#credits.reduced .fade {
+  display: none;
+}
