@@ -131,7 +131,7 @@ const underControls = (page: Page): Promise<string[]> =>
       .filter((r): r is DOMRect => !!r && r.width > 0);
     const content = [
       ...document.querySelectorAll<HTMLElement>(
-        '#title :is(h1, p, button, table, .keys span), #overlay :is(h2, p, button, .keys span)',
+        '#title :is(h1, p, button, table, .keys span), #overlay :is(h2, p, button, .keys span), #backBtn',
       ),
     ].filter((e) => {
       const r = e.getBoundingClientRect();
@@ -495,3 +495,149 @@ test('Controls on the split title shows the one-column table', async ({ page }) 
   );
   expect(grid).toBe('flex');
 });
+
+interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+const overlaps = (a: Box, b: Box): boolean =>
+  Math.min(a.right, b.right) > Math.max(a.left, b.left) + 1 &&
+  Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top) + 1;
+
+/** The Controls screen on a phone: the touch column, no keys, nothing under the controls. */
+for (const [label, size] of TITLE_SIZES) {
+  test(`Controls at ${label} shows the Action and Touch columns and no keys`, async ({ page }) => {
+    if (size) await page.setViewportSize(size);
+    await open(page, 'controls');
+    await expect(page.locator('#controls')).toBeVisible();
+    const heads = await page.locator('#controls th').allInnerTexts();
+    expect(heads).toEqual(['Action', 'Touch']);
+    const text = await page.locator('#controls table').innerText();
+    // The controls' own names are drawn as keycaps, so check the text the table was built from.
+    const html = await page.locator('#controls table').innerHTML();
+    for (const token of ['{[D-pad]}', '{[Select]}', '{[Back]}', '{[Pause]}']) {
+      expect(html, token).toContain(hintText(token));
+    }
+    for (const word of ['Move and aim', 'Jump', 'Pogo (toggle)', 'Fizz', 'Menus', 'Pause menu']) {
+      expect(text, word).toContain(word);
+    }
+    // The keycaps are the controls' own names: no button glyph (A, B, Start…) and no whole keyboard cap.
+    for (const ch of html) {
+      const cp = ch.codePointAt(0) ?? 0;
+      expect(cp >= 0xe000 && cp <= 0xe015, 'a button glyph').toBe(false);
+      expect(cp >= 0xe200 && cp <= 0xe2ff, 'a keyboard cap').toBe(false);
+    }
+    for (const key of ['Esc', 'Enter', 'F5', 'F9', 'Ctrl', 'Alt', 'Space', 'Start']) {
+      expect(text, key).not.toContain(key);
+    }
+    // The Back row is hidden, since the Back button and the Back control close the screen.
+    await expect(page.locator('#controls > .menu')).toBeHidden();
+    expect(await underControls(page)).toEqual([]);
+    const { checked, ...problems } = await page.evaluate(audit, { roots: ['#ui', '#touch'] });
+    expect(checked).toBeGreaterThan(3);
+    expect(problems, JSON.stringify(problems, null, 2)).toMatchObject({
+      pageOverflow: [],
+      outside: [],
+      badSize: [],
+      clipped: [],
+      crowdsHints: [],
+    });
+  });
+}
+
+const SUBS = ['controls', 'options', 'saves'] as const;
+const rect = (page: Page, selector: string): Promise<Box[]> =>
+  page.evaluate(
+    (sel) =>
+      [...document.querySelectorAll<HTMLElement>(sel)]
+        .filter((e) => e.getBoundingClientRect().width > 0)
+        .map((e) => e.getBoundingClientRect().toJSON()),
+    selector,
+  );
+
+for (const [label, size] of TITLE_SIZES) {
+  for (const sub of SUBS) {
+    test(`the Back button over ${sub} at ${label} is 48 dp, inside the safe area and clear of the content`, async ({
+      page,
+    }) => {
+      if (size) await page.setViewportSize(size);
+      await open(page, sub);
+      const back = page.locator('#backBtn');
+      await expect(back).toBeVisible();
+      await expect(back).toHaveText('← Back');
+      const insets = { left: 48, right: 32, bottom: 20 };
+      await page.addStyleTag({
+        content: `:root { --lf-safe-left: ${insets.left}px; --lf-safe-right: ${insets.right}px; --lf-safe-bottom: ${insets.bottom}px; }`,
+      });
+      await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+      await expect
+        .poll(async () => (await back.boundingBox())!.x)
+        .toBeGreaterThanOrEqual(insets.left + 16 - 0.5);
+      const b = (await back.boundingBox())!;
+      expect(b.width).toBeGreaterThanOrEqual(47.9);
+      expect(b.height).toBeGreaterThanOrEqual(47.9);
+      expect(b.y).toBeGreaterThanOrEqual(8 - 0.5);
+      const box = { left: b.x, top: b.y, right: b.x + b.width, bottom: b.y + b.height };
+      const content = await rect(
+        page,
+        '#title :is(h1, .head, table, .menu button, .keys span), #overlay :is(h2, table, .menu button, .keys span)',
+      );
+      for (const c of content) expect(overlaps(box, c), JSON.stringify([box, c])).toBe(false);
+      expect(await underControls(page)).toEqual([]);
+      const report = await page.evaluate(audit, {
+        roots: ['#ui', '#touch'],
+        insets: { top: 0, ...insets },
+      });
+      expect(report.outside, JSON.stringify(report.outside)).toEqual([]);
+    });
+  }
+}
+
+test('the Back button is hidden on the title menu, in play and on the pause menu', async ({
+  page,
+}) => {
+  await open(page, 'title');
+  await expect(page.locator('#backBtn')).toBeHidden();
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('pause'));
+  await expect(page.locator('#backBtn')).toBeHidden();
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('play'));
+  await expect(page.locator('#backBtn')).toBeHidden();
+});
+
+for (const sub of SUBS) {
+  test(`a tap on Back closes ${sub} on the title`, async ({ page }) => {
+    await open(page, sub);
+    expect((await state(page)).sub).toBe(sub);
+    const b = (await page.locator('#backBtn').boundingBox())!;
+    await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+    await expect.poll(() => state(page).then((s) => s.sub)).toBe(null);
+    expect((await state(page)).screen).toBe('title');
+    await expect(page.locator('#title > .menu')).toBeVisible();
+    await expect(page.locator('#backBtn')).toBeHidden();
+  });
+}
+
+for (const [sub, row] of [
+  ['options', 'Options'],
+  ['saves', 'Load game'],
+] as const) {
+  test(`a tap on Back closes ${sub} on the pause menu`, async ({ page }) => {
+    await open(page, 'pause');
+    await expect(page.locator('#backBtn')).toBeHidden();
+    const r = (await page.locator('#overlay .menu button', { hasText: row }).boundingBox())!;
+    await page.touchscreen.tap(r.x + r.width / 2, r.y + r.height / 2);
+    await expect.poll(() => state(page).then((s) => s.sub)).toBe(sub);
+    await expect(page.locator('#backBtn')).toBeVisible();
+    // Pause has nothing to do on a screen opened over the menu: Back closes it.
+    expect(await shown(page)).toEqual(['dpad', 'jump', 'pogo']);
+    const b = (await page.locator('#backBtn').boundingBox())!;
+    await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+    await expect.poll(() => state(page).then((s) => s.sub)).toBe(null);
+    expect((await state(page)).screen).toBe('pause');
+    await expect(page.locator('#backBtn')).toBeHidden();
+    await expect(page.locator('#overlay h2')).toHaveText('Paused');
+  });
+}

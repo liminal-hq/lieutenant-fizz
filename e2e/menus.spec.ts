@@ -36,6 +36,17 @@ for (const [label, key] of [
   });
 }
 
+test('the Back button stays hidden on a desktop, over Controls, Options and Saves', async ({
+  page,
+}) => {
+  await open(page, 'title');
+  for (const screen of ['controls', 'options', 'saves']) {
+    await page.evaluate((s) => (window as unknown as { __lf: Lf }).__lf.debugShow(s), screen);
+    await page.waitForTimeout(150);
+    await expect(page.locator('#backBtn')).toBeHidden();
+  }
+});
+
 test('a held arrow key repeats down the Options rows', async ({ page }) => {
   await open(page, 'options');
   const menu = (): Promise<number> =>
