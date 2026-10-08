@@ -23,6 +23,20 @@ export interface ButtonSpec {
   bottom: number;
 }
 
+/** A control that can be moved: every control but Pause, which stays in the corner. */
+export type MovableId = Exclude<ControlId, 'pause'>;
+
+/**
+ * Where a moved control sits, in spec pixels (before the Size scale) from the control's own safe
+ * corner: `side` is the gap from its face edge to the screen edge it is anchored to (the left edge for
+ * the D-pad, the right edge for the buttons, mirrored when left-handed) and `bottom` the gap from the
+ * bottom of the safe area. These are the same numbers `TouchSpec` holds for the default positions.
+ */
+export interface EdgeOffset {
+  side: number;
+  bottom: number;
+}
+
 export interface TouchSpec {
   /** The smallest hit area, in CSS pixels (Android's 48 dp). */
   minHit: number;
@@ -38,6 +52,8 @@ export interface TouchSpec {
   scale: number;
   /** Swaps the D-pad and the buttons (Pause stays top right). */
   leftHanded: boolean;
+  /** Controls the player moved, by their offset from the safe corner; absent means the default place. */
+  moved?: Partial<Record<MovableId, EdgeOffset>>;
 }
 
 export const DEFAULT_TOUCH_SPEC: TouchSpec = {
