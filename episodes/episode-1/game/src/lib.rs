@@ -243,6 +243,8 @@ pub mod state {
     pub const ATTRACT_T: u32 = 20;
     pub const ATTRACT_PERIOD: u32 = 21;
     pub const ATTRACT_IDX: u32 = 22;
+    /// Whether Ben's pogo toggle is on (read-only; 0 outside a level).
+    pub const POGO_ON: u32 = 23;
 }
 
 #[no_mangle]
@@ -278,6 +280,7 @@ pub extern "C" fn state_get(i: u32) -> f64 {
         ATTRACT_T => f64::from(s.attract_t),
         ATTRACT_PERIOD => f64::from(s.attract_period()),
         ATTRACT_IDX => f64::from(s.attract_idx),
+        POGO_ON => b(s.p.pogo),
         _ => 0.0,
     }
 }
