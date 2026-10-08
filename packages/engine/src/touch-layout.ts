@@ -429,6 +429,35 @@ export function dragControl(
   return { cx: p.cx, cy: p.cy, r: current.r };
 }
 
+/**
+ * The stored offset for a control the finger wants at `want`: the drag position of `dragControl`
+ * turned into whole spec pixels (what is saved), checked by placing the controls with it. Rounding can
+ * nudge two controls closer than their gap, so the neighbouring whole numbers are tried too. Returns
+ * null when no whole offset gives a valid custom placement, and the control then stays where it is.
+ */
+export function dragOffset(
+  placed: PlacedControls,
+  id: MovableId,
+  want: { cx: number; cy: number },
+  width: number,
+  height: number,
+  insets: Insets,
+  spec: TouchSpec = DEFAULT_TOUCH_SPEC,
+): EdgeOffset | null {
+  const c = dragControl(placed, id, want, width, height, insets, spec);
+  const raw = offsetOf(id, c, width, height, insets, spec);
+  const sides = [Math.round(raw.side), Math.floor(raw.side), Math.ceil(raw.side)];
+  const bottoms = [Math.round(raw.bottom), Math.floor(raw.bottom), Math.ceil(raw.bottom)];
+  for (const side of sides) {
+    for (const bottom of bottoms) {
+      if (side < 0 || bottom < 0) continue;
+      const trial = { ...spec, moved: { ...spec.moved, [id]: { side, bottom } } };
+      if (placeControls(width, height, insets, trial).custom) return { side, bottom };
+    }
+  }
+  return null;
+}
+
 /** Builds the placement for a frame, with these controls moved (clamped into their zones). */
 function build(f: Frame, moved: TouchSpec['moved']): PlacedControls {
   const { spec } = f;

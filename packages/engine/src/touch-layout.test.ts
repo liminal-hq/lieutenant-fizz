@@ -11,6 +11,7 @@ import {
   controlSide,
   controlZone,
   dragControl,
+  dragOffset,
   inside,
   offsetOf,
   placeControls,
@@ -513,5 +514,58 @@ describe('offsetOf and dragControl', () => {
     };
     const c = dragControl(boxed, 'jump', { cx: z.x + 5, cy: z.y + 5 }, 844, 390, NONE);
     expect(c).toEqual(p.face.jump);
+  });
+});
+
+describe('dragOffset', () => {
+  it('gives whole spec pixels that place the control where the drag put it', () => {
+    const p = placeControls(844, 390, NONE);
+    expect(dragOffset(p, 'dpad', { cx: 150, cy: 200 }, 844, 390, NONE)).toEqual({
+      side: 75,
+      bottom: 115,
+    });
+    const off = dragOffset(p, 'dpad', { cx: 150.4, cy: 199.6 }, 844, 390, NONE)!;
+    expect(Number.isInteger(off.side) && Number.isInteger(off.bottom)).toBe(true);
+    const again = placeControls(844, 390, NONE, { ...DEFAULT_TOUCH_SPEC, moved: { dpad: off } });
+    expect(again.custom).toBe(true);
+    expect(Math.abs(again.face.dpad.cx - 150.4)).toBeLessThan(1);
+    expect(Math.abs(again.face.dpad.cy - 199.6)).toBeLessThan(1);
+  });
+
+  it('always gives an offset that places as a custom layout, wherever Jump is dragged', () => {
+    for (const [w, h] of [
+      [844, 390],
+      [740, 360],
+      [640, 320],
+    ] as const) {
+      for (const leftHanded of [false, true]) {
+        for (const scale of [0.85, 1, 1.2]) {
+          const spec: TouchSpec = { ...DEFAULT_TOUCH_SPEC, leftHanded, scale };
+          const p = placeControls(w, h, NOTCH, spec);
+          const pogo = p.face.pogo;
+          for (let i = 0; i < 40; i++) {
+            const want = { cx: pogo.cx + (i % 7) - 3.3, cy: pogo.cy + (i % 5) - 2.7 + i * 0.37 };
+            const off = dragOffset(p, 'jump', want, w, h, NOTCH, spec);
+            if (!off) continue;
+            const trial = placeControls(w, h, NOTCH, { ...spec, moved: { jump: off } });
+            expect(trial.custom, `${w}×${h} ${scale} ${leftHanded} ${i}`).toBe(true);
+            expect(validPlacement(trial, safeRect(w, h, NOTCH), 8)).toBe(true);
+          }
+        }
+      }
+    }
+  });
+
+  it('stays where it is when the control is boxed in', () => {
+    const p = placeControls(844, 390, NONE);
+    const z = controlZone('jump', 844, 390, NONE);
+    const boxed = {
+      ...p,
+      face: { ...p.face, pogo: { cx: z.x + z.w / 2, cy: z.y + z.h / 2, r: 400 } },
+    };
+    expect(dragOffset(boxed, 'jump', { cx: z.x + 5, cy: z.y + 5 }, 844, 390, NONE)).toEqual({
+      side: 24,
+      bottom: 26,
+    });
   });
 });
