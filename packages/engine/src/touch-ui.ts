@@ -13,7 +13,10 @@ import { contains, hitTest, type ControlId, type TouchLayout } from './touch';
 import {
   DEFAULT_TOUCH_SPEC,
   placeControls,
+  controlSide,
   sideGutters,
+  sideTops,
+  type SideTops,
   type Gutters,
   type Insets,
   type PlacedControls,
@@ -197,6 +200,21 @@ export class TouchControls {
     if (!this.visible || !this.placed) return { left: 0, right: 0 };
     const w = this.layer.clientWidth || window.innerWidth;
     return sideGutters(this.placed, w, this.shown, margin);
+  }
+
+  /** Where content above the controls must stop on each side, for the controls showing now (0 for none). */
+  tops(margin = 16): SideTops {
+    if (!this.visible || !this.placed) return { left: 0, right: 0 };
+    const w = this.layer.clientWidth || window.innerWidth;
+    const h = this.layer.clientHeight || window.innerHeight;
+    return sideTops(this.placed, w, h, this.shown, margin);
+  }
+
+  /** The hand the layout is for: `right` has the D-pad on the left, `left` has it on the right. */
+  hand(): 'left' | 'right' {
+    if (!this.placed) return 'right';
+    const w = this.layer.clientWidth || window.innerWidth;
+    return controlSide(this.placed, w, 'dpad') === 'left' ? 'right' : 'left';
   }
 
   /** The hit areas with every hidden control moved out of reach. */
