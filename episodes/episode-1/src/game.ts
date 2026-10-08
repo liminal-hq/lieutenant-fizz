@@ -280,6 +280,8 @@ export class Game {
     this.halfW = (this.halfH * this.renderer.width) / this.renderer.height;
     sim.x.set_view(this.halfW, this.halfH);
 
+    // Touch controls drive play only, so a thumb on a control never moves a menu.
+    this.input.setTouchEnabled(this.screen === 'play');
     const bits = this.input.peek();
     this.menuInput(bits);
     this.lastBits = bits;

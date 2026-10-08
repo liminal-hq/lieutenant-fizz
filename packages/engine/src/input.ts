@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { NO_TOUCH, TouchState, type TouchHeld } from './touch';
+
 /** Input bits handed to the sim each fixed tick (mirrors `world::input` in the Rust sim). */
 export const Input = {
   LEFT: 1,
@@ -26,14 +28,15 @@ export type Command =
   | { type: 'zoomReset' };
 
 /** Which kind of input the player last used, so hints can show the matching labels. */
-export type InputDevice = 'keyboard' | 'gamepad';
+export type InputDevice = 'keyboard' | 'gamepad' | 'touch';
 
 /** Something that can change the hint device. */
-export type DeviceEvent = 'key' | 'pad-input' | 'pad-connected' | 'pad-disconnected';
+export type DeviceEvent = 'key' | 'pad-input' | 'pad-connected' | 'pad-disconnected' | 'touch';
 
 /**
  * The hint device after an event. A key press means keyboard, a gamepad button or stick move means
- * gamepad, connecting a pad switches to it, and unplugging the last pad goes back to the keyboard.
+ * gamepad, connecting a pad switches to it, and unplugging the last pad goes back to the keyboard. A
+ * touch means touch. Unplugging a pad only matters while the gamepad is the device in use.
  */
 export function nextDevice(current: InputDevice, event: DeviceEvent, padsLeft = 0): InputDevice {
   switch (event) {
@@ -43,7 +46,10 @@ export function nextDevice(current: InputDevice, event: DeviceEvent, padsLeft = 
     case 'pad-connected':
       return 'gamepad';
     case 'pad-disconnected':
+      if (current !== 'gamepad') return current;
       return padsLeft > 0 ? current : 'keyboard';
+    case 'touch':
+      return 'touch';
   }
 }
 
@@ -100,8 +106,33 @@ export function padToBits(pad: Pick<Gamepad, 'buttons' | 'axes'>): {
   return { bits, start: b(9) };
 }
 
+/** The held touch controls as sim input bits. */
+export function touchToBits(t: TouchHeld): number {
+  let b = 0;
+  if (t.left) b |= Input.LEFT;
+  if (t.right) b |= Input.RIGHT;
+  if (t.up) b |= Input.UP;
+  if (t.down) b |= Input.DOWN;
+  if (t.jump) b |= Input.JUMP;
+  if (t.pogo) b |= Input.POGO;
+  if (t.fire) b |= Input.FIRE;
+  return b;
+}
+
 /**
- * Keyboard + gamepad input. `poll()` is called once per fixed tick and returns the held bits;
+ * Combines the held bits from each source. Touch counts only while `touchEnabled` (in play), so a
+ * thumb on a control never drives a menu. `blocked` silences every source.
+ */
+export function inputBits(
+  src: { keys: number; pad: number; touch: number },
+  gate: { touchEnabled: boolean; blocked: boolean },
+): number {
+  if (gate.blocked) return 0;
+  return src.keys | src.pad | (gate.touchEnabled ? src.touch : 0);
+}
+
+/**
+ * Keyboard, gamepad and touch input. `poll()` is called once per fixed tick and returns the held bits;
  * edge detection happens inside the sim. Menu-style keys arrive as commands.
  */
 export class InputManager {
@@ -115,6 +146,9 @@ export class InputManager {
   private readonly deviceHandlers = new Set<(d: InputDevice) => void>();
   /** When true, held bits are suppressed (menus, dialogue) but commands still fire. */
   blocked = false;
+  /** The touch controls' state. A DOM controller feeds it; its bits count only while touch is enabled. */
+  readonly touch = new TouchState();
+  private touchEnabled = false;
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     const t = e.target as HTMLElement | null;
@@ -158,6 +192,10 @@ export class InputManager {
   };
   private readonly onBlur = (): void => {
     this.keys.clear();
+    this.releaseTouch();
+  };
+  private readonly onHidden = (): void => {
+    if (document.hidden) this.releaseTouch();
   };
   private readonly onWheel = (e: WheelEvent): void => {
     e.preventDefault();
@@ -175,6 +213,8 @@ export class InputManager {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onBlur);
+    window.addEventListener('pagehide', this.onBlur);
+    document.addEventListener('visibilitychange', this.onHidden);
     host.addEventListener('wheel', this.onWheel, { passive: false });
   }
 
@@ -205,9 +245,30 @@ export class InputManager {
     for (const h of this.handlers) h(c);
   }
 
+  /** Runs a command from outside the keyboard handlers (the on-screen Pause button). */
+  command(c: Command): void {
+    this.emit(c);
+  }
+
+  /** A finger touched the controls: touch is now the device the hints should match. */
+  noteTouch(): void {
+    this.setDevice('touch');
+  }
+
+  /** Turns the touch controls on or off (on in play only). Turning them off drops any held finger. */
+  setTouchEnabled(enabled: boolean): void {
+    if (!enabled && this.touchEnabled) this.releaseTouch();
+    this.touchEnabled = enabled;
+  }
+
+  /** Releases every touch (pointer cancel, blur, the page hiding). */
+  releaseTouch(): void {
+    this.touch.cancelAll();
+  }
+
   /** Held bits right now, without consuming the one-shot CONFIRM latch. */
   peek(): number {
-    let bits = keysToBits(this.keys);
+    let padBits = 0;
     let pad = false;
     let start = false;
     const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
@@ -215,14 +276,21 @@ export class InputManager {
       if (!gp) continue;
       pad = true;
       const r = padToBits(gp);
-      bits |= r.bits;
+      padBits |= r.bits;
       start ||= r.start;
       if (r.bits || r.start) this.setDevice('pad-input');
     }
     this.padConnected = pad;
     if (start && !this.prevStart) this.emit({ type: 'pause' });
     this.prevStart = start;
-    return this.blocked ? 0 : bits;
+    return inputBits(
+      {
+        keys: keysToBits(this.keys),
+        pad: padBits,
+        touch: touchToBits(this.touchEnabled ? this.touch.held(performance.now()) : NO_TOUCH),
+      },
+      { touchEnabled: this.touchEnabled, blocked: this.blocked },
+    );
   }
 
   /** Held bits for one fixed tick; CONFIRM (from Enter) is a one-shot latch consumed here. */
@@ -246,6 +314,8 @@ export class InputManager {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.onBlur);
+    window.removeEventListener('pagehide', this.onBlur);
+    document.removeEventListener('visibilitychange', this.onHidden);
     this.host.removeEventListener('wheel', this.onWheel);
   }
 }
