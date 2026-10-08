@@ -80,9 +80,9 @@
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (data) {
       var eps = data.episodes || [];
-      var playable = eps.filter(function (e) { return e.status === 'playable'; })
+      var playable = eps.filter(function (e) { return e.status === 'playable' && e.path; })
         .sort(function (a, b) { return b.number - a.number; });
-      var locked = eps.filter(function (e) { return e.status !== 'playable'; })
+      var locked = eps.filter(function (e) { return !(e.status === 'playable' && e.path); })
         .sort(function (a, b) { return a.number - b.number; });
       if (!playable.length) return;
 
