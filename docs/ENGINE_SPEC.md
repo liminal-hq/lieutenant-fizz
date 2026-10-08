@@ -19,7 +19,9 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 ### 3.1 Camera — Proven
 - One `OrthographicCamera` per mode. Zoom spans a 3× close-up to a whole-level overview without swapping assets.
 - On resize the frustum is recalculated from the viewport height in world tiles (13 for levels, 12 for the map, 14 for cinematics).
-- The camera position snaps to the device-pixel grid each frame, so sprites never shimmer.
+- The camera position snaps to the canvas-pixel grid each frame, so sprites never shimmer.
+- The canvas is backed by device pixels, not a fixed pixel-ratio cap. **Soft** (the desktop default) backs it with `floor(css × min(dpr, 2, √(budget / cssArea)))` and shows the target tiles. **Sharp** (touch, `?touch`, `?pixels=sharp`) backs it with the device size divided by a whole `k`, and draws at a whole scale `s = max(2, floor(H / (16 × target)))` showing `H / (16 × s)` tiles, so the leftover height shows more of the level (no bars; Soft fallback below 11 tiles, when the size is not divisible by `k`, or when zoomed).
+- The **pixel budget** is 3840 × 2160 canvas pixels; larger desktop canvases are scaled down (Soft) or divided by `k` (Sharp). Width is not capped. The maths is in `packages/engine/src/view-scale.ts`.
 
 ### 3.2 Atlas — Proven
 - Sprites are authored as palette-indexed grids (`sprites.js`, a small pixel DSL), then packed into one 2048² atlas at 4 texels per logical pixel.

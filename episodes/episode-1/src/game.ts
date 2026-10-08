@@ -16,6 +16,7 @@ import {
 import { FixedStepper, InstanceWriter } from '@lieutenant-fizz/engine/instances';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
+import { frameView, type FrameView } from '@lieutenant-fizz/engine/view-scale';
 import { HeldRepeat } from '@lieutenant-fizz/engine/repeat';
 import { TouchControls } from '@lieutenant-fizz/engine/touch-ui';
 import simUrl from './wasm/sim.wasm?url';
@@ -79,6 +80,22 @@ export interface GameOptions {
   reducedMotion?: boolean;
   /** Pins touch mode on (the on-screen controls and the phone HUD), for development on a desktop. */
   touch?: boolean;
+  /**
+   * `sharp` draws at a whole pixel scale and `soft` keeps the fractional scale. Left out, touch
+   * devices (and `touch`) are Sharp and everything else is Soft.
+   */
+  pixels?: 'sharp' | 'soft';
+}
+
+/** Whether the canvas should be whole-pixel: decided once at boot and kept for the session. */
+function wantsSharp(options: GameOptions): boolean {
+  if (options.pixels) return options.pixels === 'sharp';
+  if (options.touch) return true;
+  try {
+    return window.matchMedia('(pointer: coarse)').matches;
+  } catch {
+    return false;
+  }
 }
 
 interface Card {
@@ -149,6 +166,10 @@ export class Game {
   private alpha = 1;
   private halfW = 10;
   private halfH = 6.5;
+  /** The whole pixel scale in canvas pixels, or 0 while the view is Soft. */
+  private pixelScale = 0;
+  private readonly view: FrameView = { halfW: 10, halfH: 6.5, scale: 0 };
+  private viewKey = [0, 0, 0, 0, 0, 0, 0];
   private statT = 0;
   private fpsE = 60;
   private lastBits = 0;
@@ -252,7 +273,7 @@ export class Game {
       if (lives && snacks && fizz) ui.setHudIcons({ lives, snacks, fizz });
       const atlas = buildAtlas(sprites);
       sim.setSprites(atlas.rects);
-      const renderer = new InstancedRenderer(ui.gl, atlas);
+      const renderer = new InstancedRenderer(ui.gl, atlas, wantsSharp(options));
       game = new Game(sim, atlas, ui, renderer, options);
       game.initTouchFaces(grid('ben_pogo'), grid('soda'));
     } catch (e) {
@@ -308,8 +329,38 @@ export class Game {
 
     const mode = sim.x.mode();
     const tall = screen === 'cine' ? TALL.cine : mode === Mode.MAP ? TALL.map : TALL.level;
-    this.halfH = tall / 2 / this.zoom;
-    this.halfW = (this.halfH * this.renderer.width) / this.renderer.height;
+    const r = this.renderer;
+    const k = this.viewKey;
+    const sharp = r.pixelGrid ? 1 : 0;
+    if (
+      k[0] !== r.canvasWidth ||
+      k[1] !== r.canvasHeight ||
+      k[2] !== r.width ||
+      k[3] !== r.height ||
+      k[4] !== tall ||
+      k[5] !== this.zoom ||
+      k[6] !== sharp
+    ) {
+      k[0] = r.canvasWidth;
+      k[1] = r.canvasHeight;
+      k[2] = r.width;
+      k[3] = r.height;
+      k[4] = tall;
+      k[5] = this.zoom;
+      k[6] = sharp;
+      frameView(this.view, {
+        cssW: r.width,
+        cssH: r.height,
+        devW: r.canvasWidth,
+        devH: r.canvasHeight,
+        target: tall,
+        zoom: this.zoom,
+        sharp: r.pixelGrid,
+      });
+      this.halfW = this.view.halfW;
+      this.halfH = this.view.halfH;
+      this.pixelScale = this.view.scale;
+    }
     sim.x.set_view(this.halfW, this.halfH);
 
     const bits = this.input.peek();
@@ -365,12 +416,15 @@ export class Game {
         lights: sim.out[Out.LIGHTS] ?? 0,
         zoom: this.zoom,
         tall: this.halfH * 2,
+        scale: this.pixelScale,
         pad: this.input.padConnected,
       });
     }
   }
 
   private lastCount = 0;
+  /** Test hook: draws without lighting, so sprite colours are flat. */
+  private flatDraw = false;
   private lastCalls = 0;
 
   private draw(): void {
@@ -395,7 +449,7 @@ export class Game {
       o[Out.AMB_G] ?? 1,
       o[Out.AMB_B] ?? 1,
     ];
-    let lighting = (o[Out.LIGHTING] ?? 0) > 0.5 && this.opts.lighting;
+    let lighting = (o[Out.LIGHTING] ?? 0) > 0.5 && this.opts.lighting && !this.flatDraw;
     let lightCount = o[Out.LIGHTS] ?? 0;
     let sky = (o[Out.SKY_GLOW] ?? 0) > 0.5;
     const buf = sim.instanceBuffer;
@@ -1624,6 +1678,43 @@ export class Game {
     this.sub = what === 'title' ? null : what === 'saves' ? 'saves' : what;
     if (what === 'saves') this.openSaves('load');
     this.syncUi();
+  }
+
+  /** Test hook: how the view is drawn (the pixel scale, tile count, canvas and device sizes). */
+  get debugView(): Record<string, unknown> {
+    const r = this.renderer;
+    return {
+      sharp: this.pixelScale > 0,
+      scale: this.pixelScale,
+      tiles: this.halfH * 2,
+      k: r.divisor,
+      pixelGrid: r.pixelGrid,
+      budgeted: r.budgeted,
+      dpr: r.dpr,
+      deviceW: r.deviceWidth,
+      deviceH: r.deviceHeight,
+      canvasW: r.canvasWidth,
+      canvasH: r.canvasHeight,
+      cssW: r.width,
+      cssH: r.height,
+    };
+  }
+
+  /**
+   * Test hook: draws a frame and reads a rectangle of the canvas back as RGBA (top row first).
+   * Keep the rectangle to a strip; reading a whole large buffer is slow in software GL.
+   */
+  debugPixels(
+    rect: { x: number; y: number; w: number; h: number },
+    opts: { lighting?: boolean } = {},
+  ): number[] {
+    this.flatDraw = opts.lighting === false;
+    try {
+      this.draw();
+      return Array.from(this.renderer.readPixels(rect.x, rect.y, rect.w, rect.h));
+    } finally {
+      this.flatDraw = false;
+    }
   }
 
   /** Test hook: where the touch controls are placed (null while they are hidden). */

@@ -62,10 +62,28 @@ Findings from reading the current code, with the seams each slice uses.
 - **Safe areas, with the game drawn under them.** The canvas stays full-bleed, so the game renders under the cutout and the system bars. Only the controls, the HUD, menus and hints are kept out of that space, using the CSS `env(safe-area-inset-top|right|bottom|left)` values with `viewport-fit=cover`. The same CSS works in Firefox, Chrome and Safari and in the Tauri webview (Threshold's `MobileToolbar` pads with `env(safe-area-inset-top)` for the same reason), so one set of rules serves the web and the app. `ui.css` defines `--lf-safe-*` from those `env()` values (with a `0` fallback, so tests can override them), `layout.ts` listens to `visualViewport` and `orientationchange` and sizes the type from the visual viewport, and the HUD, controls and menus add the insets to their offsets. The Engine button is hidden on touch. The hint bar is hidden in play on touch and shows touch hints in menus.
 - **Portrait** shows a "Rotate your phone" screen while touch is the device, and the game stays paused.
 
-### Pixel-perfect scale on phones
-- Raise the pixel-ratio cap from 2 to 3 on touch devices, and under **Pixels: Sharp** choose an integer number of device pixels per sprite pixel, `s = floor(deviceHeight / (16 × 13))` clamped to at least 2. Derive the visible tile height from that, `deviceHeight / (16 × s)`, instead of a fixed 13. The visible height is a **hard clamp of 11 to 15 tiles**: pick the largest integer scale that stays in that range and let the rest become a margin. This is one global rule, not a per-level setting.
-- Under **Pixels: Soft** (and on desktop for now) the current behaviour stays. The option itself arrives with the shared options model, so until then touch devices default to Sharp.
-- The camera snap to the device pixel grid already exists.
+### Pixel-perfect scale on phones (built in slice 4)
+- **The rule (Rule A, no bars).** Under Sharp the scale is `s = max(2, floor(H / (16 × target)))` for a canvas `H` device pixels tall, and the view shows `H / (16 × s)` tiles. The targets are 13 tiles in a level, 12 on the map and 14 in a cinematic. The leftover height shows more of the level instead of black bars, so the canvas always fills the screen. The tile count lands between the target and `target × (s + 1) / s` (at most 19.5 at `s = 2`, below the shortest level's 22 tiles). Below 11 tiles (`s = 2` and `H` under 352) the view falls back to Soft. Width is never clamped, so an ultrawide shows more across.
+- **When it applies.** Sharp turns on at boot from a coarse pointer, `?touch` or `?pixels=sharp` and stays for the session; `?pixels=soft` forces Soft. Desktop stays Soft (13 tiles) by default. Under Sharp any zoom other than 1 falls back to Soft.
+- **The canvas.** The renderer no longer asks Three.js for a pixel ratio. Soft backs the canvas with `floor(css × min(dpr, 2, √(budget / cssArea)))`. Sharp reads `devicePixelContentBoxSize` (falling back to `round(css × dpr)` where it is missing, as on Safari, or where it disagrees with the CSS size) and divides by the smallest whole `k ≥ ceil(dpr / 3)` that fits the budget, so the browser's pixelated upscale is a whole `k`×. If the device size is not divisible by `k` the canvas is Soft. The canvas follows device ratio changes (browser zoom, moving monitors).
+- **Pixel budget.** `PIXEL_BUDGET = 3840 × 2160` caps a canvas. Everything up to 4K at ratio 1, 1.5 and 2, and 3440×1440, is unchanged; 5K, 6K and 8K are capped.
+- **Examples (Sharp).**
+
+| Screen (device px) | Scale | Tiles tall |
+|---|---|---|
+| 844×390 at 3× (2532×1170) | 5 | 14.625 |
+| 740×360 at 2.6× (1924×936) | 4 | 14.625 |
+| 1366×768 | 3 | 16 |
+| 1920×1080 | 5 | 13.5 |
+| 1920×1200 | 5 | 15 |
+| 2560×1440 | 6 | 15 |
+| 3440×1440 | 6 | 15 (about 36 across) |
+| 3840×2160 | 10 | 13.5 |
+| a 600 px tall window | 2 | 18.75 |
+| 5K at 2× (5120×2880, `k = 2`) | 6 | 15 |
+
+- **Checking it.** `?debug` exposes `debugView` (`sharp`, `scale`, `tiles`, `k`, `budgeted`, `dpr`, device, canvas and CSS sizes) and `debugPixels`, and the engine panel shows the pixel scale next to the tile count. `e2e/touch-scale.spec.ts` measures the sprite pixel on both phone projects (and with `?pixels=soft` to show the measure can fail), and `e2e/scale.spec.ts` proves the desktop is unchanged and checks a 3840×2160 canvas.
+- **Risks.** The URL bar or fullscreen can step `s` (a visible zoom jump); the page never scrolls, so it is rare, and slice 7's fullscreen changes the height once. The view grows from 13 to 14.6 tiles on the phones (about 12%), and short windows can show up to 19.5 tiles; a playtest of every level on a phone is part of acceptance. Integrated GPUs at 4K and 120 to 144 Hz are protected by the budget; a frame-rate cap is a slice 9 option.
 
 ### Menus on the controls
 After the first phone test the controls are the primary way through menus, so the thumbs never leave them. Taps stay as the backup.
@@ -104,9 +122,10 @@ Each slice is one pull request unless noted, in order. S is a day or less, M a f
 | 2 | **In-level touch controls and phone viewport**, landing as two stacked pull requests. **2a, the viewport groundwork (built):** `State.POGO_ON` export, viewport meta, `--lf-safe-*` variables and the safe-area offsets, `dvh`, touch CSS rules, `visualViewport` and `orientationchange` watching, the audio `pointerup` unlock, the Playwright `projects` and the shared `e2e/audit.ts`. **2b, the controls:** `#touch` layer, D-pad slide, Jump, Pogo, Fizz, Pause, glass HUD pills, safe-area vars, viewport meta, touch CSS rules, orientation screen, Engine button hidden. First touch e2e project (844×390 at 3×, 740×360 at 2.6×): control sizes at least 48 dp, inside insets, no overlap, multi-touch jump while moving. **First milestone: Crater Fields is playable on a phone.** | `touch-ui.ts`, `ui.ts`, `ui.css`, `layout.ts`, `index.html`, `e2e/touch.spec.ts` | L |
 | 3 | **Menus on the controls (built).** The on-screen controls stay up on menu-style screens (title, pause, cards, options, saves, dialogue, cinematic, credits) as a gamepad: the D-pad moves and adjusts, Jump is relabelled "Select", Pogo "Back", Fizz is hidden, Pause keeps its job. Touch hints in `hints.ts` replace the keyboard labels (no Esc, F5 or F9), menu content shifts right of the D-pad on touch, and a held direction auto-repeats in menus (touch and keyboard). Taps on rows still choose in one step (48 dp rows), with Option steppers and tap-to-advance. | `touch-ui.ts`, `game.ts` (`menuInput`), `hints.ts`, `ui.ts`, `ui.css`, `e2e/touch.spec.ts` | L |
 | 3b | **CSS split (built; a refactor, no behaviour change).** `episodes/episode-1/src/ui.css` (1,616 lines) is now a short entry that `@import`s one file per surface from `episodes/episode-1/src/ui/` in the original order, so the cascade is unchanged and the built CSS is byte-identical: `base.css` (tokens, safe areas, stage, whole-pixel type), `hud.css`, `screens.css`, `menus.css` (rows, save slots, hint bar, overlay box, Controls table), `cinematic.css` (letterbox, `.btn`, `.pips`, dialogue), `captions.css`, `debug-panel.css`, `boot.css`, `credits.css`, `stinger.css`, `motion.css`, `touch.css`, `phone.css` (pills, touch HUD overrides, Rotate) and `touch-menus.css` (slice 3's menus-on-controls block, kept whole). The e2e layout audit at every viewport and in the touch projects proves nothing moved. | `ui.css` and the new `ui/*.css` files, `ui.ts` (unchanged) | M |
-| 4 | **Pixel-perfect scale on phones.** DPR cap 3 on touch, integer scale and derived tile height, margin for the rest. A unit test for the scale maths and an e2e that measures sprite pixel size. | `renderer.ts`, `scale.ts`, `game.ts` frame | M |
+| 4 | **Pixel-perfect scale on phones (built).** The canvas is backed by device pixels (no pixel-ratio cap of 2), and on touch a whole scale `s = max(2, floor(H / (16 × target)))` fills the screen with no bars: the leftover height shows more of the level. Desktop stays Soft. Unit tests for the scale maths and e2e that measures the sprite pixel size on both phones and at UHD. | `engine/src/view-scale.ts`, `renderer.ts`, `game.ts` frame, `main.ts`, `e2e/touch-scale.spec.ts`, `e2e/scale.spec.ts` | M |
 | 5 | **Phone title and Controls screen.** The web-only phone title with the logo left and the menu on the thumb side, the Controls screen touch column, a Back button on sub-screens and browser Back handling (in fullscreen or installed mode). | `ui.ts`, `ui.css`, `hints.ts` | M |
 | 6 | **Touch controls settings.** `lf-touch-v1`, the Size, Opacity, Left-handed and Haptics settings, the drag-to-move editor and Reset. | `touch-settings.ts` (new), `ui.ts`, `touch-ui.ts` | M |
+| 6b | **Display settings (future).** A resolution or scaling setting for slower GPUs and CPUs, on phones and desktop: Auto (the slice 4 behaviour), Sharp, Soft, and a render-scale step (for example a lower backing resolution that the browser upscales by a whole factor, reusing the divisor `k` from `sharpDivisor`). It is stored with the other settings and applied through the same `?pixels` path. Slice 4 keeps `pixels` and `k` as the hooks it will use. The frame-rate cap in slice 9 stays a separate option. | `settings`, `renderer.ts`, `game.ts`, `ui.ts` | M |
 | 7 | **Lifecycle.** Fullscreen and landscape lock on the first tap, wake lock, auto-pause rules, Back interception in fullscreen or installed mode, web manifest and 2g icons at manifest sizes. | `game.ts`, `main.ts`, `index.html`, `public/manifest.webmanifest` | M |
 | 8 | **Haptics core and web backends.** `GameHaptics`, `navigator.vibrate` backend, the cue table and the hooks, the Haptics setting from slice 6 wired up. Unit tests with a fake backend. | `engine/src/haptics.ts`, `fizz-haptics.ts`, `game.ts` | M |
 | 9 | **Polish and audit.** The full touch e2e matrix, score card totals the game already has (the extra stats stay pending), an accessibility pass with TalkBack, a battery and heat check, a real-device checklist, STATUS.md. | e2e, docs | M |
@@ -151,7 +170,7 @@ Slice 2 on a real phone (Firefox for Android): the first level was played throug
 
 ## Risks and how the plan handles them
 - **Multi-touch ghosting and slide re-binding** are the most likely feel problems. The pure slide function and the multi-touch e2e come first (slices 1 and 2) so they are tuned before anything is built on them.
-- **Visible area changes under the integer scale** (more tiles visible than 13). The 11 to 15 tile clamp keeps levels playable, and slice 4 includes a playtest pass of the levels at phone sizes.
+- **Visible area changes under the integer scale** (more tiles visible than 13). Slice 4 settled it as a view of at most 19.5 tiles (every level is at least 22 tall) with no bars, and its acceptance includes a playtest pass of the levels at phone sizes.
 - **Secure-context features** (fullscreen, wake lock, the Gamepad API) are not available over plain LAN http. Slice 0 documents `adb reverse` and a Pages preview, and the code degrades silently.
 - **iPhone Safari** has no Fullscreen API and no vibration. It is best effort: the game plays, without haptics, and the manifest and Add to Home screen give the cleanest result.
 - **A touch button choosing a menu row by accident** is prevented by the fresh-press rule: a button already held when a menu opens chooses nothing until it is pressed again, and a held direction waits for a release.
@@ -164,7 +183,7 @@ Slice 2 on a real phone (Firefox for Android): the first level was played throug
 - **Touch HUD:** three glass pills with a sprite icon and a number (lives, snacks, fizz). "Next life at" is dropped on touch.
 - **Pause fires on release** inside its hit area, so sliding off cancels it. Returning from portrait leaves the game on the pause menu.
 - **Pogo state:** exported as a new read-only `State.POGO_ON` in slice 2.
-- **Visible tile height:** a hard global clamp of 11 to 15 tiles under the integer scale, with the rest as margin.
+- **Visible tile height:** under the integer scale the scale is `max(2, floor(H / (16 × target)))` and the tiles are whatever fills the height, with no bars (decided in slice 4, replacing the earlier 11 to 15 tile clamp with a margin).
 - **Web manifest:** ships in the lifecycle slice, with the 2g icon exported at manifest sizes.
 - **Browser Back:** intercepted only in fullscreen or installed mode.
 
@@ -175,6 +194,12 @@ What the plan left open, and how slice 3 settled it.
 - **Touch hints** name the on-screen controls as keycaps: "[D-pad] Choose · [Select] · [Back]", "[Pause] Resume" on the pause menu, "[Pause] Skip credits · [Select] Speed up" on the credits. The pause menu shows no F5 or F9 on touch.
 - **Row height:** rows aim for 48 px but a 360 to 390 px tall phone cannot fit the title or the pause menu at that height, so on touch the shell measures each menu and gives its rows the tallest height that fits without scrolling (`rowHeight` in `layout.ts`), never below one glyph cell. On a short touch screen (under 500 px) the pause note and the Controls note are hidden, and save slots drop to one line (the slot name and its pips), to give the rows that height.
 - **Taps:** a row chooses on the lift of one tap (handled on `pointerup` for touch and pen, so the browser's hover-then-click never needs a second tap); the mouse keeps hover and click. A finger that moves more than 12 px or is cancelled (a scroll) chooses nothing.
+
+## Built in slice 4
+- **Device-pixel backing.** `InstancedRenderer` sets the canvas size itself (`setPixelRatio(1)` plus `setSize`) and exposes `deviceWidth/Height`, `canvasWidth/Height`, `divisor`, `pixelGrid`, `budgeted` and `readPixels`. The canvas stays full-bleed, so the safe-area assertion in `touch.spec.ts` holds with no viewport or scissor code.
+- **The maths** is pure and unit-tested in `packages/engine/src/view-scale.ts` (`sharpView`, `softRatio`, `sharpDivisor`, `frameView`).
+- **Device size sanity check.** Test browsers that emulate a device ratio report `devicePixelContentBoxSize` in CSS pixels, so the renderer uses it only when it is within a pixel or two of the CSS size times the ratio, and otherwise uses the rounded value.
+- **The UHD e2e** takes about 7 s in software GL, so it is not gated behind a flag.
 
 ## Open questions
 - **Rows below 48 dp on short phones.** Measured at 844×390 and 740×360: the cards get 48 px rows, the pause menu and save slots 41 and 36, Options 35 and 31, and the title (under the wordmark) 31 and 28. Two columns, a smaller heading or a scrolling list would give them more; slice 5 (the phone title and Controls screen) is the place to revisit it.

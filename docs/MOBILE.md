@@ -14,15 +14,15 @@ The artboards are about the **UI**: layout, controls, spacing and type. They are
 
 ## Principles
 - **Phones are landscape.** The game is played with two thumbs on a landscape screen. Portrait shows a "rotate your phone" screen on the website and is locked out in the app.
-- **All text is Fizz.** The Fizz type rule (font size is 11px × a whole number n) and the integer pixel scale of the game canvas both hold on phones. Where the device pixel ratio is not an integer, the scale is chosen so the pixels stay square, and any slack becomes a margin, not a stretch.
+- **All text is Fizz.** The Fizz type rule (font size is 11px × a whole number n) and the integer pixel scale of the game canvas both hold on phones. Where the device pixel ratio is not an integer, the scale is chosen so the pixels stay square, and the slack becomes a slightly taller view (more of the level), never bars or a stretch.
 - **Nothing important sits under a thumb or a notch.** Controls and HUD respect the display cutout and the system gesture areas.
 - **No new rules in the sim.** Touch is another input source and haptics are another output. Both are presentation, so the simulation stays deterministic.
 
 ## Display
 - Landscape only, fullscreen in the app.
 - The game renders full-bleed, under the display cutout and the system bars (the viewport uses `viewport-fit=cover`, and `ui.css` defines `--lf-safe-*` from the `env(safe-area-inset-*)` values). Controls, the HUD, menus and hints stay inside the safe area, using the CSS `env(safe-area-inset-*)` values, which work in browsers and in the Tauri webview.
-- The play field keeps its whole-pixel scale. Controls are drawn over it, translucent, because a phone has no spare margin.
-- **Pixels: Sharp or Soft** (an option, see APP.md) decides what happens to the slack: Sharp keeps whole pixels with thin bars, Soft stretches to the edges.
+- The play field is drawn at a whole pixel scale on touch (slice 4): the canvas is backed by device pixels and each sprite pixel is a whole number of them, with the leftover height showing more of the level. Controls are drawn over it, translucent, because a phone has no spare margin.
+- **Pixels: Sharp or Soft** (an option, see APP.md) decides what happens to the slack: Sharp keeps whole pixels and shows a slightly taller view, Soft stretches to the edges. Touch defaults to Sharp and desktop to Soft; `?pixels=sharp|soft` overrides it until the option is built.
 
 ## Touch controls (design 2a, chosen)
 - **Move:** a round glass D-pad on the left thumb. Left and right move, and up and down aim the Fizz Blaster (as ↑ and ↓ do on the keyboard). It maps one to one to the gamepad, so help text works for both.

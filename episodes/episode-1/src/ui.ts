@@ -103,6 +103,8 @@ export interface Stats {
   lights: number;
   zoom: number;
   tall: number;
+  /** The whole pixel scale, or 0 while the view is Soft. */
+  scale?: number;
   pad: boolean;
 }
 
@@ -1048,7 +1050,10 @@ export class Ui {
     set('world', fmt(s.world));
     set('calls', String(s.calls));
     set('lights', `${s.lights} / 16 point`);
-    set('zoom', `${s.zoom.toFixed(2)}× · ${s.tall.toFixed(1)} tiles`);
+    set(
+      'zoom',
+      `${s.zoom.toFixed(2)}× · ${s.tall.toFixed(1)} tiles${s.scale ? ` · ${s.scale}× pixels` : ''}`,
+    );
     set('pad', s.pad ? 'Connected' : 'None');
   }
 }

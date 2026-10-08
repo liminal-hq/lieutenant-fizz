@@ -21,6 +21,7 @@
     "./touch": "./src/touch.ts",
     "./touch-layout": "./src/touch-layout.ts",
     "./touch-ui": "./src/touch-ui.ts",
+    "./view-scale": "./src/view-scale.ts",
     "./wasm": "./src/wasm.ts"
   },
   "license": "Apache-2.0 OR MIT",
