@@ -5,6 +5,7 @@
 
 import * as Undertone from '@liminal-hq/undertone';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { FakeAudioContext } from './fake-audio-context';
 import { GameAudio, type AudioPatterns, type UndertoneModule } from './audio';
 
 const patterns: AudioPatterns = {
@@ -27,29 +28,8 @@ const patterns: AudioPatterns = {
   captionSfx: { '*boing*': 'jump' },
 };
 
-class FakeContext {
-  static instances: FakeContext[] = [];
-  state: AudioContextState = 'suspended';
-  currentTime = 0;
-  sampleRate = 44100;
-  destination = {};
-  resume = vi.fn(async () => {
-    this.state = 'running';
-  });
-  suspend = vi.fn(async () => {
-    this.state = 'suspended';
-  });
-  close = vi.fn(async () => {});
-  constructor() {
-    FakeContext.instances.push(this);
-  }
-  private node(): Record<string, unknown> {
-    const param = { value: 0 };
-    return { connect: vi.fn(), gain: param, delayTime: param };
-  }
-  createDelay = () => this.node();
-  createGain = () => this.node();
-}
+const FakeContext = FakeAudioContext;
+type FakeContext = FakeAudioContext;
 
 const listeners = new Map<string, () => void>();
 
@@ -263,5 +243,62 @@ describe('GameAudio fallback', () => {
     Object.assign(ctx, { createOscillator });
     expect(() => audio.play('jump')).not.toThrow();
     expect(createOscillator).toHaveBeenCalled();
+  });
+});
+
+/** Every node type Classic must never create for a sound effect. */
+const ENHANCEMENT_KINDS = ['panner', 'compressor', 'convolver', 'merger'];
+
+describe('GameAudio Classic path', () => {
+  it('plays an effect with exactly { ctx } and sends each voice straight to the destination', async () => {
+    const play = vi.spyOn(Undertone.Pattern.prototype, 'play');
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.play('jump');
+    audio.play('zap');
+    expect(play).toHaveBeenCalledTimes(2);
+    for (const call of play.mock.calls) {
+      expect(Object.keys(call[0]!)).toEqual(['ctx']);
+      expect(call[0]!.ctx).toBe(ctx);
+    }
+    // One voice in jump and two in zap, each ending on the real destination.
+    const direct = ctx.all('gain').filter((g) => g.out.includes(ctx.destination));
+    expect(direct).toHaveLength(3);
+    for (const kind of ENHANCEMENT_KINDS) expect(ctx.all(kind), kind).toHaveLength(0);
+  });
+
+  it('loops music with exactly { ctx, bpm } and creates no panner or compressor', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop');
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.playMusic('title');
+    expect(loop).toHaveBeenCalledTimes(1);
+    expect(Object.keys(loop.mock.calls[0]![0]!)).toEqual(['ctx', 'bpm']);
+    expect(loop.mock.calls[0]![0]!.ctx).toBe(ctx);
+    expect(loop.mock.calls[0]![0]!.bpm).toBe(120);
+    expect(ctx.all('panner')).toHaveLength(0);
+    expect(ctx.all('compressor')).toHaveLength(0);
+    // The only extra nodes are the room send's convolver, which feeds the real destination.
+    for (const c of ctx.all('convolver')) expect(c.out).toContain(ctx.destination);
+    audio.dispose();
+  });
+
+  it('gives the built-in synth the real destination and builds nothing else on unlock', async () => {
+    const audio = new GameAudio(patterns, async () => {
+      throw new Error('offline');
+    });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await flush();
+    const ctx = await unlockAudio();
+    // The synth's echo line and its feedback gain, and nothing for any enhancement.
+    expect(ctx.nodes.map((n) => n.kind)).toEqual(['delay', 'gain']);
+    expect(ctx.all('delay')[0]!.out).toContain(ctx.destination);
+    audio.play('zap');
+    const direct = ctx.all('gain').filter((g) => g.out.includes(ctx.destination));
+    expect(direct).toHaveLength(2);
+    for (const kind of ENHANCEMENT_KINDS) expect(ctx.all(kind), kind).toHaveLength(0);
+    audio.dispose();
   });
 });

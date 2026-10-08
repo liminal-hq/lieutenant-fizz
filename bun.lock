@@ -24,6 +24,7 @@
         "@lieutenant-fizz/engine": "workspace:*",
       },
       "devDependencies": {
+        "@liminal-hq/undertone": "^0.2.0",
         "vite": "^8.0.0",
       },
     },
