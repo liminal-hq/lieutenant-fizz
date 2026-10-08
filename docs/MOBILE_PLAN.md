@@ -107,11 +107,11 @@ Each slice is one pull request unless noted, in order. S is a day or less, M a f
 After slice 9 the web phone experience is complete. The Tauri app, the launcher and the plugin-based haptics backend then follow [APP.md](APP.md), reusing the touch controller, the layout and the cue table unchanged.
 
 ## Trying it on a phone
-Until slice 2 lands the game has no touch controls, so a phone can show the title and menus (taps work on the menu rows) and render a level, but cannot move Ben.
+With slice 2 the game has on-screen controls in a level: the D-pad, Jump, Pogo and Fizz buttons and a Pause button, and the glass HUD pills. Menus, the title and the cinematic still use taps on their rows and buttons until slice 4. `?touch` pins the controls on, so `?debug&touch&level=0` shows them on a desktop browser too (a mouse drives them).
 - **Same Wi-Fi:** `bun run dev:phone` builds the WASM, starts Vite on every interface and prints the addresses. Open `http://<your-computer>:5173/` for the title screen, or `http://<your-computer>:5173/?debug&level=0` to start straight in Crater Fields (`level` is the level id, so `level=1` is Crystal Caves).
 - **A secure context:** plain http over the LAN is not one, so fullscreen, the wake lock and the Gamepad API are unavailable. With the phone plugged in and USB debugging on, `adb reverse tcp:5173 tcp:5173` makes the phone see `http://localhost:5173/`, which is a secure context.
 - **A preview without the dev server:** the GitHub Pages build of a branch works for anything that does not need the dev server.
-- **Checking on a phone, today:** the layout and type at phone sizes, the pixel scale and blur on a high-DPI screen, audio unlock on the first tap, and frame rate and heat.
+- **Checking on a phone:** that Ben moves, jumps and pogoes; that Fizz fires and its count drops; that Pause opens the pause menu; that the controls stay out of the cutout and gesture margins while the game draws under them (and whether Firefox honours `viewport-fit=cover`); that portrait shows "Rotate your phone"; that a Bluetooth key or gamepad input hides the controls and a touch brings them back; and the frame rate and heat.
 
 ## First phone test
 The first run on a real phone, with the slice 0 dev loop (Firefox for Android, landscape, a 120 Hz screen, the URL bar showing, over Wi-Fi).

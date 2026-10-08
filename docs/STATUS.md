@@ -60,5 +60,5 @@ Written down in `docs/` before any code, and iterated in pull requests. None of 
 - **Sparse spatial grid / quadtree** for entity-entity tests is not built (O(n) per level, as in the prototype). Entities are cloned per tick; shots and effects still allocate, so the "no GC / no allocation in play" target is not met yet.
 - **Cast shadows, WebGPU, Tauri shell, React overlay** from the spec are not started. The Tauri app and the React launcher are planned in `docs/APP.md`.
 - **Gamepad** mapping is unit-tested but not exercised against real hardware.
-- **Mobile and touch controls** are not implemented. The phone viewport groundwork is in (viewport meta, safe-area variables, `visualViewport` and orientation watching, `State.POGO_ON`); the on-screen controls, a mobile UI layout and haptics are planned in `docs/MOBILE.md` and built in the slices of `docs/MOBILE_PLAN.md`.
+- **Mobile** is partly built: the in-level touch controls (D-pad, Jump, Pogo, Fizz, Pause), the glass HUD pills, the phone viewport and safe areas, and the Rotate screen are in. The touch menus and phone title, touch settings, pixel-perfect phone scale, lifecycle (fullscreen, wake lock) and haptics are planned in `docs/MOBILE.md` and built in the slices of `docs/MOBILE_PLAN.md`.
 - **Bundle:** three.js dominates (~590 kB minified); no code splitting.

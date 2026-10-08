@@ -1,6 +1,6 @@
 # Mobile: touch controls, the phone layout and haptics
 
-**Status: planned.** Nothing here exists yet; today the game assumes a keyboard or a gamepad (see "Mobile and touch controls are not implemented" in `docs/STATUS.md`). This document follows `design/Mobile Design.dc.html` (turn 3) and plans the touch controls, a layout tailored to phones and haptics. It applies to the website on a phone browser as much as to the Tauri app in [APP.md](APP.md), because all of it is web UI in the shared engine and episode packages.
+**Status: partly built.** The in-level touch controls, the glass HUD and the phone viewport exist (slices 0 to 2 of [MOBILE_PLAN.md](MOBILE_PLAN.md)); the phone title, touch menus, touch settings, haptics and the rest are planned (see "Mobile and touch controls" in `docs/STATUS.md`). This document follows `design/Mobile Design.dc.html` (turn 3) and plans the touch controls, a layout tailored to phones and haptics. It applies to the website on a phone browser as much as to the Tauri app in [APP.md](APP.md), because all of it is web UI in the shared engine and episode packages.
 
 The build order and the code changes are in [MOBILE_PLAN.md](MOBILE_PLAN.md).
 

@@ -102,6 +102,7 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
   - Modern layout: Z, X, C.
   - Arrows or WASD move.
 - Gamepad via the standard mapping: A jump, B/Y pogo, X/RT fire, Start menu.
+- **Touch** (`touch.ts`, `touch-layout.ts`, `touch-ui.ts` in the engine): on-screen controls in a level. The pure `TouchState` tracks every finger by pointer id (so moving and jumping work together), a sliding D-pad turns a thumb's offset into directions (with a dead zone and a rule that drops the weaker axis), and a fresh Jump, Pogo or Fizz press is held for at least 50 ms so a tap shorter than one fixed step still reaches the sim. `placeControls` lays the controls out from the window size and the safe-area insets (every hit area at least 48 dp, the glass face inside it); `TouchControls` is the thin DOM layer. Touch bits count only while a level is in play. The shell's touch mode follows the last-used device (touch, keyboard or gamepad); `?touch` pins it on.
 - Edge detection happens per fixed tick.
 - **Planned:** in the Tauri shell, capture Ctrl/Alt so they don't trigger browser shortcuts.
 
