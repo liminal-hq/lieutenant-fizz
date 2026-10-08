@@ -10,6 +10,7 @@ import {
   creditsTransform,
   isPortrait,
   layoutVars,
+  rowHeight,
   watchResize,
 } from './layout';
 
@@ -21,6 +22,38 @@ const SIZES: [number, number][] = [
   [320, 240],
   [3840, 2160],
 ];
+
+describe('touch gutters', () => {
+  it('changes nothing without gutters', () => {
+    const plain = layoutVars(844, 390, false);
+    expect(layoutVars(844, 390, false, { left: 0, right: 0 })).toEqual(plain);
+    expect(plain['--lf-touch-left']).toBe('0px');
+  });
+
+  it('writes the gutters and sizes the wordmark and columns for the room between them', () => {
+    const v = layoutVars(740, 360, false, { left: 190, right: 120 });
+    expect(v['--lf-touch-left']).toBe('190px');
+    expect(v['--lf-touch-right']).toBe('120px');
+    // 740 - 190 - 120 = 430 px: "Lieutenant Fizz" (102 glyph pixels) fits on one line at 4.
+    expect(v['--lf-n-logo']).toBe('4');
+    expect(Number(v['--lf-cols'])).toBe(Math.floor(430 / 12));
+    expect(layoutVars(844, 390, false, { left: 190, right: 120 })['--lf-n-logo']).toBe('5');
+  });
+});
+
+describe('rowHeight', () => {
+  it('is 48 when the menu fits', () => {
+    expect(rowHeight(0, 5, 22)).toBe(48);
+    expect(rowHeight(-40, 5, 22)).toBe(48);
+  });
+
+  it('shares an overflow between the rows, down to one glyph cell', () => {
+    expect(rowHeight(50, 5, 22)).toBe(38);
+    expect(rowHeight(51, 5, 22)).toBe(37);
+    expect(rowHeight(500, 5, 22)).toBe(22);
+    expect(rowHeight(10, 0, 22)).toBe(48);
+  });
+});
 
 describe('layoutVars', () => {
   it('picks the scale from the height', () => {

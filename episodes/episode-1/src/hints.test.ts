@@ -19,6 +19,10 @@ import {
 const keen: HintContext = { device: 'keyboard', layout: 0 };
 const modern: HintContext = { device: 'keyboard', layout: 1 };
 const pad: HintContext = { device: 'gamepad', layout: 0 };
+const touch: HintContext = { device: 'touch', layout: 1 };
+
+/** Anything a touch screen has no key for. */
+const KEYS = /Enter|Esc|F5|F9|Ctrl|Alt|Space|Start|\{[ABXY]\}|↑|↓|←|→/;
 
 describe('hint labels', () => {
   it('shows the jump key for the layout, and A on a gamepad', () => {
@@ -62,6 +66,47 @@ describe('credits and stinger hints', () => {
     expect(creditsHints(modern, 'Continue')).toEqual(['{Esc} Skip credits', '{[Z]} Continue']);
     expect(creditsHints(pad, 'Speed up')).toEqual(['{Start} Skip credits', '{A} Speed up']);
     expect(stingerHints(pad)).toEqual(['{Start} Skip', '{A} Continue']);
+  });
+});
+
+describe('touch hints', () => {
+  it('names the on-screen controls instead of keys', () => {
+    expect(jumpHint(touch)).toBe('{[Select]}');
+    expect(selectHint(touch)).toBe('{[Select]}');
+    expect(backHint(touch)).toBe('{[Back]}');
+    expect(menuHint(touch)).toBe('{[Pause]}');
+  });
+
+  it('reads D-pad Choose, Select, Back on the menus', () => {
+    expect(menuHints('list', touch)).toEqual(['{[D-pad]} Choose', '{[Select]}']);
+    expect(menuHints('saves', touch)).toEqual(['{[D-pad]} Choose', '{[Select]}', '{[Back]}']);
+    expect(menuHints('options', touch)).toEqual(['{[D-pad]} Choose and change', '{[Back]}']);
+    expect(menuHints('controls', touch)).toEqual(['{[Back]}']);
+    expect(menuHints('pause', touch)).toEqual([
+      '{[D-pad]} Choose',
+      '{[Select]}',
+      '{[Pause]} Resume',
+    ]);
+  });
+
+  it('shows no keyboard or gamepad label anywhere', () => {
+    const all = [
+      ...(['list', 'pause', 'options', 'saves', 'controls'] as const).flatMap((s) =>
+        menuHints(s, touch),
+      ),
+      ...creditsHints(touch, 'Speed up'),
+      ...stingerHints(touch),
+    ];
+    for (const h of all) expect(h).not.toMatch(KEYS);
+    expect(creditsHints(touch, 'Speed up')).toEqual([
+      '{[Pause]} Skip credits',
+      '{[Select]} Speed up',
+    ]);
+  });
+
+  it('leaves the keyboard and gamepad hints as they were', () => {
+    expect(menuHints('pause', keen)).toEqual(['{[↑↓]} Choose', '{Enter} Select', '{Esc} Resume']);
+    expect(menuHints('pause', pad)).toEqual(['{[↑↓]} Choose', '{A} Select', '{Start} Resume']);
   });
 });
 
