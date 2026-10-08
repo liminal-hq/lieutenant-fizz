@@ -157,4 +157,46 @@ test.describe('reduced motion', () => {
       );
     }
   });
+
+  test('nothing on the page animates, and prompts and boxes are fully drawn', async ({ page }) => {
+    for (const path of ['', 'guide/']) {
+      await page.goto(SITE + path);
+      const moving = await page.evaluate(() =>
+        document
+          .getAnimations()
+          .filter((a) => a.playState === 'running')
+          .map((a) => (a.effect as KeyframeEffect).target?.className ?? ''),
+      );
+      expect(moving, path).toEqual([]);
+      const clipped = await page
+        .locator('.prompt, .box')
+        .evaluateAll((els) =>
+          els.filter((e) => getComputedStyle(e).clipPath !== 'none').map((e) => e.className),
+        );
+      expect(clipped, path).toEqual([]);
+    }
+  });
+});
+
+test.describe('motion', () => {
+  test('prompts and boxes on the first screen finish drawing', async ({ page }) => {
+    await page.goto(SITE);
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(1800);
+    const clipped = await page.locator('.prompt, .box').evaluateAll((els) =>
+      els
+        .filter((e) => e.getBoundingClientRect().top < window.innerHeight)
+        .map((e) => ({ name: e.className, clip: getComputedStyle(e).clipPath }))
+        .filter(({ clip }) => clip !== 'none' && !/^inset\((0(px|%)?\s?)+\)$/.test(clip)),
+    );
+    expect(clipped).toEqual([]);
+  });
+
+  test('Ben runs: his sprite file declares a looping frame animation that reduced motion stops', async ({
+    page,
+  }) => {
+    const svg = await (await page.request.get(`${SITE}assets/sprites/ben_stand.svg`)).text();
+    expect(svg).toContain('@keyframes');
+    expect(svg).toContain('prefers-reduced-motion');
+  });
 });

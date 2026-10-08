@@ -27,6 +27,8 @@ The static website published at <https://liminalhq.ca/lieutenant-fizz/>, styled 
 - Colours are the sixteen EGA colours (`--ega-*`). EGA dark grey is too faint for text on black, so dim labels use `--dim` (`#888888`).
 - Sprites are `img.spr`, scaled with `zoom` by a whole number (`.x1`, the default 2, `.x4`). `zoom` also scales a `min-width`, so never set one on a sprite.
 - The cursor stops blinking under `prefers-reduced-motion`.
+- Motion (the `Motion` section of `css/bbs.css`): the colour strip lights cell by cell, prompts type in and boxes paint down the screen in stepped animations, and the saucer hovers a pixel. Where the browser supports `animation-timeline: view()`, prompts and boxes play as they scroll into view. Content is always in the page, so nothing depends on script. All of it, including the sprite loops, stops under `prefers-reduced-motion`.
+- Characters animate with their own game frames: `ANIMATIONS` in `scripts/build-sprites.ts` lists each character's frames and timing, and the generated SVG loops them with CSS inside the file (an `<img>` runs it, and reduced motion leaves the first frame). Add a character there to animate it; the pages need no change.
 
 `assets/fonts` is a link to `packages/engine/assets/fonts` (the Pages build copies the real files, with their `OFL.txt` licence). The sprites in `assets/sprites/` are SVG files generated from the game's own sprite grids by `bun run build:sprites` (`scripts/build-sprites.ts` lists them); `validate` fails if they are stale. `assets/episode-1.jpg` is the page's social preview image (`og:image`).
 
