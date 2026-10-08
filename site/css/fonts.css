@@ -1,3 +1,6 @@
-/* Liminal HQ webfonts, as chosen by the design system (Google Fonts CDN).
-   The page falls back to system fonts if these cannot load. */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+/* The Fizz pixel font family (OFL-1.1, see assets/fonts/OFL.txt). The page falls back to a system
+   monospace face if these cannot load. Text is only crisp at whole-pixel sizes, so site.css sets every
+   size as 11px times a whole number. */
+@font-face { font-family: "Fizz"; font-weight: 400; font-style: normal; font-display: block; src: url("../assets/fonts/fizz-regular.woff2") format("woff2"); }
+@font-face { font-family: "Fizz"; font-weight: 700; font-style: normal; font-display: block; src: url("../assets/fonts/fizz-bold.woff2") format("woff2"); }
+@font-face { font-family: "Fizz Mono"; font-weight: 400; font-style: normal; font-display: block; src: url("../assets/fonts/fizz-mono-regular.woff2") format("woff2"); }

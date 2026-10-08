@@ -25,11 +25,20 @@ export default defineConfig({
       ],
     },
   },
-  webServer: {
-    command:
-      'bun run build:wasm && bun run --cwd episodes/episode-1 dev --host 127.0.0.1 --port 5198 --strictPort',
-    url: 'http://127.0.0.1:5198',
-    reuseExistingServer: !process.env.CI,
-    timeout: 240_000,
-  },
+  webServer: [
+    {
+      command:
+        'bun run build:wasm && bun run --cwd episodes/episode-1 dev --host 127.0.0.1 --port 5198 --strictPort',
+      url: 'http://127.0.0.1:5198',
+      reuseExistingServer: !process.env.CI,
+      timeout: 240_000,
+    },
+    {
+      // The static landing page, served as it is.
+      command: 'python3 -m http.server 5197 --bind 127.0.0.1 --directory site',
+      url: 'http://127.0.0.1:5197',
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
+  ],
 });
