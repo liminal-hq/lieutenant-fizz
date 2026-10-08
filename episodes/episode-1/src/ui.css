@@ -1592,3 +1592,24 @@ body {
 #stage[data-touch] #title:has(> #controls:not([hidden])) > .head {
   display: none;
 }
+
+/* On a menu the controls draw over a dark scrim, so the dark glass would vanish: they turn into lighter
+   glass with a firm outline, and a held direction stays bright. */
+#touch[data-mode='menu'] {
+  opacity: 1;
+}
+#touch[data-mode='menu'] .face {
+  background: rgba(255, 255, 255, 0.16);
+  border: 2px solid rgba(255, 255, 255, 0.7);
+}
+#touch[data-mode='menu'] .arm {
+  opacity: 0.9;
+}
+#touch[data-mode='menu'] .bars::before,
+#touch[data-mode='menu'] .bars::after {
+  background: #fff;
+}
+/* "Select" is six letters, so the labels use the condensed cut to stay inside an 80 px face. */
+#touch .lbl {
+  font-family: var(--lf-condensed);
+}

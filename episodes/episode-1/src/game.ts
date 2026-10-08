@@ -315,6 +315,8 @@ export class Game {
     const bits = this.input.peek();
     this.menuInput(bits);
     this.lastBits = bits;
+    // The sim samples touch presses in play; a menu has no step, so it marks them seen itself.
+    if (screen !== 'play') this.input.markTouchSeen();
 
     if (screen === 'play' || screen === 'title') {
       this.alpha = this.stepper.advance(dt, () => {
@@ -873,6 +875,7 @@ export class Game {
     this.touchUi.setVisible(on);
     this.input.setTouchEnabled(on);
     const faces: TouchFaces = touchFaces(s, this.sub);
+    this.ui.touchLayer.dataset.mode = faces.play ? 'play' : 'menu';
     this.touchUi.setShown(faces.shown);
     this.touchUi.setName('jump', faces.jump);
     this.touchUi.setName('pogo', faces.pogo);

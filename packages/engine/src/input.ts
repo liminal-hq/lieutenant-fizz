@@ -266,6 +266,15 @@ export class InputManager {
     this.touch.cancelAll();
   }
 
+  /**
+   * Marks the touch presses as seen. A screen the sim does not step (a menu) calls this once it has
+   * read the bits for the frame; without it a press that ended would stay held until play resumed, and a
+   * menu would never see another fresh press.
+   */
+  markTouchSeen(): void {
+    this.touch.sample(performance.now());
+  }
+
   /** Held bits right now, without consuming the one-shot CONFIRM latch. */
   peek(): number {
     return this.read(false);

@@ -304,3 +304,46 @@ test('Skip and Continue are at least 48 dp', async ({ page }) => {
     expect(Math.min(b.width, b.height), sel).toBeGreaterThanOrEqual(47.9);
   }
 });
+
+test('Select works again after a long press, on a screen that stays', async ({ page }) => {
+  await open(page, 'options');
+  // The selected row's meter (a save makes the title start on Continue, so this is not always row 0).
+  const lit = (): Promise<number> => page.locator('#overlay .menu button.sel .meter i.on').count();
+  const select = (await faces(page)).jump;
+  const f = await fingers(page);
+  const start = await lit();
+  // A long press: Select acts once, on the press.
+  await f.down({ x: select.cx, y: select.cy, id: 1 });
+  await page.waitForTimeout(150);
+  await page.waitForTimeout(350);
+  await f.up();
+  await page.waitForTimeout(300);
+  await expect.poll(lit).not.toBe(start);
+  const afterHold = await lit();
+  await page.waitForTimeout(150);
+  // And a quick tap afterwards still works: the long press must not leave Select stuck.
+  await tapControl(page, 'jump');
+  await expect.poll(lit).not.toBe(afterHold);
+  const afterTap = await lit();
+  await page.waitForTimeout(150);
+  await f.down({ x: select.cx, y: select.cy, id: 1 });
+  await page.waitForTimeout(300);
+  await f.up();
+  await expect.poll(lit).not.toBe(afterTap);
+});
+
+test('the controls become lighter glass on a menu and go back to dark glass in play', async ({
+  page,
+}) => {
+  await open(page, 'pause');
+  const mode = (): Promise<string | undefined> =>
+    page.evaluate(() => document.getElementById('touch')?.dataset.mode);
+  expect(await mode()).toBe('menu');
+  const glass = await page.evaluate(() => {
+    const f = document.querySelector('#touch [data-control="pause"] .face') as HTMLElement;
+    return getComputedStyle(f).backgroundColor;
+  });
+  expect(glass).toContain('255, 255, 255');
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('play'));
+  await expect.poll(mode).toBe('play');
+});
