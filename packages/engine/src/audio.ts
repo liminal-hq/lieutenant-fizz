@@ -344,6 +344,8 @@ export class GameAudio {
     load: () => Promise<UndertoneModule> = () => import('@liminal-hq/undertone'),
   ) {
     window.addEventListener('pointerdown', this.unlock);
+    // Chrome does not count a touch's pointerdown as a user gesture, but its pointerup is one.
+    window.addEventListener('pointerup', this.unlock);
     window.addEventListener('keydown', this.unlock);
     load().then(
       (m) => {
@@ -507,6 +509,7 @@ export class GameAudio {
     this.handle?.stop();
     this.handle = null;
     window.removeEventListener('pointerdown', this.unlock);
+    window.removeEventListener('pointerup', this.unlock);
     window.removeEventListener('keydown', this.unlock);
     void this.ctx?.close();
   }

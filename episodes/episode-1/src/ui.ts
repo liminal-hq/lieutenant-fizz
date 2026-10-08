@@ -352,7 +352,14 @@ export class Ui {
 
   /** Sizes the overlay's pixel text from the window. Called on resize and when text size changes. */
   private relayout(): void {
-    applyLayout(document.documentElement, window.innerWidth, window.innerHeight, this.large);
+    // The visual viewport shrinks and grows with a browser bar, so it is the height the player sees.
+    const vv = window.visualViewport;
+    applyLayout(
+      document.documentElement,
+      Math.round(vv?.width ?? window.innerWidth),
+      Math.round(vv?.height ?? window.innerHeight),
+      this.large,
+    );
   }
 
   /** Switches between normal and large text (one step up), for Options › Text size. */

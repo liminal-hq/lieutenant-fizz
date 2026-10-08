@@ -78,6 +78,16 @@ async function unlockAudio(): Promise<FakeContext> {
 }
 
 describe('GameAudio with Undertone', () => {
+  it('also unlocks on a touch release, since Chrome ignores a touch pointerdown', async () => {
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    listeners.get('pointerup')!();
+    await flush();
+    expect(FakeContext.instances[0]!.resume).toHaveBeenCalledTimes(1);
+    audio.dispose();
+    expect(listeners.has('pointerup')).toBe(false);
+  });
+
   it('creates no AudioContext until the first input, then resumes it', async () => {
     const audio = new GameAudio(patterns, async () => Undertone);
     await flush();

@@ -25,6 +25,10 @@ export default defineConfig({
       ],
     },
   },
+  projects: [
+    // The desktop checks. The touch specs run in their own projects, with a phone's viewport and touch.
+    { name: 'desktop', testIgnore: /touch\.spec/ },
+  ],
   webServer: [
     {
       command:

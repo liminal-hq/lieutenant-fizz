@@ -38,17 +38,30 @@ export function applyLayout(el: HTMLElement, width: number, height: number, larg
   }
 }
 
+type Listenable = Pick<EventTarget, 'addEventListener' | 'removeEventListener'>;
+
 /**
- * Calls `onChange` whenever the window is resized. Returns a function that stops listening, so a
- * disposed game does not stay reachable through the window.
+ * Calls `onChange` whenever the window is resized, the phone is turned (`orientationchange`) or the
+ * visual viewport changes (a browser bar showing or hiding, a keyboard opening). Returns a function
+ * that stops listening, so a disposed game does not stay reachable through the window.
  */
 export function watchResize(
   onChange: () => void,
-  target: Pick<Window, 'addEventListener' | 'removeEventListener'> = window,
+  target: Listenable = window,
+  visual: Listenable | null = typeof window === 'undefined' ? null : window.visualViewport,
 ): () => void {
   target.addEventListener('resize', onChange);
-  return () => target.removeEventListener('resize', onChange);
+  target.addEventListener('orientationchange', onChange);
+  visual?.addEventListener('resize', onChange);
+  return () => {
+    target.removeEventListener('resize', onChange);
+    target.removeEventListener('orientationchange', onChange);
+    visual?.removeEventListener('resize', onChange);
+  };
 }
+
+/** Whether a window of this size is taller than it is wide (a phone held upright). */
+export const isPortrait = (width: number, height: number): boolean => height > width;
 
 /** The credits roll's transform for a given distance travelled, in whole CSS pixels. */
 export const creditsTransform = (viewport: number, offset: number): string =>
