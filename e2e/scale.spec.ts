@@ -23,8 +23,11 @@ for (const [w, h] of [
   });
 }
 
-// A 3840 x 2160 canvas: about 7 s in software GL, so it runs by default.
+// A 3840 x 2160 canvas: about 7 s in software GL on a quiet machine, but over two minutes on a loaded
+// CI runner, so it runs only when LF_E2E_UHD is set (locally and before a release). The scale maths for
+// UHD and larger screens is covered by the unit tests in view-scale.test.ts.
 test.describe('UHD', () => {
+  test.skip(!process.env['LF_E2E_UHD'], 'set LF_E2E_UHD=1 to run the UHD canvas check');
   test.use({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 2 });
 
   test('?pixels=sharp at 3840x2160 is scale 10 with 13.5 tiles', async ({ page }) => {
