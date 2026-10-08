@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/colours.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/typography.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/base.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/styles.css">
+<script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
+<style>html,body{margin:0;background:#050507;color:#e0e0e0}a{color:#ffaa40}a:hover{color:#ffc06e}</style>
+</helmet>
+<section data-screen-label="Turn 2 · Fizz extended" style="padding:56px 56px 0;display:flex;flex-direction:column;gap:28px;font-family:Inter,sans-serif;background:#050507;min-width:100%;width:max-content;box-sizing:border-box">
+<div id="2a" style="width:1100px;display:flex;flex-direction:column;gap:24px;padding:28px;box-sizing:border-box;background:rgba(20,20,25,.55);border:1px solid #ffaa40;border-radius:12px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">2a</span><span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:22px;color:#fff">Fizz · chosen, with ‽ and emoji</span></div>
+<p style="margin:0;font-size:13px;line-height:1.55;color:#b4bfce;max-width:880px">Fizz (<a href="#1a">1a</a>) is the game face. It now has the interrobang and a 24-glyph emoji set drawn on a 7 × 7 grid that sits on the cap height. Emoji are single-colour, so they take the text colour or any EGA tint, and the bold, oblique and condensed styles leave them unchanged. A colour version can come later.</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:28px;align-items:center;padding:24px;background:#000;border-radius:8px">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="‽" scale="10" color="#ffaa40" shadow="#f43f5e,#000000" hint-size="80px,150px"></x-import>
+<div style="display:flex;flex-direction:column;gap:12px">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Billy‽ Is that you‽" scale="4" hint-size="380px,56px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="oblique" text="A chocolate river‽" color="#b4bfce" scale="3" hint-size="320px,42px"></x-import>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;color:#ffaa40">Emoji · 5×, with suggested EGA tints</span>
+<div style="display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:12px">
+<sc-for list="{{ emoji }}" as="e" hint-placeholder-count="24">
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 6px 10px;background:#000;border-radius:8px">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ e.ch }}" color="{{ e.tint }}" scale="5" hint-size="40px,70px"></x-import>
+<span style="font-size:11px;color:#b4bfce;text-align:center">{{ e.name }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;color:#ffaa40">In context · 3×</span>
+<div style="display:flex;flex-direction:column;gap:12px;padding:20px;background:#050507;border:1px solid rgba(255,255,255,.08);border-radius:8px">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="✓ Progress saved to this device" color="#55ff55" scale="3" hint-size="520px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="⭐ Gold USB found · 🔒 Blue door opened" color="#ffff55" scale="3" hint-size="620px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="👽 Zargs spotted near the Crystal Caves" color="#55ffff" scale="3" hint-size="600px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="🔊 Music On  🔇 Sound Off  🎮 Gamepad connected" scale="3" hint-size="720px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Made with ❤ in Canada 🍁" color="#b4bfce" scale="3" hint-size="380px,42px"></x-import>
+</div>
+</div>
+</div>
+</section>
+<section data-screen-label="Turn 1 · Pixel font candidates" style="padding:56px;display:flex;flex-direction:column;gap:36px;font-family:Inter,sans-serif;background:#050507;min-width:100%;width:max-content;box-sizing:border-box">
+<div style="display:flex;flex-direction:column;gap:10px;max-width:960px">
+<h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:32px;letter-spacing:-0.02em;color:#fff">Pixel fonts · five candidates</h1>
+<p style="margin:0;font-size:15px;line-height:1.6;color:#b4bfce;text-wrap:pretty">Inspired by DOS and older games, but built to stay clean: open counters, a real lowercase and even spacing. Every glyph is a pixel grid, the same format as the game's sprites, drawn here at whole-number scales. The four styles (bold, oblique, condensed, outline) and the monospace setting are generated from each grid, so the family stays consistent. All five share one master drawing (Fizz), which means traits can be mixed later, e.g. Billy's proportions with Zargoth's corners. The winner can be exported as a TTF or WOFF2 font from the same grids.</p>
+<p style="margin:0;font-size:13px;color:#7c8796">Covers A–Z, a–z, 0–9, punctuation, Canadian French accents, curly quotes, em dash, middot, guillemets, arrows, box drawing, and button and keycap glyphs written as {A} or {Esc}.</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start">
+<sc-for list="{{ fonts }}" as="f" hint-placeholder-count="5">
+<div id="{{ f.id }}" style="width:820px;display:flex;flex-direction:column;gap:22px;padding:28px;box-sizing:border-box;background:rgba(20,20,25,.55);border:1px solid rgba(255,255,255,.08);border-radius:12px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">{{ f.id }}</span><span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:22px;color:#fff">{{ f.name }}</span><span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:#7c8796">{{ f.meta }}</span></div>
+<p style="margin:0;font-size:13px;line-height:1.55;color:#b4bfce">{{ f.desc }}</p>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:18px;padding:24px;background:#000;border-radius:8px">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" cut="bold" text="Lieutenant Fizz" scale="6" color="#ffffff" shadow="#f43f5e,#000000" hint-size="480px,96px"></x-import>
+<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-end">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="The Cocoa Caper" scale="4" bands="#ffff55,#ffff55,#ff5555,#ff5555,#ff55ff,#aa00aa" outline="#000000" shadow="#aa0000" hint-size="300px,60px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="Zargoth" scale="4" color="#55ffff" shadow="#0000aa,#0000aa" dither="true" hint-size="180px,60px"></x-import>
+</div>
+<div style="display:flex;gap:16px;font-size:11px;color:#7c8796"><span>Hard shadow</span><span>·</span><span>EGA bands with outline</span><span>·</span><span>Dithered drop</span></div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:10px">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;color:#ffaa40">Character set · 3×</span>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="ABCDEFGHIJKLMNOPQRSTUVWXYZ" scale="3" hint-size="460px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="abcdefghijklmnopqrstuvwxyz" scale="3" hint-size="440px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="0123456789 .,:;!?‽'&quot;-–—()[]/&amp;+=#%*×·…" scale="3" hint-size="560px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="é è ê ë à â ç ô û ù î ï É È Ê À Ç Ô ‘ ’ “ ” « »" scale="3" hint-size="560px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="→ ← ↑ ↓ ► ◄ ▸ ┌──┐ ╔══╗ │ ║ └──┘ ╚══╝" scale="3" hint-size="500px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="{A} Jump  {B} Pogo  {X} Fizz" scale="3" hint-size="380px,48px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="{Start} Menu  {Esc} Back  {Enter} Select" scale="3" hint-size="460px,48px"></x-import>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:10px">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;color:#ffaa40">Styles · 3×</span>
+<div style="display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px 16px;align-items:center">
+<span style="font-size:12px;color:#7c8796">Regular</span><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="New Game · Continue · Paramètres" scale="3" hint-size="520px,42px"></x-import>
+<span style="font-size:12px;color:#7c8796">Bold</span><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" cut="bold" text="New Game · Continue · Paramètres" scale="3" hint-size="560px,42px"></x-import>
+<span style="font-size:12px;color:#7c8796">Oblique</span><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" cut="oblique" text="New Game · Continue · Paramètres" scale="3" hint-size="580px,42px"></x-import>
+<span style="font-size:12px;color:#7c8796">Condensed</span><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" cut="condensed" text="New Game · Continue · Paramètres" scale="3" hint-size="440px,42px"></x-import>
+<span style="font-size:12px;color:#7c8796">Monospace</span><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" mono="true" text="New Game · Continue" scale="3" hint-size="420px,42px"></x-import>
+<span style="font-size:12px;color:#7c8796">Outline</span><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" cut="bold" color="#ffff55" outline="#000000" shadow="#aa5500" text="New Game · Continue" scale="3" hint-size="420px,48px"></x-import>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:10px">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;color:#ffaa40">In context · menu at 3×, HUD and dialogue at 2×</span>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;padding:20px;background:#050507;border:1px solid rgba(255,255,255,.08);border-radius:8px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="▸ New Game" color="#ffaa40" scale="3" hint-size="200px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="  Continue · no save" color="#7c8796" scale="3" hint-size="300px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="  Controls" scale="3" hint-size="200px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="  Music  [On ]" scale="3" hint-size="240px,42px"></x-import>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" mono="true" cut="bold" text="Score 1,240" color="#ffff55" scale="2" hint-size="180px,28px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" mono="true" cut="bold" text="Lives 3  Fizz 5" color="#55ff55" scale="2" hint-size="200px,28px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="BILLY" color="#ffaa40" scale="2" hint-size="80px,28px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="“Took you long enough," scale="2" hint-size="240px,28px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="Lieutenant Fizz.”" scale="2" hint-size="200px,28px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="{{ f.key }}" text="{Enter} Continue" color="#b4bfce" scale="2" hint-size="200px,30px"></x-import>
+</div>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      emoji: [
+        ['🙂', 'Smile', '#ffff55'], ['😀', 'Grin', '#ffff55'], ['😉', 'Wink', '#ffff55'], ['😮', 'Surprised', '#ffff55'],
+        ['😢', 'Sad', '#55ffff'], ['😠', 'Cross', '#ff5555'], ['😎', 'Cool', '#ffff55'], ['❤', 'Heart', '#ff5555'],
+        ['⭐', 'Star', '#ffff55'], ['✓', 'Check', '#55ff55'], ['✗', 'Cross mark', '#ff5555'], ['👍', 'Thumbs up', '#ffff55'],
+        ['🍁', 'Maple leaf', '#ff5555'], ['👽', 'Zarg', '#55ff55'], ['🛸', 'Saucer', '#aaaaaa'], ['🥤', 'Cream soda', '#ff55ff'],
+        ['☕', 'Cocoa', '#aa5500'], ['💾', 'Save', '#5555ff'], ['🎮', 'Gamepad', '#aaaaaa'], ['🔊', 'Sound on', '#ffffff'],
+        ['🔇', 'Sound off', '#aaaaaa'], ['🔒', 'Lock', '#ffff55'], ['⚡', 'Power', '#ffff55'], ['🏆', 'Trophy', '#ffff55'],
+      ].map(([ch, name, tint]) => ({ ch, name, tint })),
+      fonts: [
+        { id: '1a', key: 'fizz', name: 'Fizz', meta: '5 × 7 caps · x-height 5 · proportional', desc: 'Rounded and friendly: soft corners, open counters and a true lowercase. The master drawing that the other four are derived from.' },
+        { id: '1b', key: 'zargoth', name: 'Zargoth', meta: '5 × 7 · squared corners', desc: 'Squared and techy. It uses the Fizz skeleton with every outer corner filled in, so it reads like a terminal or a ship console.' },
+        { id: '1c', key: 'billy', name: 'Billy', meta: '4 × 9 caps · x-height 6', desc: 'Tall and narrow. It fits about 20% more on a line and the taller x-height stays readable at 2×, which suits dialogue and credits.' },
+        { id: '1d', key: 'colossus', name: 'Colossus', meta: '6 × 9 · 2 px stems', desc: 'Heavy two-pixel stems on the tall frame with open counters. Already bold, so its Bold style is the same. Built for titles, HUD numbers and couch distance.' },
+        { id: '1e', key: 'mildred', name: 'Mildred', meta: '5 × 7 caps · 5-row small caps', desc: 'Small caps: Fizz capitals, with x-height capitals in place of the lowercase. Formal, and very DOS.' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

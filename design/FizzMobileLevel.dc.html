@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/fonts.css">
+<script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
+</helmet>
+<div onMouseEnter="{{ onEnter }}" onMouseLeave="{{ onLeave }}" onContextMenu="{{ noMenu }}" data-screen-label="{{ label }}" style="position:relative;width:800px;height:360px;overflow:hidden;background:#5555ff;touch-action:none;user-select:none;-webkit-user-select:none;font-family:Inter,sans-serif">
+<div style="position:absolute;left:0;top:0;width:1600px;height:360px;transform:{{ camTf }}">
+<sc-if value="{{ hasArt }}" hint-placeholder-val="{{ false }}">
+<img src="{{ bg }}" alt="" draggable="false" style="position:absolute;left:0;top:0;width:1600px;height:360px;image-rendering:pixelated">
+</sc-if>
+<sc-for list="{{ sprites }}" as="sp" hint-placeholder-count="0">
+<img src="{{ sp.src }}" alt="" draggable="false" style="position:absolute;left:{{ sp.l }};top:{{ sp.t }};width:{{ sp.w }};transform:{{ sp.tf }};opacity:{{ sp.op }};image-rendering:pixelated">
+</sc-for>
+</div>
+<sc-if value="{{ glassHudReady }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:{{ hudL }};top:14px;display:flex;gap:8px;opacity:{{ hudOp }};transition:opacity .4s ease;pointer-events:none">
+<sc-for list="{{ pills }}" as="p" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:999px;background:rgba(20,20,25,.55);backdrop-filter:blur(10px);border:1px solid {{ p.border }};font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;color:{{ p.color }};font-variant-numeric:tabular-nums">
+<img src="{{ p.icon }}" alt="" style="height:16px;image-rendering:pixelated">
+<sc-if value="{{ p.sans }}" hint-placeholder-val="{{ true }}"><span>{{ p.text }}</span></sc-if>
+<sc-if value="{{ p.pix }}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" mono="true" cut="bold" text="{{ p.text }}" color="{{ p.color }}" scale="2" hint-size="24px,24px"></x-import></sc-if>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ pixelHud }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:{{ hudL }};top:12px;display:flex;gap:14px;padding:4px 10px;background:#000000;box-shadow:inset 0 0 0 3px #aaaaaa, 4px 4px 0 rgba(0,0,0,.5);pointer-events:none">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" mono="true" cut="bold" text="{{ hudScore }}" color="#ffff55" scale="2" hint-size="110px,28px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" mono="true" cut="bold" text="{{ hudLives }}" color="#55ff55" scale="2" hint-size="80px,28px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" mono="true" cut="bold" text="{{ hudFizz }}" color="{{ hudFizzColor }}" scale="2" hint-size="80px,28px"></x-import>
+</div>
+</sc-if>
+<div onPointerDown="{{ onPause }}" style="position:absolute;right:{{ pauseR }};top:8px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:{{ pauseOp }}">
+<sc-if value="{{ pixelHud }}" hint-placeholder-val="{{ false }}">
+<div style="width:40px;height:34px;background:#aaaaaa;display:flex;align-items:center;justify-content:center;gap:5px;clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)">
+<div style="width:6px;height:16px;background:#000000"></div>
+<div style="width:6px;height:16px;background:#000000"></div>
+</div>
+</sc-if>
+<sc-if value="{{ glassHud }}" hint-placeholder-val="{{ false }}">
+<div style="width:36px;height:36px;border-radius:999px;background:rgba(20,20,25,.55);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;gap:4px">
+<div style="width:4px;height:13px;border-radius:1px;background:#ffffff"></div>
+<div style="width:4px;height:13px;border-radius:1px;background:#ffffff"></div>
+</div>
+</sc-if>
+</div>
+<sc-if value="{{ showTouch }}" hint-placeholder-val="{{ true }}">
+<sc-if value="{{ isPad }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:{{ moveL }};right:{{ moveR }};bottom:22px;width:150px;height:150px;border-radius:999px;background:rgba(20,20,25,.45);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);display:grid;grid-template-columns:repeat(3,50px);grid-template-rows:repeat(3,50px)">
+<sc-for list="{{ dpad }}" as="d" hint-placeholder-count="9">
+<div onPointerDown="{{ d.down }}" onPointerUp="{{ d.up }}" onPointerLeave="{{ d.up }}" onPointerCancel="{{ d.up }}" style="display:flex;align-items:center;justify-content:center;border-radius:12px;background:{{ d.bg }};color:{{ d.color }};font-size:18px;cursor:pointer;visibility:{{ d.vis }}">{{ d.glyph }}</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ isSplit }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:{{ moveL }};right:{{ moveR }};bottom:22px;display:flex;align-items:flex-end;gap:10px;flex-direction:{{ splitDir }}">
+<sc-for list="{{ splitBtns }}" as="s" hint-placeholder-count="3">
+<div onPointerDown="{{ s.down }}" onPointerUp="{{ s.up }}" onPointerLeave="{{ s.up }}" onPointerCancel="{{ s.up }}" style="width:{{ s.w }};height:{{ s.h }};display:flex;flex-direction:column;gap:{{ s.gap }}">
+<sc-for list="{{ s.cells }}" as="sc" hint-placeholder-count="1">
+<div onPointerDown="{{ sc.down }}" onPointerUp="{{ sc.up }}" onPointerLeave="{{ sc.up }}" onPointerCancel="{{ sc.up }}" style="flex:1;display:flex;align-items:center;justify-content:center;border-radius:{{ sc.radius }};background:{{ sc.bg }};backdrop-filter:blur(10px);border:1px solid {{ sc.border }};box-shadow:{{ sc.shadow }};color:#ffffff;font-size:{{ sc.fs }};cursor:pointer">{{ sc.glyph }}</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ isPixel }}" hint-placeholder-val="{{ false }}">
+<div ref="{{ joyRef }}" onPointerDown="{{ joyDown }}" onPointerMove="{{ joyMove }}" onPointerUp="{{ joyUp }}" onPointerCancel="{{ joyUp }}" style="position:absolute;left:{{ moveL }};right:{{ moveR }};top:64px;bottom:0;width:340px">
+<div style="position:absolute;left:{{ joy.bx }};top:{{ joy.by }};width:104px;height:104px;margin:-52px 0 0 -52px;background:{{ joy.ring }};opacity:{{ joy.op }};clip-path:polygon(16px 0,calc(100% - 16px) 0,100% 16px,100% calc(100% - 16px),calc(100% - 16px) 100%,16px 100%,0 calc(100% - 16px),0 16px)">
+<div style="position:absolute;inset:4px;background:rgba(0,0,0,.35);clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px),0 14px)"></div>
+</div>
+<div style="position:absolute;left:{{ joy.kx }};top:{{ joy.ky }};width:40px;height:40px;margin:-20px 0 0 -20px;background:#ffff55;opacity:{{ joy.op }};box-shadow:inset -4px -4px 0 #aa5500"></div>
+<sc-if value="{{ joy.idle }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;left:{{ joy.tipL }};bottom:14px;pointer-events:none">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Touch anywhere to move" color="#ffffff" knock="#000000" outline="#000000" scale="2" hint-size="200px,28px"></x-import>
+</div>
+</sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ isThumb }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:{{ moveL }};right:{{ moveR }};top:64px;bottom:0;width:300px;display:flex;gap:4px">
+<sc-for list="{{ zones }}" as="z" hint-placeholder-count="2">
+<div onPointerDown="{{ z.down }}" onPointerUp="{{ z.up }}" onPointerLeave="{{ z.up }}" onPointerCancel="{{ z.up }}" style="flex:1;display:flex;align-items:flex-end;justify-content:center;padding-bottom:22px;background:{{ z.bg }};border-radius:20px 20px 0 0;cursor:pointer">
+<div style="width:52px;height:52px;border-radius:999px;background:rgba(20,20,25,.45);border:1px solid {{ z.border }};color:#ffffff;display:flex;align-items:center;justify-content:center;font-size:20px">{{ z.glyph }}</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ isThumb }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:{{ arcL }};right:{{ arcR }};bottom:-150px;width:300px;height:300px;border-radius:999px;background:rgba(20,20,25,.32);border:1px solid rgba(255,255,255,.1);pointer-events:none"></div>
+</sc-if>
+<sc-for list="{{ buttons }}" as="b" hint-placeholder-count="3">
+<div onPointerDown="{{ b.down }}" onPointerUp="{{ b.up }}" onPointerLeave="{{ b.leave }}" onPointerCancel="{{ b.leave }}" style="position:absolute;left:{{ b.l }};right:{{ b.r }};bottom:{{ b.b }};width:{{ b.w }};height:{{ b.h }};box-sizing:border-box;border-radius:{{ b.radius }};clip-path:{{ b.clip }};background:{{ b.bg }};border:{{ b.border }};box-shadow:{{ b.shadow }};backdrop-filter:{{ b.blur }};transform:{{ b.tf }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;transition:background .15s ease, box-shadow .15s ease">
+<sc-if value="{{ b.hasIcon }}" hint-placeholder-val="{{ false }}">
+<img src="{{ b.icon }}" alt="" draggable="false" style="height:{{ b.iconH }};image-rendering:pixelated;pointer-events:none">
+</sc-if>
+<sc-if value="{{ b.pixel }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="{{ b.label }}" color="{{ b.ink }}" scale="2" hint-size="60px,24px"></x-import>
+</sc-if>
+<sc-if value="{{ b.glass }}" hint-placeholder-val="{{ true }}">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:{{ b.fs }};color:{{ b.ink }};line-height:1;pointer-events:none">{{ b.label }}</span>
+</sc-if>
+</div>
+</sc-for>
+</sc-if>
+<sc-if value="{{ gamepad }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;height:32px;padding:0 14px;border-radius:999px;background:rgba(12,12,16,.82);border:1px solid rgba(255,255,255,.14);font-size:13px;color:#e0e0e0;white-space:nowrap;pointer-events:none">
+<span style="width:6px;height:6px;border-radius:999px;background:#2ec66a"></span>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Controller connected" color="#e0e0e0" scale="2" hint-size="180px,24px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{A} Jump  {B} Pogo  {X} Fizz" color="#7c8796" scale="2" hint-size="220px,24px"></x-import>
+</div>
+</sc-if>
+<sc-if value="{{ safe }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:44px;right:16px;top:8px;bottom:18px;border:1px dashed #22d3ee;border-radius:16px;pointer-events:none">
+<div style="position:absolute;left:8px;bottom:6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#22d3ee">Safe area · 44 cutout · 18 gesture</div>
+</div>
+</sc-if>
+<sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,5,7,.94) 0%,rgba(5,5,7,.78) 50%,rgba(5,5,7,.2) 85%)">
+<div style="position:absolute;left:{{ pm.l }};top:14px;display:flex;flex-direction:column;gap:4px;width:360px">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="Paused" color="#ffffff" shadow="#f43f5e,#000000" scale="3" hint-size="140px,42px"></x-import>
+<div style="display:flex;flex-direction:column;gap:2px">
+<sc-for list="{{ pmRows }}" as="r" hint-placeholder-count="6">
+<div onPointerDown="{{ r.tap }}" onMouseEnter="{{ r.enter }}" style="position:relative;height:44px;display:flex;align-items:center;padding:0 16px;cursor:pointer">
+<div style="position:absolute;inset:0;background:{{ r.bg }};clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)"></div>
+<sc-if value="{{ r.cur }}" hint-placeholder-val="{{ false }}">
+<img src="{{ cursorSrc }}" alt="" style="position:absolute;left:-38px;top:50%;width:28px;transform:{{ curTf }};image-rendering:pixelated;pointer-events:none">
+</sc-if>
+<div style="position:relative;display:flex;align-items:center;gap:12px;width:100%">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ r.label }}" color="{{ r.color }}" scale="3" hint-size="160px,40px"></x-import>
+<sc-if value="{{ r.hasValue }}" hint-placeholder-val="{{ false }}">
+<div style="margin-left:auto"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ r.value }}" color="{{ r.vcolor }}" scale="2" hint-size="80px,28px"></x-import></div>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:800,&quot;height&quot;:360},&quot;variant&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;pad&quot;,&quot;split&quot;,&quot;duo&quot;,&quot;pixel&quot;,&quot;thumb&quot;],&quot;default&quot;:&quot;pad&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;font&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;grotesk&quot;,&quot;fizz&quot;],&quot;default&quot;:&quot;grotesk&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;mirror&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;gamepad&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;safe&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;onHaptic&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(t: string) =&gt; void&quot;}}">
+class Component extends DCLogic {
+  state = { art: null };
+  S = 2.5;
+  W = 640;
+  btn = {};
+  key = {};
+  joyRef = React.createRef();
+  joy = null;
+
+  pmSel = 0;
+  pmFlash = 0;
+  componentDidMount() {
+    this.reset();
+    if (this.props.startPaused) { this.g.paused = true; this.g.frame = 200; }
+    this.load();
+    this.kd = (e) => {
+      if (!this.hover && !this.props.gamepad) return;
+      const m = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', z: 'jump', Z: 'jump', a: 'left', d: 'right' };
+      if (m[e.key]) { this.key[m[e.key]] = true; e.preventDefault(); }
+      if (e.repeat) return;
+      if (e.key === 'x' || e.key === 'X') this.togglePogo();
+      if (e.key === 'c' || e.key === 'C' || e.key === ' ') { this.fire(); e.preventDefault(); }
+      if (e.key === 'p' || e.key === 'Escape') this.togglePause();
+    };
+    this.ku = (e) => {
+      const m = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', z: 'jump', Z: 'jump', a: 'left', d: 'right' };
+      if (m[e.key]) this.key[m[e.key]] = false;
+    };
+    window.addEventListener('keydown', this.kd);
+    window.addEventListener('keyup', this.ku);
+    const loop = () => { this.step(); this.forceUpdate(); this.raf = requestAnimationFrame(loop); };
+    this.t0 = performance.now();
+    this.raf = requestAnimationFrame(loop);
+  }
+  componentWillUnmount() {
+    cancelAnimationFrame(this.raf);
+    window.removeEventListener('keydown', this.kd);
+    window.removeEventListener('keyup', this.ku);
+  }
+
+  reset() {
+    this.g = {
+      x: 40, y: 112, vx: 0, vy: 0, ground: true, face: 1, pogo: false, fizz: 5, snacks: 0, lives: 3, bub: [], hit: 0, shootT: 0, hudT: 0, frame: 0, paused: false,
+      gl: { x: 300, dir: -1, stun: 0 },
+      items: [
+        { k: 'cheezie', x: 104, y: 98, pts: 1 }, { k: 'cheezie', x: 120, y: 98, pts: 1 }, { k: 'cheezie', x: 136, y: 98, pts: 1 },
+        { k: 'choc', x: 208, y: 58, pts: 2 }, { k: 'soda', x: 360, y: 74, soda: 5 }, { k: 'cookie', x: 470, y: 50, pts: 5 },
+        { k: 'cheezie', x: 540, y: 98, pts: 1 }, { k: 'cheezie', x: 556, y: 98, pts: 1 },
+      ].map((it) => Object.assign(it, { taken: -1 })),
+    };
+    this.plats = [{ x0: 0, x1: 640, y: 112 }, { x0: 176, x1: 240, y: 72 }, { x0: 336, x1: 384, y: 88 }, { x0: 440, x1: 504, y: 64 }];
+  }
+
+  async load() {
+    if (!window.__lfMobileArt) window.__lfMobileArt = (async () => {
+      const m = await import('./melting/sprites.js');
+      const by = {}; m.defineSprites().forEach((d) => { by[d.name] = d; });
+      const E = m.EGA;
+      const cv = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
+      const put = (x, n, px, py, tint) => { const d = by[n]; if (!d) return; for (let j = 0; j < d.h; j++) for (let i = 0; i < d.w; i++) { const k = d.g[j][i]; if (!k || k === '.') continue; x.fillStyle = tint || E[k] || k; x.fillRect(px + i, py + j, 1, 1); } };
+      const art = {};
+      ['ben_stand', 'ben_run1', 'ben_run2', 'ben_jump', 'ben_shoot', 'ben_pogo', 'ben_pogo2', 'gloop0', 'gloop1', 'stars0', 'stars1', 'bubble', 'cheezie', 'choc', 'cookie', 'soda'].forEach((n) => {
+        const d = by[n]; if (!d) return; const [c, x] = cv(d.w, d.h); put(x, n, 0, 0); art[n] = { src: c.toDataURL(), w: d.w, h: d.h };
+      });
+      const [c, x] = cv(640, 144);
+      x.fillStyle = '#5555ff'; x.fillRect(0, 0, 640, 144);
+      put(x, 'planet', 520, 8);
+      for (let i = 0; i < 41; i++) put(x, 'mtnTop', i * 16 - 4, 60, '#aa00aa');
+      x.fillStyle = '#aa00aa'; x.fillRect(0, 76, 640, 40);
+      for (let i = 0; i < 40; i++) put(x, 'hillTop', i * 16, 84, '#ff55ff');
+      x.fillStyle = '#ff55ff'; x.fillRect(0, 100, 640, 14);
+      [[60, 'crysC'], [270, 'crysM'], [420, 'crysC'], [600, 'crysM']].forEach(([px, n]) => { const d = by[n]; if (d) put(x, n, px, 112 - d.h); });
+      for (let i = 0; i < 40; i++) { put(x, 'craterTop', i * 16, 112); put(x, 'craterFill', i * 16, 128); }
+      [[176, 240, 72], [336, 384, 88], [440, 504, 64]].forEach(([a, b, y]) => { for (let px = a; px < b; px += 16) put(x, 'craterPlat', px, y); });
+      put(x, 'exitTop', 616, 80); put(x, 'exitBot', 616, 96);
+      ['soda'].forEach(() => {});
+      if (by.soda) { const d = by.soda; const [cc, xx] = cv(d.w, d.h); put(xx, 'soda', 0, 0); art.cursor = cc.toDataURL(); }
+      art.bg = c.toDataURL();
+      return art;
+    })();
+    this.setState({ art: await window.__lfMobileArt });
+  }
+
+  hap(t) { const now = performance.now(); if (this.lastHap && now - this.lastHap < 60) return; this.lastHap = now; this.props.onHaptic && this.props.onHaptic(t); }
+  inp() { const o = {}; ['left', 'right', 'up', 'down', 'jump'].forEach((k) => { o[k] = !!(this.btn[k] || this.key[k]); }); return o; }
+  ping() { this.g.hudT = this.g.frame; }
+  togglePause() { this.g.paused = !this.g.paused; this.btn = {}; this.joy = null; }
+  togglePogo() { const g = this.g; if (g.paused) return; g.pogo = !g.pogo; this.hap(g.pogo ? 'Double click · pogo on' : 'Single click · pogo off'); }
+  fire(aimUp) {
+    const g = this.g; if (g.paused) return;
+    if (g.fizz <= 0) { this.hap('Buzz ×2 · out of fizz'); this.ping(); return; }
+    const I = this.inp();
+    const up = aimUp || I.up, down = !up && I.down && !g.ground;
+    g.fizz--; this.ping(); g.shootT = 12;
+    g.bub.push({ x: g.x + (up || down ? 0 : g.face * 8), y: g.y - (up ? 26 : 12), vx: up || down ? 0 : g.face * 3.6, vy: up ? -3.6 : down ? 3.6 : 0, life: 70 });
+    this.hap('Soft pop · fizz');
+  }
+
+  step() {
+    const g = this.g; if (!g || g.paused) return;
+    g.frame++;
+    const I = this.inp();
+    const dir = (I.right ? 1 : 0) - (I.left ? 1 : 0);
+    if (dir) { g.vx += dir * 0.22; g.face = dir; } else g.vx *= g.ground ? 0.72 : 0.96;
+    g.vx = Math.max(-1.9, Math.min(1.9, g.vx));
+    const jp = I.jump && !this.pj; this.pj = I.jump;
+    if (g.pogo && g.ground) { g.vy = I.jump ? -6.6 : -4.3; g.ground = false; }
+    else if (jp && g.ground) { g.vy = -5.4; g.ground = false; this.hap('Light tick · jump'); }
+    if (!I.jump && !g.pogo && g.vy < -2) g.vy = -2;
+    g.vy = Math.min(6, g.vy + 0.3);
+    const py = g.y;
+    g.x = Math.max(8, Math.min(this.W - 8, g.x + g.vx)); g.y += g.vy;
+    g.ground = false;
+    if (g.vy >= 0) for (const p of this.plats) if (py <= p.y && g.y >= p.y && g.x > p.x0 - 4 && g.x < p.x1 + 4) { g.y = p.y; g.vy = 0; g.ground = true; }
+    if (g.shootT > 0) g.shootT--;
+    if (g.hit > 0) g.hit--;
+    const gl = g.gl;
+    if (gl.stun > 0) gl.stun--; else { gl.x += gl.dir * 0.45; if (gl.x < 260 || gl.x > 420) gl.dir *= -1; }
+    g.bub = g.bub.filter((b) => {
+      b.x += b.vx; b.y += b.vy; b.life--;
+      if (gl.stun <= 0 && Math.abs(b.x - gl.x) < 11 && Math.abs(b.y - 106) < 11) { gl.stun = 360; this.hap('Medium pulse · stunned'); return false; }
+      return b.life > 0 && b.y < 140;
+    });
+    if (Math.abs(g.x - gl.x) < 11 && g.y > 98 && gl.stun <= 0) {
+      if (g.vy > 0 && py <= 104) { gl.stun = 180; g.vy = g.pogo ? -7 : -4.5; this.hap('Medium thud · stomp'); }
+      else if (g.hit === 0) {
+        g.hit = 90; g.lives--; g.vx = -g.face * 1.8; g.vy = -3; this.ping(); this.hap('Heavy thud · ouch');
+        if (g.lives <= 0) { this.hap('Long buzz · out of lives'); if (this.props.onGo) { g.paused = true; this.props.onGo('gameover'); return; } const keep = g.pogo; this.reset(); this.g.pogo = keep; return; }
+      }
+    }
+    if (g.x >= 624 && g.ground && !this.exited) {
+      this.exited = true; this.hap('Rising triple tick · level cleared');
+      if (this.props.onGo) { g.paused = true; this.props.onGo('score'); return; }
+      setTimeout(() => { this.exited = false; this.g.x = 40; }, 600);
+    }
+    for (const it of g.items) {
+      if (it.taken >= 0) { if (g.frame - it.taken > 480) it.taken = -1; continue; }
+      if (Math.abs(g.x - it.x) < 10 && Math.abs(g.y - 10 - it.y) < 14) {
+        it.taken = g.frame; this.ping();
+        if (it.soda) { g.fizz += it.soda; this.hap('Fizzy ripple · +5 fizz'); }
+        else { const before = Math.floor(g.snacks / 100); g.snacks += it.pts; if (Math.floor(g.snacks / 100) > before) g.lives++; this.hap('Tiny tick · snack'); }
+      }
+    }
+  }
+
+  setBtn(k, v) { this.btn[k] = v; }
+
+  pauseMenu(g) {
+    const art = this.state.art || {};
+    const tt = (performance.now() - (this.t0 || 0)) / 1000;
+    const cyc = ['#ffaa40', '#ffb850', '#ffc860', '#ffb850'][Math.floor(tt * 2.5) % 4];
+    const flash = performance.now() < this.pmFlash;
+    const go = (to) => { if (this.props.onGo) this.props.onGo(to); };
+    const items = [
+      { label: 'Resume', act: () => { this.togglePause(); this.hap('Single click · resume'); } },
+      { label: 'Save game', value: 'Slot 2', act: () => this.hap('Double tick · saved') },
+      { label: 'Load game', act: () => this.hap('Single click') },
+      { label: 'Controls', act: () => go('controls') },
+      { label: 'Leave level', act: () => go('map') },
+      { label: 'Quit to title', act: () => go('title') },
+    ];
+    const pmRows = items.map((it, i) => {
+      const on = i === this.pmSel;
+      return {
+        label: it.label, hasValue: !!it.value, value: it.value || '', cur: on && !!art.cursor,
+        bg: on ? (flash ? '#ffffff' : cyc) : 'transparent', color: on ? '#000000' : '#e0e0e0', vcolor: on ? '#000000' : '#7c8796',
+        enter: () => { this.pmSel = i; },
+        tap: (e) => { e.preventDefault(); e.stopPropagation(); this.pmSel = i; this.pmFlash = performance.now() + 160; this.hap('Light tick · select'); setTimeout(it.act, 170); },
+      };
+    });
+    return {
+      pm: { l: this.props.mirror ? '52px' : '52px' }, pmRows, cursorSrc: art.cursor || '',
+      curTf: `translate(${Math.round(Math.sin(tt * 5) * 2) * 2}px,-50%)`,
+      pmNote: 'Saves stay on this device',
+    };
+  }
+
+  renderVals() {
+    const P = this.props, g = this.g || { frame: 0 }, S = this.S;
+    const art = this.state.art || {};
+    const variant = ['pad', 'pixel', 'thumb', 'split', 'duo'].includes(P.variant) ? P.variant : 'pad';
+    const fz = P.font === 'fizz';
+    const mirror = !!P.mirror;
+    const px = (v) => Math.round(v * S) + 'px';
+    const cam = Math.max(0, Math.min(this.W - 320, (g.x || 0) - 160));
+    const sprites = [];
+    const add = (n, x, y, flip, op) => { const a = art[n]; if (!a) return; sprites.push({ src: a.src, l: px(x - a.w / 2), t: px(y - a.h), w: px(a.w), tf: flip ? 'scaleX(-1)' : 'none', op: op ?? 1 }); };
+    if (this.g) {
+      g.items.forEach((it) => { if (it.taken < 0) { const a = art[it.k]; add(it.k, it.x, it.y + (a ? a.h / 2 : 8) + Math.round(Math.sin((g.frame + it.x) / 14)), false); } });
+      const gl = g.gl;
+      add(gl.stun > 0 ? 'gloop0' : (Math.floor(g.frame / 16) % 2 ? 'gloop1' : 'gloop0'), gl.x, 112, gl.dir > 0, gl.stun > 0 ? 0.75 : 1);
+      if (gl.stun > 0) add(Math.floor(g.frame / 8) % 2 ? 'stars1' : 'stars0', gl.x, 100);
+      let pose = 'ben_stand';
+      if (g.shootT > 0) pose = 'ben_shoot';
+      else if (g.pogo) pose = g.vy < -1 ? 'ben_pogo' : 'ben_pogo2';
+      else if (!g.ground) pose = 'ben_jump';
+      else if (Math.abs(g.vx) > 0.3) pose = Math.floor(g.frame / 7) % 2 ? 'ben_run1' : 'ben_run2';
+      add(pose, g.x, g.y, g.face < 0, g.hit > 0 && Math.floor(g.frame / 4) % 2 ? 0.25 : 1);
+      g.bub.forEach((b) => add('bubble', b.x, b.y + 6));
+    }
+    const icon = (n) => (art[n] ? art[n].src : '');
+    const fizz = g.fizz ?? 5;
+    const hudVisible = variant !== 'thumb' || g.paused || g.frame - g.hudT < 150 || g.frame < 120;
+    const side = mirror ? 'left' : 'right';
+    const inset = (s) => s + 'px';
+    const onCam = (s, isLeft) => (isLeft ? s + 24 : s);
+    const glassBtn = (pressed, primary, active) => ({
+      bg: pressed ? 'rgba(255,170,64,.42)' : active ? 'rgba(255,170,64,.24)' : primary ? 'rgba(255,170,64,.16)' : 'rgba(20,20,25,.5)',
+      border: '1px solid ' + (pressed || active ? '#ffaa40' : primary ? 'rgba(255,170,64,.55)' : 'rgba(255,255,255,.18)'),
+      shadow: pressed ? '0 0 16px rgba(255,170,64,.3)' : 'none', blur: 'blur(10px)', radius: '999px', clip: 'none', tf: 'none', pixel: false, glass: true, ink: '#ffffff',
+    });
+    const plate = 'polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)';
+    const pixBtn = (pressed, col, active) => ({ bg: pressed ? '#ffffff' : active ? '#55ff55' : col, border: '0', shadow: 'inset -4px -4px 0 rgba(0,0,0,.35)', blur: 'none', radius: '0', clip: plate, tf: pressed ? 'translateY(3px)' : 'none', pixel: true, glass: false, ink: '#000000' });
+    const L = {
+      pad: { jump: [80, 24, 26], fizz: [62, 118, 30], pogo: [62, 36, 118] },
+      pixel: { jump: [[84, 56], 24, 26], pogo: [[84, 56], 116, 26], fizz: [[84, 56], 208, 26] },
+      thumb: { jump: [92, 20, 20], fizz: [66, 128, 40], pogo: [66, 40, 128] },
+      split: { jump: [84, 22, 64], pogo: [64, 116, 40], fizz: [64, 196, 22] },
+      duo: { jump: [92, 22, 22], fizz: [76, 132, 26], pogo: [[112, 44], 22, 130] },
+    }[variant];
+    const mk = (k, label, sub) => {
+      const [sz, s, b] = L[k];
+      const w = Array.isArray(sz) ? sz[0] : sz, h = Array.isArray(sz) ? sz[1] : sz;
+      const pressed = k === 'pogo' ? !!this.btn.pogoDown : k === 'fizz' ? !!this.btn.fizzDown : !!this.btn.jump;
+      const active = k === 'pogo' && g.pogo;
+      const st = variant === 'pixel' ? pixBtn(pressed, { jump: '#ffff55', pogo: '#55ffff', fizz: '#ff55ff' }[k], active) : glassBtn(pressed, k === 'jump', active);
+      const left = side === 'left';
+      const iconN = { jump: '', pogo: variant === 'duo' ? '' : 'ben_pogo', fizz: 'soda' }[k];
+      if (fz && variant !== 'pixel') { st.pixel = true; st.glass = false; }
+      if (variant === 'duo' && k === 'pogo') sub = g.pogo ? 'Pogo on' : 'Pogo off';
+      return Object.assign(st, {
+        l: left ? inset(onCam(s, true)) : 'auto', r: left ? 'auto' : inset(s), b: b + 'px', w: w + 'px', h: h + 'px',
+        label: variant === 'pixel' ? (k === 'pogo' && active ? 'Pogo!' : label) : (sub ?? label),
+        ink: variant === 'pixel' ? '#000000' : '#ffffff', fs: k === 'jump' ? '16px' : '13px',
+        hasIcon: variant !== 'pixel' && !!iconN && !!art[iconN], icon: icon(iconN), iconH: k === 'pogo' ? '24px' : '18px',
+        down: (e) => {
+          e.preventDefault(); if (g.paused) return;
+          try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {}
+          if (k === 'jump') this.setBtn('jump', true);
+          if (k === 'pogo') { this.setBtn('pogoDown', true); this.togglePogo(); }
+          if (k === 'fizz') { this.setBtn('fizzDown', true); this.fizzY = e.clientY; if (variant !== 'thumb') this.fire(); }
+        },
+        up: (e) => {
+          if (k === 'jump') this.setBtn('jump', false);
+          if (k === 'pogo') this.setBtn('pogoDown', false);
+          if (k === 'fizz' && this.btn.fizzDown) { this.setBtn('fizzDown', false); if (variant === 'thumb') this.fire(e.clientY - (this.fizzY ?? e.clientY) < -24); }
+        },
+        leave: (e) => { if (k === 'jump') this.setBtn('jump', false); if (k === 'pogo') this.setBtn('pogoDown', false); if (k === 'fizz') this.setBtn('fizzDown', false); },
+      });
+    };
+    const buttons = [mk('jump', 'Jump'), mk('pogo', 'Pogo', g.pogo ? 'On' : 'Pogo'), mk('fizz', 'Fizz', String(fizz))];
+    const hold = (k) => ({ down: (e) => { e.preventDefault(); if (g.paused) return; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {} this.setBtn(k, true); }, up: () => this.setBtn(k, false) });
+    const dcell = (k, glyph) => k ? Object.assign({ glyph, vis: 'visible', bg: this.btn[k] ? 'rgba(255,170,64,.4)' : 'transparent', color: this.btn[k] ? '#ffffff' : '#e0e0e0' }, hold(k)) : { glyph: '', vis: 'hidden', bg: 'transparent', color: '#fff', down: () => {}, up: () => {} };
+    const dpad = [dcell(null), dcell('up', '▲'), dcell(null), dcell('left', '◀'), dcell(null), dcell('right', '▶'), dcell(null), dcell('down', '▼'), dcell(null)];
+    const zones = [['left', '◀'], ['right', '▶']].map(([k, glyph]) => Object.assign({ glyph, bg: this.btn[k] ? 'linear-gradient(to top, rgba(255,170,64,.28), rgba(255,170,64,0))' : 'transparent', border: this.btn[k] ? '#ffaa40' : 'rgba(255,255,255,.18)' }, hold(k)));
+    const moveSideLeft = !mirror;
+    const scell = (k, glyph, big) => Object.assign({ glyph, radius: big ? '22px' : '14px', fs: big ? '22px' : '14px', bg: this.btn[k] ? 'rgba(255,170,64,.42)' : 'rgba(20,20,25,.5)', border: this.btn[k] ? '#ffaa40' : 'rgba(255,255,255,.18)', shadow: this.btn[k] ? '0 0 16px rgba(255,170,64,.3)' : 'none' }, hold(k));
+    const noop = { down: () => {}, up: () => {} };
+    const splitBtns = [
+      Object.assign({ w: '76px', h: '76px', gap: '0', cells: [scell('left', '◀', true)] }, noop),
+      Object.assign({ w: '76px', h: '76px', gap: '0', cells: [scell('right', '▶', true)] }, noop),
+      Object.assign({ w: '44px', h: '96px', gap: '8px', cells: [scell('up', '▲'), scell('down', '▼')] }, noop),
+    ];
+    const j = this.joy;
+    const joy = j ? { bx: j.ox + 'px', by: j.oy + 'px', kx: j.kx + 'px', ky: j.ky + 'px', ring: '#ffffff', op: 0.95, idle: false, tipL: '0px' }
+      : { bx: '96px', by: 'calc(100% - 110px)', kx: '96px', ky: 'calc(100% - 110px)', ring: '#ffffff', op: 0.4, idle: g.frame < 600, tipL: '20px' };
+    const joyPt = (e) => { const el = this.joyRef.current; if (!el) return null; const r = el.getBoundingClientRect(); const sc = r.width / 340 || 1; return [(e.clientX - r.left) / sc, (e.clientY - r.top) / sc]; };
+    const joyApply = () => { const J = this.joy; const dx = J.kx - J.ox, dy = J.ky - J.oy; this.btn.left = dx < -12; this.btn.right = dx > 12; this.btn.up = dy < -26; this.btn.down = dy > 26; };
+    const snacks = g.snacks ?? 0;
+    return {
+      label: `${variant} level`,
+      onEnter: () => { this.hover = true; }, onLeave: () => { this.hover = false; },
+      noMenu: (e) => e.preventDefault(),
+      camTf: `translateX(${-Math.round(cam * S)}px)`,
+      hasArt: !!art.bg, bg: art.bg || '', sprites,
+      glassHud: variant !== 'pixel', glassHudReady: variant !== 'pixel' && !!art.bg && !g.paused, pixelHud: variant === 'pixel',
+      hudL: '52px', hudOp: hudVisible ? 1 : 0,
+      pills: [
+        { icon: icon('ben_stand'), text: String(g.lives ?? 3), color: '#ffffff', border: 'rgba(255,255,255,.14)' },
+        { icon: icon('cheezie'), text: String(snacks), color: fz ? '#ffff55' : '#ffffff', border: 'rgba(255,255,255,.14)' },
+        { icon: icon('soda'), text: fizz > 0 ? String(fizz) : '0 · find a can', color: fizz > 0 ? (fz ? '#55ffff' : '#ffffff') : '#ffaa40', border: fizz > 0 ? 'rgba(255,255,255,.14)' : 'rgba(255,170,64,.55)' },
+      ].map((p) => Object.assign(p, { pix: fz, sans: !fz })),
+      hudScore: 'Score ' + String(snacks * 10).padStart(5, '0'), hudLives: 'Lives ' + (g.lives ?? 3), hudFizz: 'Fizz ' + fizz, hudFizzColor: fizz > 0 ? '#55ffff' : '#ff5555',
+      pauseR: '14px', pauseOp: g.paused ? 0 : variant === 'thumb' && !hudVisible ? 0.6 : 1,
+      onPause: (e) => { e.preventDefault(); this.togglePause(); this.hap(this.g.paused ? 'Single click · paused' : 'Single click · resume'); },
+      paused: !!g.paused,
+      ...this.pauseMenu(g),
+      showTouch: !P.gamepad, gamepad: !!P.gamepad, safe: !!P.safe,
+      isPad: variant === 'pad' || variant === 'duo', isSplit: variant === 'split', splitBtns, splitDir: mirror ? 'row-reverse' : 'row', isPixel: variant === 'pixel', isThumb: variant === 'thumb',
+      moveL: moveSideLeft ? '48px' : 'auto', moveR: moveSideLeft ? 'auto' : '22px',
+      arcL: mirror ? '-126px' : 'auto', arcR: mirror ? 'auto' : '-150px',
+      dpad, zones, buttons, joy, joyRef: this.joyRef,
+      joyDown: (e) => { if (g.paused) return; e.preventDefault(); try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {} const p = joyPt(e); if (!p) return; this.joy = { ox: p[0], oy: p[1], kx: p[0], ky: p[1] }; },
+      joyMove: (e) => { if (!this.joy) return; const p = joyPt(e); if (!p) return; let dx = p[0] - this.joy.ox, dy = p[1] - this.joy.oy; const d = Math.hypot(dx, dy); if (d > 36) { dx *= 36 / d; dy *= 36 / d; } this.joy.kx = this.joy.ox + dx; this.joy.ky = this.joy.oy + dy; joyApply(); },
+      joyUp: () => { this.joy = null; this.btn.left = this.btn.right = this.btn.up = this.btn.down = false; },
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -22,7 +22,7 @@
 
     <header style="display:flex;flex-direction:column;gap:16px;">
       <span style="font-size:13px;color:#7c8796;">Design doc · Episode 1: The Cocoa Caper</span>
-      <h1 style="margin:0;font-family:var(--font-heading);font-weight:700;font-size:clamp(32px,6vw,52px);line-height:1.05;letter-spacing:-0.02em;color:#fff;text-wrap:balance;">The Melting Adventures of Ben “Lieutenant Fizz” Blaze</h1>
+      <h1 style="margin:0;font-family:var(--font-heading);font-weight:700;font-size:clamp(32px,6vw,52px);line-height:1.05;letter-spacing:-0.02em;color:#fff;text-wrap:balance;">Lieutenant Fizz — Episode 1: The Cocoa Caper</h1>
       <p style="margin:0;max-width:680px;font-size:18px;font-weight:300;color:#b4bfce;text-wrap:pretty;">A short Keen-style platformer built to exercise the retro rendering and simulation engine spec end to end: an overworld, three biome levels, ten enemy behaviours and a boss, all drawn in one instanced draw call.</p>
       <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;">
         <a href="Melting Adventures.dc.html" style="display:inline-flex;padding:8px 16px;border-radius:999px;background:#ffaa40;color:#050507;font-weight:600;font-size:14px;">Play the prototype →</a>
@@ -147,7 +147,7 @@ class Component extends DCLogic {
   state = { img: {} };
   componentDidMount() {
     import(new URL('melting/sprites.js', document.baseURI).href).then(m => {
-      const names = ['ben_stand', 'billy', 'boss0', 'phantom0', 'gloop0', 'hopper0', 'marsh0', 'beetle0', 'bat0', 'pod1', 'sentry0', 'roller', 'drone0', 'cheezie', 'choc', 'cookie', 'soda', 'keyRed', 'usb', 'saucer'];
+      const names = ['ben_stand', 'billy', 'billyAlt', 'boss0', 'phantom0', 'gloop0', 'hopper0', 'marsh0', 'beetle0', 'bat0', 'pod1', 'sentry0', 'roller', 'drone0', 'cheezie', 'choc', 'cookie', 'soda', 'keyRed', 'usb', 'saucer'];
       const img = {}; names.forEach(n => { img[n] = m.spriteDataURL(n, 3); });
       this.setState({ img });
     });
@@ -166,6 +166,7 @@ class Component extends DCLogic {
       cast: [
         { name: 'Ben Blaze', note: 'Lieutenant Fizz. Bicycle helmet, red tee, pogo stick.', img: I.ben_stand },
         { name: 'Billy', note: 'Ben\u2019s cousin, 14. Caged in the citadel.', img: I.billy },
+        { name: 'Mortimer', note: 'Billy\'s archrival, 14, been in hiding for years', img: I.billyAlt },
         { name: 'Mildred McMire', note: 'Pilots the Cocoa Colossus from its glass dome.', img: I.boss0 },
         { name: 'The saucer', note: 'Parked on the overworld map where Ben lands.', img: I.saucer }
       ],

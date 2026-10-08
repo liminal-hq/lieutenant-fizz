@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/colours.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/typography.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/base.css">
+<script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
+<style>body{margin:0;background:#050507}a{color:#ffaa40}a:hover{color:#ffc070}</style>
+</helmet>
+<section id="turn-3" data-screen-label="Turn 3" style="background:#050507;color:#e0e0e0;font-family:Inter,sans-serif;padding:56px;display:flex;flex-direction:column;gap:36px;box-sizing:border-box;width:max-content;min-width:100%;border-bottom:1px solid rgba(255,255,255,.08)">
+<header style="display:flex;flex-direction:column;gap:8px;max-width:900px">
+<div style="font-size:13px;color:#7c8796">Lieutenant Fizz · desktop launcher · Windows, macOS, Linux · turn 3</div>
+<h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:36px;letter-spacing:-0.02em;color:#ffffff">Launcher · desktop</h1>
+<p style="margin:0;font-size:16px;line-height:1.55;color:#b4bfce;text-wrap:pretty">The same carousel as <a href="#2a">2a</a>, in a 16:9 window with a frameless title bar. Use it with the keyboard (click the window first): ↑↓ select, ← → change episode or value, Enter plays, Tab switches section, Esc goes back. Hovering the mouse selects a row, and a click chooses it. Desktop swaps the touch settings for its own. Haptics becomes controller Rumble. Display adds Window (windowed, fullscreen or borderless) and V-sync. Controls has keyboard layouts and shows the connected controller. App settings gets a Quit row.</p>
+</header>
+<div id="3a" style="display:flex;flex-direction:column;gap:16px;width:1280px">
+<div style="display:flex;align-items:center;gap:12px">
+<a href="#3a" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:999px;background:#ffaa40;color:#050507;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;text-decoration:none">3a</a>
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#ffffff">Desktop window</div>
+<div style="font-size:12px;color:#7c8796;white-space:nowrap">1280 × 720 · keyboard, mouse, controller</div>
+</div>
+<div style="width:1280px;border-radius:10px;overflow:hidden;background:#0c0c10;box-shadow:0 24px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.1)">
+<div style="height:34px;display:flex;align-items:center;gap:10px;padding:0 0 0 14px;background:#0c0c10;border-bottom:1px solid rgba(255,255,255,.06)">
+<img src="assets/fizz-icon.svg" alt="" style="width:16px;height:16px">
+<div style="font-size:12px;color:#b4bfce">Lieutenant Fizz</div>
+<div style="margin-left:auto;display:flex;height:34px">
+<div style="width:46px;display:flex;align-items:center;justify-content:center;color:#b4bfce;font-size:13px;cursor:pointer" style-hover="background:rgba(255,255,255,.08)">—</div>
+<div style="width:46px;display:flex;align-items:center;justify-content:center;color:#b4bfce;font-size:12px;cursor:pointer" style-hover="background:rgba(255,255,255,.08)">▢</div>
+<div style="width:46px;display:flex;align-items:center;justify-content:center;color:#b4bfce;font-size:13px;cursor:pointer" style-hover="background:#e81123;color:#ffffff">✕</div>
+</div>
+</div>
+<div style="width:1280px;height:720px;overflow:hidden;background:#000000">
+<div style="width:800px;height:450px;transform:scale(1.6);transform-origin:0 0">
+<dc-import name="FizzLauncher" direction="carousel" platform="desktop" keyboard="{{ true }}" label="3a Live" hint-size="800px,450px"></dc-import>
+</div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,400px);gap:40px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;color:#7c8796">App settings stop · Quit added</div>
+<div style="width:400px;height:225px;overflow:hidden;border-radius:8px"><div style="transform:scale(.5);transform-origin:0 0;width:800px;height:450px"><dc-import name="FizzLauncher" direction="carousel" platform="desktop" episode="4" label="3a App stop" hint-size="800px,450px"></dc-import></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;color:#7c8796">App settings · Display · Window and V-sync</div>
+<div style="width:400px;height:225px;overflow:hidden;border-radius:8px"><div style="transform:scale(.5);transform-origin:0 0;width:800px;height:450px"><dc-import name="FizzLauncher" direction="carousel" platform="desktop" screen="options" from="app" episode="4" tab="display" sel="1" label="3a Display" hint-size="800px,450px"></dc-import></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;color:#7c8796">Episode 1 · Controls · controller connected</div>
+<div style="width:400px;height:225px;overflow:hidden;border-radius:8px"><div style="transform:scale(.5);transform-origin:0 0;width:800px;height:450px"><dc-import name="FizzLauncher" direction="carousel" platform="desktop" screen="options" episode="1" tab="controls" sel="1" label="3a Controls" hint-size="800px,450px"></dc-import></div></div>
+</div>
+</div>
+</div>
+<div id="3b" style="display:flex;flex-direction:column;gap:16px;width:1920px">
+<div style="display:flex;align-items:center;gap:12px">
+<a href="#3b" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:999px;background:#ffaa40;color:#050507;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;text-decoration:none">3b</a>
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#ffffff">UHD fullscreen</div>
+<div style="font-size:12px;color:#7c8796;white-space:nowrap">3840 × 2160 · shown at 50%</div>
+</div>
+<div style="width:1920px;height:1080px;overflow:hidden;background:#000000;box-shadow:0 24px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.1)">
+<div style="width:800px;height:450px;transform:scale(2.4);transform-origin:0 0">
+<dc-import name="FizzLauncher" direction="carousel" platform="desktop" keyboard="{{ false }}" label="3b UHD" hint-size="800px,450px"></dc-import>
+</div>
+</div>
+<p style="margin:0;max-width:900px;font-size:13px;line-height:1.55;color:#b4bfce;text-wrap:pretty">Fullscreen drops the title bar, so the launcher gets the whole 16:9 panel, and the art scales up cleanly to 4.8× at 3840 × 2160. F11 or Window → Fullscreen in Display options gets here, and Esc still goes back. Click a row to try it.</p>
+</div>
+</section>
+<section id="turn-2" data-screen-label="Turn 2" style="background:#050507;color:#e0e0e0;font-family:Inter,sans-serif;padding:56px;display:flex;flex-direction:column;gap:36px;box-sizing:border-box;width:max-content;min-width:100%;border-bottom:1px solid rgba(255,255,255,.08)">
+<header style="display:flex;flex-direction:column;gap:8px;max-width:900px">
+<div style="font-size:13px;color:#7c8796">Lieutenant Fizz · Android launcher · landscape · turn 2</div>
+<h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:36px;letter-spacing:-0.02em;color:#ffffff">Launcher · carousel with an app-settings stop</h1>
+<p style="margin:0;font-size:16px;line-height:1.55;color:#b4bfce;text-wrap:pretty">Builds on <a href="#1a">1a</a>. Each episode stop in the carousel stands in for that episode's own title screen, which the game skips when it loads from here. The fourth stop is App settings: global Settings, Saves (export and import every episode in one file), and About (tap Version seven times for the engine panel). Each episode's Options only change that episode, with a per-row "All episodes / Episode N" switch. Reset needs a second tap within three seconds. On an episode it clears that episode's overrides, and in App settings it restores every default.</p>
+</header>
+<div id="2a" style="display:flex;flex-direction:column;gap:16px;width:824px">
+<div style="display:flex;align-items:center;gap:12px">
+<a href="#2a" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:999px;background:#ffaa40;color:#050507;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;text-decoration:none">2a</a>
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#ffffff">Episodes + App settings</div>
+<div style="font-size:12px;color:#7c8796;white-space:nowrap">Four stops</div>
+</div>
+<div style="position:relative;width:824px;height:384px;padding:12px;box-sizing:border-box;border-radius:44px;background:#16161c;box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)">
+<div style="position:relative;width:800px;height:360px;border-radius:32px;overflow:hidden;background:#000000">
+<dc-import name="FizzLauncher" direction="carousel" label="2a Live" hint-size="800px,360px"></dc-import>
+<div style="position:absolute;left:16px;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:999px;background:#000000;box-shadow:0 0 0 2px #1c1c22;pointer-events:none"></div>
+<div style="position:absolute;left:50%;bottom:6px;width:120px;height:4px;margin-left:-60px;border-radius:999px;background:rgba(255,255,255,.55);pointer-events:none"></div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2,400px);gap:24px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;color:#7c8796">App settings stop · cycles every episode's demo</div>
+<div style="width:400px;height:180px;overflow:hidden;border-radius:12px"><div style="transform:scale(.5);transform-origin:0 0;width:800px;height:360px"><dc-import name="FizzLauncher" direction="carousel" episode="4" label="2a App stop" hint-size="800px,360px"></dc-import></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;color:#7c8796">App settings · Display · Reset</div>
+<div style="width:400px;height:180px;overflow:hidden;border-radius:12px"><div style="transform:scale(.5);transform-origin:0 0;width:800px;height:360px"><dc-import name="FizzLauncher" direction="carousel" screen="options" from="app" episode="4" tab="display" label="2a App settings" hint-size="800px,360px"></dc-import></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;color:#7c8796">Episode 1 options · Scanlines set for this episode</div>
+<div style="width:400px;height:180px;overflow:hidden;border-radius:12px"><div style="transform:scale(.5);transform-origin:0 0;width:800px;height:360px"><dc-import name="FizzLauncher" direction="carousel" screen="options" episode="1" tab="display" sel="1" label="2a Episode options" hint-size="800px,360px"></dc-import></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;color:#7c8796">Saves · export and import for every episode</div>
+<div style="width:400px;height:180px;overflow:hidden;border-radius:12px"><div style="transform:scale(.5);transform-origin:0 0;width:800px;height:360px"><dc-import name="FizzLauncher" direction="carousel" screen="saves" from="app" episode="4" label="2a Saves" hint-size="800px,360px"></dc-import></div></div>
+</div>
+</div>
+</div>
+</section>
+<section id="turn-1" data-screen-label="Turn 1" style="background:#050507;color:#e0e0e0;font-family:Inter,sans-serif;padding:56px;display:flex;flex-direction:column;gap:36px;box-sizing:border-box;width:max-content;min-width:100%">
+<header style="display:flex;flex-direction:column;gap:8px;max-width:900px">
+<div style="font-size:13px;color:#7c8796">Lieutenant Fizz · Android launcher · landscape · turn 1</div>
+<h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:36px;letter-spacing:-0.02em;color:#ffffff">Launcher · two ways to layer it</h1>
+<p style="margin:0;font-size:16px;line-height:1.55;color:#b4bfce;text-wrap:pretty">Both use the in-game menu language: a scrim over a live demo of the selected episode, stepped colour-cycling plates, and the soda can as cursor. <a href="#1a">1a</a> makes the launcher the episode's title screen, so you get one layer and go straight into play. <a href="#1b">1b</a> is a hub of episode cards that hands off to each episode's own title menu, so there are two layers with a way back. Settings are shared, and each row in Options can be set for one episode only (values marked * are overrides). Tap Version seven times to unlock the engine panel. Episodes 2 and 3 are mock-ups.</p>
+</header>
+<div style="display:flex;flex-wrap:wrap;gap:56px">
+
+<div id="1a" style="display:flex;flex-direction:column;gap:16px;width:824px">
+<div style="display:flex;align-items:center;gap:12px">
+<a href="#1a" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:999px;background:#ffaa40;color:#050507;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;text-decoration:none">1a</a>
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#ffffff">Launcher is the title</div>
+<div style="font-size:12px;color:#7c8796;white-space:nowrap">One layer</div>
+</div>
+<div style="position:relative;width:824px;height:384px;padding:12px;box-sizing:border-box;border-radius:44px;background:#16161c;box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)">
+<div style="position:relative;width:800px;height:360px;border-radius:32px;overflow:hidden;background:#000000">
+<dc-import name="FizzLauncher" direction="inline" label="1a Live" hint-size="800px,360px"></dc-import>
+<div style="position:absolute;left:16px;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:999px;background:#000000;box-shadow:0 0 0 2px #1c1c22;pointer-events:none"></div>
+<div style="position:absolute;left:50%;bottom:6px;width:120px;height:4px;margin-left:-60px;border-radius:999px;background:rgba(255,255,255,.55);pointer-events:none"></div>
+</div>
+</div>
+<p style="margin:0;font-size:13px;line-height:1.55;color:#b4bfce;text-wrap:pretty">Swipe the demo or tap ← → to change episodes, and the menu below follows. Tap a row to select it, then tap again to choose it. Continue, Load and New game boot the episode with no title screen of its own. Episodes with no saves leave out Continue (try Episode 3). Overrides belong to whichever episode is showing.</p>
+<div style="display:grid;grid-template-columns:repeat(2,400px);gap:24px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;color:#7c8796">Options · Episode 1 · Scanlines overridden</div>
+<div style="width:400px;height:180px;overflow:hidden;border-radius:12px"><div style="transform:scale(.5);transform-origin:0 0;width:800px;height:360px"><dc-import name="FizzLauncher" direction="inline" screen="options" tab="display" sel="1" label="1a Options" hint-size="800px,360px"></dc-import></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;color:#7c8796">Load game · Autosave + Slot 1–4, export and import</div>
+<div style="width:400px;height:180px;overflow:hidden;border-radius:12px"><div style="transform:scale(.5);transform-origin:0 0;width:800px;height:360px"><dc-import name="FizzLauncher" direction="inline" screen="load" sel="1" label="1a Load" hint-size="800px,360px"></dc-import></div></div>
+</div>
+</div>
+</div>
+
+<div id="1b" style="display:flex;flex-direction:column;gap:16px;width:824px">
+<div style="display:flex;align-items:center;gap:12px">
+<a href="#1b" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:999px;background:#ffaa40;color:#050507;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;text-decoration:none">1b</a>
+<div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#ffffff">Hub hands off</div>
+<div style="font-size:12px;color:#7c8796;white-space:nowrap">Two layers</div>
+</div>
+<div style="position:relative;width:824px;height:384px;padding:12px;box-sizing:border-box;border-radius:44px;background:#16161c;box-shadow:0 20px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08)">
+<div style="position:relative;width:800px;height:360px;border-radius:32px;overflow:hidden;background:#000000">
+<dc-import name="FizzLauncher" direction="handoff" label="1b Live" hint-size="800px,360px"></dc-import>
+<div style="position:absolute;left:16px;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:999px;background:#000000;box-shadow:0 0 0 2px #1c1c22;pointer-events:none"></div>
+<div style="position:absolute;left:50%;bottom:6px;width:120px;height:4px;margin-left:-60px;border-radius:999px;background:rgba(255,255,255,.55);pointer-events:none"></div>
+</div>
+</div>
+<p style="margin:0;font-size:13px;line-height:1.55;color:#b4bfce;text-wrap:pretty">Tap a card to bring it forward, then tap it again to open that episode's own title menu. Options here are global (no scope switch). Options opened from inside an episode get the per-row switch. Saves at the hub export or import every episode in one file. Use ← Episodes to come back out.</p>
+<div style="display:grid;grid-template-columns:repeat(2,400px);gap:24px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;color:#7c8796">Episode 2's title, after the hand-off</div>
+<div style="width:400px;height:180px;overflow:hidden;border-radius:12px"><div style="transform:scale(.5);transform-origin:0 0;width:800px;height:360px"><dc-import name="FizzLauncher" direction="handoff" screen="main" episode="2" label="1b Episode title" hint-size="800px,360px"></dc-import></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:13px;color:#7c8796">Options · Controls tab · Controller status</div>
+<div style="width:400px;height:180px;overflow:hidden;border-radius:12px"><div style="transform:scale(.5);transform-origin:0 0;width:800px;height:360px"><dc-import name="FizzLauncher" direction="handoff" screen="options" tab="controls" sel="3" label="1b Options" hint-size="800px,360px"></dc-import></div></div>
+</div>
+</div>
+</div>
+
+</div>
+</section>
+</x-dc>
+</body>
+</html>

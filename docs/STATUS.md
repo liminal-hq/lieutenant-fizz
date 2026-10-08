@@ -45,14 +45,16 @@ Verified by `cargo test`, `vitest` (including the real WASM) and a real browser 
 
 ## Planned
 Written down in `docs/` before any code, and iterated in pull requests. None of it is built.
-- **Tauri app and React launcher** (`docs/APP.md`): one Android and desktop app for every episode, with a React launcher that replaces each episode's title screen when launched from the app, a shared options key and a launch contract.
-- **Mobile** (`docs/MOBILE.md`): touch controls, a UI layout tailored to phones, and haptics through the Tauri haptics plugin, driven by the same events as audio and captions.
+- **Tauri app and launcher** (`docs/APP.md`): one Android and desktop app for every episode, with a game-style launcher (a carousel of episodes plus an App settings stop) that replaces each episode's title screen when launched from the app, global options with per-episode overrides, a launch contract, `.fizzsave` export and import, and the chosen app icon.
+- **Mobile** (`docs/MOBILE.md`): the phone title, glass D-pad and Jump, Pogo and Fizz buttons, a phone layout for every screen, and haptics through an upgraded Tauri haptics plugin, driven by the same events as audio and captions.
+- **Design export:** `design/` was refreshed with the launcher, mobile and app icon artboards, the launcher art generator and the haptics plugin proposal.
 
 ## Known gaps and deviations
 - **Quick-save is progress-only.** The prototype serialised the whole simulation mid-level; the port saves progress at map granularity (F5 in a level saves progress, F9 returns to the map). Full mid-level snapshots need a serialisable world in Rust (planned).
 - **Playability is only partly tested.** The playtest bot proves Crater Fields, Crystal Caves, Meteor Mesa, Zarg Lookout, Marshmallow Meadows, Bonbon Playhouse, Fudge Bog, Mirror Shafts, the Sugar Glass Gallery, Frosting Flats, Frosting Spire, the Cocoa Foundry and Whisper Hollow can be finished without enemies. No human has played them, difficulty tuning and secret areas are still open questions, and the boss fight is untested.
 - **Overworld simulation** lives in the same Rust world, but its light is flat (no lighting), like the prototype.
 - **Cinematic text** uses the prototype's eight panels, which `STORY.md` records in full.
+- **New settings from the designs** (Pixels Sharp or Soft, Scanlines, Screen shake, desktop window mode and rumble) are not built; see `docs/APP.md`.
 - **Design-system tokens:** the overlay uses the Afterglow colours, scrims and panels as hard-coded values, not the Liminal HQ design-system tokens or components.
 - **Sparse spatial grid / quadtree** for entity-entity tests is not built (O(n) per level, as in the prototype). Entities are cloned per tick; shots and effects still allocate, so the "no GC / no allocation in play" target is not met yet.
 - **Cast shadows, WebGPU, Tauri shell, React overlay** from the spec are not started. The Tauri app and the React launcher are planned in `docs/APP.md`.

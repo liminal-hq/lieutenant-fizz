@@ -57,12 +57,20 @@ function benMap(f) {
   else { p.rect(5, 12, 2, 1, 'B'); p.rect(9, 12, 2, 2, 'B'); p.rect(4, 13, 3, 1, 'R'); p.rect(9, 14, 3, 1, 'R'); }
   return p.outline().g;
 }
-function billy(caged) {
+function billy(caged, alt) {
   const p = new Pen(16, 24);
+  if (alt) {
+    p.ell(8, 7, 4.5, 4, 'D', (i, j) => j <= 8); p.rect(7, 3, 2, 6, 'r'); p.rect(4, 8, 9, 1, 'k');
+    p.rect(5, 9, 6, 4, 'W'); p.rect(4, 10, 1, 2, 'L'); p.rect(11, 10, 1, 2, 'L');
+    p.rect(4, 10, 8, 1, 'k'); p.rect(5, 11, 2, 1, 'k'); p.rect(9, 11, 2, 1, 'k'); p.px(5, 10, 'D'); p.px(9, 10, 'D'); p.px(8, 12, 'r');
+    p.rect(4, 13, 8, 5, 'k'); p.rect(7, 13, 2, 5, 'r'); p.rect(4, 17, 8, 1, 'R'); p.rect(3, 14, 1, 3, 'k'); p.rect(12, 14, 1, 3, 'k'); p.px(3, 16, 'r'); p.px(12, 16, 'r');
+    p.rect(5, 18, 2, 4, 'k'); p.rect(9, 18, 2, 4, 'k'); p.px(5, 19, 'r'); p.px(10, 19, 'r'); p.rect(4, 22, 3, 2, 'r'); p.rect(9, 22, 3, 2, 'r');
+  } else {
   p.ell(8, 7, 4.5, 4, 'y', (i, j) => j <= 8); p.rect(7, 3, 2, 6, 'R'); p.rect(4, 8, 9, 1, 'N');
   p.rect(5, 9, 6, 4, 'W'); p.px(7, 10, 'k'); p.px(9, 10, 'k'); p.px(8, 12, 'r'); p.rect(4, 10, 1, 2, 'L'); p.rect(11, 10, 1, 2, 'L');
   p.rect(4, 13, 8, 5, 'g'); p.rect(4, 17, 8, 1, 'G'); p.rect(3, 14, 1, 3, 'g'); p.rect(12, 14, 1, 3, 'g');
   p.rect(5, 18, 2, 4, 'B'); p.rect(9, 18, 2, 4, 'B'); p.rect(4, 22, 3, 2, 'W'); p.rect(9, 22, 3, 2, 'W');
+  }
   p.outline();
   if (caged) { p.rect(0, 0, 16, 2, 'D'); p.rect(0, 22, 16, 2, 'D'); for (let x = 0; x < 16; x += 3) p.rect(x, 2, 1, 20, 'L'); p.rect(0, 1, 16, 1, 'L'); }
   return p.g;
@@ -329,7 +337,7 @@ function lamp() { const p = new Pen(16, 16); p.rect(7, 0, 2, 7, 'D'); for (let j
 export function defineSprites() {
   const d = [], add = (name, g, tile) => d.push({ name, g, w: g[0].length, h: g.length, tile: !!tile });
   ['stand', 'run1', 'run2', 'jump', 'shoot', 'pogo', 'pogo2'].forEach(p => add('ben_' + p, ben(p)));
-  add('benMap0', benMap(0)); add('benMap1', benMap(1)); add('billyCage', billy(true)); add('billy', billy(false));
+  add('benMap0', benMap(0)); add('benMap1', benMap(1)); add('billyCage', billy(true)); add('billy', billy(false)); add('billyAlt', billy(false, true));
   [['gloop', gloop], ['hopper', hopper], ['marsh', marsh], ['beetle', beetle], ['bat', bat], ['pod', pod], ['phantom', phantom], ['sentry', sentry], ['drone', drone], ['boss', boss], ['spore', spore]].forEach(([n, f]) => { add(n + '0', f(0)); add(n + '1', f(1)); });
   add('roller', roller());
   add('bubble', bubble()); add('zshot', zshot()); add('glob', glob()); add('stars0', stars(0)); add('stars1', stars(1)); add('puff', puff());

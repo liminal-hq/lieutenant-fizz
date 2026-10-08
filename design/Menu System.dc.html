@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/colours.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/typography.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/base.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/styles.css">
+<script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
+<style>html,body{margin:0;background:#050507;color:#e0e0e0}a{color:#ffaa40}a:hover{color:#ffc06e}</style>
+</helmet>
+<section data-screen-label="Turn 3 · Fizz title, fits the viewport" style="padding:56px 56px 0;display:flex;flex-direction:column;gap:28px;font-family:Inter,sans-serif;background:#050507;min-width:100%;width:max-content;box-sizing:border-box">
+<div style="display:flex;flex-direction:column;gap:8px;max-width:980px">
+<h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:32px;letter-spacing:-0.02em;color:#fff">Fizz title · built on <a href="#2a">2a</a>, fills the viewport</h1>
+<p style="margin:0;font-size:15px;line-height:1.6;color:#b4bfce;text-wrap:pretty">No fixed 320 × 200 canvas. Like the shipped game, the scene is drawn at native resolution, about 12 tiles tall at a whole-number pixel scale, and the menu sits in the DOM layer on top. Type size steps between 2×, 3× and 4× with the viewport height, padding follows the shipped clamp() rules, and on narrow screens the logo breaks onto two lines. Behind the menu, attract mode pans back and forth across the real Crater Fields, Crystal Caves and Mildred’s Citadel layouts, then fades to the next level. The bullet is a can of fizz.</p>
+<p style="margin:0;font-size:13px;color:#7c8796">Every frame is the full prototype: New Game plays the scene with the HUD, Esc pauses, and Load, Save, Options and Controls all work. Text size Large in Options steps the type up a size. <a href="Fizz Title Live.dc.html">Open it full screen →</a></p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start">
+<div id="3a" style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">3a</span><span style="font-size:13px;color:#b4bfce">Desktop · 1280 × 720</span></div>
+<div style="width:1280px;height:720px;border-radius:6px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08)">
+<dc-import name="Fizz Title Live" frame="{{ true }}" screen="title" hints="{{ hints }}" motion="{{ motion }}" style="width:1280px;height:720px" hint-size="1280px,720px"></dc-import>
+</div>
+</div>
+<div id="3b" style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">3b</span><span style="font-size:13px;color:#b4bfce">Laptop window · 1000 × 615 (the size the repo checks)</span></div>
+<div style="width:1000px;height:615px;border-radius:6px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08)">
+<dc-import name="Fizz Title Live" frame="{{ true }}" screen="options" hints="{{ hints }}" motion="{{ motion }}" style="width:1000px;height:615px" hint-size="1000px,615px"></dc-import>
+</div>
+</div>
+<div id="3c" style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">3c</span><span style="font-size:13px;color:#b4bfce">Ultrawide · 1600 × 600</span></div>
+<div style="width:1600px;height:600px;border-radius:6px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08)">
+<dc-import name="Fizz Title Live" frame="{{ true }}" screen="saves" hints="{{ hints }}" motion="{{ motion }}" style="width:1600px;height:600px" hint-size="1600px,600px"></dc-import>
+</div>
+</div>
+<div id="3d" style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">3d</span><span style="font-size:13px;color:#b4bfce">Phone, portrait · 390 × 700</span></div>
+<div style="width:390px;height:700px;border-radius:6px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08)">
+<dc-import name="Fizz Title Live" frame="{{ true }}" screen="title" hints="{{ hints }}" motion="{{ motion }}" style="width:390px;height:700px" hint-size="390px,700px"></dc-import>
+</div>
+</div>
+</div>
+</section>
+<section data-screen-label="Turn 2 · Fizz menu systems" style="padding:56px 56px 0;display:flex;flex-direction:column;gap:32px;font-family:Inter,sans-serif;background:#050507;min-width:100%;width:max-content;box-sizing:border-box">
+<div style="display:flex;flex-direction:column;gap:8px;max-width:960px">
+<h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:32px;letter-spacing:-0.02em;color:#fff">Fizz menu systems · four directions, eight screens</h1>
+<p style="margin:0;font-size:15px;line-height:1.6;color:#b4bfce;text-wrap:pretty">DOS shareware feel, modern behaviour. All text is set in the Fizz pixel font, and the backdrops and cursors are the game’s own sprites. Every frame is live: hover or click rows, or hover a frame and use the arrow keys and Enter (left and right change Options values). Hints switch to gamepad glyphs when a pad connects. Ben idles, leans on the logo, pogos across it, looks at the menu when the selection moves, and waves when you pick something. Reduced motion freezes the animation and shows card text in full.</p>
+<p style="margin:0;font-size:13px;color:#7c8796">Tweaks: force keyboard or gamepad hints, and preview reduced motion.</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start">
+<div id="2a" style="display:flex;flex-direction:column;gap:18px;width:640px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">2a</span><span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#fff">Scrim list</span></div>
+<p style="margin:0;font-size:13px;line-height:1.55;color:#b4bfce">The shipped layout set in Fizz. A left list over a soft scrim, with a stepped orange plate that gently colour-cycles and a can of fizz bobbing beside it as the bullet.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Title</span><dc-import name="FizzMenuScreen" variant="scrim" screen="title" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Pause</span><dc-import name="FizzMenuScreen" variant="scrim" screen="pause" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Options</span><dc-import name="FizzMenuScreen" variant="scrim" screen="options" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Controls</span><dc-import name="FizzMenuScreen" variant="scrim" screen="controls" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Save slots</span><dc-import name="FizzMenuScreen" variant="scrim" screen="saves" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Game over card</span><dc-import name="FizzMenuScreen" variant="scrim" screen="gameover" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Level cleared card</span><dc-import name="FizzMenuScreen" variant="scrim" screen="cleared" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Overworld level prompt</span><dc-import name="FizzMenuScreen" variant="scrim" screen="prompt" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+</div>
+
+<div id="2b" style="display:flex;flex-direction:column;gap:18px;width:640px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">2b</span><span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#fff">Shareware window</span></div>
+<p style="margin:0;font-size:13px;line-height:1.55;color:#b4bfce">Keen-era blue window with a double cyan rule. The inverse bar cycles cyan to white, a cream soda can blinks as the cursor, and a grey status line sits along the bottom.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Title</span><dc-import name="FizzMenuScreen" variant="window" screen="title" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Pause</span><dc-import name="FizzMenuScreen" variant="window" screen="pause" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Options</span><dc-import name="FizzMenuScreen" variant="window" screen="options" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Controls</span><dc-import name="FizzMenuScreen" variant="window" screen="controls" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Save slots</span><dc-import name="FizzMenuScreen" variant="window" screen="saves" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Game over card</span><dc-import name="FizzMenuScreen" variant="window" screen="gameover" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Level cleared card</span><dc-import name="FizzMenuScreen" variant="window" screen="cleared" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Overworld level prompt</span><dc-import name="FizzMenuScreen" variant="window" screen="prompt" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+</div>
+
+<div id="2c" style="display:flex;flex-direction:column;gap:18px;width:640px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">2c</span><span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#fff">Marquee band</span></div>
+<p style="margin:0;font-size:13px;line-height:1.55;color:#b4bfce">A black band with orange and rose rules across the scene. Centred plate, with the spaghetti saucer hovering beside the selection.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Title</span><dc-import name="FizzMenuScreen" variant="band" screen="title" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Pause</span><dc-import name="FizzMenuScreen" variant="band" screen="pause" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Options</span><dc-import name="FizzMenuScreen" variant="band" screen="options" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Controls</span><dc-import name="FizzMenuScreen" variant="band" screen="controls" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Save slots</span><dc-import name="FizzMenuScreen" variant="band" screen="saves" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Game over card</span><dc-import name="FizzMenuScreen" variant="band" screen="gameover" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Level cleared card</span><dc-import name="FizzMenuScreen" variant="band" screen="cleared" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Overworld level prompt</span><dc-import name="FizzMenuScreen" variant="band" screen="prompt" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+</div>
+
+<div id="2d" style="display:flex;flex-direction:column;gap:18px;width:640px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">2d</span><span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#fff">Text mode</span></div>
+<p style="margin:0;font-size:13px;line-height:1.55;color:#b4bfce">Everything on a character grid: a cyan double frame round the screen, a magenta bar and a Cheezie cursor. The most DOS of the four.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Title</span><dc-import name="FizzMenuScreen" variant="text" screen="title" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Pause</span><dc-import name="FizzMenuScreen" variant="text" screen="pause" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Options</span><dc-import name="FizzMenuScreen" variant="text" screen="options" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Controls</span><dc-import name="FizzMenuScreen" variant="text" screen="controls" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Save slots</span><dc-import name="FizzMenuScreen" variant="text" screen="saves" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Game over card</span><dc-import name="FizzMenuScreen" variant="text" screen="gameover" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Level cleared card</span><dc-import name="FizzMenuScreen" variant="text" screen="cleared" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#7c8796">Overworld level prompt</span><dc-import name="FizzMenuScreen" variant="text" screen="prompt" hints="{{ hints }}" motion="{{ motion }}" hint-size="640px,400px"></dc-import></div>
+</div>
+</div>
+</section>
+<section data-screen-label="Turn 1 · Menu systems" style="padding:56px;display:flex;flex-direction:column;gap:32px;font-family:Inter,sans-serif;background:#050507;min-width:100%;width:max-content;box-sizing:border-box">
+<div style="display:flex;flex-direction:column;gap:8px;max-width:900px">
+<h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:32px;letter-spacing:-0.02em;color:#fff">Menu system · three directions</h1>
+<p style="margin:0;font-size:15px;line-height:1.6;color:#b4bfce;text-wrap:pretty">Each option shows the title screen, the pause menu and a card (game over) at 640 × 400. Items and copy come from <span style="font-family:'JetBrains Mono',monospace;font-size:13px">episodes/episode-1/src/game.ts</span>; colours stay inside the 16-colour EGA palette from <span style="font-family:'JetBrains Mono',monospace;font-size:13px">packages/engine/src/palette.ts</span> plus the Afterglow overlay tokens. All three are DOM overlay at native resolution, so text stays crisp over the pixel canvas.</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start">
+
+<!-- 1a -->
+<div id="1a" style="display:flex;flex-direction:column;gap:20px;width:640px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">1a</span><span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#fff">Afterglow overlay</span></div>
+<p style="margin:0;font-size:13px;line-height:1.55;color:#b4bfce">Evolves what ships today: unboxed Space Grotesk list over a soft scrim. Adds a full-row highlight, grouped pause items, value chips and a reason on disabled rows.</p>
+</div>
+
+<div data-screen-label="1a Title" style="position:relative;width:640px;height:400px;overflow:hidden;background:#050507;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.45)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<div style="position:absolute;inset:0 0 72px;background-image:radial-gradient(#ffffff 1px,rgba(0,0,0,0) 1.6px),radial-gradient(#ffff55 1px,rgba(0,0,0,0) 1.6px);background-size:61px 53px,97px 71px;background-position:7px 11px,41px 29px;opacity:.55"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:linear-gradient(180deg,#55ff55 0 4px,#00aa00 4px 12px,rgba(0,0,0,0) 12px),repeating-linear-gradient(90deg,#aa5500 0 30px,#000000 30px 32px)"></div>
+<div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,5,7,.94) 0%,rgba(5,5,7,.74) 48%,rgba(5,5,7,0) 82%)"></div>
+<div style="position:absolute;inset:0 0 32px;padding:0 44px;display:flex;flex-direction:column;justify-content:center;gap:26px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;color:#ffaa40;text-shadow:0 2px 0 #000">Ben Blaze in</span>
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:54px;line-height:.92;letter-spacing:-0.03em;color:#fff;text-shadow:0 4px 0 #f43f5e,0 8px 0 #000">Lieutenant Fizz</span>
+<span style="font-size:13px;color:#b4bfce;margin-top:6px">Episode 1 · The Cocoa Caper</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:2px;width:320px">
+<div style="display:flex;align-items:center;gap:10px;height:36px;padding:0 12px 0 8px;border-radius:8px;background:linear-gradient(90deg,rgba(255,170,64,.24),rgba(255,170,64,0));font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:#ffaa40;text-shadow:0 2px 0 #000"><span style="width:16px;font-size:16px">▸</span><span>New Game</span></div>
+<div style="display:flex;align-items:center;gap:10px;height:36px;padding:0 12px 0 8px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:22px;color:#7c8796"><span style="width:16px"></span><span>Continue</span><span style="margin-left:auto;font-family:Inter,sans-serif;font-weight:400;font-size:12px;color:#7c8796">No save yet</span></div>
+<div style="display:flex;align-items:center;gap:10px;height:36px;padding:0 12px 0 8px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:22px;color:#e0e0e0;text-shadow:0 2px 0 #000"><span style="width:16px"></span><span>Controls</span></div>
+<div style="display:flex;align-items:center;gap:10px;height:36px;padding:0 12px 0 8px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:22px;color:#e0e0e0;text-shadow:0 2px 0 #000"><span style="width:16px"></span><span>Music</span><span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-weight:500;font-size:13px;color:#e0e0e0;border:1px solid rgba(255,255,255,.22);border-radius:4px;padding:1px 8px;text-shadow:none">On</span></div>
+<div style="display:flex;align-items:center;gap:10px;height:36px;padding:0 12px 0 8px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:22px;color:#e0e0e0;text-shadow:0 2px 0 #000"><span style="width:16px"></span><span>Sound</span><span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-weight:500;font-size:13px;color:#e0e0e0;border:1px solid rgba(255,255,255,.22);border-radius:4px;padding:1px 8px;text-shadow:none">On</span></div>
+</div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:32px;padding:0 44px;display:flex;align-items:center;gap:18px;background:rgba(5,5,7,.88);font-size:12px;color:#b4bfce">
+<span style="display:flex;align-items:center;gap:6px"><span style="display:inline-flex;align-items:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,.22);border-bottom-width:2px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e0e0e0">↑ ↓</span>Choose</span>
+<span style="display:flex;align-items:center;gap:6px"><span style="display:inline-flex;align-items:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,.22);border-bottom-width:2px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e0e0e0">Enter</span><span style="display:inline-flex;align-items:center;min-width:22px;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,.22);border-bottom-width:2px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e0e0e0">A</span>Select</span>
+</div>
+</div>
+
+<div data-screen-label="1a Pause" style="position:relative;width:640px;height:400px;overflow:hidden;background:#050507;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.45)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<div style="position:absolute;inset:0 0 72px;background-image:radial-gradient(#ffffff 1px,rgba(0,0,0,0) 1.6px),radial-gradient(#ffff55 1px,rgba(0,0,0,0) 1.6px);background-size:61px 53px,97px 71px;background-position:7px 11px,41px 29px;opacity:.55"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:linear-gradient(180deg,#55ff55 0 4px,#00aa00 4px 12px,rgba(0,0,0,0) 12px),repeating-linear-gradient(90deg,#aa5500 0 30px,#000000 30px 32px)"></div>
+<div style="position:absolute;top:12px;left:12px;padding:8px 12px;display:grid;grid-template-columns:repeat(3,auto);gap:0 16px;background:rgba(12,12,16,.82);border:1px solid rgba(255,255,255,.1);border-radius:12px">
+<span style="font-size:10px;color:#7c8796">Score</span><span style="font-size:10px;color:#7c8796">Lives</span><span style="font-size:10px;color:#7c8796">Fizz</span>
+<span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:16px;color:#ffff55">240</span><span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:16px;color:#55ff55">3</span><span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:16px;color:#55ffff">5</span>
+</div>
+<div style="position:absolute;inset:0;background:rgba(5,5,7,.8)"></div>
+<div style="position:absolute;inset:0 0 32px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:40px;line-height:1;letter-spacing:-0.025em;color:#fff;text-shadow:0 3px 0 #f43f5e,0 6px 0 #000">Paused</span>
+<div style="display:flex;flex-direction:column;gap:1px;width:280px">
+<div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px 0 6px;border-radius:8px;background:rgba(255,170,64,.2);font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;color:#ffaa40"><span style="width:14px;font-size:14px">▸</span><span>Resume</span></div>
+<div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px 0 6px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:19px;color:#e0e0e0"><span style="width:14px"></span><span>Save game</span><span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-weight:400;font-size:12px;color:#b4bfce">F5</span></div>
+<div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px 0 6px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:19px;color:#e0e0e0"><span style="width:14px"></span><span>Load game</span><span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-weight:400;font-size:12px;color:#b4bfce">F9</span></div>
+<div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px 0 6px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:19px;color:#e0e0e0"><span style="width:14px"></span><span>Leave level</span></div>
+<div style="height:1px;margin:5px 10px;background:rgba(255,255,255,.12)"></div>
+<div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px 0 6px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:19px;color:#e0e0e0"><span style="width:14px"></span><span>Music</span><span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:#e0e0e0;border:1px solid rgba(255,255,255,.22);border-radius:4px;padding:0 8px">On</span></div>
+<div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px 0 6px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:19px;color:#e0e0e0"><span style="width:14px"></span><span>Sound</span><span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:#b4bfce;border:1px dashed rgba(255,255,255,.22);border-radius:4px;padding:0 8px">Off</span></div>
+<div style="height:1px;margin:5px 10px;background:rgba(255,255,255,.12)"></div>
+<div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px 0 6px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:19px;color:#e0e0e0"><span style="width:14px"></span><span>Quit to title</span></div>
+</div>
+<span style="max-width:340px;text-align:center;font-size:11px;line-height:1.5;color:#7c8796">Saves stay on this device. The map also saves automatically each time you return to it.</span>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:32px;display:flex;align-items:center;justify-content:center;gap:18px;font-size:12px;color:#b4bfce">
+<span style="display:flex;align-items:center;gap:6px"><span style="display:inline-flex;align-items:center;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,.22);border-bottom-width:2px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e0e0e0">↑ ↓</span>Choose</span>
+<span style="display:flex;align-items:center;gap:6px"><span style="display:inline-flex;align-items:center;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,.22);border-bottom-width:2px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e0e0e0">Enter</span>Select</span>
+<span style="display:flex;align-items:center;gap:6px"><span style="display:inline-flex;align-items:center;height:20px;padding:0 6px;box-sizing:border-box;border:1px solid rgba(255,255,255,.22);border-bottom-width:2px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e0e0e0">Esc</span>Resume</span>
+</div>
+</div>
+
+<div data-screen-label="1a Card" style="position:relative;width:640px;height:400px;overflow:hidden;background:#050507;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.45)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<div style="position:absolute;inset:0 0 72px;background-image:radial-gradient(#ffffff 1px,rgba(0,0,0,0) 1.6px),radial-gradient(#ffff55 1px,rgba(0,0,0,0) 1.6px);background-size:61px 53px,97px 71px;background-position:7px 11px,41px 29px;opacity:.55"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:linear-gradient(180deg,#55ff55 0 4px,#00aa00 4px 12px,rgba(0,0,0,0) 12px),repeating-linear-gradient(90deg,#aa5500 0 30px,#000000 30px 32px)"></div>
+<div style="position:absolute;inset:0;background:rgba(5,5,7,.8)"></div>
+<div style="position:absolute;inset:0;padding:0 64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:44px;line-height:1;letter-spacing:-0.025em;color:#fff;text-shadow:0 3px 0 #f43f5e,0 6px 0 #000">Out of lives</span>
+<span style="max-width:420px;font-size:15px;line-height:1.6;color:#b4bfce;text-wrap:pretty">You finished with 240 snack points. Your last save is still on this device.</span>
+<div style="display:flex;flex-direction:column;gap:2px;width:260px;margin-top:4px">
+<div style="display:flex;align-items:center;justify-content:center;gap:10px;height:34px;border-radius:8px;background:rgba(255,170,64,.2);font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;color:#ffaa40"><span style="font-size:14px">▸</span><span>Load last save</span><span style="width:14px"></span></div>
+<div style="display:flex;align-items:center;justify-content:center;gap:10px;height:34px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#e0e0e0"><span style="width:14px"></span><span>Title screen</span><span style="width:14px"></span></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1b -->
+<div id="1b" style="display:flex;flex-direction:column;gap:20px;width:640px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">1b</span><span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#fff">EGA dialog</span></div>
+<p style="margin:0;font-size:13px;line-height:1.55;color:#b4bfce">Pure 16-colour palette, like a DOS-era shareware menu. Blue window with a double cyan rule, inverse-bar selection, yellow hotkey letters and a grey status line. Monospace keeps every row on the grid.</p>
+</div>
+
+<div data-screen-label="1b Title" style="position:relative;width:640px;height:400px;overflow:hidden;background:#000000;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.45)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<div style="position:absolute;inset:0 0 72px;background-image:radial-gradient(#ffffff 1px,rgba(0,0,0,0) 1.6px),radial-gradient(#ffff55 1px,rgba(0,0,0,0) 1.6px);background-size:61px 53px,97px 71px;background-position:7px 11px,41px 29px;opacity:.55"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:linear-gradient(180deg,#55ff55 0 4px,#00aa00 4px 12px,rgba(0,0,0,0) 12px),repeating-linear-gradient(90deg,#aa5500 0 30px,#000000 30px 32px)"></div>
+<div style="position:absolute;inset:0 0 26px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;font-family:'JetBrains Mono',monospace">
+<div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+<span style="font-size:13px;font-weight:600;color:#55ffff;text-shadow:2px 2px 0 #000">Ben Blaze in</span>
+<span style="font-size:42px;font-weight:800;line-height:1;letter-spacing:-0.02em;color:#ffff55;text-shadow:3px 3px 0 #aa5500,6px 6px 0 #000">Lieutenant Fizz</span>
+<span style="font-size:13px;color:#ffffff;text-shadow:2px 2px 0 #000">Episode 1 · The Cocoa Caper</span>
+</div>
+<div style="position:relative;width:300px;padding:16px 8px 10px;background:#0000aa;border:6px double #55ffff;box-shadow:8px 8px 0 #000000">
+<span style="position:absolute;top:-13px;left:50%;transform:translateX(-50%);padding:0 8px;background:#0000aa;font-size:13px;font-weight:700;color:#ffff55;white-space:nowrap">Main menu</span>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;height:30px;padding:0 10px;background:#55ffff;color:#000000;font-size:17px;font-weight:700"><span style="width:20px">►</span><span><span style="text-decoration:underline">N</span>ew Game</span></div>
+<div style="display:flex;align-items:center;height:30px;padding:0 10px;color:#aaaaaa;font-size:17px"><span style="width:20px"></span><span>Continue</span><span style="margin-left:auto;font-size:12px">no save</span></div>
+<div style="display:flex;align-items:center;height:30px;padding:0 10px;color:#ffffff;font-size:17px"><span style="width:20px"></span><span><span style="color:#ffff55">C</span>ontrols</span></div>
+<div style="display:flex;align-items:center;height:30px;padding:0 10px;color:#ffffff;font-size:17px"><span style="width:20px"></span><span><span style="color:#ffff55">M</span>usic</span><span style="margin-left:auto;color:#55ff55">[On ]</span></div>
+<div style="display:flex;align-items:center;height:30px;padding:0 10px;color:#ffffff;font-size:17px"><span style="width:20px"></span><span><span style="color:#ffff55">S</span>ound</span><span style="margin-left:auto;color:#55ff55">[On ]</span></div>
+</div>
+</div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:26px;padding:0 14px;display:flex;align-items:center;gap:20px;background:#aaaaaa;color:#000000;font-family:'JetBrains Mono',monospace;font-size:12px">
+<span style="display:flex;align-items:center;gap:6px"><span style="background:#000;color:#fff;padding:1px 6px">↑↓</span>Choose</span>
+<span style="display:flex;align-items:center;gap:6px"><span style="background:#000;color:#fff;padding:1px 6px">Enter</span>Select</span>
+<span style="display:flex;align-items:center;gap:6px"><span style="background:#000;color:#fff;padding:1px 6px">N C M S</span>Jump to item</span>
+</div>
+</div>
+
+<div data-screen-label="1b Pause" style="position:relative;width:640px;height:400px;overflow:hidden;background:#000000;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.45)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<div style="position:absolute;inset:0 0 72px;background-image:radial-gradient(#ffffff 1px,rgba(0,0,0,0) 1.6px),radial-gradient(#ffff55 1px,rgba(0,0,0,0) 1.6px);background-size:61px 53px,97px 71px;background-position:7px 11px,41px 29px;opacity:.55"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:linear-gradient(180deg,#55ff55 0 4px,#00aa00 4px 12px,rgba(0,0,0,0) 12px),repeating-linear-gradient(90deg,#aa5500 0 30px,#000000 30px 32px)"></div>
+<div style="position:absolute;top:12px;left:12px;padding:6px 10px;display:grid;grid-template-columns:repeat(3,auto);gap:0 16px;background:#000;border:2px solid #555555;font-family:'JetBrains Mono',monospace">
+<span style="font-size:10px;color:#aaaaaa">Score</span><span style="font-size:10px;color:#aaaaaa">Lives</span><span style="font-size:10px;color:#aaaaaa">Fizz</span>
+<span style="font-weight:700;font-size:16px;color:#ffff55">240</span><span style="font-weight:700;font-size:16px;color:#55ff55">3</span><span style="font-weight:700;font-size:16px;color:#55ffff">5</span>
+</div>
+<div style="position:absolute;inset:0;background:rgba(0,0,0,.5)"></div>
+<div style="position:absolute;inset:0 0 26px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace">
+<div style="position:relative;width:320px;padding:16px 8px 10px;background:#0000aa;border:6px double #55ffff;box-shadow:8px 8px 0 #000000">
+<span style="position:absolute;top:-13px;left:50%;transform:translateX(-50%);padding:0 8px;background:#0000aa;font-size:13px;font-weight:700;color:#ffff55">Paused</span>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;height:27px;padding:0 10px;background:#55ffff;color:#000;font-size:16px;font-weight:700"><span style="width:20px">►</span><span><span style="text-decoration:underline">R</span>esume</span><span style="margin-left:auto;font-size:12px;font-weight:400">Esc</span></div>
+<div style="display:flex;align-items:center;height:27px;padding:0 10px;color:#fff;font-size:16px"><span style="width:20px"></span><span><span style="color:#ffff55">S</span>ave game</span><span style="margin-left:auto;font-size:12px;color:#aaaaaa">F5</span></div>
+<div style="display:flex;align-items:center;height:27px;padding:0 10px;color:#fff;font-size:16px"><span style="width:20px"></span><span><span style="color:#ffff55">L</span>oad game</span><span style="margin-left:auto;font-size:12px;color:#aaaaaa">F9</span></div>
+<div style="display:flex;align-items:center;height:27px;padding:0 10px;color:#fff;font-size:16px"><span style="width:20px"></span><span>Lea<span style="color:#ffff55">v</span>e level</span></div>
+<div style="height:0;margin:5px 10px;border-top:2px solid #5555ff"></div>
+<div style="display:flex;align-items:center;height:27px;padding:0 10px;color:#fff;font-size:16px"><span style="width:20px"></span><span><span style="color:#ffff55">M</span>usic</span><span style="margin-left:auto;color:#55ff55">[On ]</span></div>
+<div style="display:flex;align-items:center;height:27px;padding:0 10px;color:#fff;font-size:16px"><span style="width:20px"></span><span>S<span style="color:#ffff55">o</span>und</span><span style="margin-left:auto;color:#aaaaaa">[Off]</span></div>
+<div style="height:0;margin:5px 10px;border-top:2px solid #5555ff"></div>
+<div style="display:flex;align-items:center;height:27px;padding:0 10px;color:#fff;font-size:16px"><span style="width:20px"></span><span><span style="color:#ffff55">Q</span>uit to title</span></div>
+</div>
+</div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:26px;padding:0 14px;display:flex;align-items:center;background:#aaaaaa;color:#000000;font-family:'JetBrains Mono',monospace;font-size:12px">Saves stay on this device · the map autosaves each visit</div>
+</div>
+
+<div data-screen-label="1b Card" style="position:relative;width:640px;height:400px;overflow:hidden;background:#000000;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.45)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<div style="position:absolute;inset:0 0 72px;background-image:radial-gradient(#ffffff 1px,rgba(0,0,0,0) 1.6px),radial-gradient(#ffff55 1px,rgba(0,0,0,0) 1.6px);background-size:61px 53px,97px 71px;background-position:7px 11px,41px 29px;opacity:.55"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:linear-gradient(180deg,#55ff55 0 4px,#00aa00 4px 12px,rgba(0,0,0,0) 12px),repeating-linear-gradient(90deg,#aa5500 0 30px,#000000 30px 32px)"></div>
+<div style="position:absolute;inset:0;background:rgba(0,0,0,.5)"></div>
+<div style="position:absolute;inset:0 0 26px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace">
+<div style="position:relative;width:420px;padding:22px 22px 18px;background:#0000aa;border:6px double #55ffff;box-shadow:8px 8px 0 #000000;display:flex;flex-direction:column;gap:18px;align-items:center;text-align:center">
+<span style="position:absolute;top:-13px;left:50%;transform:translateX(-50%);padding:0 8px;background:#0000aa;font-size:13px;font-weight:700;color:#ffff55;white-space:nowrap">Out of lives</span>
+<span style="font-size:15px;line-height:1.6;color:#ffffff;text-wrap:pretty">You finished with <span style="color:#ffff55">240</span> snack points. Your last save is still on this device.</span>
+<div style="display:flex;gap:14px">
+<span style="padding:5px 12px;background:#55ffff;color:#000;font-size:15px;font-weight:700">► <span style="text-decoration:underline">L</span>oad last save</span>
+<span style="padding:5px 12px;background:#000000;color:#ffffff;font-size:15px"><span style="color:#ffff55">T</span>itle screen</span>
+</div>
+</div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:26px;padding:0 14px;display:flex;align-items:center;gap:20px;background:#aaaaaa;color:#000000;font-family:'JetBrains Mono',monospace;font-size:12px">
+<span style="display:flex;align-items:center;gap:6px"><span style="background:#000;color:#fff;padding:1px 6px">← →</span>Choose</span>
+<span style="display:flex;align-items:center;gap:6px"><span style="background:#000;color:#fff;padding:1px 6px">Enter</span>Select</span>
+</div>
+</div>
+</div>
+
+<!-- 1c -->
+<div id="1c" style="display:flex;flex-direction:column;gap:20px;width:640px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">1c</span><span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#fff">Arcade marquee</span></div>
+<p style="margin:0;font-size:13px;line-height:1.55;color:#b4bfce">Big centred type with a solid, stepped-corner pixel plate for the selection, readable from the couch. Settings become left/right switches; pause splits into Game and Settings across a black band.</p>
+</div>
+
+<div data-screen-label="1c Title" style="position:relative;width:640px;height:400px;overflow:hidden;background:#050507;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.45)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<div style="position:absolute;inset:0 0 72px;background-image:radial-gradient(#ffffff 1px,rgba(0,0,0,0) 1.6px),radial-gradient(#ffff55 1px,rgba(0,0,0,0) 1.6px);background-size:61px 53px,97px 71px;background-position:7px 11px,41px 29px;opacity:.55"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:linear-gradient(180deg,#55ff55 0 4px,#00aa00 4px 12px,rgba(0,0,0,0) 12px),repeating-linear-gradient(90deg,#aa5500 0 30px,#000000 30px 32px)"></div>
+<div style="position:absolute;inset:0;background:radial-gradient(60% 70% at 50% 50%,rgba(5,5,7,.85),rgba(5,5,7,.4))"></div>
+<div style="position:absolute;inset:0 0 34px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px">
+<div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;color:#ffaa40;text-shadow:0 2px 0 #000">Ben Blaze in</span>
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:50px;line-height:.95;letter-spacing:-0.03em;color:#fff;text-shadow:0 4px 0 #f43f5e,0 8px 0 #000">Lieutenant Fizz</span>
+<span style="font-size:12px;color:#b4bfce;margin-top:6px">Episode 1 · The Cocoa Caper</span>
+</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+<div style="display:flex;align-items:center;height:36px;padding:0 26px;background:#ffaa40;color:#1a1000;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)">New Game</div>
+<div style="display:flex;align-items:center;gap:8px;height:32px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:#7c8796">Continue<span style="font-family:Inter,sans-serif;font-weight:400;font-size:12px">· no save yet</span></div>
+<div style="display:flex;align-items:center;height:32px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;color:#ffffff;text-shadow:0 2px 0 #000">Controls</div>
+<div style="display:flex;align-items:center;gap:10px;height:32px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;color:#ffffff;text-shadow:0 2px 0 #000">Music<span style="display:flex;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;text-shadow:none"><span style="padding:2px 8px;background:#55ff55;color:#000">On</span><span style="padding:2px 8px;background:#555555;color:#ffffff">Off</span></span></div>
+<div style="display:flex;align-items:center;gap:10px;height:32px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;color:#ffffff;text-shadow:0 2px 0 #000">Sound<span style="display:flex;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;text-shadow:none"><span style="padding:2px 8px;background:#55ff55;color:#000">On</span><span style="padding:2px 8px;background:#555555;color:#ffffff">Off</span></span></div>
+</div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:34px;display:flex;align-items:center;justify-content:center;gap:22px;background:#000;font-size:12px;color:#e0e0e0">
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#aaaaaa;color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #555555">↑↓</span>Choose</span>
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#aaaaaa;color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #555555">←→</span>Switch</span>
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#ffaa40;color:#1a1000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #aa5500">Jump</span>Select</span>
+</div>
+</div>
+
+<div data-screen-label="1c Pause" style="position:relative;width:640px;height:400px;overflow:hidden;background:#050507;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.45)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<div style="position:absolute;inset:0 0 72px;background-image:radial-gradient(#ffffff 1px,rgba(0,0,0,0) 1.6px),radial-gradient(#ffff55 1px,rgba(0,0,0,0) 1.6px);background-size:61px 53px,97px 71px;background-position:7px 11px,41px 29px;opacity:.55"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:linear-gradient(180deg,#55ff55 0 4px,#00aa00 4px 12px,rgba(0,0,0,0) 12px),repeating-linear-gradient(90deg,#aa5500 0 30px,#000000 30px 32px)"></div>
+<div style="position:absolute;top:12px;left:12px;padding:8px 12px;display:grid;grid-template-columns:repeat(3,auto);gap:0 16px;background:rgba(12,12,16,.82);border:1px solid rgba(255,255,255,.1);border-radius:12px">
+<span style="font-size:10px;color:#7c8796">Score</span><span style="font-size:10px;color:#7c8796">Lives</span><span style="font-size:10px;color:#7c8796">Fizz</span>
+<span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:16px;color:#ffff55">240</span><span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:16px;color:#55ff55">3</span><span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:16px;color:#55ffff">5</span>
+</div>
+<div style="position:absolute;inset:0;background:rgba(5,5,7,.45)"></div>
+<div style="position:absolute;left:0;right:0;top:66px;height:268px;background:#000000;border-top:4px solid #ffaa40;border-bottom:4px solid #f43f5e;box-sizing:border-box;padding:20px 40px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 40px">
+<div style="display:flex;flex-direction:column;gap:4px">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:34px;line-height:1;letter-spacing:-0.025em;color:#fff;text-shadow:0 3px 0 #f43f5e;margin-bottom:10px">Paused</span>
+<div style="display:flex;align-items:center;align-self:flex-start;height:30px;padding:0 18px;background:#ffaa40;color:#1a1000;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)">Resume</div>
+<div style="display:flex;align-items:center;gap:10px;height:30px;padding:0 18px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;color:#fff">Save game<span style="font-family:'JetBrains Mono',monospace;font-weight:400;font-size:11px;color:#aaaaaa">F5</span></div>
+<div style="display:flex;align-items:center;gap:10px;height:30px;padding:0 18px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;color:#fff">Load game<span style="font-family:'JetBrains Mono',monospace;font-weight:400;font-size:11px;color:#aaaaaa">F9</span></div>
+<div style="display:flex;align-items:center;height:30px;padding:0 18px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;color:#fff">Leave level</div>
+<div style="display:flex;align-items:center;height:30px;padding:0 18px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;color:#fff">Quit to title</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:4px;padding-top:6px">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;color:#ffaa40;margin-bottom:14px;margin-top:14px">Settings</span>
+<div style="display:flex;align-items:center;justify-content:space-between;height:30px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;color:#fff">Music<span style="display:flex;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px"><span style="padding:2px 8px;background:#55ff55;color:#000">On</span><span style="padding:2px 8px;background:#555555;color:#fff">Off</span></span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:30px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;color:#fff">Sound<span style="display:flex;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px"><span style="padding:2px 8px;background:#555555;color:#fff">On</span><span style="padding:2px 8px;background:#ffff55;color:#000">Off</span></span></div>
+<span style="margin-top:auto;font-size:11px;line-height:1.5;color:#aaaaaa;text-wrap:pretty">Saves stay on this device. The map also saves automatically each time you return to it.</span>
+</div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:34px;display:flex;align-items:center;justify-content:center;gap:22px;background:#000;font-size:12px;color:#e0e0e0">
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#aaaaaa;color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #555555">↑↓←→</span>Choose</span>
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#ffaa40;color:#1a1000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #aa5500">Jump</span>Select</span>
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#aaaaaa;color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #555555">Esc</span>Resume</span>
+</div>
+</div>
+
+<div data-screen-label="1c Card" style="position:relative;width:640px;height:400px;overflow:hidden;background:#050507;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.45)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<div style="position:absolute;inset:0 0 72px;background-image:radial-gradient(#ffffff 1px,rgba(0,0,0,0) 1.6px),radial-gradient(#ffff55 1px,rgba(0,0,0,0) 1.6px);background-size:61px 53px,97px 71px;background-position:7px 11px,41px 29px;opacity:.55"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:linear-gradient(180deg,#55ff55 0 4px,#00aa00 4px 12px,rgba(0,0,0,0) 12px),repeating-linear-gradient(90deg,#aa5500 0 30px,#000000 30px 32px)"></div>
+<div style="position:absolute;inset:0;background:rgba(5,5,7,.45)"></div>
+<div style="position:absolute;left:0;right:0;top:96px;height:208px;background:#000000;border-top:4px solid #ffaa40;border-bottom:4px solid #f43f5e;box-sizing:border-box;padding:0 40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center">
+<span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:40px;line-height:1;letter-spacing:-0.025em;color:#fff;text-shadow:0 3px 0 #f43f5e">Out of lives</span>
+<span style="max-width:440px;font-size:15px;line-height:1.55;color:#b4bfce;text-wrap:pretty">You finished with 240 snack points. Your last save is still on this device.</span>
+<div style="display:flex;gap:12px;margin-top:4px">
+<div style="display:flex;align-items:center;height:34px;padding:0 20px;background:#ffaa40;color:#1a1000;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)">Load last save</div>
+<div style="display:flex;align-items:center;height:34px;padding:0 20px;background:#555555;color:#ffffff;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)">Title screen</div>
+</div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:34px;display:flex;align-items:center;justify-content:center;gap:22px;background:#000;font-size:12px;color:#e0e0e0">
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#aaaaaa;color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #555555">←→</span>Choose</span>
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#ffaa40;color:#1a1000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #aa5500">Jump</span>Select</span>
+</div>
+</div>
+</div>
+
+<!-- 1d -->
+<div id="1d" style="display:flex;flex-direction:column;gap:20px;width:640px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#050507;background:#ffaa40;border-radius:999px;padding:2px 10px">1d</span><span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:20px;color:#fff">Arcade marquee, mono</span></div>
+<p style="margin:0;font-size:13px;line-height:1.55;color:#b4bfce">Same layout and colours as <a href="#1c">1c</a>, with every line set in the blockier monospace from <a href="#1b">1b</a>.</p>
+</div>
+
+<div data-screen-label="1d Title" style="font-family:'JetBrains Mono',monospace;position:relative;width:640px;height:400px;overflow:hidden;background:#050507;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.45)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<div style="position:absolute;inset:0 0 72px;background-image:radial-gradient(#ffffff 1px,rgba(0,0,0,0) 1.6px),radial-gradient(#ffff55 1px,rgba(0,0,0,0) 1.6px);background-size:61px 53px,97px 71px;background-position:7px 11px,41px 29px;opacity:.55"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:linear-gradient(180deg,#55ff55 0 4px,#00aa00 4px 12px,rgba(0,0,0,0) 12px),repeating-linear-gradient(90deg,#aa5500 0 30px,#000000 30px 32px)"></div>
+<div style="position:absolute;inset:0;background:radial-gradient(60% 70% at 50% 50%,rgba(5,5,7,.85),rgba(5,5,7,.4))"></div>
+<div style="position:absolute;inset:0 0 34px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px">
+<div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+<span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:14px;color:#ffaa40;text-shadow:0 2px 0 #000">Ben Blaze in</span>
+<span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:44px;line-height:1;letter-spacing:-0.02em;color:#fff;text-shadow:0 4px 0 #f43f5e,0 8px 0 #000">Lieutenant Fizz</span>
+<span style="font-size:12px;color:#b4bfce;margin-top:6px">Episode 1 · The Cocoa Caper</span>
+</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+<div style="display:flex;align-items:center;height:36px;padding:0 26px;background:#ffaa40;color:#1a1000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:22px;clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)">New Game</div>
+<div style="display:flex;align-items:center;gap:8px;height:32px;font-family:'JetBrains Mono',monospace;font-weight:600;font-size:20px;color:#7c8796">Continue<span style="font-family:'JetBrains Mono',monospace;font-weight:400;font-size:12px">· no save yet</span></div>
+<div style="display:flex;align-items:center;height:32px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:20px;color:#ffffff;text-shadow:0 2px 0 #000">Controls</div>
+<div style="display:flex;align-items:center;gap:10px;height:32px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:20px;color:#ffffff;text-shadow:0 2px 0 #000">Music<span style="display:flex;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;text-shadow:none"><span style="padding:2px 8px;background:#55ff55;color:#000">On</span><span style="padding:2px 8px;background:#555555;color:#ffffff">Off</span></span></div>
+<div style="display:flex;align-items:center;gap:10px;height:32px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:20px;color:#ffffff;text-shadow:0 2px 0 #000">Sound<span style="display:flex;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;text-shadow:none"><span style="padding:2px 8px;background:#55ff55;color:#000">On</span><span style="padding:2px 8px;background:#555555;color:#ffffff">Off</span></span></div>
+</div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:34px;display:flex;align-items:center;justify-content:center;gap:22px;background:#000;font-size:12px;color:#e0e0e0">
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#aaaaaa;color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #555555">↑↓</span>Choose</span>
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#aaaaaa;color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #555555">←→</span>Switch</span>
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#ffaa40;color:#1a1000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #aa5500">Jump</span>Select</span>
+</div>
+</div>
+
+<div data-screen-label="1d Pause" style="font-family:'JetBrains Mono',monospace;position:relative;width:640px;height:400px;overflow:hidden;background:#050507;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.45)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<div style="position:absolute;inset:0 0 72px;background-image:radial-gradient(#ffffff 1px,rgba(0,0,0,0) 1.6px),radial-gradient(#ffff55 1px,rgba(0,0,0,0) 1.6px);background-size:61px 53px,97px 71px;background-position:7px 11px,41px 29px;opacity:.55"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:linear-gradient(180deg,#55ff55 0 4px,#00aa00 4px 12px,rgba(0,0,0,0) 12px),repeating-linear-gradient(90deg,#aa5500 0 30px,#000000 30px 32px)"></div>
+<div style="position:absolute;top:12px;left:12px;padding:8px 12px;display:grid;grid-template-columns:repeat(3,auto);gap:0 16px;background:rgba(12,12,16,.82);border:1px solid rgba(255,255,255,.1);border-radius:12px">
+<span style="font-size:10px;color:#7c8796">Score</span><span style="font-size:10px;color:#7c8796">Lives</span><span style="font-size:10px;color:#7c8796">Fizz</span>
+<span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:16px;color:#ffff55">240</span><span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:16px;color:#55ff55">3</span><span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:16px;color:#55ffff">5</span>
+</div>
+<div style="position:absolute;inset:0;background:rgba(5,5,7,.45)"></div>
+<div style="position:absolute;left:0;right:0;top:66px;height:268px;background:#000000;border-top:4px solid #ffaa40;border-bottom:4px solid #f43f5e;box-sizing:border-box;padding:20px 40px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 40px">
+<div style="display:flex;flex-direction:column;gap:4px">
+<span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:34px;line-height:1;letter-spacing:-0.025em;color:#fff;text-shadow:0 3px 0 #f43f5e;margin-bottom:10px">Paused</span>
+<div style="display:flex;align-items:center;align-self:flex-start;height:30px;padding:0 18px;background:#ffaa40;color:#1a1000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:19px;clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)">Resume</div>
+<div style="display:flex;align-items:center;gap:10px;height:30px;padding:0 18px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:19px;color:#fff">Save game<span style="font-family:'JetBrains Mono',monospace;font-weight:400;font-size:11px;color:#aaaaaa">F5</span></div>
+<div style="display:flex;align-items:center;gap:10px;height:30px;padding:0 18px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:19px;color:#fff">Load game<span style="font-family:'JetBrains Mono',monospace;font-weight:400;font-size:11px;color:#aaaaaa">F9</span></div>
+<div style="display:flex;align-items:center;height:30px;padding:0 18px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:19px;color:#fff">Leave level</div>
+<div style="display:flex;align-items:center;height:30px;padding:0 18px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:19px;color:#fff">Quit to title</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:4px;padding-top:6px">
+<span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:14px;color:#ffaa40;margin-bottom:14px;margin-top:14px">Settings</span>
+<div style="display:flex;align-items:center;justify-content:space-between;height:30px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:19px;color:#fff">Music<span style="display:flex;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px"><span style="padding:2px 8px;background:#55ff55;color:#000">On</span><span style="padding:2px 8px;background:#555555;color:#fff">Off</span></span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:30px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:19px;color:#fff">Sound<span style="display:flex;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px"><span style="padding:2px 8px;background:#555555;color:#fff">On</span><span style="padding:2px 8px;background:#ffff55;color:#000">Off</span></span></div>
+<span style="margin-top:auto;font-size:11px;line-height:1.5;color:#aaaaaa;text-wrap:pretty">Saves stay on this device. The map also saves automatically each time you return to it.</span>
+</div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:34px;display:flex;align-items:center;justify-content:center;gap:22px;background:#000;font-size:12px;color:#e0e0e0">
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#aaaaaa;color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #555555">↑↓←→</span>Choose</span>
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#ffaa40;color:#1a1000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #aa5500">Jump</span>Select</span>
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#aaaaaa;color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #555555">Esc</span>Resume</span>
+</div>
+</div>
+
+<div data-screen-label="1d Card" style="font-family:'JetBrains Mono',monospace;position:relative;width:640px;height:400px;overflow:hidden;background:#050507;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.45)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 100%,rgba(244,63,94,.32),rgba(167,139,250,.14) 45%,rgba(5,5,7,0) 75%)"></div>
+<div style="position:absolute;inset:0 0 72px;background-image:radial-gradient(#ffffff 1px,rgba(0,0,0,0) 1.6px),radial-gradient(#ffff55 1px,rgba(0,0,0,0) 1.6px);background-size:61px 53px,97px 71px;background-position:7px 11px,41px 29px;opacity:.55"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:linear-gradient(180deg,#55ff55 0 4px,#00aa00 4px 12px,rgba(0,0,0,0) 12px),repeating-linear-gradient(90deg,#aa5500 0 30px,#000000 30px 32px)"></div>
+<div style="position:absolute;inset:0;background:rgba(5,5,7,.45)"></div>
+<div style="position:absolute;left:0;right:0;top:96px;height:208px;background:#000000;border-top:4px solid #ffaa40;border-bottom:4px solid #f43f5e;box-sizing:border-box;padding:0 40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center">
+<span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:40px;line-height:1;letter-spacing:-0.025em;color:#fff;text-shadow:0 3px 0 #f43f5e">Out of lives</span>
+<span style="max-width:440px;font-size:15px;line-height:1.55;color:#b4bfce;text-wrap:pretty">You finished with 240 snack points. Your last save is still on this device.</span>
+<div style="display:flex;gap:12px;margin-top:4px">
+<div style="display:flex;align-items:center;height:34px;padding:0 20px;background:#ffaa40;color:#1a1000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:19px;clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)">Load last save</div>
+<div style="display:flex;align-items:center;height:34px;padding:0 20px;background:#555555;color:#ffffff;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:19px;clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)">Title screen</div>
+</div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:34px;display:flex;align-items:center;justify-content:center;gap:22px;background:#000;font-size:12px;color:#e0e0e0">
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#aaaaaa;color:#000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #555555">←→</span>Choose</span>
+<span style="display:flex;align-items:center;gap:7px"><span style="padding:1px 7px;background:#ffaa40;color:#1a1000;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;box-shadow:0 3px 0 #aa5500">Jump</span>Select</span>
+</div>
+</div>
+</div>
+
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;hints&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;keyboard&quot;,&quot;gamepad&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Turn 2 menus&quot;},&quot;motion&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;reduced&quot;,&quot;full&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Turn 2 menus&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return { hints: this.props.hints ?? 'auto', motion: this.props.motion ?? 'auto' };
+  }
+}
+</script>
+</body>
+</html>

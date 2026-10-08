@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/fonts.css">
+<script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
+</helmet>
+<div ref="{{ rootRef }}" onPointerDown="{{ onRootTap }}" onContextMenu="{{ noMenu }}" data-screen-label="{{ label }}" style="position:relative;width:800px;height:360px;overflow:hidden;background:#050507;touch-action:none;user-select:none;-webkit-user-select:none;font-family:Inter,sans-serif">
+<sc-if value="{{ hasBack }}" hint-placeholder-val="{{ false }}">
+<img src="{{ back }}" alt="" draggable="false" style="position:absolute;left:{{ bk.l }};top:{{ bk.t }};width:{{ bk.w }};height:{{ bk.h }};image-rendering:pixelated">
+</sc-if>
+<sc-if value="{{ mapReady }}" hint-placeholder-val="{{ false }}">
+<img src="{{ map.ben }}" alt="" draggable="false" style="position:absolute;left:{{ map.bx }};top:{{ map.by }};width:40px;image-rendering:pixelated">
+</sc-if>
+<div style="position:absolute;inset:0;background:{{ scrim }};pointer-events:none"></div>
+
+<sc-if value="{{ isTitle }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:52px;top:30px;display:flex;flex-direction:column;align-items:flex-start;gap:0;pointer-events:none">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Ben Blaze in" color="#ffaa40" scale="2" hint-size="120px,28px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="Lieutenant" color="#ffffff" shadow="#f43f5e,#000000" scale="4" hint-size="260px,64px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="Fizz" color="#ffffff" shadow="#f43f5e,#000000" scale="4" hint-size="120px,64px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Episode 1 · The Cocoa Caper" color="#b4bfce" scale="2" hint-size="260px,28px"></x-import>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasHead }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:52px;top:{{ head.t }};display:flex;flex-direction:column;gap:2px;pointer-events:none">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="{{ head.text }}" color="#ffffff" shadow="#f43f5e,#000000" scale="3" hint-size="300px,42px"></x-import>
+<sc-for list="{{ lines }}" as="ln" hint-placeholder-count="0">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ ln.text }}" color="#b4bfce" scale="2" hint-size="420px,26px"></x-import>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ isScore }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:52px;top:84px;width:400px;display:grid;grid-template-columns:minmax(0,1fr) auto;row-gap:2px;column-gap:24px;pointer-events:none">
+<sc-for list="{{ stats }}" as="st" hint-placeholder-count="12">
+<div style="display:flex;justify-content:{{ st.justify }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" mono="{{ st.mono }}" text="{{ st.text }}" color="{{ st.color }}" scale="2" hint-size="120px,28px"></x-import>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasMenu }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:{{ mb.l }};right:{{ mb.r }};top:{{ mb.t }};width:{{ mb.w }};display:flex;flex-direction:column;gap:2px">
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="3">
+<div onPointerDown="{{ r.tap }}" onMouseEnter="{{ r.enter }}" style="position:relative;height:44px;display:flex;align-items:center;padding:0 16px;cursor:pointer">
+<div style="position:absolute;inset:0;background:{{ r.bg }};clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)"></div>
+<sc-if value="{{ r.cur }}" hint-placeholder-val="{{ false }}">
+<img src="{{ cursorSrc }}" alt="" style="position:absolute;left:-38px;top:50%;width:28px;transform:{{ curTf }};image-rendering:pixelated;pointer-events:none">
+</sc-if>
+<div style="position:relative;display:flex;align-items:center;gap:12px;width:100%;pointer-events:none">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ r.label }}" color="{{ r.color }}" scale="3" hint-size="160px,40px"></x-import>
+<sc-if value="{{ r.hasValue }}" hint-placeholder-val="{{ false }}">
+<div style="margin-left:auto"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ r.value }}" color="{{ r.vcolor }}" scale="2" hint-size="80px,28px"></x-import></div>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ isCine }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:52px;top:20px;display:flex;gap:6px;pointer-events:none">
+<sc-for list="{{ cine.pips }}" as="p" hint-placeholder-count="6">
+<div style="width:10px;height:10px;background:{{ p.c }}"></div>
+</sc-for>
+</div>
+<div onPointerDown="{{ cine.skip }}" style="position:absolute;right:16px;top:8px;height:44px;padding:0 14px;display:flex;align-items:center;cursor:pointer;background:rgba(5,5,7,.7)">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Skip ›" color="#e0e0e0" scale="2" hint-size="70px,28px"></x-import>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;padding:44px 52px 18px;background:linear-gradient(to top,rgba(5,5,7,.97) 72%,rgba(5,5,7,0));display:flex;flex-direction:column;gap:0;pointer-events:none">
+<sc-for list="{{ cine.lines }}" as="ln" hint-placeholder-count="5">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ ln.text }}" color="#e0e0e0" scale="2" hint-size="680px,24px"></x-import>
+</sc-for>
+<div style="display:flex;justify-content:flex-end;height:24px;opacity:{{ cine.moreOp }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ cine.more }}" color="#ffaa40" scale="2" hint-size="120px,24px"></x-import>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isMap }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:52px;top:14px;display:flex;gap:8px;pointer-events:none;visibility:{{ map.vis }}">
+<sc-for list="{{ map.pills }}" as="p" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:999px;background:rgba(20,20,25,.55);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14)">
+<img src="{{ p.icon }}" alt="" style="height:16px;image-rendering:pixelated">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" mono="true" cut="bold" text="{{ p.text }}" color="{{ p.color }}" scale="2" hint-size="40px,24px"></x-import>
+</div>
+</sc-for>
+</div>
+<div onPointerDown="{{ map.menu }}" style="position:absolute;right:14px;top:8px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer">
+<div style="width:36px;height:36px;border-radius:999px;background:rgba(20,20,25,.55);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;gap:4px">
+<div style="width:4px;height:13px;border-radius:1px;background:#ffffff"></div>
+<div style="width:4px;height:13px;border-radius:1px;background:#ffffff"></div>
+</div>
+</div>
+<div style="position:absolute;left:48px;bottom:22px;width:150px;height:150px;border-radius:999px;background:rgba(20,20,25,.45);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);display:grid;grid-template-columns:repeat(3,50px);grid-template-rows:repeat(3,50px)">
+<sc-for list="{{ map.dpad }}" as="d" hint-placeholder-count="9">
+<div onPointerDown="{{ d.down }}" onPointerUp="{{ d.up }}" onPointerLeave="{{ d.up }}" onPointerCancel="{{ d.up }}" style="display:flex;align-items:center;justify-content:center;border-radius:12px;background:{{ d.bg }};color:#ffffff;font-size:18px;cursor:pointer;visibility:{{ d.vis }}">{{ d.glyph }}</div>
+</sc-for>
+</div>
+<sc-if value="{{ map.hasPrompt }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;right:22px;bottom:22px;width:330px;box-sizing:border-box;padding:14px 18px;border-radius:12px;background:rgba(12,12,16,.9);border:1px solid rgba(255,255,255,.12);box-shadow:0 4px 24px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:2px">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="{{ map.name }}" color="#ffaa40" scale="3" hint-size="200px,42px"></x-import>
+<sc-for list="{{ map.desc }}" as="ln" hint-placeholder-count="2">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ ln.text }}" color="#e0e0e0" scale="2" hint-size="290px,26px"></x-import>
+</sc-for>
+<div onPointerDown="{{ map.enter }}" style="position:relative;margin-top:8px;height:44px;display:flex;align-items:center;padding:0 16px;cursor:pointer">
+<div style="position:absolute;inset:0;background:{{ map.btnBg }};clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)"></div>
+<div style="position:relative;pointer-events:none"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ map.btn }}" color="{{ map.btnInk }}" scale="3" hint-size="180px,40px"></x-import></div>
+</div>
+</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ isControls }}" hint-placeholder-val="{{ false }}">
+<sc-for list="{{ ed.items }}" as="it" hint-placeholder-count="4">
+<div onPointerDown="{{ it.down }}" onPointerMove="{{ it.move }}" onPointerUp="{{ it.up }}" onPointerCancel="{{ it.up }}" style="position:absolute;left:{{ it.l }};top:{{ it.t }};width:{{ it.w }};height:{{ it.h }};box-sizing:border-box;border-radius:{{ it.radius }};background:{{ it.bg }};border:2px dashed {{ it.border }};box-shadow:{{ it.shadow }};opacity:{{ it.op }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:grab">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ it.label }}" color="#ffffff" scale="2" hint-size="60px,24px"></x-import>
+</div>
+</sc-for>
+<div style="position:absolute;left:52px;top:8px;right:16px;height:44px;display:flex;align-items:center;gap:16px">
+<div onPointerDown="{{ ed.done }}" style="position:relative;height:44px;display:flex;align-items:center;padding:0 16px;cursor:pointer">
+<div style="position:absolute;inset:0;background:{{ ed.doneBg }};clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)"></div>
+<div style="position:relative;pointer-events:none"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Done" color="#000000" scale="3" hint-size="70px,40px"></x-import></div>
+</div>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="Touch controls" color="#ffffff" shadow="#f43f5e,#000000" scale="3" hint-size="240px,42px"></x-import>
+</div>
+<div style="position:absolute;left:110px;right:110px;top:62px;box-sizing:border-box;padding:10px;border-radius:12px;background:rgba(12,12,16,.9);border:1px solid rgba(255,255,255,.12);display:flex;flex-wrap:wrap;justify-content:center;gap:6px">
+<sc-for list="{{ ed.chips }}" as="c" hint-placeholder-count="6">
+<div onPointerDown="{{ c.tap }}" style="height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:8px;background:{{ c.bg }};border:1px solid {{ c.border }};cursor:pointer">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ c.label }}" color="#b4bfce" scale="2" hint-size="70px,24px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ c.value }}" color="{{ c.vcolor }}" scale="2" hint-size="50px,24px"></x-import>
+</div>
+</sc-for>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:20px;display:flex;justify-content:center;pointer-events:none">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Drag a control to move it" color="#b4bfce" knock="#050507" scale="2" hint-size="280px,26px"></x-import>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:800,&quot;height&quot;:360},&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;title&quot;,&quot;cinematic&quot;,&quot;map&quot;,&quot;controls&quot;,&quot;score&quot;,&quot;gameover&quot;],&quot;default&quot;:&quot;title&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;onGo&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(to: string) =&gt; void&quot;},&quot;onHaptic&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(t: string) =&gt; void&quot;}}">
+class Component extends DCLogic {
+  state = { art: null, now: 0, sel: 0, flash: 0, panel: 0, panelT: 0, ben: [15, 6], ed: null, edFlash: '' };
+  rootRef = React.createRef();
+  held = {};
+
+  componentDidMount() {
+    this.t0 = performance.now() / 1000;
+    this.resetEd();
+    this.setState({ now: this.t0, panelT: this.t0 });
+    this.timer = setInterval(() => this.setState({ now: performance.now() / 1000 }), 60);
+    this.mover = setInterval(() => this.walk(), 140);
+    this.load();
+  }
+  componentWillUnmount() { clearInterval(this.timer); clearInterval(this.mover); }
+  componentDidUpdate(pp) {
+    if (pp.screen !== this.props.screen) this.setState({ sel: 0, panel: 0, panelT: performance.now() / 1000, scoreT: performance.now() / 1000 });
+  }
+  go(to) { if (this.props.onGo) this.props.onGo(to); }
+  hap(t) { this.props.onHaptic && this.props.onHaptic(t); }
+
+  async load() {
+    if (!window.__lfMobileScreenArt) window.__lfMobileScreenArt = (async () => {
+      const m = await import('./melting/sprites.js');
+      const by = {}; m.defineSprites().forEach((d) => { by[d.name] = d; });
+      const E = m.EGA;
+      const cv = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
+      const put = (x, n, px, py, tint, s) => { s = s || 1; const d = by[n]; if (!d) return; for (let j = 0; j < d.h; j++) for (let i = 0; i < d.w; i++) { const k = d.g[j][i]; if (!k || k === '.') continue; x.fillStyle = tint || E[k] || k; x.fillRect(px + i * s, py + j * s, s, s); } };
+      const sz = (n) => by[n] || { w: 16, h: 16 };
+      const one = (n) => { const d = by[n]; if (!d) return ''; const [c, x] = cv(d.w, d.h); put(x, n, 0, 0); return c.toDataURL(); };
+      const art = {};
+      ['soda', 'cheezie', 'ben_stand', 'benMap0', 'benMap1'].forEach((n) => { art[n] = one(n); });
+      let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+      const nightBase = (x, ground) => {
+        x.fillStyle = '#000000'; x.fillRect(0, 0, 320, 144);
+        for (let i = 0; i < 40; i++) put(x, 'star', Math.floor(rnd() * 316), Math.floor(rnd() * (ground - 30)));
+        for (let i = 0; i < 21; i++) put(x, 'mtnTop', i * 16 - 4, ground - 28, '#0000aa');
+        x.fillStyle = '#0000aa'; x.fillRect(0, ground - 12, 320, 12);
+        for (let i = 0; i < 21; i++) put(x, 'hillTop', i * 16, ground - 16, '#00aa00');
+        for (let i = 0; i < 20; i++) for (let j = 0; j < 4; j++) put(x, 'owGrass', i * 16, ground + j * 16);
+      };
+      { const [c, x] = cv(320, 144); nightBase(x, 112); put(x, 'moon', 150, 14); put(x, 'saucer', 236, 112 - sz('saucer').h); put(x, 'ben_stand', 210, 112 - sz('ben_stand').h); art.night = c.toDataURL(); }
+      {
+        const [c, x] = cv(480, 240);
+        for (let i = 0; i < 30; i++) for (let j = 0; j < 15; j++) put(x, 'owGrass', i * 16, j * 16);
+        const path = [];
+        const seg = (a, b, y) => { for (let i = Math.min(a, b); i <= Math.max(a, b); i++) path.push([i, y]); };
+        const vseg = (a, b, xx) => { for (let j = Math.min(a, b); j <= Math.max(a, b); j++) path.push([xx, j]); };
+        seg(3, 9, 12); vseg(8, 12, 9); seg(9, 15, 8); vseg(6, 8, 15); seg(15, 23, 6); vseg(4, 6, 23); seg(23, 25, 4);
+        const onPath = new Set(path.map((p) => p.join(',')));
+        path.forEach(([i, j]) => put(x, 'owPath', i * 16, j * 16));
+        for (let k = 0; k < 40; k++) { const i = Math.floor(rnd() * 30), j = Math.floor(rnd() * 15); if (onPath.has(i + ',' + j)) continue; put(x, rnd() < 0.5 ? 'owTree0' : 'owTree1', i * 16, j * 16); }
+        put(x, 'owCrater', 2 * 16, 12 * 16); put(x, 'owFlag', 2 * 16, 11 * 16);
+        put(x, 'owTele1', 10 * 16, 12 * 16); put(x, 'owCave', 15 * 16, 5 * 16); put(x, 'owTele0', 16 * 16, 9 * 16); put(x, 'owCastle', 24 * 16, 2 * 16);
+        art.world = c.toDataURL();
+      }
+      {
+        const [c, x] = cv(320, 144);
+        x.fillStyle = '#5555ff'; x.fillRect(0, 0, 320, 144);
+        for (let i = 0; i < 21; i++) put(x, 'mtnTop', i * 16 - 4, 60, '#aa00aa');
+        x.fillStyle = '#aa00aa'; x.fillRect(0, 76, 320, 40);
+        for (let i = 0; i < 20; i++) put(x, 'hillTop', i * 16, 84, '#ff55ff');
+        x.fillStyle = '#ff55ff'; x.fillRect(0, 100, 320, 14);
+        for (let i = 0; i < 20; i++) { put(x, 'craterTop', i * 16, 112); put(x, 'craterFill', i * 16, 128); }
+        art.levelBg = c.toDataURL();
+      }
+      const fit = (n, maxH) => Math.max(1, Math.floor(maxH / sz(n).h));
+      const centre = (x, n, cx, cy, s) => { const d = sz(n); put(x, n, Math.round(cx - (d.w * s) / 2), Math.round(cy - (d.h * s) / 2), null, s); };
+      const streaks = (x) => { for (let i = 0; i < 26; i++) { x.fillStyle = rnd() < 0.5 ? '#ffffff' : '#aaaaaa'; x.fillRect(Math.floor(rnd() * 320), Math.floor(rnd() * 144), 6 + Math.floor(rnd() * 24), 1); } };
+      art.cine = [];
+      { const [c, x] = cv(320, 144); nightBase(x, 76); put(x, 'moon', 40, 8); put(x, 'bigTree', 96, 76 - sz('bigTree').h); put(x, 'house', 190, 76 - sz('house').h); put(x, 'ben_stand', 150, 76 - sz('ben_stand').h); art.cine.push(c.toDataURL()); }
+      { const [c, x] = cv(320, 144); x.fillStyle = '#000000'; x.fillRect(0, 0, 320, 144); x.fillStyle = '#0000aa'; x.fillRect(0, 50, 320, 94); x.fillStyle = '#5555ff'; x.fillRect(0, 70, 320, 74); streaks(x); centre(x, 'saucer', 160, 36, fit('saucer', 56)); art.cine.push(c.toDataURL()); }
+      { const [c, x] = cv(320, 144); for (let i = 0; i < 20; i++) for (let j = 0; j < 9; j++) put(x, 'labPanel', i * 16, j * 16); centre(x, 'console0', 120, 36, fit('console0', 52)); centre(x, 'blueprint', 220, 34, fit('blueprint', 44)); art.cine.push(c.toDataURL()); }
+      { const [c, x] = cv(320, 144); x.fillStyle = '#000000'; x.fillRect(0, 0, 320, 144); streaks(x); centre(x, 'cheezie', 120, 36, fit('cheezie', 48)); centre(x, 'soda', 200, 36, fit('soda', 48)); art.cine.push(c.toDataURL()); }
+      { const [c, x] = cv(320, 144); x.fillStyle = '#000000'; x.fillRect(0, 0, 320, 144); for (let i = 0; i < 40; i++) put(x, 'star', Math.floor(rnd() * 316), Math.floor(rnd() * 140)); centre(x, 'planet', 160, 38, fit('planet', 64)); art.cine.push(c.toDataURL()); }
+      {
+        const [c, x] = cv(320, 144); x.fillStyle = '#5555ff'; x.fillRect(0, 0, 320, 144);
+        for (let i = 0; i < 20; i++) { put(x, 'craterTop', i * 16, 76); put(x, 'craterFill', i * 16, 92); put(x, 'craterFill', i * 16, 108); put(x, 'craterFill', i * 16, 124); }
+        [[30, 'crysC'], [70, 'crysM'], [250, 'crysC'], [290, 'crysM']].forEach(([px, n]) => put(x, n, px, 76 - sz(n).h));
+        put(x, 'saucer', 180, 76 - sz('saucer').h); put(x, 'ben_stand', 140, 76 - sz('ben_stand').h);
+        art.cine.push(c.toDataURL());
+      }
+      return art;
+    })();
+    this.setState({ art: await window.__lfMobileScreenArt });
+  }
+
+  wrap(text, max) {
+    const out = []; let line = '';
+    for (const w of text.split(' ')) { if ((line + ' ' + w).trim().length > max) { out.push(line); line = w; } else line = (line + ' ' + w).trim(); }
+    if (line) out.push(line);
+    return out;
+  }
+  reveal(full, max, shown) {
+    let left = shown;
+    return this.wrap(full, max).map((ln) => { const t = ln.slice(0, Math.max(0, left)); left -= ln.length + 1; return { text: t || ' ' }; });
+  }
+
+  nodes() {
+    return [
+      { at: [2, 12], name: 'Crater Fields', desc: 'Cleared · 1 of 2 secrets found.', btn: 'Play again', open: true },
+      { at: [15, 5], name: 'Crystal Caves', desc: 'Dark, glittering tunnels over chocolate rivers.', btn: 'Enter level', open: true },
+      { at: [24, 2], name: 'Mildred’s Citadel', desc: 'The gate stays shut until the caves are cleared.', btn: 'Locked', open: false },
+    ];
+  }
+  walk() {
+    if (this.props.screen !== 'map') return;
+    const h = this.held; const dx = (h.right ? 1 : 0) - (h.left ? 1 : 0), dy = (h.down ? 1 : 0) - (h.up ? 1 : 0);
+    if (!dx && !dy) return;
+    const [x, y] = this.state.ben;
+    this.setState({ ben: [Math.max(0, Math.min(29, x + dx)), Math.max(0, Math.min(14, y + dy))] });
+  }
+
+  defaultsEd() {
+    return { pos: { dpad: [123, 263], jump: [736, 294], pogo: [733, 211], fizz: [651, 299] }, scheme: 0, size: 1, opacity: 2, left: false, haptics: true };
+  }
+  resetEd() { this.setState({ ed: this.defaultsEd() }); }
+
+  rowsFor(screen) {
+    switch (screen) {
+      case 'title': return [{ label: 'New game', to: 'cinematic' }, { label: 'Continue', value: 'Slot 2', to: 'map' }, { label: 'Load game' }, { label: 'Controls', to: 'controls' }];
+      case 'gameover': return [{ label: 'Load last save', value: 'Autosave', to: 'map' }, { label: 'Title screen', to: 'title' }];
+      case 'score': return [{ label: 'Back to the map', to: 'map' }];
+      default: return [];
+    }
+  }
+
+  renderVals() {
+    const P = this.props, s = this.state, art = s.art || {};
+    const screen = ['title', 'cinematic', 'map', 'controls', 'score', 'gameover'].includes(P.screen) ? P.screen : 'title';
+    const now = s.now || this.t0 || 0, tt = now - (this.t0 || now);
+    const cyc = ['#ffaa40', '#ffb850', '#ffc860', '#ffb850'][Math.floor(tt * 2.5) % 4];
+    const flash = s.flash > now;
+    const items = this.rowsFor(screen);
+    const rows = items.map((it, i) => {
+      const on = i === s.sel;
+      return {
+        label: it.label, hasValue: !!it.value, value: it.value || '', cur: on && !!art.soda,
+        bg: on ? (flash ? '#ffffff' : cyc) : 'transparent', color: on ? '#000000' : '#e0e0e0', vcolor: on ? '#000000' : '#7c8796',
+        enter: () => this.setState({ sel: i }),
+        tap: (e) => { e.stopPropagation(); this.setState({ sel: i, flash: performance.now() / 1000 + 0.16 }); this.hap('Light tick · select'); if (it.to) setTimeout(() => this.go(it.to), 170); },
+      };
+    });
+    const mbs = { title: { l: 'auto', r: '40px', t: '96px', w: '300px' }, gameover: { l: '52px', r: 'auto', t: '176px', w: '440px' }, score: { l: '52px', r: 'auto', t: '286px', w: '340px' } };
+    const scrims = {
+      title: 'linear-gradient(270deg,rgba(5,5,7,.92) 0%,rgba(5,5,7,.72) 40%,rgba(5,5,7,0) 62%), linear-gradient(90deg,rgba(5,5,7,.6) 0%,rgba(5,5,7,0) 45%)',
+      gameover: 'rgba(5,5,7,.82)', score: 'linear-gradient(90deg,rgba(5,5,7,.94) 0%,rgba(5,5,7,.8) 55%,rgba(5,5,7,.2) 85%)',
+      cinematic: 'transparent', map: 'transparent', controls: 'rgba(5,5,7,.55)',
+    };
+    const out = {
+      rootRef: this.rootRef, noMenu: (e) => e.preventDefault(), label: 'Mobile ' + screen,
+      scrim: scrims[screen], mapReady: screen === 'map' && !!art.world, isTitle: screen === 'title', isCine: screen === 'cinematic', isMap: screen === 'map', isControls: screen === 'controls', isScore: screen === 'score',
+      hasMenu: rows.length > 0, rows, mb: mbs[screen] || mbs.title, cursorSrc: art.soda || '', curTf: `translate(${Math.round(Math.sin(tt * 5) * 2) * 2}px,-50%)`,
+      hasHead: false, head: { t: '0px', text: '' }, lines: [], stats: [],
+      bk: { l: '0px', t: '0px', w: '800px', h: '360px' }, back: '', hasBack: false,
+      onRootTap: () => {},
+      cine: { pips: [], lines: [], more: '', moreOp: 0, skip: () => {} },
+      map: { ben: '', bx: '0px', by: '0px', pills: [], dpad: [], hasPrompt: false, desc: [], name: '', btn: '', btnBg: '', btnInk: '', enter: () => {}, menu: () => {} },
+      ed: { items: [], chips: [], done: () => {}, doneBg: '#ffaa40' },
+    };
+    const bg = (k) => { out.back = art[k] || ''; out.hasBack = !!art[k]; };
+
+    if (screen === 'title' || screen === 'gameover' || screen === 'score') bg('night');
+    if (screen === 'gameover') {
+      const full = 'You finished with 240 snack points. Your last save is still on this device.';
+      out.hasHead = true; out.head = { t: '40px', text: 'Out of lives' };
+      out.lines = this.reveal(full, 44, Math.floor(Math.max(0, now - (s.scoreT || this.t0) - 0.3) * 40));
+    }
+    if (screen === 'score') {
+      out.hasHead = true; out.head = { t: '28px', text: 'Crater Fields cleared' };
+      const k = Math.min(1, Math.max(0, (now - (s.scoreT || this.t0) - 0.3) / 1.2));
+      const n = (v) => String(Math.round(v * k));
+      const data = [['Snacks', n(312), '#ffff55'], ['Fizz fired', n(24), '#55ffff'], ['Zargs stunned', n(11), '#55ff55'], ['Secrets', k < 1 ? '…' : '1 of 2', '#ffffff'], ['Time', k < 1 ? '…' : '4:12', '#ffffff'], ['Best time', '3:58', '#7c8796']];
+      out.stats = [];
+      data.forEach(([a, b, c]) => { out.stats.push({ text: a, color: '#b4bfce', justify: 'flex-start', mono: 'false' }); out.stats.push({ text: b, color: c, justify: 'flex-end', mono: 'true' }); });
+    }
+    if (screen === 'cinematic') {
+      const story = [
+        'One night, Ben Blaze’s cousin Billy didn’t come home. Under the treehouse where they always played, Ben found a secret lab, a prototype spaghetti with meatballs flying saucer, and a note Billy had left behind: a map, with an X and a planet name beside it. “That must be where he’s gone.” Ben put on his bicycle helmet, hit the Engage button, and was off.',
+        'The G-force pressed Ben deep into the oversized, noodle-upholstered captain’s chair as the saucer tore through the stratosphere. Marinara-scented exhaust plumed behind him. He gripped the steering yoke, which felt suspiciously like a giant, hardened breadstick.',
+        'On the dashboard, pinned beneath a blinking, meatball-shaped radar dial, was Billy’s note. The destination was boldly scribbled: Planet Zargoth, a remote outpost on the outer galactic rim.',
+        'Ben engaged the autopilot and popped open the glovebox: a crinkled bag of Cheezies and a cold can of Canadian cream soda. The crunch echoed in the quiet cabin as the stars stretched into streaks of white light.',
+        'Hours later, the navigation console chimed a retro 8-bit melody. Planet Zargoth loomed through the windshield, a swirling marble of neon green and deep purple clouds.',
+        'He touched down with a heavy, saucy thud in a glowing, crystalline forest. Ben adjusted his chin strap, tucked his pogo stick under one arm, and stepped out to find his cousin.',
+      ];
+      const p = Math.min(s.panel, 5), full = story[p];
+      const shown = Math.floor((now - s.panelT) * 70), done = shown >= full.length;
+      out.back = (art.cine || [])[p] || ''; out.hasBack = !!out.back;
+      out.cine = {
+        pips: story.map((_, i) => ({ c: i <= p ? '#ffaa40' : 'rgba(255,255,255,.25)' })),
+        lines: this.reveal(full, 56, shown), more: p < 5 ? 'Tap ›' : 'Tap to land ›', moreOp: done && Math.floor(tt * 2) % 2 === 0 ? 1 : 0,
+        skip: (e) => { e.stopPropagation(); this.hap('Single click · skip'); this.go('map'); },
+      };
+      out.onRootTap = () => {
+        if (!done) { this.setState({ panelT: performance.now() / 1000 - 60 }); return; }
+        if (p >= 5) { this.go('map'); this.setState({ panel: 0, panelT: performance.now() / 1000 }); return; }
+        this.hap('Light tick · next panel'); this.setState({ panel: p + 1, panelT: performance.now() / 1000 });
+      };
+    }
+    if (screen === 'map') {
+      const S = 2.5, T = 16 * S, [bx, by] = s.ben;
+      const cx = Math.max(0, Math.min(480 * S - 800, (bx * 16 + 8) * S - 400)), cy = Math.max(0, Math.min(240 * S - 360, (by * 16 + 8) * S - 180));
+      out.back = art.world || ''; out.hasBack = !!art.world;
+      out.bk = { l: -cx + 'px', t: -cy + 'px', w: 480 * S + 'px', h: 240 * S + 'px' };
+      const near = this.nodes().find((n) => Math.abs(n.at[0] - bx) <= 1 && Math.abs(n.at[1] - by) <= 1);
+      const hold = (k) => ({ down: (e) => { e.preventDefault(); e.stopPropagation(); try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {} this.held[k] = true; this.walk(); }, up: () => { this.held[k] = false; } });
+      const cell = (k, glyph) => k ? Object.assign({ glyph, vis: 'visible', bg: this.held[k] ? 'rgba(255,170,64,.4)' : 'transparent' }, hold(k)) : { glyph: '', vis: 'hidden', bg: 'transparent', down: () => {}, up: () => {} };
+      out.map = {
+        ben: Math.floor(tt * 3) % 2 ? art.benMap1 || '' : art.benMap0 || '', bx: bx * T - cx + 'px', by: by * T - cy + 'px',
+        vis: art.world ? 'visible' : 'hidden',
+        pills: art.world ? [{ icon: art.ben_stand, text: '3', color: '#ffffff' }, { icon: art.cheezie, text: '312', color: '#ffff55' }] : [],
+        dpad: [cell(null), cell('up', '▲'), cell(null), cell('left', '◀'), cell(null), cell('right', '▶'), cell(null), cell('down', '▼'), cell(null)],
+        hasPrompt: !!near, name: near ? near.name : '', desc: near ? this.wrap(near.desc, 24).map((t) => ({ text: t })) : [],
+        btn: near ? near.btn : '', btnBg: near && near.open ? (flash ? '#ffffff' : cyc) : 'rgba(255,255,255,.08)', btnInk: near && near.open ? '#000000' : '#7c8796',
+        enter: (e) => { e.stopPropagation(); if (!near || !near.open) { this.hap('Buzz · locked'); return; } this.setState({ flash: performance.now() / 1000 + 0.16 }); this.hap('Rising tick · enter level'); setTimeout(() => this.go('level'), 170); },
+        menu: (e) => { e.stopPropagation(); this.go('title'); },
+      };
+    }
+    if (screen === 'controls' && s.ed) {
+      bg('levelBg');
+      const E = s.ed, sizes = [0.85, 1, 1.2], ops = [0.4, 0.6, 0.8, 1];
+      const sc = sizes[E.size];
+      const base = { dpad: 150, jump: 80, pogo: 62, fizz: 62 };
+      const labels = { dpad: E.scheme ? 'Stick zone' : 'D-pad', jump: 'Jump', pogo: 'Pogo', fizz: 'Fizz' };
+      const set = (patch) => this.setState({ ed: Object.assign({}, this.state.ed, patch) });
+      out.ed = {
+        doneBg: flash ? '#ffffff' : cyc,
+        done: (e) => { e.stopPropagation(); this.setState({ flash: performance.now() / 1000 + 0.16 }); this.hap('Double tick · layout saved'); setTimeout(() => this.go('back'), 170); },
+        items: Object.keys(base).map((k) => {
+          let [x, y] = E.pos[k]; if (E.left) x = 800 - x;
+          const w = k === 'dpad' && E.scheme ? 300 : base[k] * sc, h = k === 'dpad' && E.scheme ? 200 : base[k] * sc;
+          const drag = this.drag && this.drag.k === k;
+          return {
+            l: Math.round(x - w / 2) + 'px', t: Math.round(y - h / 2) + 'px', w: Math.round(w) + 'px', h: Math.round(h) + 'px',
+            radius: k === 'dpad' && E.scheme ? '20px' : '999px', label: labels[k], op: ops[E.opacity],
+            bg: drag ? 'rgba(255,170,64,.3)' : k === 'jump' ? 'rgba(255,170,64,.16)' : 'rgba(20,20,25,.55)',
+            border: drag ? '#ffaa40' : 'rgba(255,170,64,.7)', shadow: drag ? '0 0 20px rgba(255,170,64,.35)' : 'none',
+            down: (e) => { e.stopPropagation(); try { e.currentTarget.setPointerCapture(e.pointerId); } catch (z) {} const r = this.rootRef.current.getBoundingClientRect(); this.drag = { k, sx: e.clientX, sy: e.clientY, ox: E.pos[k][0], oy: E.pos[k][1], sc: r.width / 800 || 1 }; this.hap('Light tick · pick up'); this.forceUpdate(); },
+            move: (e) => { const d = this.drag; if (!d || d.k !== k) return; let nx = d.ox + ((e.clientX - d.sx) / d.sc) * (this.state.ed.left ? -1 : 1), ny = d.oy + (e.clientY - d.sy) / d.sc; nx = Math.max(60, Math.min(740, nx)); ny = Math.max(140, Math.min(320, ny)); const pos = Object.assign({}, this.state.ed.pos, { [k]: [Math.round(nx), Math.round(ny)] }); set({ pos }); },
+            up: () => { if (this.drag && this.drag.k === k) { this.drag = null; this.hap('Soft thud · drop'); this.forceUpdate(); } },
+          };
+        }),
+        chips: [
+          { label: 'Move', value: E.scheme ? 'Joystick' : 'D-pad', f: () => set({ scheme: 1 - E.scheme }) },
+          { label: 'Size', value: ['S', 'M', 'L'][E.size], f: () => set({ size: (E.size + 1) % 3 }) },
+          { label: 'Opacity', value: ops[E.opacity] * 100 + '%', f: () => set({ opacity: (E.opacity + 1) % 4 }) },
+          { label: 'Left-handed', value: E.left ? 'On' : 'Off', f: () => set({ left: !E.left }) },
+          { label: 'Haptics', value: E.haptics ? 'On' : 'Off', f: () => set({ haptics: !E.haptics }) },
+          { label: 'Reset', value: 'All', f: () => this.resetEd() },
+        ].map((c) => ({
+          label: c.label, value: c.value, vcolor: '#ffaa40', bg: s.edFlash === c.label && flash ? 'rgba(255,170,64,.3)' : 'rgba(255,255,255,.04)', border: 'rgba(255,255,255,.14)',
+          tap: (e) => { e.stopPropagation(); c.f(); this.setState({ edFlash: c.label, flash: performance.now() / 1000 + 0.16 }); this.hap('Light tick · ' + c.label.toLowerCase()); },
+        })),
+      };
+    }
+    return out;
+  }
+}
+</script>
+</body>
+</html>

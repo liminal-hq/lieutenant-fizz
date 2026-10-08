@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/colours.css">
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/base.css">
+<script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
+</helmet>
+<div onPointerDown="{{ swipeDown }}" onPointerUp="{{ swipeUp }}" onContextMenu="{{ noMenu }}" data-screen-label="{{ label }}" style="position:relative;width:800px;height:{{ dims.h }};overflow:hidden;background:#050507;user-select:none;touch-action:none">
+<div style="position:absolute;left:0;top:0;width:{{ dims.cw }};height:{{ dims.h }};transform:{{ demo.tf }};opacity:{{ demo.op }}">
+<sc-if value="{{ demo.ready }}" hint-placeholder-val="{{ false }}">
+<img src="{{ demo.src }}" alt="" draggable="false" style="position:absolute;left:0;top:0;width:{{ dims.sw }};height:{{ dims.h }};image-rendering:pixelated">
+<img src="{{ demo.src }}" alt="" draggable="false" style="position:absolute;left:{{ dims.sw }};top:0;width:{{ dims.sw }};height:{{ dims.h }};image-rendering:pixelated">
+</sc-if>
+</div>
+<sc-if value="{{ demo.ready }}" hint-placeholder-val="{{ false }}">
+<img src="{{ ben.src }}" alt="" draggable="false" style="position:absolute;left:{{ ben.l }};top:{{ ben.t }};height:60px;image-rendering:pixelated;pointer-events:none">
+</sc-if>
+<div style="position:absolute;inset:0;background:{{ scrim }};pointer-events:none;transition:background .4s ease"></div>
+
+<sc-if value="{{ isHub }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:52px;top:18px;pointer-events:none">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="Lieutenant Fizz" color="#ffffff" shadow="#f43f5e,#000000" scale="3" hint-size="300px,42px"></x-import>
+</div>
+<div style="position:absolute;right:22px;top:16px;display:flex;gap:6px">
+<sc-for list="{{ hubTop }}" as="b" hint-placeholder-count="3">
+<div onClick="{{ b.tap }}" style="position:relative;height:44px;display:flex;align-items:center;padding:0 14px;cursor:pointer">
+<div style="position:absolute;inset:0;background:rgba(5,5,7,.7);clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)"></div>
+<div style="position:relative;pointer-events:none"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ b.label }}" color="#e0e0e0" scale="2" hint-size="70px,28px"></x-import></div>
+</div>
+</sc-for>
+</div>
+<div style="position:absolute;left:52px;top:82px;display:flex;flex-direction:column;gap:0;pointer-events:none">
+<sc-for list="{{ hubBlurb }}" as="ln" hint-placeholder-count="2">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ ln.text }}" color="#e0e0e0" knock="#050507" scale="2" hint-size="420px,26px"></x-import>
+</sc-for>
+</div>
+<div style="position:absolute;left:52px;top:176px;display:flex;gap:16px">
+<sc-for list="{{ cards }}" as="c" hint-placeholder-count="3">
+<div onClick="{{ c.tap }}" style="position:relative;width:216px;height:150px;padding:6px;box-sizing:border-box;cursor:pointer;transform:{{ c.lift }};transition:transform .25s ease">
+<div style="position:absolute;inset:0;background:{{ c.plate }};clip-path:polygon(6px 0,calc(100% - 6px) 0,calc(100% - 6px) 6px,100% 6px,100% calc(100% - 6px),calc(100% - 6px) calc(100% - 6px),calc(100% - 6px) 100%,6px 100%,6px calc(100% - 6px),0 calc(100% - 6px),0 6px,6px 6px)"></div>
+<div style="position:relative;width:100%;height:100%;background:#050507;display:flex;flex-direction:column;overflow:hidden;pointer-events:none">
+<div style="height:76px;background-image:url({{ c.thumb }});background-size:432px 97px;background-position:{{ c.thumbPos }};image-rendering:pixelated"></div>
+<div style="padding:6px 10px;display:flex;flex-direction:column;gap:0">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ c.num }}" color="{{ c.numInk }}" scale="2" hint-size="90px,24px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ c.title }}" color="#ffffff" scale="2" hint-size="180px,24px"></x-import>
+</div>
+</div>
+<sc-if value="{{ c.cur }}" hint-placeholder-val="{{ false }}">
+<img src="{{ cursorSrc }}" alt="" style="position:absolute;left:50%;top:-30px;width:28px;transform:{{ curDrop }};image-rendering:pixelated;pointer-events:none">
+</sc-if>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ isMain }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;left:52px;top:16px;display:flex;flex-direction:column;gap:2px">
+<div style="pointer-events:none"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="Lieutenant Fizz" color="#ffffff" shadow="#f43f5e,#000000" scale="3" hint-size="300px,42px"></x-import></div>
+<sc-if value="{{ sw.show }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;align-items:center;gap:0;margin-left:-14px">
+<div onClick="{{ sw.prev }}" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="←" color="#ffaa40" scale="3" hint-size="16px,40px"></x-import></div>
+<div style="pointer-events:none"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ sw.text }}" color="#b4bfce" scale="2" hint-size="300px,28px"></x-import></div>
+<div onClick="{{ sw.next }}" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="→" color="#ffaa40" scale="3" hint-size="16px,40px"></x-import></div>
+<div style="display:flex;gap:6px;margin-left:6px">
+<sc-for list="{{ sw.pips }}" as="p" hint-placeholder-count="3"><div style="width:8px;height:8px;background:{{ p.bg }}"></div></sc-for>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ sw.sub }}" hint-placeholder-val="{{ false }}">
+<div style="pointer-events:none"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ sw.text }}" color="#b4bfce" scale="2" hint-size="300px,28px"></x-import></div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSub }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:38px;top:14px;right:22px;display:flex;align-items:center;gap:6px">
+<div onClick="{{ back }}" style="position:relative;height:44px;display:flex;align-items:center;padding:0 14px;cursor:pointer">
+<div style="position:absolute;inset:0;background:rgba(255,255,255,.08);clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)"></div>
+<div style="position:relative;pointer-events:none"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="← Back" color="#e0e0e0" scale="2" hint-size="70px,28px"></x-import></div>
+</div>
+<div style="margin-left:8px;pointer-events:none"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="{{ subTitle }}" color="#ffffff" shadow="#f43f5e,#000000" scale="3" hint-size="160px,42px"></x-import></div>
+<div style="margin-left:auto;display:flex;gap:4px">
+<sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="0">
+<div onClick="{{ tb.tap }}" style="position:relative;height:44px;display:flex;align-items:center;padding:0 12px;cursor:pointer">
+<div style="position:absolute;inset:0;background:{{ tb.bg }};clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)"></div>
+<div style="position:relative;pointer-events:none"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ tb.label }}" color="{{ tb.color }}" scale="2" hint-size="70px,28px"></x-import></div>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{ reset.show }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ reset.tap }}" style="position:relative;height:44px;display:flex;align-items:center;padding:0 12px;cursor:pointer">
+<div style="position:absolute;inset:0;background:{{ reset.bg }};clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)"></div>
+<div style="position:relative;pointer-events:none"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ reset.label }}" color="{{ reset.color }}" scale="2" hint-size="70px,28px"></x-import></div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasRows }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;left:52px;top:{{ list.t }};width:{{ list.w }};display:flex;flex-direction:column;gap:2px">
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="4">
+<div onClick="{{ r.tap }}" onMouseEnter="{{ r.hover }}" style="position:relative;height:44px;display:flex;align-items:center;padding:0 16px;cursor:pointer;opacity:{{ r.op }}">
+<div style="position:absolute;inset:0;background:{{ r.bg }};clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)"></div>
+<sc-if value="{{ r.cur }}" hint-placeholder-val="{{ false }}">
+<img src="{{ cursorSrc }}" alt="" style="position:absolute;left:-38px;top:50%;width:28px;transform:{{ curTf }};image-rendering:pixelated;pointer-events:none">
+</sc-if>
+<div style="position:relative;display:flex;align-items:center;gap:12px;width:100%;pointer-events:none">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ r.label }}" color="{{ r.color }}" scale="{{ r.scale }}" hint-size="160px,40px"></x-import>
+<sc-if value="{{ r.hasValue }}" hint-placeholder-val="{{ false }}">
+<div style="margin-left:auto"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ r.value }}" color="{{ r.vcolor }}" scale="2" hint-size="80px,28px"></x-import></div>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ card.show }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;right:22px;top:72px;width:350px;box-sizing:border-box;padding:14px 18px;border-radius:12px;background:rgba(12,12,16,.9);border:1px solid rgba(255,255,255,.12);box-shadow:0 4px 24px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:0">
+<sc-if value="{{ card.hasThumb }}" hint-placeholder-val="{{ false }}">
+<div style="height:64px;margin-bottom:10px;border-radius:4px;background-image:url({{ card.thumb }});background-size:640px 144px;background-position:{{ card.thumbPos }};image-rendering:pixelated;opacity:{{ card.thumbOp }}"></div>
+</sc-if>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="{{ card.title }}" color="#ffaa40" scale="3" hint-size="200px,42px"></x-import>
+<sc-for list="{{ card.lines }}" as="ln" hint-placeholder-count="2">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ ln.text }}" color="{{ ln.color }}" scale="2" hint-size="300px,26px"></x-import>
+</sc-for>
+<sc-if value="{{ card.hasStepper }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:center;gap:4px;margin-top:10px">
+<div onClick="{{ card.dec }}" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(255,255,255,.06)"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="←" color="#ffaa40" scale="3" hint-size="16px,40px"></x-import></div>
+<div style="flex:1;height:44px;display:flex;align-items:center;justify-content:center;gap:3px;background:rgba(255,255,255,.03)">
+<sc-for list="{{ card.bars }}" as="bar" hint-placeholder-count="0"><div style="width:12px;height:20px;background:{{ bar.bg }}"></div></sc-for>
+<sc-if value="{{ card.hasText }}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ card.val }}" color="#ffffff" scale="2" hint-size="100px,28px"></x-import></sc-if>
+</div>
+<div onClick="{{ card.inc }}" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(255,255,255,.06)"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="→" color="#ffaa40" scale="3" hint-size="16px,40px"></x-import></div>
+</div>
+</sc-if>
+<sc-if value="{{ card.hasScope }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;gap:4px;margin-top:6px">
+<sc-for list="{{ card.scope }}" as="s" hint-placeholder-count="2">
+<div onClick="{{ s.tap }}" style="position:relative;flex:1;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer">
+<div style="position:absolute;inset:0;background:{{ s.bg }};clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)"></div>
+<div style="position:relative;pointer-events:none"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ s.label }}" color="{{ s.color }}" scale="2" hint-size="110px,28px"></x-import></div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ card.hasAction }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ card.act }}" style="position:relative;margin-top:10px;height:44px;display:flex;align-items:center;padding:0 16px;cursor:pointer;align-self:flex-start">
+<div style="position:absolute;inset:0;background:{{ cyc }};clip-path:polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)"></div>
+<div style="position:relative;pointer-events:none"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ card.actLabel }}" color="#000000" scale="3" hint-size="120px,40px"></x-import></div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ isPlaying }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:38px;top:14px;display:flex;gap:8px;align-items:center">
+<div onClick="{{ back }}" style="display:flex;align-items:center;height:44px;padding:0 14px;border-radius:999px;background:rgba(20,20,25,.55);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);cursor:pointer">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ play.backLabel }}" color="#ffffff" scale="2" hint-size="100px,24px"></x-import>
+</div>
+<div style="display:flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;background:rgba(20,20,25,.55);border:1px solid rgba(255,255,255,.14);pointer-events:none">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ play.note }}" color="#ffff55" scale="2" hint-size="240px,24px"></x-import>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ hints.show }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:52px;right:22px;bottom:14px;display:flex;align-items:center;gap:22px;pointer-events:none">
+<sc-for list="{{ hints.items }}" as="h" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:8px">
+<div style="display:flex;align-items:center;height:24px;padding:0 6px;background:rgba(255,255,255,.1);box-shadow:inset 0 -2px 0 rgba(0,0,0,.5)"><x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ h.k }}" color="#ffffff" scale="2" hint-size="40px,22px"></x-import></div>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ h.l }}" color="#b4bfce" scale="2" hint-size="70px,22px"></x-import>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ toast.show }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:0;right:0;bottom:{{ toastBottom }};display:flex;justify-content:center;pointer-events:none">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ toast.text }}" color="#ffffff" knock="#050507" scale="2" hint-size="400px,26px"></x-import>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:800,&quot;height&quot;:360},&quot;direction&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;inline&quot;,&quot;handoff&quot;],&quot;default&quot;:&quot;inline&quot;,&quot;tsType&quot;:&quot;'inline'|'handoff'&quot;},&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;main&quot;,&quot;hub&quot;,&quot;load&quot;,&quot;options&quot;,&quot;playing&quot;],&quot;default&quot;:&quot;main&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;episode&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:1,&quot;min&quot;:1,&quot;max&quot;:3,&quot;tsType&quot;:&quot;number&quot;},&quot;tab&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;sound&quot;,&quot;display&quot;,&quot;controls&quot;,&quot;about&quot;],&quot;default&quot;:&quot;sound&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;sel&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:0,&quot;tsType&quot;:&quot;number&quot;},&quot;label&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Launcher&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const EPS = [
+  { title: 'The Cocoa Caper', short: 'Cocoa Caper', blurb: "The Zargs are stealing Earth's cocoa beans and Billy has gone missing. Pogo, fizz and wall-kick across Planet Zargoth to bring him home." },
+  { title: 'The Chocolate Raid', short: 'Chocolate Raid', blurb: "Ben is on his own now. The Zargs raid Earth's chocolate and Billy is only a voice on the comms." },
+  { title: "Mildred's Last Stand", short: 'Last Stand', blurb: 'A showdown with Mildred, and with the bigger force that was using her all along.' },
+];
+const SLOTS = [
+  [{ id: 'auto', place: 'Rock Candy Reach', lives: 3, score: 12400, played: '1:12', date: 'Wed, Oct. 7' }, { id: 1, place: 'Marshmallow Meadows', lives: 4, score: 8150, played: '0:41', date: 'Sat, Oct. 3' }, { id: 2 }, { id: 3, place: 'Crater Fields', lives: 3, score: 1200, played: '0:06', date: 'Mon, Sep. 28' }, { id: 4 }],
+  [{ id: 'auto', place: 'Chocolate Works', lives: 2, score: 3900, played: '0:22', date: 'Tue, Oct. 6' }, { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }],
+  [{ id: 'auto' }, { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }],
+];
+const SET = {
+  music: { l: 'Music', tab: 'sound', n: 10, d: 'How loud the soundtrack plays.' },
+  sfx: { l: 'Effects', tab: 'sound', n: 10, d: 'Jumps, pogo boings and fizz shots.' },
+  haptics: { l: 'Haptics', tab: 'sound', o: ['Off', 'Light', 'Strong'], d: 'A small buzz when Ben lands, gets hit or grabs a snack.' },
+  scaling: { l: 'Pixels', tab: 'display', o: ['Sharp', 'Fill'], d: 'Sharp keeps whole pixels with thin bars at the edges. Fill stretches to the edges (a little soft).' },
+  scan: { l: 'Scanlines', tab: 'display', o: ['Off', 'On'], d: 'Faint CRT lines over the picture.' },
+  shake: { l: 'Screen shake', tab: 'display', o: ['On', 'Off'], d: 'The screen jolts on big landings and hits.' },
+  lang: { l: 'Language', tab: 'display', o: ['English', 'Français'], d: 'Menus, story and credits.' },
+  layout: { l: 'Touch layout', tab: 'controls', o: ['D-pad', 'Split'], d: 'D-pad puts all four directions under one thumb. Split gives left and right their own big halves.' },
+  hand: { l: 'Hand', tab: 'controls', o: ['Right', 'Left'], d: 'Which side the jump, pogo and fizz buttons sit on.' },
+  size: { l: 'Button size', tab: 'controls', o: ['Small', 'Medium', 'Large'], d: 'Bigger buttons are easier to hit and cover more of the level.' },
+  pad: { l: 'Controller', tab: 'controls', ro: 'None', d: 'No controller connected. Pair one in Android settings and it works straight away.' },
+};
+const SET_D = {
+  music: SET.music, sfx: SET.sfx,
+  haptics: { l: 'Rumble', tab: 'sound', o: ['Off', 'Light', 'Strong'], d: 'Controller rumble when Ben lands, gets hit or grabs a snack.' },
+  window: { l: 'Window', tab: 'display', o: ['Windowed', 'Fullscreen', 'Borderless'], d: 'Borderless fills the screen without changing its mode. F11 switches any time.' },
+  scaling: SET.scaling,
+  vsync: { l: 'V-sync', tab: 'display', o: ['On', 'Off'], d: 'Matches frames to your screen. Turn it off only if input feels slow.' },
+  scan: SET.scan, shake: SET.shake, lang: SET.lang,
+  keys: { l: 'Keyboard', tab: 'controls', o: ['Arrows + Z X C', 'WASD + J K L'], d: 'Move, then jump, pogo and fizz. Esc pauses.' },
+  pad: { l: 'Controller', tab: 'controls', ro: 'Xbox Wireless', d: 'Connected over Bluetooth. A jumps, B pogos, X fizzes. Any XInput or DualSense pad works.' },
+};
+const ABOUT = {
+  guide: { l: 'Game guide', d: 'Enemies, items and secrets, on the Fizz BBS. Opens in your browser.', act: 'Open →' },
+  credits: { l: 'Credits', d: 'Watch the credits for this episode again.', act: 'Play' },
+  licences: { l: 'Licences', d: 'Code is Apache-2.0 or MIT. The Fizz fonts are under the SIL Open Font Licence.', act: 'Read' },
+  version: { l: 'Version', v: '1.0.0', d: 'Launcher 1.0.0 · Liminal Retro Engine 0.2 · Undertone audio.' },
+  engine: { l: 'Engine panel', o: ['Off', 'On'], d: 'Shows the frame timer, lighting and collision overlays. Press the ` key or tap with three fingers in game.' },
+};
+const TABS = [['sound', 'Sound'], ['display', 'Display'], ['controls', 'Controls'], ['about', 'About']];
+const PAL = ['#ffaa40', '#ff9248', '#f97352', '#f45d6a', '#de6a9c', '#c27ad0', '#a78bfa', '#c08ad8', '#e2909c', '#f69e6c'];
+const PLATE_IDLE = 'transparent';
+const DEF_G = { music: 7, sfx: 8, haptics: 1, scaling: 0, scan: 0, shake: 0, lang: 0, layout: 0, hand: 0, size: 1, engine: 0, window: 0, vsync: 0, keys: 0 };
+const wrap = (s, n) => { const out = []; let ln = ''; s.split(' ').forEach((w) => { if ((ln + ' ' + w).trim().length > n) { out.push(ln); ln = w; } else ln = (ln + ' ' + w).trim(); }); if (ln) out.push(ln); return out; };
+const slotName = (s) => (s.id === 'auto' ? 'Autosave' : 'Slot ' + s.id);
+
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.desk = p.platform === 'desktop'; this.S = this.desk ? SET_D : SET;
+    const dir = p.direction ?? 'inline';
+    this.state = {
+      t: 0, art: null, ep: Math.max(0, Math.min(dir === 'carousel' ? 3 : 2, (p.episode ?? 1) - 1)), resetUntil: -1,
+      screen: p.screen ?? (dir === 'handoff' ? 'hub' : 'main'), from: p.from ?? 'main',
+      tab: p.tab ?? 'sound', sel: Number(p.sel ?? 0), note: 'New game', taps: 0, engine: false, toast: null,
+      g: Object.assign({}, DEF_G),
+      ov: { 0: { scan: 1 }, 1: {}, 2: {} },
+    };
+  }
+  componentDidMount() {
+    this.load();
+    const t0 = performance.now(); let last = 0;
+    const loop = (now) => { this.raf = requestAnimationFrame(loop); if (now - last < 66) return; last = now; this.setState({ t: (now - t0) / 1000 }); };
+    this.raf = requestAnimationFrame(loop);
+    if (this.props.keyboard) { this.kh = (e) => this.onKey(e); window.addEventListener('keydown', this.kh); }
+  }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); if (this.kh) window.removeEventListener('keydown', this.kh); }
+  onKey(e) {
+    const n = this.nav; if (!n) return; const s = this.state; const k = e.key;
+    const hit = () => e.preventDefault();
+    if (k === 'ArrowUp' || k === 'ArrowDown') { hit(); if (n.len) this.setState({ sel: Math.max(0, Math.min(n.len - 1, s.sel + (k === 'ArrowUp' ? -1 : 1))) }); }
+    else if (k === 'ArrowLeft' || k === 'ArrowRight') { hit(); const d = k === 'ArrowLeft' ? -1 : 1; if (n.isMain) this.setEp(d); else if (n.stepKey) this.step(n.stepKey, d); }
+    else if (k === 'Enter' || k === ' ') { hit(); if (n.tap) n.tap(); }
+    else if (k === 'Escape' || k === 'Backspace') { hit(); n.back(); }
+    else if (k === 'Tab' && n.tabs && n.tabs.length) { hit(); const i = n.tabs.findIndex((t) => t.id === s.tab); this.setState({ tab: n.tabs[(i + (e.shiftKey ? -1 : 1) + n.tabs.length) % n.tabs.length].id, sel: 0 }); }
+  }
+  async load() {
+    if (!window.__lfLauncherArt) window.__lfLauncherArt = import('./melting/launcher-art.js').then((m) => m.buildLauncherArt());
+    this.setState({ art: await window.__lfLauncherArt });
+  }
+  go(screen, extra) { this.setState(Object.assign({ screen, sel: 0 }, extra || {})); }
+  toast(text) { this.setState((s) => ({ toast: { text, until: s.t + 2.6 } })); }
+  nEp() { return this.props.direction === 'carousel' ? 4 : 3; }
+  setEp(d) { const n = this.nEp(); this.setState((s) => ({ ep: (s.ep + d + n) % n, sel: 0 })); }
+  scoped() { return this.state.from === 'main'; }
+  doReset() {
+    const s = this.state;
+    if (!(s.resetUntil > s.t)) return this.setState({ resetUntil: s.t + 3 });
+    if (this.scoped()) { this.setState({ resetUntil: -1, ov: Object.assign({}, s.ov, { [s.ep]: {} }) }); this.toast('Episode ' + (s.ep + 1) + ' now follows app settings'); }
+    else { this.setState({ resetUntil: -1, g: Object.assign({}, DEF_G, { engine: s.g.engine }) }); this.toast('App settings are back to defaults'); }
+  }
+  getV(k) { const s = this.state; const o = s.ov[s.ep]; return this.scoped() && o[k] !== undefined ? o[k] : s.g[k]; }
+  isOv(k) { return this.scoped() && this.state.ov[this.state.ep][k] !== undefined; }
+  setV(k, v) {
+    this.setState((s) => {
+      if (this.scoped() && s.ov[s.ep][k] !== undefined) return { ov: Object.assign({}, s.ov, { [s.ep]: Object.assign({}, s.ov[s.ep], { [k]: v }) }) };
+      return { g: Object.assign({}, s.g, { [k]: v }) };
+    });
+  }
+  step(k, d) { const def = this.S[k] || ABOUT[k]; const max = def.n ?? def.o.length - 1; const v = this.getV(k); this.setV(k, def.n ? Math.max(0, Math.min(max, v + d)) : (v + d + max + 1) % (max + 1)); }
+  setScope(k, mine) {
+    this.setState((s) => {
+      const o = Object.assign({}, s.ov[s.ep]);
+      if (mine) o[k] = s.g[k]; else delete o[k];
+      return { ov: Object.assign({}, s.ov, { [s.ep]: o }) };
+    });
+  }
+  valText(k) { const def = this.S[k] || ABOUT[k]; if (def.ro) return def.ro; const v = k === 'engine' ? this.state.g.engine : this.getV(k); return def.n ? String(v) : def.o[v]; }
+  optKeys() {
+    const s = this.state;
+    if (s.tab === 'about') return ['guide', 'credits', 'licences', 'version'].concat(s.engine ? ['engine'] : []);
+    return Object.keys(this.S).filter((k) => this.S[k].tab === s.tab);
+  }
+  renderVals() {
+    const s = this.state, art = s.art, dir = this.props.direction ?? 'inline', car = dir === 'carousel', isApp = car && s.ep === 3;
+    const ep = EPS[s.ep] || { title: 'App settings', short: 'Settings', blurb: '' }, slots = SLOTS[s.ep] || [];
+    const t = s.t, cyc = PAL[Math.floor(t * 2.5) % PAL.length];
+    const isHub = s.screen === 'hub', isMain = s.screen === 'main', isPlaying = s.screen === 'playing';
+    const isSub = s.screen === 'load' || s.screen === 'options' || s.screen === 'saves';
+    const epName = isApp ? 'App settings · All episodes' : 'Episode ' + (s.ep + 1) + ' · ' + ep.title;
+    const play = (note) => this.go('playing', { note: 'Episode ' + (s.ep + 1) + ' · ' + note });
+    const backTo = () => {
+      if (s.screen === 'playing' || isSub) return this.go(s.from === 'hub' && isSub ? 'hub' : 'main', { sel: 0 });
+    };
+    const mkRow = (label, i, opts) => {
+      const on = i === s.sel;
+      return Object.assign({ label, scale: 3, cur: on && !!art, hasValue: false, value: '', op: 1,
+        bg: on ? cyc : PLATE_IDLE, color: on ? '#000000' : '#e0e0e0', vcolor: on ? '#000000' : '#7c8796' }, opts || {});
+    };
+    let rows = [], list = { t: '112px', w: '340px' }, card = { show: false }, tabs = [], subTitle = '';
+    const sel = (i) => () => this.setState({ sel: i });
+
+    if (isMain) {
+      const newest = slots.find((x) => x.place);
+      const items = [];
+      if (isApp) { items.push(['Settings', () => this.go('options', { from: 'app', tab: 'sound' })], ['Saves', () => this.go('saves', { from: 'app' })], ['About', () => this.go('options', { from: 'app', tab: 'about' })]); if (this.desk) items.push(['Quit', () => this.toast('Closing Lieutenant Fizz')]); }
+      else if (newest) items.push(['Continue', () => play(slotName(newest) + ' · ' + newest.place), slotName(newest)]);
+      if (!isApp) {
+        items.push(['New game', () => play('New game')]);
+        items.push(['Load game', () => this.go('load', { from: 'main' })]);
+        items.push(['Options', () => this.go('options', { from: 'main', tab: 'sound' })]);
+      }
+      if (dir === 'handoff') items.push(['← Episodes', () => this.go('hub', { sel: s.ep })]);
+      rows = items.map(([l, fn, v], i) => mkRow(l, i, { tap: () => (i === s.sel ? fn() : this.setState({ sel: i })), hasValue: !!v, value: v || '' }));
+      list.t = dir === 'handoff' ? '104px' : '112px';
+    }
+    if (s.screen === 'load') {
+      subTitle = 'Load game';
+      tabs = car ? [] : [['Export', () => this.toast('Saved fizz-saves-2026-10-08.fizzsave to Downloads')], ['Import', () => this.toast('Pick a .fizzsave file to bring saves in')]].map(([label, tap]) => ({ label, tap, bg: 'rgba(255,255,255,.08)', color: '#e0e0e0' }));
+      rows = slots.map((x, i) => mkRow(slotName(x) + ' · ' + (x.place || 'Empty'), i, { scale: 2, tap: () => (i === s.sel && x.place ? play(slotName(x) + ' · ' + x.place) : this.setState({ sel: i })), op: x.place ? 1 : 0.6 }));
+      list = { t: '72px', w: '340px' };
+      const x = slots[s.sel] || slots[0];
+      const lines = x.place
+        ? wrap(['Lives ' + x.lives, x.score.toLocaleString('en-CA') + ' pts', x.played + ' played', x.date].join(' · '), 24).concat(x.id === 'auto' ? ['Read-only'] : [])
+        : wrap('Nothing saved. Save from the pause menu to use this slot.', 24);
+      card = { show: true, hasThumb: true, thumb: art ? art.demos[s.ep] : '', thumbPos: '-' + (120 + s.sel * 60) + 'px -70px', thumbOp: x.place ? 1 : 0.25, title: slotName(x),
+        lines: lines.map((text) => ({ text, color: '#e0e0e0' })), hasAction: !!x.place, actLabel: 'Load', act: () => play(slotName(x) + ' · ' + x.place) };
+    }
+    if (s.screen === 'saves') {
+      subTitle = 'Saves';
+      rows = [['Export all saves', () => this.toast('Saved fizz-saves-2026-10-08.fizzsave to Downloads')], ['Import saves', () => this.toast('Pick a .fizzsave file to bring saves in')]]
+        .map(([l, fn], i) => mkRow(l, i, { scale: 2, tap: () => (i === s.sel ? fn() : this.setState({ sel: i })) }));
+      list = { t: '72px', w: '340px' };
+      const ex = s.sel === 0;
+      card = { show: true, title: ex ? 'Export' : 'Import',
+        lines: wrap(ex ? "Saves stay on this phone. Export writes one .fizzsave file with every episode's slots, to keep anywhere you like." : 'Reads a .fizzsave file back in. Slots it holds replace the ones here, and nothing else changes.', 24).map((text) => ({ text, color: '#e0e0e0' })),
+        hasAction: true, actLabel: ex ? 'Export' : 'Import', act: rows[s.sel].tap };
+    }
+    if (s.screen === 'options') {
+      subTitle = !car ? 'Options' : s.tab === 'about' ? 'About' : this.scoped() ? 'Episode ' + (s.ep + 1) : 'Settings';
+      tabs = (car && s.tab === 'about') ? [] : TABS.filter(([id]) => !car || id !== 'about').map(([id, label]) => ({ label, tap: () => this.setState({ tab: id, sel: 0 }), bg: s.tab === id ? 'rgba(255,170,64,.18)' : 'rgba(255,255,255,.04)', color: s.tab === id ? '#ffaa40' : '#b4bfce' }));
+      const keys = this.optKeys();
+      const sk = keys[Math.min(s.sel, keys.length - 1)];
+      rows = keys.map((k, i) => {
+        const def = this.S[k] || ABOUT[k], on = i === s.sel, ov = this.isOv(k);
+        const hasVal = !!(def.n || def.o || def.ro || def.v);
+        const tap = () => {
+          if (k === 'version') { const n = s.taps + 1; this.setState({ sel: i, taps: n, engine: s.engine || n >= 7 }); if (n >= 3 && n < 7) this.toast('Engine tools in ' + (7 - n) + (7 - n === 1 ? ' tap' : ' taps')); if (n === 7) this.toast('Engine tools are on'); return; }
+          if (on && (def.n || def.o)) return k === 'engine' ? this.setState((st) => ({ g: Object.assign({}, st.g, { engine: st.g.engine ? 0 : 1 }) })) : this.step(k, 1);
+          this.setState({ sel: i });
+        };
+        return mkRow(def.l, i, { scale: 2, tap, hasValue: hasVal, value: def.v || this.valText(k) + (ov ? ' *' : ''), vcolor: on ? '#000000' : ov ? '#ffff55' : '#7c8796' });
+      });
+      list = { t: '72px', w: '340px' };
+      const def = this.S[sk] || ABOUT[sk], ov = this.isOv(sk), isSet = !!this.S[sk] && !def.ro;
+      const lines = wrap(def.d, 24).map((text) => ({ text, color: '#e0e0e0' }));
+      if (isSet && ov) lines.push({ text: 'Set for Episode ' + (s.ep + 1) + ' only', color: '#ffff55' });
+      if (isSet && !this.scoped()) lines.push({ text: 'Episodes can override this', color: '#7c8796' });
+      if (car && s.resetUntil > s.t) lines.push({ text: this.scoped() ? 'Reset clears every Episode ' + (s.ep + 1) + ' override' : 'Reset restores every app default', color: '#f45d6a' });
+      const v = this.getV(sk);
+      card = { show: true, title: def.l, lines,
+        hasStepper: isSet || sk === 'engine', dec: () => (sk === 'engine' ? this.setState((st) => ({ g: Object.assign({}, st.g, { engine: st.g.engine ? 0 : 1 }) })) : this.step(sk, -1)), inc: () => (sk === 'engine' ? this.setState((st) => ({ g: Object.assign({}, st.g, { engine: st.g.engine ? 0 : 1 }) })) : this.step(sk, 1)),
+        bars: def.n ? Array.from({ length: def.n }, (_, i) => ({ bg: i < v ? '#ffaa40' : 'rgba(255,255,255,.12)' })) : [],
+        hasText: !def.n, val: this.valText(sk),
+        hasScope: isSet && this.scoped(),
+        scope: [['All episodes', false], ['Episode ' + (s.ep + 1), true]].map(([label, mine]) => ({ label, tap: () => this.setScope(sk, mine), bg: ov === mine ? '#ffaa40' : 'rgba(255,255,255,.06)', color: ov === mine ? '#000000' : '#b4bfce' })),
+        hasAction: !!def.act, actLabel: def.act || '', act: () => this.toast(sk === 'guide' ? 'Opening the game guide' : sk === 'credits' ? 'Rolling the credits' : 'Opening licences') };
+    }
+
+    const H = this.desk ? 450 : 360, SW = Math.round(640 * H / 144);
+    const off = art ? (t * (isPlaying ? 150 : 90) * H / 360) % SW : 0;
+    const ph = t % 2.8, jumping = ph < 0.6;
+    const benSrc = art ? (jumping ? art.jump : art.run[Math.floor(t / 0.15) % 2]) : '';
+    const cards = EPS.map((e, i) => {
+      const on = i === s.ep;
+      return { num: 'Episode ' + (i + 1), title: e.short, numInk: on ? '#ffaa40' : '#7c8796', thumb: art ? art.demos[i] : '', thumbPos: (on ? -Math.round(off * 0.27) : -60) + 'px bottom',
+        plate: on ? cyc : 'rgba(255,255,255,.14)', lift: on ? 'translateY(-6px)' : 'none', cur: on && !!art,
+        tap: () => (on ? this.go('main', { from: 'hub' }) : this.setState({ ep: i })) };
+    });
+    const scrim = isPlaying ? 'rgba(5,5,7,0)' : isHub ? 'linear-gradient(to bottom, rgba(5,5,7,.88) 0%, rgba(5,5,7,.35) 45%, rgba(5,5,7,.8) 100%)'
+      : isSub ? 'linear-gradient(to right, rgba(5,5,7,.95) 0%, rgba(5,5,7,.88) 48%, rgba(5,5,7,.55) 100%)' : 'linear-gradient(to right, rgba(5,5,7,.95) 0%, rgba(5,5,7,.84) 42%, rgba(5,5,7,0) 74%)';
+    rows.forEach((r, i) => { r.hover = this.desk && i !== s.sel ? () => this.setState({ sel: i }) : undefined; });
+    const selKey = s.screen === 'options' ? this.optKeys()[Math.min(s.sel, this.optKeys().length - 1)] : null;
+    const stepKey = selKey && ((this.S[selKey] && !this.S[selKey].ro) || selKey === 'engine') ? selKey : null;
+    this.nav = { len: rows.length, isMain, stepKey, tap: rows[s.sel] && rows[s.sel].tap, back: () => (isSub || isPlaying ? backTo() : null),
+      tabs: s.screen === 'options' && tabs.length ? TABS.filter(([id]) => !car || id !== 'about').map(([id]) => ({ id })) : null };
+    const hintItems = isPlaying ? [['Esc', 'Back to launcher']]
+      : isMain ? [['↑↓', 'Select'], ['← →', isApp ? 'Episode' : 'Episode'], ['Enter', isApp ? 'Open' : 'Play']]
+      : s.screen === 'options' ? [['↑↓', 'Select'], ['← →', 'Change']].concat(tabs.length ? [['Tab', 'Section']] : []).concat([['Esc', 'Back']])
+      : [['↑↓', 'Select'], ['Enter', 'Choose'], ['Esc', 'Back']];
+    return {
+      dims: { h: H + 'px', sw: SW + 'px', cw: SW * 2 + 'px' },
+      hints: { show: this.desk, items: hintItems.map(([k, l]) => ({ k, l })) },
+      toastBottom: this.desk ? '52px' : '18px',
+      label: this.props.label ?? 'Launcher',
+      noMenu: (e) => e.preventDefault(),
+      swipeDown: (e) => { this.sx = e.clientX; },
+      swipeUp: (e) => { if (this.sx == null || !(isHub || (isMain && (dir === 'inline' || car)))) return; const dx = e.clientX - this.sx; this.sx = null; if (Math.abs(dx) > 60) this.setEp(dx < 0 ? 1 : -1); },
+      demo: { ready: !!art, src: art ? art.demos[isApp ? Math.floor(t / 5) % 3 : Math.min(s.ep, 2)] : '', tf: 'translateX(' + -Math.round(off) + 'px)', op: 1 },
+      ben: { src: benSrc, l: (isHub ? 730 : isPlaying ? 360 : isSub ? 700 : 560) + 'px', t: Math.round(H * 112 / 144 - 60 - (jumping ? Math.sin((Math.PI * ph) / 0.6) * 70 : 0)) + 'px' },
+      scrim, cyc, cursorSrc: art ? art.soda : '',
+      curTf: 'translate(' + Math.round(Math.sin(t * 5) * 2) * 2 + 'px,-50%)',
+      curDrop: 'translate(-50%,' + Math.round(Math.sin(t * 5) * 2) * 2 + 'px) rotate(90deg)',
+      isHub, isMain, isSub, isPlaying, hasRows: rows.length > 0,
+      hubTop: [['Options', () => this.go('options', { from: 'hub', tab: 'sound' })], ['Saves', () => this.go('saves', { from: 'hub' })], ['About', () => this.go('options', { from: 'hub', tab: 'about' })]].map(([label, tap]) => ({ label, tap })),
+      hubBlurb: wrap(ep.blurb, 52).slice(0, 2).map((text) => ({ text })),
+      cards,
+      sw: { show: isMain && (dir === 'inline' || car), sub: isMain && dir === 'handoff', text: epName, prev: () => this.setEp(-1), next: () => this.setEp(1), pips: Array.from({ length: this.nEp() }, (_, i) => ({ bg: i === s.ep ? (i === 3 ? '#55ffff' : '#ffaa40') : 'rgba(255,255,255,.22)' })) },
+      reset: (() => { const armed = s.resetUntil > s.t; return { show: car && s.screen === 'options' && s.tab !== 'about', label: armed ? 'Tap again' : 'Reset', tap: () => this.doReset(), bg: armed ? '#f43f5e' : 'rgba(244,63,94,.16)', color: armed ? '#000000' : '#f45d6a' }; })(),
+      subTitle, tabs, rows, list, card,
+      back: backTo,
+      play: { backLabel: dir === 'handoff' ? '← Menu' : '← Launcher', note: s.note },
+      toast: { show: !!s.toast && s.t < s.toast.until, text: s.toast ? s.toast.text : '' },
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/tokens/fonts.css">
+<script src="_ds/liminal-hq-design-system-6cba2760-aafe-4956-b98a-086ca9e6ecd3/_ds_bundle.js"></script>
+<style>html,body{margin:0;background:#000;color:#e0e0e0}a{color:#ffaa40}a:hover{color:#ffc06e}</style>
+</helmet>
+<div ref="{{ rootRef }}" tabIndex="0" onKeyDown="{{ onKey }}" onMouseEnter="{{ onEnterFrame }}" data-screen-label="Fizz title live" style="position:relative;width:100%;height:{{ rootH }};overflow:hidden;background:#000;outline:none;font-family:Inter,sans-serif">
+<canvas ref="{{ bgRef }}" style="position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated"></canvas>
+<div style="position:absolute;inset:0;background:{{ overlayBg }};pointer-events:none"></div>
+<sc-if value="{{ showAttractTag }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;right:{{ L.padX }};bottom:{{ L.padY }};pointer-events:none">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ attractTag }}" color="#b4bfce" shadow="#000000" scale="{{ L.small }}" hint-size="200px,30px"></x-import>
+</div>
+</sc-if>
+<sc-if value="{{ isPlay }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:16px;top:16px;display:flex;flex-direction:column;gap:2px;padding:10px 14px;background:rgba(12,12,16,.82);border:1px solid rgba(255,255,255,.1);border-radius:12px">
+<div style="display:flex;gap:{{ L.hudGap }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" mono="true" cut="bold" text="240" color="#ffff55" scale="{{ L.item }}" hint-size="70px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" mono="true" cut="bold" text="3" color="#55ff55" scale="{{ L.item }}" hint-size="30px,42px"></x-import>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" mono="true" cut="bold" text="5" color="#55ffff" scale="{{ L.item }}" hint-size="30px,42px"></x-import>
+</div>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Score · Lives · Fizz" color="#7c8796" scale="2" hint-size="160px,28px"></x-import>
+</div>
+<div style="position:absolute;right:16px;top:16px">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ playHint }}" color="#b4bfce" shadow="#000000" knock="#050507" scale="2" hint-size="140px,30px"></x-import>
+</div>
+</sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:50%;top:20px;transform:translateX(-50%);padding:8px 16px;background:rgba(12,12,16,.88);border:1px solid rgba(255,255,255,.12);border-radius:12px">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ toast }}" color="#e0e0e0" scale="2" hint-size="240px,28px"></x-import>
+</div>
+</sc-if>
+<sc-if value="{{ showMenu }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;inset:0;padding:{{ L.padY }} {{ L.padX }} {{ L.padBottom }};box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:{{ L.gap }};overflow:hidden">
+<sc-if value="{{ isTitle }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:{{ L.headGap }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="Ben Blaze in" color="#ffaa40" shadow="#000000" scale="{{ L.small }}" hint-size="140px,30px"></x-import>
+<div ref="{{ logoRef }}" style="position:relative;display:inline-flex;flex-direction:column;align-self:flex-start">
+<sc-for list="{{ logoLines }}" as="ll" hint-placeholder-count="1">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="{{ ll.text }}" scale="{{ L.logo }}" color="#ffffff" shadow="#f43f5e,#000000" hint-size="480px,96px"></x-import>
+</sc-for>
+<sc-if value="{{ hasBen }}" hint-placeholder-val="{{ false }}">
+<img src="{{ ben.src }}" alt="" style="position:absolute;left:{{ ben.left }};bottom:{{ ben.bottom }};width:{{ L.benW }};image-rendering:pixelated;transform:{{ ben.tf }};transform-origin:50% 100%;pointer-events:none">
+</sc-if>
+</div>
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="Episode 1 · The Cocoa Caper" color="#b4bfce" shadow="#000000" scale="{{ L.small }}" hint-size="260px,30px"></x-import>
+</div>
+</sc-if>
+<sc-if value="{{ hasHeading }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" cut="bold" text="{{ heading }}" color="#ffffff" shadow="#f43f5e,#000000" scale="{{ L.head }}" hint-size="240px,70px"></x-import>
+</sc-if>
+<sc-if value="{{ hasLines }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column">
+<sc-for list="{{ lines }}" as="ln" hint-placeholder-count="2">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ ln.text }}" color="#b4bfce" shadow="#000000" scale="{{ L.small }}" hint-size="400px,30px"></x-import>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ hasRows }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:2px">
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="5">
+<div onMouseEnter="{{ r.onEnter }}" onClick="{{ r.onClick }}" style="display:flex;align-items:center;gap:{{ L.gutGap }};height:{{ L.rowH }};cursor:pointer">
+<div style="width:{{ L.cw }};height:100%;display:flex;align-items:center;justify-content:center">
+<sc-if value="{{ r.showCursor }}" hint-placeholder-val="{{ false }}">
+<img src="{{ cursorSrc }}" alt="" style="width:{{ L.cw }};image-rendering:pixelated;transform:{{ cursorTf }}">
+</sc-if>
+</div>
+<div style="display:flex;align-items:center;gap:{{ L.valGap }};height:100%;padding:{{ L.platePad }};background:{{ r.bg }};clip-path:{{ r.clip }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ r.label }}" color="{{ r.color }}" shadow="{{ r.shadow }}" scale="{{ L.item }}" hint-size="160px,42px"></x-import>
+<sc-if value="{{ r.hasValue }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ r.value }}" color="{{ r.vcolor }}" shadow="{{ r.shadow }}" knock="{{ r.knock }}" scale="{{ L.small }}" hint-size="80px,30px"></x-import>
+</sc-if>
+<sc-if value="{{ r.hasMeter }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;gap:{{ L.meterGap }}">
+<sc-for list="{{ r.meter }}" as="m" hint-placeholder-count="8">
+<div style="width:{{ L.meterW }};height:{{ L.meterH }};background:{{ m.c }}"></div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ isControls }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid;grid-template-columns:repeat(4,auto);gap:{{ L.cellGap }};align-items:center">
+<sc-for list="{{ ctrlCells }}" as="cc" hint-placeholder-count="28">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ cc.text }}" color="{{ cc.color }}" shadow="#000000" knock="#050507" scale="{{ L.small }}" hint-size="100px,30px"></x-import>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ isSaves }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:4px;max-width:100%">
+<sc-for list="{{ slots }}" as="sl" hint-placeholder-count="5">
+<div onMouseEnter="{{ sl.onEnter }}" onClick="{{ sl.onClick }}" style="display:flex;align-items:center;gap:{{ L.gutGap }};cursor:pointer">
+<div style="width:{{ L.cw }};display:flex;justify-content:center">
+<sc-if value="{{ sl.showCursor }}" hint-placeholder-val="{{ false }}">
+<img src="{{ cursorSrc }}" alt="" style="width:{{ L.cw }};image-rendering:pixelated;transform:{{ cursorTf }}">
+</sc-if>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:6px 14px 6px 8px;background:{{ sl.bg }};clip-path:{{ sl.clip }}">
+<sc-if value="{{ sl.hasThumb }}" hint-placeholder-val="{{ false }}">
+<img src="{{ sl.thumb }}" alt="" style="width:{{ L.thumbW }};height:{{ L.thumbH }};image-rendering:pixelated;box-shadow:0 0 0 2px {{ sl.frame }}">
+</sc-if>
+<sc-if value="{{ sl.noThumb }}" hint-placeholder-val="{{ false }}">
+<div style="width:{{ L.thumbW }};height:{{ L.thumbH }};box-sizing:border-box;border:2px dashed {{ sl.frame }}"></div>
+</sc-if>
+<div style="display:flex;flex-direction:column">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ sl.line1 }}" color="{{ sl.c1 }}" shadow="{{ sl.shadow }}" scale="{{ L.small }}" hint-size="240px,30px"></x-import>
+<sc-if value="{{ L.slotDetail }}" hint-placeholder-val="{{ true }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ sl.line2 }}" color="{{ sl.c2 }}" shadow="{{ sl.shadow }}" scale="2" hint-size="300px,28px"></x-import>
+</sc-if>
+</div>
+<div style="display:flex;gap:4px;margin-left:8px">
+<sc-for list="{{ sl.pips }}" as="p" hint-placeholder-count="3">
+<div style="width:10px;height:10px;background:{{ p.c }}"></div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ hasNote }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ note }}" color="#7c8796" shadow="#000000" scale="2" hint-size="320px,28px"></x-import>
+</sc-if>
+</div>
+<div style="position:absolute;left:{{ L.padX }};bottom:{{ L.keysBottom }};display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;pointer-events:none">
+<x-import component-from-global-scope="pixel-text" from="./pixelfont.js" font="fizz" text="{{ hints }}" color="#b4bfce" shadow="#000000" knock="#050507" scale="2" hint-size="360px,30px"></x-import>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;title&quot;,&quot;play&quot;,&quot;pause&quot;,&quot;options&quot;,&quot;controls&quot;,&quot;saves&quot;,&quot;gameover&quot;,&quot;cleared&quot;],&quot;default&quot;:&quot;title&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;attract&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;levels&quot;,&quot;single&quot;],&quot;default&quot;:&quot;levels&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;hints&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;keyboard&quot;,&quot;gamepad&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;motion&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;reduced&quot;,&quot;full&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;frame&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { W: 1000, H: 615, screen: 'title', back: 'title', sel: 0, now: 0, mode: 'keyboard', o: { music: 6, sfx: 4, captions: true, layout: 0, text: 0, motion: 0 }, flash: 0, wave: 0, look: 0, logoW: 400, logoH: 80, art: {}, toast: '', toastUntil: 0, saveMode: 'load', level: 0 };
+  rootRef = React.createRef();
+  bgRef = React.createRef();
+  logoRef = React.createRef();
+
+  componentDidMount() {
+    this.t0 = performance.now() / 1000;
+    const start = ['title', 'pause', 'options', 'controls', 'saves', 'gameover', 'cleared', 'play'].includes(this.props.screen) ? this.props.screen : 'title';
+    this.setState({ now: this.t0, screen: start, back: start === 'pause' || start === 'options' ? 'pause' : 'title', mode: this.padConnected() ? 'gamepad' : 'keyboard', sel: start === 'saves' ? 2 : 0 });
+    const el = this.rootRef.current;
+    this.ro = new ResizeObserver(() => { const r = el.getBoundingClientRect(); if (r.width && r.height) this.setState({ W: Math.round(r.width), H: Math.round(r.height) }); });
+    this.ro.observe(el);
+    this.timer = setInterval(() => {
+      const now = performance.now() / 1000, l = this.logoRef.current, patch = {};
+      if (l && l.offsetWidth > 0 && (l.offsetWidth !== this.state.logoW || l.offsetHeight !== this.state.logoH)) { patch.logoW = l.offsetWidth; patch.logoH = l.offsetHeight; }
+      if (!this.reduced() || this.state.flash > now - 0.3 || this.state.toastUntil > now - 0.3) patch.now = now;
+      if (Object.keys(patch).length) this.setState(patch);
+    }, 100);
+    this.onPad = () => this.setState({ mode: 'gamepad' });
+    this.onPadOff = () => this.setState({ mode: 'keyboard' });
+    window.addEventListener('gamepadconnected', this.onPad);
+    window.addEventListener('gamepaddisconnected', this.onPadOff);
+    if (!this.props.frame) el.focus({ preventScroll: true });
+    this.boot();
+  }
+  componentWillUnmount() {
+    this.dead = true;
+    clearInterval(this.timer);
+    cancelAnimationFrame(this.raf);
+    this.ro && this.ro.disconnect();
+    window.removeEventListener('gamepadconnected', this.onPad);
+    window.removeEventListener('gamepaddisconnected', this.onPadOff);
+  }
+  padConnected() { try { return Array.from(navigator.getGamepads ? navigator.getGamepads() : []).some(Boolean); } catch (e) { return false; } }
+  reduced() {
+    const m = this.props.motion;
+    if (m === 'reduced' || this.state.o.motion === 1) return true;
+    if (m === 'full' || this.state.o.motion === 2) return false;
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  async boot() {
+    if (!window.__lfLive) window.__lfLive = (async () => {
+      const [sp, lv] = await Promise.all([import('./melting/sprites.js'), import('./melting/levels.js')]);
+      const by = {};
+      sp.defineSprites().forEach((d) => { by[d.name] = d; });
+      const levels = ['crater', 'caves', 'citadel'].map((id) => lv.buildLevel(id));
+      return { by, E: sp.EGA, levels, T: lv.T, isSlope: lv.isSlope };
+    })();
+    this.A = await window.__lfLive;
+    if (this.dead) return;
+    this.cache = {};
+    const one = (n) => { const c = this.spr(n); return c ? c.toDataURL() : ''; };
+    const art = {};
+    ['ben_stand', 'ben_jump', 'ben_shoot', 'ben_pogo', 'ben_pogo2', 'soda'].forEach((n) => { art[n] = one(n); });
+    art.thumbs = [0, 1, 2].map((i) => this.thumb(i));
+    this.levelT0 = performance.now() / 1000;
+    this.setState({ art });
+    const loop = () => { if (this.dead) return; this.raf = requestAnimationFrame(loop); this.draw(); };
+    this.raf = requestAnimationFrame(loop);
+  }
+
+  spr(name, tint) {
+    const key = name + '|' + (tint || '');
+    if (this.cache[key] !== undefined) return this.cache[key];
+    const d = this.A.by[name];
+    if (!d) return (this.cache[key] = null);
+    const c = document.createElement('canvas'); c.width = d.w; c.height = d.h;
+    const x = c.getContext('2d');
+    const tr = tint ? [(tint >> 16) & 255, (tint >> 8) & 255, tint & 255] : null;
+    for (let j = 0; j < d.h; j++) for (let i = 0; i < d.w; i++) {
+      const k = d.g[j][i]; if (!k || k === '.') continue;
+      let col = this.A.E[k] || k;
+      if (tr) { const v = parseInt(col.slice(1), 16); col = `rgb(${(((v >> 16) & 255) * tr[0]) / 255 | 0},${(((v >> 8) & 255) * tr[1]) / 255 | 0},${((v & 255) * tr[2]) / 255 | 0})`; }
+      x.fillStyle = col; x.fillRect(i, j, 1, 1);
+    }
+    return (this.cache[key] = c);
+  }
+
+  thumb(i) {
+    const c = document.createElement('canvas'); c.width = 96; c.height = 60;
+    this.paint(c.getContext('2d'), 96, 60, 1, i, [20, 60, 90][i] + 6, true);
+    return c.toDataURL();
+  }
+
+  // Draws a level slice. k = device pixels per sprite pixel; camX in tiles (centre).
+  paint(ctx, w, h, k, li, camX, still) {
+    const A = this.A, T = A.T, s = A.levels[li], b = s.id;
+    const ppu = 16 * k, halfW = w / ppu / 2, halfH = h / ppu / 2;
+    const camY = halfH + 0.5;
+    camX = Math.round(camX * ppu) / ppu;
+    const t = still ? 0 : performance.now() / 1000;
+    const BIO = {
+      crater: { clear: '#5555ff', layers: [{ kind: 'hills', s: 'mtnTop', tint: 0xaa00aa, f: 0.22, base: 4.5, amp: 2 }, { kind: 'hills', s: 'hillTop', tint: 0x00aa00, f: 0.5, base: 3.5, amp: 1.5 }], crys: 'crysM' },
+      caves: { clear: '#000000', layers: [{ kind: 'wall', s: 'cavesBack', tint: 0x50506a, f: 0.5 }], crys: 'crysC' },
+      citadel: { clear: '#000000', layers: [{ kind: 'wall', s: 'citadelBack', tint: 0x8a4a70, f: 0.6 }], crys: 'crysM' },
+    }[b];
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = BIO.clear; ctx.fillRect(0, 0, w, h);
+    const x0 = camX - halfW, x1 = camX + halfW, y0 = camY - halfH, y1 = camY + halfH;
+    const sx = (wx) => Math.round((wx - x0) * ppu), sy = (wy) => Math.round((y1 - wy) * ppu);
+    const blit = (c, wxL, wyTop) => { if (c) ctx.drawImage(c, sx(wxL), sy(wyTop), c.width * k, c.height * k); };
+    for (const L of BIO.layers) {
+      if (L.kind === 'hills') {
+        const ox = camX * (1 - L.f), oy = camY * (1 - L.f) * 0.6, c = this.spr(L.s, L.tint);
+        const col = '#' + L.tint.toString(16).padStart(6, '0');
+        for (let ix = Math.floor(x0 - ox) - 1; ix <= Math.ceil(x1 - ox); ix++) {
+          const ht = Math.round(L.base + L.amp * Math.sin(ix * 0.19 + L.f * 9) + 2 * Math.sin(ix * 0.067 + L.f * 20)) + oy, wx = ix + ox;
+          blit(c, wx, ht + 1);
+          ctx.fillStyle = col; ctx.fillRect(sx(wx), sy(ht), ppu + 1, h - sy(ht));
+        }
+      } else {
+        const ox = camX * (1 - L.f), oy = camY * (1 - L.f), c = this.spr(L.s, L.tint);
+        for (let ix = Math.floor(x0 - ox) - 1; ix <= Math.ceil(x1 - ox); ix++) for (let iy = Math.floor(y0 - oy) - 1; iy <= Math.ceil(y1 - oy); iy++) blit(c, ix + ox, iy + oy + 1);
+      }
+    }
+    const names = { 6: 'R45', 7: 'L45', 8: 'R22A', 9: 'R22B', 10: 'L22A', 11: 'L22B' };
+    const fr = Math.floor(t * 3) & 1;
+    const W = s.W, m = s.m;
+    for (let y = Math.max(0, Math.floor(y0)); y <= Math.min(s.H - 1, Math.ceil(y1)); y++) for (let x = Math.max(0, Math.floor(x0)); x <= Math.min(W - 1, Math.ceil(x1)); x++) {
+      const tt = m[y * W + x]; if (!tt) continue;
+      const up = y + 1 < s.H ? m[(y + 1) * W + x] : 0;
+      let n = null;
+      if (tt === T.FILL) n = up === T.FILL || up === T.BLOCK || A.isSlope(up) || up === T.DOOR_R || up === T.DOOR_B ? b + 'Fill' : b + 'Top';
+      else if (tt === T.BLOCK) n = b + 'Block'; else if (tt === T.PLAT) n = b + 'Plat'; else if (tt === T.SPIKE) n = 'spike';
+      else if (tt === T.CHOC) n = up === T.CHOC ? 'chocDeep' + fr : 'chocTop' + fr;
+      else if (tt === T.DOOR_R) n = 'doorRed'; else if (tt === T.DOOR_B) n = 'doorBlue'; else if (tt === T.BRIDGE) n = 'bridge';
+      else if (tt === T.CRYS) n = BIO.crys; else if (tt === T.EXIT) n = up === T.EXIT ? 'exitBot' : 'exitTop';
+      else if (A.isSlope(tt)) n = b + names[tt];
+      if (n) blit(this.spr(n), x, y + 1);
+    }
+    for (const pl of s.plats || []) blit(this.spr(fr ? 'hover1' : 'hover0'), pl.x, pl.y + 0.5);
+    for (const it of s.items) { const c = this.spr(it.type); if (c) blit(c, it.x - c.width / 32, it.y + c.height / 32 + Math.sin(t * 3 + it.x) * 0.08); }
+    for (const e of s.ents) {
+      const c = this.spr(e.type + (Math.floor(t * 4 + e.x) & 1)) || this.spr(e.type + '0') || this.spr(e.type);
+      if (!c) continue;
+      const bob = e.type === 'bat' || e.type === 'drone' ? Math.sin(t * 3 + e.x) * 0.2 : 0;
+      blit(c, e.x + 0.5 - c.width / 32, e.y + c.height / 16 + bob);
+    }
+  }
+
+  draw() {
+    const cv = this.bgRef.current; if (!cv || !this.A) return;
+    const dpr = window.devicePixelRatio || 1, W = Math.round(this.state.W * dpr), H = Math.round(this.state.H * dpr);
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    const ctx = cv.getContext('2d');
+    const tall = this.state.screen === 'play' ? 13 : 12;
+    const k = Math.max(1, Math.round(H / (tall * 16)));
+    const halfW = W / (16 * k) / 2;
+    const now = performance.now() / 1000, reduced = this.reduced();
+    const single = this.props.attract === 'single';
+    let li = this.state.level;
+    const s = this.A.levels[li];
+    const xMin = halfW + 1, xMax = Math.max(xMin + 1, Math.min(s.W - halfW - 1, xMin + 46));
+    const speed = 2.2, dist = xMax - xMin, period = (2 * dist) / speed;
+    let el = reduced ? 0 : now - this.levelT0;
+    if (!reduced && el > period && !single) { this.levelT0 = now; el = 0; li = (li + 1) % 3; this.setState({ level: li }); }
+    const ph = (el % period) / period;
+    const camX = xMin + dist * (ph < 0.5 ? ph * 2 : 2 - ph * 2);
+    this.paint(ctx, W, H, k, li, camX, reduced);
+    const fade = reduced ? 0 : Math.max(0, 1 - Math.min(el, period - el) / 0.5);
+    if (fade > 0) { ctx.fillStyle = `rgba(0,0,0,${fade.toFixed(3)})`; ctx.fillRect(0, 0, W, H); }
+  }
+
+  items(screen, o) {
+    const L = ['Keen-style', 'Modern'], X = ['Normal', 'Large'], Mo = ['System', 'Reduced', 'Full'];
+    switch (screen) {
+      case 'title': return [{ label: 'New Game', go: 'new' }, { label: 'Continue', value: 'Slot 2', go: 'continue' }, { label: 'Load game', go: 'load' }, { label: 'Options', go: 'options' }, { label: 'Controls', go: 'controls' }];
+      case 'pause': return [{ label: 'Resume', go: 'play' }, { label: 'Save game', value: 'F5', go: 'save' }, { label: 'Load game', value: 'F9', go: 'load' }, { label: 'Options', go: 'options' }, { label: 'Leave level', go: 'leave' }, { label: 'Quit to title', go: 'title' }];
+      case 'options': return [{ label: 'Music', meter: o.music, key: 'music' }, { label: 'Sound', meter: o.sfx, key: 'sfx' }, { label: 'Captions', value: o.captions ? 'On' : 'Off', key: 'captions' }, { label: 'Controls', value: L[o.layout], key: 'layout' }, { label: 'Text size', value: X[o.text], key: 'text' }, { label: 'Motion', value: Mo[o.motion], key: 'motion' }, { label: 'Back', go: 'back' }];
+      case 'controls': return [{ label: 'Back', go: 'back' }];
+      case 'gameover': return [{ label: 'Load last save', go: 'continue' }, { label: 'Title screen', go: 'title' }];
+      case 'cleared': return [{ label: 'Back to the map', go: 'leave' }];
+      default: return [];
+    }
+  }
+  slotsData() {
+    return [
+      { name: 'Autosave', place: 'Crystal Caves', cleared: 1, lives: 3, score: '1,240', time: '0:42', date: 'Wed, 7 Oct', thumb: 1 },
+      { name: 'Slot 1', place: 'Crater Fields', cleared: 0, lives: 3, score: '310', time: '0:09', date: 'Sun, 4 Oct', thumb: 0 },
+      { name: 'Slot 2', place: 'Crystal Caves', cleared: 1, lives: 2, score: '1,180', time: '0:39', date: 'Tue, 6 Oct', thumb: 1 },
+      { name: 'Slot 3', place: 'Mildred’s Citadel', cleared: 2, lives: 4, score: '2,960', time: '1:12', date: 'Tue, 6 Oct', thumb: 2 },
+      { name: 'Slot 4', empty: true },
+    ];
+  }
+  count() { return this.state.screen === 'saves' ? 5 : this.items(this.state.screen, this.state.o).length; }
+  say(text) { const now = performance.now() / 1000; this.setState({ toast: text, toastUntil: now + 2.6, now }); }
+  go(screen, extra) {
+    const s = this.state.screen;
+    const patch = Object.assign({ screen, sel: 0, now: performance.now() / 1000 }, extra || {});
+    if (screen === 'options' || screen === 'controls' || screen === 'saves') patch.back = s === 'pause' || (s !== 'title' && this.state.back === 'pause') ? 'pause' : 'title';
+    if (screen === 'saves') patch.sel = 2;
+    if (screen === 'title') patch.sel = 1;
+    this.setState(patch);
+  }
+  select(i) { if (i !== this.state.sel) this.setState({ sel: i, look: performance.now() / 1000 + 1.6 }); }
+  adjust(d) {
+    if (this.state.screen !== 'options') return;
+    const it = this.items('options', this.state.o)[this.state.sel];
+    if (!it || !it.key) return;
+    const o = Object.assign({}, this.state.o), k = it.key, mod = (v, n) => ((v % n) + n) % n;
+    if (k === 'music' || k === 'sfx') o[k] = Math.max(0, Math.min(8, o[k] + d));
+    else if (k === 'captions') o.captions = !o.captions;
+    else if (k === 'layout') o.layout = mod(o.layout + d, 2);
+    else if (k === 'text') o.text = mod(o.text + d, 2);
+    else if (k === 'motion') o.motion = mod(o.motion + d, 3);
+    this.setState({ o });
+  }
+  activate(i) {
+    const now = performance.now() / 1000, st = this.state, sel = i ?? st.sel;
+    this.setState({ flash: now + 0.16, sel, now });
+    if (st.screen === 'title') this.setState({ wave: now + 0.9 });
+    if (st.screen === 'saves') {
+      const d = this.slotsData()[sel];
+      if (st.saveMode === 'save') { this.say(`Saved to ${d.name === 'Autosave' ? 'Slot 1' : d.name}`); return this.go('pause'); }
+      if (d.empty) return this.say('That slot is empty');
+      this.say(`Loaded ${d.name} · ${d.place}`); return this.go('play');
+    }
+    const it = this.items(st.screen, st.o)[sel]; if (!it) return;
+    if (it.key) return it.key === 'music' || it.key === 'sfx' ? this.setState({ o: Object.assign({}, st.o, { [it.key]: (st.o[it.key] + 1) % 9 }) }) : this.adjust(1);
+    const delay = st.screen === 'title' ? 650 : 0;
+    const run = () => {
+      switch (it.go) {
+        case 'new': this.say('Crater Fields'); return this.go('play');
+        case 'continue': this.say('Loaded Slot 2 · Crystal Caves'); return this.go('play');
+        case 'load': return this.go('saves', { saveMode: 'load' });
+        case 'save': return this.go('saves', { saveMode: 'save' });
+        case 'options': return this.go('options');
+        case 'controls': return this.go('controls');
+        case 'play': return this.go('play');
+        case 'leave': this.say('Back on the map'); return this.go('play');
+        case 'title': return this.go('title');
+        case 'back': return this.go(this.state.back);
+      }
+    };
+    delay ? setTimeout(run, delay) : run();
+  }
+  wrap(text, max) {
+    const out = []; let line = '';
+    for (const w of text.split(' ')) { if ((line + ' ' + w).trim().length > max) { out.push(line); line = w; } else line = (line + ' ' + w).trim(); }
+    if (line) out.push(line);
+    return out;
+  }
+
+  benState(now, reduced, bw) {
+    const art = this.state.art, W = this.state.logoW, Hh = this.state.logoH, home = W + 6;
+    const mk = (pose, x, y, flip, rot) => ({ src: art['ben_' + pose] || '', left: Math.round(x) + 'px', bottom: Math.round(y) + 'px', tf: `scaleX(${flip ? -1 : 1}) rotate(${rot}deg)` });
+    if (reduced) return mk('stand', home, 0, false, 0);
+    if (this.state.wave > now) { const k = 1 - (this.state.wave - now) / 0.9; return mk('shoot', home, Math.sin(k * Math.PI) * bw * 0.4, true, 0); }
+    const p = (now - this.t0) % 14, looking = this.state.look > now, bob = Math.floor(p * 1.5) % 2 ? Math.round(bw / 16) : 0;
+    if (p >= 4.5 && p < 6.5) return mk('stand', home - bw / 6, 0, looking, -12);
+    if (p >= 9 && p < 13) {
+      const topY = Hh - bw * 0.3, startX = home - bw, endX = 0;
+      if (p < 9.4) { const k = (p - 9) / 0.4; return mk('jump', home + (startX - home) * k, topY * k + Math.sin(k * Math.PI) * bw * 0.5, true, 0); }
+      if (p < 12.6) {
+        const q = p < 11 ? (p - 9.4) / 1.6 : 1 - (p - 11) / 1.6, hop = Math.abs(Math.sin((p - 9.4) * Math.PI * 2.5));
+        return mk(hop < 0.25 ? 'pogo2' : 'pogo', startX + (endX - startX) * q, topY + hop * bw * 0.45, p < 11, 0);
+      }
+      const k = (p - 12.6) / 0.4; return mk('jump', startX + (home - startX) * k, topY * (1 - k) + Math.sin(k * Math.PI) * bw * 0.4, false, 0);
+    }
+    return mk('stand', home, bob, looking, 0);
+  }
+
+  renderVals() {
+    const P = this.props, s = this.state, W = s.W, H = s.H;
+    const reduced = this.reduced();
+    const now = s.now || this.t0 || 0, tt = now - (this.t0 || now);
+    const mode = P.hints && P.hints !== 'auto' ? P.hints : s.mode, pad = mode === 'gamepad';
+    const screen = s.screen;
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const u0 = H >= 900 ? 4 : H >= 480 ? 3 : 2, u = u0 + s.o.text;
+    const small = Math.max(2, u - 1);
+    const padX = clamp(Math.round(W * 0.07), 24, 104), padY = clamp(Math.round(H * 0.06), 24, 64);
+    const cwMul = Math.max(2, Math.ceil(u / 2)), cw = 16 * cwMul;
+    const twoLine = W < 720;
+    const benScale = Math.max(2, Math.min(4, Math.round(H / 220)));
+    const benW = 16 * benScale;
+    const availLogo = W - padX * 2 - benW - 12;
+    const logo = clamp(Math.floor(availLogo / (twoLine ? 66 : 102)), 2, u + 3);
+    const L = {
+      padX: padX + 'px', padY: padY + 'px', padBottom: padY + 40 + 'px', keysBottom: clamp(Math.round(H * 0.04), 16, 36) + 'px',
+      gap: clamp(Math.round(H * 0.045), 14, 44) + 'px', headGap: '2px',
+      item: String(u), small: String(small), head: String(u + 1), logo: String(logo),
+      rowH: 10 * u + 'px', platePad: `0 ${4 * u}px`, cw: cw + 'px', gutGap: Math.max(6, 2 * u) + 'px', valGap: 3 * u + 'px',
+      meterW: 3 * u + 'px', meterH: 5 * u + 'px', meterGap: Math.max(2, u - 1) + 'px', cellGap: `${u}px ${6 * u}px`,
+      benW: benW + 'px', hudGap: 6 * u + 'px', thumbW: 24 * small + 'px', thumbH: 15 * small + 'px', slotDetail: W >= 560,
+    };
+    const plateClip = 'polygon(4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px),0 4px,4px 4px)';
+    const cycle = ['#ffaa40', '#ffb850', '#ffc860', '#ffb850'];
+    const selBg = s.flash > now ? '#ffffff' : reduced ? cycle[0] : cycle[Math.floor(tt * 2.5) % 4];
+    const items = this.items(screen, s.o);
+    const n = screen === 'saves' ? 5 : items.length;
+    const sel = Math.min(s.sel, Math.max(0, n - 1));
+    const cursorTf = reduced ? 'none' : `translateX(${Math.round(Math.sin(tt * 5) * 1.5) * cwMul * 2}px)`;
+    const rows = items.map((it, i) => {
+      const on = i === sel;
+      return {
+        label: it.label, bg: on ? selBg : 'transparent', clip: on ? plateClip : 'none', color: on ? '#1a1000' : '#e0e0e0', shadow: on ? '' : '#000000', knock: on ? selBg : '#050507',
+        hasValue: it.value !== undefined, value: on && it.key && it.value !== undefined ? `◄ ${it.value} ►` : it.value || '', vcolor: on ? '#1a1000' : '#b4bfce',
+        hasMeter: it.meter !== undefined, meter: it.meter !== undefined ? Array.from({ length: 8 }, (_, k) => ({ c: k < it.meter ? (on ? '#1a1000' : '#55ff55') : on ? 'rgba(26,16,0,.25)' : 'rgba(255,255,255,.18)' })) : [],
+        showCursor: on && !!s.art.soda, onEnter: () => this.select(i), onClick: () => this.activate(i),
+      };
+    });
+    const art = s.art || {};
+    const slots = this.slotsData().map((d, i) => {
+      const on = i === sel;
+      return {
+        bg: on ? selBg : 'rgba(5,5,7,.6)', clip: on ? plateClip : 'none', shadow: on ? '' : '#000000', showCursor: on && !!art.soda,
+        hasThumb: !d.empty && !!art.thumbs, noThumb: d.empty || !art.thumbs, thumb: art.thumbs ? art.thumbs[d.thumb || 0] : '', frame: on ? '#1a1000' : '#7c8796',
+        line1: d.empty ? `${d.name} · Empty` : `${d.name} · ${d.place}`,
+        line2: d.empty ? (s.saveMode === 'save' ? 'Save here' : 'Save from the pause menu to use this slot') : `Lives ${d.lives} · ${d.score} pts · ${d.time} played · ${d.date}${i === 0 ? ' · read-only' : ''}`,
+        c1: on ? '#1a1000' : '#ffffff', c2: on ? '#1a1000' : '#b4bfce',
+        pips: d.empty ? [] : [0, 1, 2].map((k) => ({ c: k < d.cleared ? (on ? '#1a1000' : '#ffaa40') : on ? 'rgba(26,16,0,.25)' : 'rgba(255,255,255,.18)' })),
+        onEnter: () => this.select(i), onClick: () => this.activate(i),
+      };
+    });
+    const activeCol = pad ? 3 : s.o.layout + 1;
+    const table = [['Action', 'Keen-style', 'Modern', 'Gamepad'], ['Move', '{[←→]}', '{[←→]} {[A]} {[D]}', 'D-pad'], ['Jump', '{Ctrl}', '{[Z]}', '{A}'], ['Pogo', '{Alt}', '{[X]}', '{B} {Y}'], ['Fizz', '{Space}', '{[C]}', '{X} {RT}'], ['Menu', '{Esc}', '{Esc} {[P]}', '{Start}'], ['Save, load', '{F5} {F9}', '{F5} {F9}', 'Pause menu']];
+    const ctrlCells = [];
+    table.forEach((row, ri) => row.forEach((cell, ci) => ctrlCells.push({ text: cell, color: ri === 0 ? (ci === activeCol ? '#ffaa40' : '#7c8796') : ci === 0 ? '#ffffff' : ci === activeCol ? '#ffaa40' : '#b4bfce' })));
+    const headings = { pause: 'Paused', options: 'Options', controls: 'Controls', saves: s.saveMode === 'save' ? 'Save game' : 'Load game', gameover: 'Out of lives', cleared: 'Crater Fields cleared' };
+    const bodies = { gameover: 'You finished with 240 snack points. Your last save is still on this device.', cleared: 'The first teleporter on the map is humming now. The Crystal Caves are waiting.' };
+    let lines = [];
+    if (bodies[screen]) {
+      const full = bodies[screen], shown = reduced ? full.length : Math.floor(Math.max(0, tt - 0.4) * 40);
+      let left = shown;
+      const max = Math.max(20, Math.min(56, Math.floor((W - padX * 2) / (6 * small))));
+      lines = this.wrap(full, max).map((ln) => { const t = ln.slice(0, Math.max(0, left)); left -= ln.length + 1; return { text: t || ' ' }; });
+    }
+    const K = pad ? { choose: '{[↑↓]} Choose', change: '{[←→]} Change', select: '{A} Select', back: '{B} Back', resume: '{Start} Resume' } : { choose: '{[↑↓]} Choose', change: '{[←→]} Change', select: '{Enter} Select', back: '{Esc} Back', resume: '{Esc} Resume' };
+    const hintSets = { title: [K.choose, K.select], pause: [K.choose, K.select, K.resume], options: [K.choose, K.change, K.back], controls: [K.select, K.back], saves: [K.choose, K.select, K.back], gameover: [K.choose, K.select], cleared: [K.select] };
+    const isPlay = screen === 'play';
+    const ben = this.benState(now, reduced, benW);
+    const LV = ['Crater Fields', 'Crystal Caves', 'Mildred’s Citadel'];
+    const wide = screen === 'controls' || screen === 'saves' || screen === 'options';
+    const overlay = isPlay ? 'transparent' : screen === 'title' ? (W < 720 ? 'linear-gradient(180deg,rgba(5,5,7,.55),rgba(5,5,7,.85))' : 'linear-gradient(90deg,rgba(5,5,7,.88) 0%,rgba(5,5,7,.6) 38%,rgba(5,5,7,0) 72%)') : wide ? 'linear-gradient(90deg,rgba(5,5,7,.92) 0%,rgba(5,5,7,.78) 60%,rgba(5,5,7,.5) 100%)' : 'rgba(5,5,7,.74)';
+    return {
+      rootRef: this.rootRef, bgRef: this.bgRef, logoRef: this.logoRef,
+      rootH: P.frame ? '100%' : '100vh',
+      onEnterFrame: () => { const el = this.rootRef.current; if (el && P.frame && document.activeElement !== el) el.focus({ preventScroll: true }); },
+      onKey: (e) => {
+        const k = e.key;
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' ', 'Escape'].includes(k)) e.preventDefault();
+        if (s.mode !== 'keyboard' && !this.padConnected()) this.setState({ mode: 'keyboard' });
+        if (isPlay) { if (k === 'Escape' || k === 'p' || k === 'Enter') this.go('pause'); return; }
+        if (k === 'Escape') { if (screen === 'pause') return this.go('play'); if (screen !== 'title') return this.go(s.back); return; }
+        const c = this.count();
+        if (k === 'ArrowUp' || k === 'w') this.select((sel - 1 + c) % c);
+        else if (k === 'ArrowDown' || k === 's') this.select((sel + 1) % c);
+        else if (k === 'ArrowLeft') this.adjust(-1);
+        else if (k === 'ArrowRight') this.adjust(1);
+        else if (k === 'Enter' || k === ' ' || k === 'z') this.activate();
+      },
+      L, overlayBg: overlay,
+      showAttractTag: (screen === 'title' || isPlay) && W >= 560 && !!this.A,
+      attractTag: isPlay ? LV[s.level] : `Attract · ${LV[s.level]}`,
+      isPlay, playHint: pad ? '{Start} Menu' : '{Esc} Menu',
+      hasToast: s.toastUntil > now && !!s.toast, toast: s.toast,
+      showMenu: !isPlay,
+      isTitle: screen === 'title',
+      logoLines: twoLine ? [{ text: 'Lieutenant' }, { text: 'Fizz' }] : [{ text: 'Lieutenant Fizz' }],
+      ben, hasBen: !!ben.src,
+      hasHeading: !!headings[screen], heading: headings[screen] || '',
+      hasLines: lines.length > 0, lines,
+      hasRows: rows.length > 0, rows, cursorSrc: art.soda || '', cursorTf,
+      isControls: screen === 'controls', ctrlCells,
+      isSaves: screen === 'saves', slots,
+      hasNote: screen === 'pause', note: 'Saves stay on this device.',
+      hints: (hintSets[screen] || []).join('  '),
+    };
+  }
+}
+</script>
+</body>
+</html>
