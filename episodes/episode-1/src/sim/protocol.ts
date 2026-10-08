@@ -79,6 +79,7 @@ export const State = {
   ATTRACT_T: 20,
   ATTRACT_PERIOD: 21,
   ATTRACT_IDX: 22,
+  POGO_ON: 23,
 } as const;
 
 /** Sim modes returned by `mode()`. */

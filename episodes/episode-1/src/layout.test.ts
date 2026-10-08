@@ -8,6 +8,7 @@ import {
   captionAnimation,
   captionPosition,
   creditsTransform,
+  isPortrait,
   layoutVars,
   watchResize,
 } from './layout';
@@ -95,6 +96,54 @@ describe('watchResize', () => {
     expect(calls).toBe(1);
     stop();
     expect(handlers.has('resize')).toBe(false);
+  });
+});
+
+describe('watchResize on a phone', () => {
+  const fake = (): {
+    handlers: Map<string, () => void>;
+    target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'>;
+  } => {
+    const handlers = new Map<string, () => void>();
+    return {
+      handlers,
+      target: {
+        addEventListener: (type: string, fn: EventListenerOrEventListenerObject) =>
+          void handlers.set(type, fn as () => void),
+        removeEventListener: (type: string) => void handlers.delete(type),
+      },
+    };
+  };
+
+  it('also listens for a turn of the phone and for the visual viewport', () => {
+    const win = fake();
+    const vv = fake();
+    let calls = 0;
+    const stop = watchResize(() => calls++, win.target, vv.target);
+    expect([...win.handlers.keys()].sort()).toEqual(['orientationchange', 'resize']);
+    expect([...vv.handlers.keys()]).toEqual(['resize']);
+    win.handlers.get('orientationchange')!();
+    vv.handlers.get('resize')!();
+    expect(calls).toBe(2);
+    stop();
+    expect(win.handlers.size).toBe(0);
+    expect(vv.handlers.size).toBe(0);
+  });
+
+  it('works without a visual viewport', () => {
+    const win = fake();
+    const stop = watchResize(() => {}, win.target, null);
+    expect(win.handlers.size).toBe(2);
+    stop();
+    expect(win.handlers.size).toBe(0);
+  });
+});
+
+describe('isPortrait', () => {
+  it('is true only when taller than wide', () => {
+    expect(isPortrait(390, 844)).toBe(true);
+    expect(isPortrait(844, 390)).toBe(false);
+    expect(isPortrait(600, 600)).toBe(false);
   });
 });
 

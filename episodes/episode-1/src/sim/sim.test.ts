@@ -96,6 +96,27 @@ describe.skipIf(!built)('Episode 1 WASM sim', () => {
     expect(sim.get(State.AMMO)).toBe(4);
   });
 
+  it('exports the pogo toggle as a read-only state value', () => {
+    sim.x.game_new();
+    sim.x.enter_level(Level.CRATER);
+    run(30);
+    expect(sim.get(State.POGO_ON)).toBe(0);
+    sim.step(Input.POGO);
+    sim.step(0);
+    expect(sim.get(State.POGO_ON)).toBe(1);
+    sim.step(Input.POGO);
+    sim.step(0);
+    expect(sim.get(State.POGO_ON)).toBe(0);
+    // Read-only: writing it changes nothing.
+    sim.set(State.POGO_ON, 1);
+    expect(sim.get(State.POGO_ON)).toBe(0);
+    // And it is off on the overworld map.
+    sim.step(Input.POGO);
+    sim.step(0);
+    sim.x.enter_map();
+    expect(sim.get(State.POGO_ON)).toBe(0);
+  });
+
   it('runs the overworld and enters a level from it', () => {
     sim.x.game_new();
     sim.x.enter_map();

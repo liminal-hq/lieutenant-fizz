@@ -1,6 +1,6 @@
 # Mobile: touch controls, the phone layout and haptics
 
-**Status: planned.** Nothing here exists yet; today the game assumes a keyboard or a gamepad (see "Mobile and touch controls are not implemented" in `docs/STATUS.md`). This document follows `design/Mobile Design.dc.html` (turn 3) and plans the touch controls, a layout tailored to phones and haptics. It applies to the website on a phone browser as much as to the Tauri app in [APP.md](APP.md), because all of it is web UI in the shared engine and episode packages.
+**Status: partly built.** The in-level touch controls, the glass HUD and the phone viewport exist (slices 0 to 2 of [MOBILE_PLAN.md](MOBILE_PLAN.md)); the phone title, touch menus, touch settings, haptics and the rest are planned (see "Mobile and touch controls" in `docs/STATUS.md`). This document follows `design/Mobile Design.dc.html` (turn 3) and plans the touch controls, a layout tailored to phones and haptics. It applies to the website on a phone browser as much as to the Tauri app in [APP.md](APP.md), because all of it is web UI in the shared engine and episode packages.
 
 The build order and the code changes are in [MOBILE_PLAN.md](MOBILE_PLAN.md).
 
@@ -20,7 +20,7 @@ The artboards are about the **UI**: layout, controls, spacing and type. They are
 
 ## Display
 - Landscape only, fullscreen in the app.
-- The game renders full-bleed, under the display cutout and the system bars. Controls, the HUD, menus and hints stay inside the safe area, using the CSS `env(safe-area-inset-*)` values, which work in browsers and in the Tauri webview.
+- The game renders full-bleed, under the display cutout and the system bars (the viewport uses `viewport-fit=cover`, and `ui.css` defines `--lf-safe-*` from the `env(safe-area-inset-*)` values). Controls, the HUD, menus and hints stay inside the safe area, using the CSS `env(safe-area-inset-*)` values, which work in browsers and in the Tauri webview.
 - The play field keeps its whole-pixel scale. Controls are drawn over it, translucent, because a phone has no spare margin.
 - **Pixels: Sharp or Soft** (an option, see APP.md) decides what happens to the slack: Sharp keeps whole pixels with thin bars, Soft stretches to the edges.
 
@@ -36,7 +36,7 @@ The artboards are about the **UI**: layout, controls, spacing and type. They are
 
 ## The phone layout
 - **Title (web only):** "Ben Blaze in" over the Lieutenant Fizz wordmark and "Episode 1 · The Cocoa Caper" on the left, and the menu on the thumb side (right): New game, Continue (with the slot, such as "Slot 2"), Load game, Controls.
-- **Menus** use the desktop scrim style: a list over a soft scrim, a stepped orange plate that slowly cycles colour, and a can of cream soda as the cursor. Rows are **48 dp tall** (see Android guidelines), and a tap moves the cursor to the row and chooses it, as a tap on any Android list does. The design's artboards show a select-then-choose tap; that is replaced here so the app behaves the way Android users expect. Destructive rows (Reset, Quit) still ask for a second tap.
+- **Menus** use the desktop scrim style: a list over a soft scrim, a stepped orange plate that slowly cycles colour, and a can of cream soda as the cursor. The **on-screen controls stay up and drive the menus like a gamepad** (the D-pad moves, Jump is relabelled Select, Pogo is Back), so the thumbs never leave them; menu content starts right of the D-pad on touch, and a held direction auto-repeats. Taps work too as the backup: rows are **48 dp tall** (see Android guidelines), and a tap moves the cursor to the row and chooses it, as a tap on any Android list does. The design's artboards show a select-then-choose tap; that is replaced here so the app behaves the way Android users expect. Destructive rows (Reset, Quit) still ask for a second tap.
 - **Cinematic:** the game's existing panels (the current implementation decides how many) advance on tap. A tap finishes the typed line, and another tap moves to the next panel. A Skip button is always there.
 - **Overworld map:** the same D-pad as a level. Walking next to a level opens a card with its name, a line about it and an "Enter level" button.
 - **In level:** the HUD and controls above.

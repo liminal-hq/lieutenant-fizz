@@ -136,6 +136,8 @@ interface Pointer {
 export class TouchState {
   private readonly pointers = new Map<number, Pointer>();
   private readonly latchedUntil: Record<Button, number> = { jump: 0, pogo: 0, fire: 0 };
+  /** A button pressed since the sim last sampled: held until a step has seen it, however long that takes. */
+  private readonly unseen: Record<Button, boolean> = { jump: false, pogo: false, fire: false };
 
   constructor(
     /** The control geometry. Set by the DOM controller; with none, no touch lands on a control. */
@@ -151,7 +153,10 @@ export class TouchState {
     if (!control) return null;
     if (control === 'pause') return control;
     this.pointers.set(id, { control, x, y });
-    if (control !== 'dpad') this.latchedUntil[control] = now + this.minHoldMs;
+    if (control !== 'dpad') {
+      this.latchedUntil[control] = now + this.minHoldMs;
+      this.unseen[control] = true;
+    }
     return control;
   }
 
@@ -172,7 +177,10 @@ export class TouchState {
   /** Drops every finger and latch (pointer cancel, the page going to the background). */
   cancelAll(): void {
     this.pointers.clear();
-    for (const b of BUTTONS) this.latchedUntil[b] = 0;
+    for (const b of BUTTONS) {
+      this.latchedUntil[b] = 0;
+      this.unseen[b] = false;
+    }
   }
 
   /** Whether any finger is on the controls. */
@@ -199,7 +207,18 @@ export class TouchState {
         h[p.control] = true;
       }
     }
-    for (const b of BUTTONS) if (now < this.latchedUntil[b]) h[b] = true;
+    for (const b of BUTTONS) if (now < this.latchedUntil[b] || this.unseen[b]) h[b] = true;
+    return h;
+  }
+
+  /**
+   * What is held at time `now`, for a fixed simulation step: like `held`, but it also marks every
+   * pressed button as seen. A press then lasts until a step has sampled it, so a tap is never lost when
+   * a slow frame (a busy phone, a software renderer) comes after the finger has already lifted.
+   */
+  sample(now: number): TouchHeld {
+    const h = this.held(now);
+    for (const b of BUTTONS) this.unseen[b] = false;
     return h;
   }
 }

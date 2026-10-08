@@ -16,10 +16,12 @@ import {
 import { FixedStepper, InstanceWriter } from '@lieutenant-fizz/engine/instances';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
+import { TouchControls } from '@lieutenant-fizz/engine/touch-ui';
 import simUrl from './wasm/sim.wasm?url';
 import { PATTERNS } from './audio/patterns';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { Cinematic, CINE_TALL } from './cine';
+import { isPortrait, watchResize } from './layout';
 import { EPISODE } from './episode';
 import {
   DEFAULT_OPTIONS,
@@ -83,6 +85,8 @@ export interface GameOptions {
   previewStinger?: boolean;
   /** Forces the reduced-motion credits; otherwise the system preference decides. */
   reducedMotion?: boolean;
+  /** Pins touch mode on (the on-screen controls and the phone HUD), for development on a desktop. */
+  touch?: boolean;
 }
 
 interface Card {
@@ -106,6 +110,14 @@ export class Game {
   private readonly atlas: Atlas;
   private readonly renderer: InstancedRenderer;
   private readonly input: InputManager;
+  private readonly touchUi: TouchControls;
+  /** `?touch`: touch mode stays on whatever device is used. */
+  private readonly forcedTouch: boolean;
+  /** Whether the on-screen controls and the phone HUD are showing (it follows the device in use). */
+  private touchMode = false;
+  /** Whether the phone is held upright, so the Rotate screen is showing. */
+  private rotated = false;
+  private unwatchViewport: () => void = () => {};
   private readonly audio: GameAudio;
   private readonly ui: Ui;
   private readonly cine = new Cinematic();
@@ -184,10 +196,22 @@ export class Game {
     this.ui = ui;
     this.renderer = renderer;
     this.input = new InputManager(ui.stage);
+    this.forcedTouch = options.touch ?? false;
+    this.touchUi = new TouchControls(ui.touchLayer, this.input, {
+      labels: { dpad: 'Move', jump: 'Jump', pogo: 'Pogo', fire: 'Fizz', pause: 'Pause' },
+    });
     this.audio = new GameAudio(PATTERNS);
     this.settings = readOptions(this.store);
     this.applySettings();
     this.input.onDevice(() => this.syncHints());
+    // Touch mode follows the device in use: a touch turns it on, a key or a gamepad turns it off.
+    this.input.onDevice((d) => this.setTouchMode(this.forcedTouch || d === 'touch'));
+    window.addEventListener('pointerdown', this.onTouchPointer, { capture: true, passive: true });
+    ui.stage.addEventListener('contextmenu', this.onContextMenu);
+    this.unwatchViewport = watchResize(() => this.onViewport());
+    if (this.forcedTouch || window.matchMedia?.('(pointer: coarse)').matches)
+      this.input.noteTouch();
+    if (this.forcedTouch) this.setTouchMode(true);
     this.writer = new InstanceWriter(sim.instanceBuffer, atlas.rects);
     this.captionNames = sim.names(Table.CAPTIONS);
     this.toastNames = sim.names(Table.TOASTS);
@@ -223,10 +247,14 @@ export class Game {
         if (def) ben[pose] = def.grid;
       }
       ui.setBenSprites(ben);
+      const grid = (name: string): Grid | undefined => sprites.find((d) => d.name === name)?.grid;
+      const [lives, snacks, fizz] = [grid('ben_stand'), grid('cookie'), grid('soda')];
+      if (lives && snacks && fizz) ui.setHudIcons({ lives, snacks, fizz });
       const atlas = buildAtlas(sprites);
       sim.setSprites(atlas.rects);
       const renderer = new InstancedRenderer(ui.gl, atlas);
       game = new Game(sim, atlas, ui, renderer, options);
+      game.initTouchFaces(grid('ben_pogo'), grid('soda'));
     } catch (e) {
       console.error(e);
       ui.setLoading(false);
@@ -259,6 +287,10 @@ export class Game {
     cancelAnimationFrame(this.raf);
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('pagehide', this.onVisibility);
+    window.removeEventListener('pointerdown', this.onTouchPointer, { capture: true });
+    this.ui.stage.removeEventListener('contextmenu', this.onContextMenu);
+    this.unwatchViewport();
+    this.touchUi.dispose();
     window.clearTimeout(this.titleAction);
     this.input.dispose();
     this.audio.dispose();
@@ -293,6 +325,11 @@ export class Game {
       if (screen === 'play') {
         this.levelSeconds += dt;
         this.played += dt;
+        if (this.touchMode) {
+          // Toggling pogo raises no event, so the lit state is read each frame (it writes on a change only).
+          this.touchUi.setLit(sim.get(State.POGO_ON) === 1);
+          this.touchUi.frame(performance.now());
+        }
       }
       this.handleEvents();
     } else if (screen === 'credits') {
@@ -575,6 +612,7 @@ export class Game {
       usb: s.get(State.HAS_USB) === 1,
     };
     this.hud = hud;
+    this.touchUi.setCount(String(hud.ammo));
     this.syncUi();
   }
   private hud: HudState | null = null;
@@ -742,12 +780,74 @@ export class Game {
   private readonly onVisibility = (): void => {
     this.visible = document.visibilityState === 'visible';
     this.audio.setActive(this.visible);
-    if (!this.visible && this.screen === 'play') {
-      this.screen = 'pause';
-      this.menuIdx = 0;
+    if (!this.visible) this.autoPause();
+  };
+
+  /** Pauses a level in play, for when the page hides or the phone is turned upright. */
+  private autoPause(): void {
+    if (this.screen !== 'play') return;
+    this.screen = 'pause';
+    this.menuIdx = 0;
+    this.syncUi();
+  }
+
+  // ---------- Touch ----------
+
+  /** A real touch anywhere switches to touch mode, even before a control has been touched. */
+  private readonly onTouchPointer = (e: PointerEvent): void => {
+    if (e.pointerType === 'touch') this.input.noteTouch();
+  };
+
+  /** A long press on the controls must not open the browser's menu. */
+  private readonly onContextMenu = (e: Event): void => {
+    if (this.touchMode) e.preventDefault();
+  };
+
+  /** Puts the icons inside the touch buttons (the engine builds the buttons, the episode draws on them). */
+  private initTouchFaces(pogo: Grid | undefined, soda: Grid | undefined): void {
+    const text = (id: 'jump', label: string): void => {
+      const t = document.createElement('span');
+      t.className = 'lbl';
+      t.textContent = label;
+      this.touchUi.face(id).append(t);
+    };
+    const icon = (id: 'pogo' | 'fire', grid: Grid | undefined): void => {
+      if (!grid) return;
+      const img = document.createElement('img');
+      img.src = this.ui.spriteUrl(grid);
+      img.alt = '';
+      img.draggable = false;
+      this.touchUi.face(id).prepend(img);
+    };
+    text('jump', 'Jump');
+    icon('pogo', pogo);
+    icon('fire', soda);
+    const bars = document.createElement('span');
+    bars.className = 'bars';
+    this.touchUi.face('pause').append(bars);
+  }
+
+  /** Switches the on-screen controls and the phone HUD on or off. */
+  private setTouchMode(on: boolean): void {
+    if (on === this.touchMode) return;
+    this.touchMode = on;
+    this.ui.setTouchMode(on);
+    if (this.hud) this.touchUi.setCount(String(this.hud.ammo));
+    this.onViewport();
+    this.syncUi();
+  }
+
+  /** The window changed size or the phone turned: place the controls and show Rotate if upright. */
+  private onViewport(): void {
+    const rotate = this.touchMode && isPortrait(window.innerWidth, window.innerHeight);
+    if (rotate !== this.rotated) {
+      this.rotated = rotate;
+      this.ui.setRotate(rotate);
+      if (rotate) this.autoPause();
       this.syncUi();
     }
-  };
+    this.touchUi.relayout();
+  }
 
   // ---------- Menus ----------
 
@@ -1314,7 +1414,8 @@ export class Game {
     ui.setHud(hudScreens.includes(s) ? this.hud : null);
     ui.setBoss(this.bossHp !== null && this.bossHp > 0 && s === 'play' ? this.bossHp : null);
     ui.setPrompt(s === 'play' ? this.prompt : null);
-    ui.allowPanel(s === 'play' || s === 'title');
+    ui.allowPanel(!this.touchMode && (s === 'play' || s === 'title'));
+    this.touchUi.setVisible(this.touchMode && s === 'play' && !this.rotated);
     if (s !== 'credits') ui.showCredits(null);
     else this.showCredits();
     if (s !== 'stinger') ui.showStinger(null);
@@ -1422,12 +1523,20 @@ export class Game {
       | 'options'
       | 'saves'
       | 'play'
+      | 'map'
       | 'pause'
       | 'cine'
       | 'dialogue'
       | 'credits',
   ): void {
     if (what === 'credits') return this.debugStartCredits();
+    if (what === 'map') {
+      this.sim.x.game_new();
+      this.sim.x.enter_map();
+      this.handleEvents();
+      this.screen = 'play';
+      return this.syncUi();
+    }
     if (what === 'play') {
       // Entering the level raises LEVEL_START, which switches to the play screen.
       this.debugEnterLevel(0);
@@ -1452,6 +1561,11 @@ export class Game {
     this.syncUi();
   }
 
+  /** Test hook: where the touch controls are placed (null while they are hidden). */
+  get debugTouch(): unknown {
+    return this.touchUi.placed;
+  }
+
   get debugState(): Record<string, unknown> {
     return {
       screen: this.screen,
@@ -1461,6 +1575,10 @@ export class Game {
       lives: this.sim.get(State.LIVES),
       px: this.sim.get(State.PLAYER_X),
       py: this.sim.get(State.PLAYER_Y),
+      pogo: this.sim.get(State.POGO_ON),
+      ammo: this.sim.get(State.AMMO),
+      bits: this.lastBits,
+      touch: this.touchMode,
       instances: this.lastCount,
       atlas: this.atlas.size,
     };

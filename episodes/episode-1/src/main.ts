@@ -10,7 +10,7 @@ if (!stage) throw new Error('missing #stage');
 
 const query = new URLSearchParams(location.search);
 
-Game.start(stage, { previewStinger: query.has('previewStinger') })
+Game.start(stage, { previewStinger: query.has('previewStinger'), touch: query.has('touch') })
   .then((game) => {
     if (query.has('debug')) {
       (window as unknown as { __lf: Game }).__lf = game;
