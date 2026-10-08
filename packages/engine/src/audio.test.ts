@@ -302,3 +302,139 @@ describe('GameAudio Classic path', () => {
     audio.dispose();
   });
 });
+
+describe('GameAudio Enhanced path', () => {
+  /** The voice gains an effect left on `to`: every gain that connects straight to that node. */
+  const voicesInto = (ctx: FakeContext, to: unknown) =>
+    ctx.all('gain').filter((g) => g.out.includes(to as never));
+
+  it('is Classic until it is told otherwise, and plays unplaced Enhanced sounds at the centre', async () => {
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    expect(audio.mode).toBe('classic');
+    const ctx = await unlockAudio();
+    audio.setMode('enhanced');
+    audio.play('jump');
+    const [panner] = ctx.all('panner');
+    expect(panner!.pan.value).toBe(0);
+    const [emitter] = voicesInto(ctx, panner);
+    expect(emitter!.gain.value).toBeCloseTo(Math.SQRT2, 12);
+  });
+
+  it('routes a placed effect through its own emitter: voices, then gain, panner and destination', async () => {
+    const play = vi.spyOn(Undertone.Pattern.prototype, 'play');
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.setMode('enhanced');
+    audio.play('zap', { pan: 0.42, gain: 0.5 });
+    const [panner] = ctx.all('panner');
+    const [emitter] = voicesInto(ctx, panner);
+    expect(panner!.pan.value).toBe(0.42);
+    expect(emitter!.gain.value).toBeCloseTo(0.5 * Math.SQRT2, 12);
+    expect(panner!.out).toEqual([ctx.destination]);
+    // zap has two voices and both end on the emitter. Nothing reaches the destination but the panner.
+    const voices = voicesInto(ctx, emitter);
+    expect(voices).toHaveLength(2);
+    for (const v of voices) expect(v.out).toEqual([emitter]);
+    expect(voicesInto(ctx, ctx.destination)).toHaveLength(0);
+    // Undertone was handed a routed context whose destination is the emitter, not the real context.
+    const arg = play.mock.calls[0]![0]!;
+    expect(arg.ctx).not.toBe(ctx);
+    expect(arg.ctx!.destination).toBe(emitter);
+    expect(audio.emitters).toBe(1);
+  });
+
+  it('connects each call’s voices to that call’s emitter, not to an earlier one', async () => {
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.setMode('enhanced');
+    audio.play('zap', { pan: -0.6, gain: 0.4 });
+    audio.play('jump', { pan: 0.6, gain: 1 });
+    const [p1, p2] = ctx.all('panner');
+    const [e1] = voicesInto(ctx, p1);
+    const [e2] = voicesInto(ctx, p2);
+    expect(e1).not.toBe(e2);
+    expect(p1!.pan.value).toBe(-0.6);
+    expect(p2!.pan.value).toBe(0.6);
+    expect(voicesInto(ctx, e1)).toHaveLength(2);
+    expect(voicesInto(ctx, e2)).toHaveLength(1);
+  });
+
+  it('places a caption’s effect, and ignores the place in Classic', async () => {
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.caption('*boing*', { pan: 0.5, gain: 1 });
+    expect(ctx.all('panner')).toHaveLength(0);
+    audio.setMode('enhanced');
+    audio.caption('*boing*', { pan: 0.5, gain: 1 });
+    expect(ctx.all('panner')).toHaveLength(1);
+    expect(ctx.all('panner')[0]!.pan.value).toBe(0.5);
+  });
+
+  it('restores the exact Classic path when switched back', async () => {
+    const play = vi.spyOn(Undertone.Pattern.prototype, 'play');
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.play('jump');
+    audio.setMode('enhanced');
+    audio.play('jump', { pan: 0.3, gain: 1 });
+    audio.setMode('classic');
+    audio.play('jump', { pan: 0.3, gain: 1 });
+    expect(play).toHaveBeenCalledTimes(3);
+    expect(Object.keys(play.mock.calls[2]![0]!)).toEqual(['ctx']);
+    expect(play.mock.calls[2]![0]!.ctx).toBe(ctx);
+    expect(play.mock.calls[2]![0]).toEqual(play.mock.calls[0]![0]);
+    // Only the one panner from the Enhanced call exists; both Classic voices end on the destination.
+    expect(ctx.all('panner')).toHaveLength(1);
+    const direct = voicesInto(ctx, ctx.destination);
+    expect(direct).toHaveLength(2);
+    expect(audio.emitters).toBe(1);
+  });
+
+  it('keeps music on the Classic path in Enhanced', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.setMode('enhanced');
+    audio.playMusic('title');
+    expect(loop.mock.calls[0]![0]).toEqual({ ctx, bpm: 120 });
+    expect(ctx.all('panner')).toHaveLength(0);
+  });
+
+  it('sends the built-in synth’s voices through the emitter too', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const audio = new GameAudio(patterns, async () => {
+      throw new Error('offline');
+    });
+    await flush();
+    const ctx = await unlockAudio();
+    audio.setMode('enhanced');
+    audio.play('zap', { pan: -0.2, gain: 1 });
+    const [panner] = ctx.all('panner');
+    const [emitter] = voicesInto(ctx, panner);
+    expect(voicesInto(ctx, emitter)).toHaveLength(2);
+    expect(voicesInto(ctx, ctx.destination)).toHaveLength(0);
+    audio.dispose();
+  });
+
+  it('plays as Classic if the context cannot build a panner', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const play = vi.spyOn(Undertone.Pattern.prototype, 'play');
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    ctx.createStereoPanner = () => {
+      throw new Error('unsupported');
+    };
+    audio.setMode('enhanced');
+    audio.play('jump', { pan: 0.3, gain: 1 });
+    expect(warn).toHaveBeenCalled();
+    expect(play.mock.calls[0]![0]).toEqual({ ctx });
+    expect(voicesInto(ctx, ctx.destination)).toHaveLength(1);
+  });
+});

@@ -4,6 +4,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { ControlPatch, Pattern, SoundType } from '@liminal-hq/undertone';
+import { routedContext, createEmitter } from './sound-graph';
+import type { AudioMode, SoundAt } from './sound-field';
+
+/** Where an unplaced sound sits in Enhanced: the centre, at full level. */
+const CENTRE: SoundAt = { pan: 0, gain: 1 };
 
 /** The runtime surface of `@liminal-hq/undertone` the game uses (the module namespace, or a test double). */
 export type UndertoneModule = Pick<
@@ -240,7 +245,7 @@ export class MiniSynth {
     return buf;
   }
 
-  voice(v: VoiceSpec, when: number, dur: number, gated: boolean): void {
+  voice(v: VoiceSpec, when: number, dur: number, gated: boolean, out: AudioNode = this.out): void {
     const ctx = this.ctx;
     const t = when + (v.nudge ?? 0);
     let src: AudioBufferSourceNode | OscillatorNode;
@@ -286,7 +291,7 @@ export class MiniSynth {
     g.gain.setValueAtTime(peak * s, end);
     g.gain.linearRampToValueAtTime(0, end + r);
     node.connect(g);
-    g.connect(this.out);
+    g.connect(out);
     if (v.delay) {
       const sg = ctx.createGain();
       sg.gain.value = v.delay;
@@ -297,9 +302,10 @@ export class MiniSynth {
     src.stop(end + r + 0.05);
   }
 
-  playSfx(list: readonly SfxVoice[], vol: number): void {
+  /** Plays an effect's voices into `out` (the synth's own output when left out). */
+  playSfx(list: readonly SfxVoice[], vol: number, out?: AudioNode): void {
     const t = this.ctx.currentTime + 0.01;
-    for (const v of list) this.voice({ ...v, g: v.g * vol }, t, 0, false);
+    for (const v of list) this.voice({ ...v, g: v.g * vol }, t, 0, false, out);
   }
 
   /** Loops a track, scheduling voices ~300 ms ahead. Returns a stopper. */
@@ -352,6 +358,10 @@ export class GameAudio {
   musicVol = 1;
   sfxVol = 1;
   backend = 'Loading Undertone';
+  /** Classic is today's sound, untouched. Enhanced places sound effects in the stereo field. */
+  mode: AudioMode = 'classic';
+  /** How many sound effects have been placed through an emitter (always 0 in Classic). */
+  emitters = 0;
   private ctx: AudioContext | null = null;
   private mini: MiniSynth | null = null;
   private ut: UndertoneModule | null = null;
@@ -421,30 +431,65 @@ export class GameAudio {
     return fx;
   }
 
-  play(name: string): void {
+  /** The state of the audio context, or `none` before the first input creates it. */
+  get ctxState(): string {
+    return this.ctx?.state ?? 'none';
+  }
+
+  /**
+   * Switches between Classic and Enhanced for the sounds that start from now on. Nothing is built
+   * here, and Classic never touches the Enhanced path, so switching back restores it exactly.
+   */
+  setMode(mode: AudioMode): void {
+    this.mode = mode;
+  }
+
+  /** An emitter for one Enhanced sound, or null (play it as Classic) if the context cannot build one. */
+  private emitter(ctx: AudioContext, at: SoundAt): GainNode | null {
+    try {
+      const e = createEmitter(ctx, at, ctx.destination);
+      this.emitters++;
+      return e;
+    } catch (err) {
+      console.warn('Sound field unavailable, playing this sound as Classic', err);
+      return null;
+    }
+  }
+
+  /**
+   * Plays a sound effect. Classic ignores `at` and plays the effect on the real context, centred.
+   * Enhanced routes the effect's voices into an emitter for this one call (a gain into a stereo
+   * panner into the destination), which places it at `at` (the centre if omitted).
+   */
+  play(name: string, at?: SoundAt): void {
     const voices = this.patterns.sfx[name];
     if (!this.sfx || !voices) return;
     const ctx = this.ensure();
     if (!ctx || ctx.state !== 'running') return;
     try {
+      // Undertone schedules a play() synchronously, so the voices of this call all connect to
+      // this call's emitter before the next call can build its own.
+      const emitter = this.mode === 'enhanced' ? this.emitter(ctx, at ?? CENTRE) : null;
       if (this.ut) {
         try {
-          this.undertoneEffect(this.ut, name, voices).play({ ctx });
+          const fx = this.undertoneEffect(this.ut, name, voices);
+          if (emitter) fx.play({ ctx: routedContext(ctx, emitter) });
+          else fx.play({ ctx });
           return;
         } catch (e) {
           console.warn('Undertone sfx failed, using the built-in synth', name, e);
         }
       }
-      this.mini?.playSfx(voices, this.sfxVol);
+      this.mini?.playSfx(voices, this.sfxVol, emitter ?? undefined);
     } catch (e) {
       console.warn('sfx failed', name, e);
     }
   }
 
-  /** Plays the sound effect tied to an on-screen caption, if it has one. */
-  caption(text: string): void {
+  /** Plays the sound effect tied to an on-screen caption, if it has one, placed at `at`. */
+  caption(text: string, at?: SoundAt): void {
     const k = this.patterns.captionSfx[text];
-    if (k) this.play(k);
+    if (k) this.play(k, at);
   }
 
   playMusic(track: string | null, force = false): void {
