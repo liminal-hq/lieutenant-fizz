@@ -6,6 +6,7 @@
 import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
+import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
 import {
   Input as Bits,
@@ -22,6 +23,7 @@ import { TouchControls } from '@lieutenant-fizz/engine/touch-ui';
 import simUrl from './wasm/sim.wasm?url';
 import { PATTERNS } from './audio/patterns';
 import { attractFade, attractLabel, nextAttract } from './attract';
+import { backAction, backEnabled } from './back';
 import { Cinematic, CINE_TALL } from './cine';
 import { isPortrait, watchResize, type TouchGutters } from './layout';
 import { touchFaces, type ShellScreen, type TouchFaces } from './touch-menus';
@@ -95,7 +97,12 @@ export interface GameOptions {
   pixels?: 'sharp' | 'soft';
   /** `split` tries the phone title with the logo and the menu on opposite sides; the default is one column. */
   title?: TitleLayout;
+  /** Takes the browser's Back button in an ordinary tab too (`?back`), to try it without fullscreen. */
+  back?: boolean;
 }
+
+/** The `display-mode` values an installed app runs in. */
+const INSTALLED_MODES = ['standalone', 'fullscreen', 'minimal-ui'];
 
 /** Whether the canvas should be whole-pixel: decided once at boot and kept for the session. */
 function wantsSharp(options: GameOptions): boolean {
@@ -144,6 +151,11 @@ export class Game {
   /** The menu the last frame's input went to, so a direction held into a new one waits for a release. */
   private menuKey = '';
   private unwatchViewport: () => void = () => {};
+  /** Holds the one history entry that lets the browser's Back button reach the game. */
+  private readonly backGuard = new BackGuard(() => this.back(), window.history, window);
+  /** `?back`: the browser's Back button is the game's whatever the display mode. */
+  private readonly forcedBack: boolean;
+  private unwatchBack: () => void = () => {};
   private readonly audio: GameAudio;
   private readonly ui: Ui;
   private readonly cine = new Cinematic();
@@ -227,6 +239,7 @@ export class Game {
     this.renderer = renderer;
     this.input = new InputManager(ui.stage);
     this.forcedTouch = options.touch ?? false;
+    this.forcedBack = options.back ?? false;
     this.touchUi = new TouchControls(ui.touchLayer, this.input, {
       labels: { dpad: 'Move', jump: 'Jump', pogo: 'Pogo', fire: 'Fizz', pause: 'Pause' },
     });
@@ -246,6 +259,7 @@ export class Game {
     this.captionNames = sim.names(Table.CAPTIONS);
     this.toastNames = sim.names(Table.TOASTS);
     this.input.onCommand((c) => this.onCommand(c));
+    this.unwatchBack = this.watchBack();
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('pagehide', this.onVisibility);
   }
@@ -322,6 +336,8 @@ export class Game {
     window.removeEventListener('pointerdown', this.onTouchPointer, { capture: true });
     this.ui.stage.removeEventListener('contextmenu', this.onContextMenu);
     this.unwatchViewport();
+    this.unwatchBack();
+    this.backGuard.dispose();
     this.touchUi.dispose();
     window.clearTimeout(this.titleAction);
     this.input.dispose();
@@ -1215,6 +1231,75 @@ export class Game {
     this.closeSub();
   }
 
+  /**
+   * The browser's Back button, or a native one (a Tauri predictive-back plugin will call this): does
+   * what Back means on the screen showing, as `backAction` says.
+   */
+  back(): void {
+    switch (backAction(this.screen, this.sub)) {
+      case 'close':
+        this.closeSub();
+        break;
+      case 'pause':
+        this.screen = 'pause';
+        this.menuIdx = 0;
+        this.syncUi();
+        break;
+      case 'resume':
+        this.resume();
+        break;
+      case 'skip':
+        if (this.screen === 'cine') this.skipCine();
+        else this.skipEnding();
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** Whether the game is in fullscreen or an installed app, where it takes the browser's Back button. */
+  private backOn(): boolean {
+    const mq = (q: string): boolean => {
+      try {
+        return window.matchMedia?.(q).matches ?? false;
+      } catch {
+        return false;
+      }
+    };
+    return backEnabled({
+      standalone:
+        INSTALLED_MODES.some((m) => mq(`(display-mode: ${m})`)) ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true,
+      fullscreen: document.fullscreenElement !== null,
+      forced: this.forcedBack,
+    });
+  }
+
+  /** Holds the Back guard entry only while the screen has an answer to Back and the mode allows it. */
+  private syncBack(): void {
+    this.backGuard.set(this.backOn() && backAction(this.screen, this.sub) !== null);
+  }
+
+  /** Re-checks Back when the game enters or leaves fullscreen or an installed display mode. */
+  private watchBack(): () => void {
+    const sync = (): void => this.syncBack();
+    document.addEventListener('fullscreenchange', sync);
+    const lists: MediaQueryList[] = [];
+    for (const m of INSTALLED_MODES) {
+      try {
+        const list = window.matchMedia?.(`(display-mode: ${m})`);
+        list?.addEventListener?.('change', sync);
+        if (list) lists.push(list);
+      } catch {
+        /* no media queries here */
+      }
+    }
+    return () => {
+      document.removeEventListener('fullscreenchange', sync);
+      for (const l of lists) l.removeEventListener('change', sync);
+    };
+  }
+
   /** Enter / jump / fire: finish the typewriter, then advance whatever is on screen. */
   primary(): void {
     const s = this.screen;
@@ -1606,6 +1691,7 @@ export class Game {
         : null,
     );
     this.updateMusic();
+    this.syncBack();
   }
 
   private musicFor(): string | null {
@@ -1766,6 +1852,7 @@ export class Game {
       ammo: this.sim.get(State.AMMO),
       bits: this.lastBits,
       touch: this.touchMode,
+      back: { enabled: this.backOn(), armed: this.backGuard.armed },
       instances: this.lastCount,
       atlas: this.atlas.size,
     };

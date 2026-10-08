@@ -76,7 +76,7 @@ The launcher navigates the WebView to the episode's own page with a launch contr
 
 ## The Tauri shell
 - The sim stays WASM inside the WebView. Calling a native sim over IPC every frame would cost more than it saves.
-- **Plugins:** `predictive-back` (from Cadence and Threshold) for the Back gesture, and the haptics plugin once it has the upgrade in [MOBILE.md](MOBILE.md#haptics). The haptics plugin lives in `haptics-lab-app` today. The plan is to move it into `tauri-plugins-workspace` and consume it as a versioned dependency, so the lab and Fizz share one source. A `plugins/` folder here is only for plugins authored in this repo.
+- **Plugins:** `predictive-back` (from Cadence and Threshold) for the Back gesture; it calls `Game.back()`, which does what Back means on the screen showing (the same rules the browser's Back button follows in fullscreen or installed mode, via `BackGuard`), and the haptics plugin once it has the upgrade in [MOBILE.md](MOBILE.md#haptics). The haptics plugin lives in `haptics-lab-app` today. The plan is to move it into `tauri-plugins-workspace` and consume it as a versioned dependency, so the lab and Fizz share one source. A `plugins/` folder here is only for plugins authored in this repo.
 - **Android project:** orientation lock (landscape) and fullscreen are native Android settings, not Tauri plugins, so they live in the tracked `src-tauri/gen/android`.
 
 ## Identity

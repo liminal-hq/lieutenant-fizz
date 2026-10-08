@@ -18,9 +18,12 @@ const pixels = pixelsParam === 'sharp' || pixelsParam === 'soft' ? pixelsParam :
 // `?title=split` tries the phone title with the logo and the menu on opposite sides.
 const title = query.get('title') === 'split' ? 'split' : undefined;
 
+// `?back` makes the browser's Back button the game's in an ordinary tab, to try it without fullscreen.
+
 Game.start(stage, {
   previewStinger: query.has('previewStinger'),
   touch: query.has('touch'),
+  back: query.has('back'),
   ...(pixels ? { pixels } : {}),
   ...(title ? { title } : {}),
 })
