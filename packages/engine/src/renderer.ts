@@ -22,6 +22,7 @@ import {
   WebGLRenderer,
 } from 'three';
 import type { Atlas } from './atlas';
+import { sharpDivisor, softRatio } from './view-scale';
 
 /** Floats per instance (ENGINE_SPEC §3.3). */
 export const STRIDE = 20;
@@ -109,17 +110,41 @@ export class InstancedRenderer {
   private source: Float32Array | null = null;
   private readonly textures: DataTexture[];
   private readonly resizer: ResizeObserver;
+  private readonly host: HTMLElement;
+  private sharp: boolean;
+  private seen: { w: number; h: number; dpr: number } | null = null;
+  private dprQuery: MediaQueryList | null = null;
+  private readonly onDpr = (): void => {
+    this.watchDpr();
+    this.resize();
+  };
   /** CSS pixel size of the host. */
   width = 1;
   height = 1;
+  /** The size of the host in device pixels. */
+  deviceWidth = 1;
+  deviceHeight = 1;
+  /** The size of the canvas backing store in pixels (the device size divided by `divisor` when Sharp). */
+  canvasWidth = 1;
+  canvasHeight = 1;
+  /** The whole factor the browser upscales the canvas by (1 unless the pixel budget or ratio cap bites). */
+  divisor = 1;
+  /** True when the canvas maps onto device pixels by a whole factor, so whole scales stay sharp. */
+  pixelGrid = false;
+  /** True when the pixel budget made the canvas smaller than the device ratio would have. */
+  budgeted = false;
+  /** The device pixel ratio the canvas was last sized for. */
+  dpr = 1;
 
-  constructor(host: HTMLElement, atlas: Atlas) {
+  constructor(host: HTMLElement, atlas: Atlas, sharp = false) {
+    this.host = host;
+    this.sharp = sharp;
     const r = new WebGLRenderer({
       antialias: false,
       alpha: true,
       powerPreference: 'high-performance',
     });
-    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    r.setPixelRatio(1);
     r.domElement.style.cssText = 'display:block;width:100%;height:100%;image-rendering:pixelated;';
     host.appendChild(r.domElement);
     this.renderer = r;
@@ -166,17 +191,79 @@ export class InstancedRenderer {
     this.mesh.frustumCulled = false;
     this.scene.add(this.mesh);
 
-    const resize = (): void => {
-      this.width = host.clientWidth || 1;
-      this.height = host.clientHeight || 1;
-      r.setSize(this.width, this.height, false);
-    };
-    resize();
-    this.resizer = new ResizeObserver(resize);
-    this.resizer.observe(host);
+    this.resize();
+    this.resizer = new ResizeObserver((entries) => {
+      const box = entries[0]?.devicePixelContentBoxSize?.[0];
+      this.seen = box
+        ? { w: box.inlineSize, h: box.blockSize, dpr: window.devicePixelRatio || 1 }
+        : null;
+      this.resize();
+    });
+    try {
+      // Exact device pixels, where the browser supports them (not Safari).
+      this.resizer.observe(host, { box: 'device-pixel-content-box' });
+    } catch {
+      this.resizer.observe(host);
+    }
+    this.watchDpr();
   }
 
-  /** Device pixels per world unit... in CSS pixels, for a given visible half height. */
+  /** Switches the whole-pixel canvas on or off and resizes the backing store to match. */
+  setSharp(on: boolean): void {
+    if (on === this.sharp) return;
+    this.sharp = on;
+    this.resize();
+  }
+
+  /** The device ratio changes with browser zoom and when the window moves screens. */
+  private watchDpr(): void {
+    this.dprQuery?.removeEventListener('change', this.onDpr);
+    this.dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+    this.dprQuery.addEventListener('change', this.onDpr);
+  }
+
+  private resize(): void {
+    const dpr = window.devicePixelRatio || 1;
+    this.dpr = dpr;
+    this.width = this.host.clientWidth || 1;
+    this.height = this.host.clientHeight || 1;
+    // Trust the browser's exact device size only when it agrees with the CSS size times the ratio
+    // (emulated device ratios in test browsers report CSS pixels, which would be a bad backing size).
+    const near = (a: number, css: number): boolean => Math.abs(a - css * dpr) <= dpr + 1;
+    const seen =
+      this.seen &&
+      this.seen.dpr === dpr &&
+      near(this.seen.w, this.width) &&
+      near(this.seen.h, this.height)
+        ? this.seen
+        : null;
+    this.deviceWidth = Math.max(1, seen ? seen.w : Math.round(this.width * dpr));
+    this.deviceHeight = Math.max(1, seen ? seen.h : Math.round(this.height * dpr));
+    const k = this.sharp ? sharpDivisor(this.deviceWidth, this.deviceHeight, dpr) : null;
+    let cw: number;
+    let ch: number;
+    if (k !== null) {
+      this.pixelGrid = true;
+      this.divisor = k;
+      this.budgeted = k > Math.max(1, Math.ceil(dpr / 3 - 1e-6));
+      cw = this.deviceWidth / k;
+      ch = this.deviceHeight / k;
+    } else {
+      const ratio = softRatio(dpr, this.width, this.height);
+      this.pixelGrid = false;
+      this.divisor = 1;
+      this.budgeted = ratio < Math.min(dpr, 2) - 1e-9;
+      cw = Math.max(1, Math.floor(this.width * ratio));
+      ch = Math.max(1, Math.floor(this.height * ratio));
+    }
+    if (cw !== this.canvasWidth || ch !== this.canvasHeight || this.canvas.width !== cw) {
+      this.canvasWidth = cw;
+      this.canvasHeight = ch;
+      this.renderer.setSize(cw, ch, false);
+    }
+  }
+
+  /** CSS pixels per world unit for a given visible half height (captions are placed in CSS pixels). */
   pixelsPerUnit(halfH: number): number {
     return this.height / (halfH * 2);
   }
@@ -197,8 +284,7 @@ export class InstancedRenderer {
   render(f: FrameState): RenderInfo {
     const ib = this.bind(f.instances);
     // Snap the camera to the device-pixel grid so sprites never shimmer (spec §3.1).
-    const ppu = this.pixelsPerUnit(f.halfH);
-    const snap = 1 / (ppu * this.renderer.getPixelRatio());
+    const snap = (f.halfH * 2) / this.canvasHeight;
     const cx = Math.round(f.camX / snap) * snap;
     const cy = Math.round(f.camY / snap) * snap;
     const c = this.cam;
@@ -233,7 +319,23 @@ export class InstancedRenderer {
     return { calls: this.renderer.info.render.calls, instances: f.count };
   }
 
+  /**
+   * Reads a rectangle of the last frame back as RGBA, top row first, with the origin at the top
+   * left of the canvas. Call it in the same task as `render()`, and keep the rectangle small.
+   */
+  readPixels(x: number, y: number, w: number, h: number): Uint8Array {
+    const gl = this.renderer.getContext();
+    const raw = new Uint8Array(w * h * 4);
+    gl.readPixels(x, this.canvasHeight - y - h, w, h, gl.RGBA, gl.UNSIGNED_BYTE, raw);
+    const out = new Uint8Array(raw.length);
+    for (let row = 0; row < h; row++) {
+      out.set(raw.subarray((h - 1 - row) * w * 4, (h - row) * w * 4), row * w * 4);
+    }
+    return out;
+  }
+
   dispose(): void {
+    this.dprQuery?.removeEventListener('change', this.onDpr);
     this.resizer.disconnect();
     this.geo.dispose();
     this.material.dispose();
