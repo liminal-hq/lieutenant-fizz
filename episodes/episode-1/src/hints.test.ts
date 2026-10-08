@@ -83,7 +83,7 @@ describe('touch hints', () => {
   it('reads D-pad Choose, Select, Back on the menus', () => {
     expect(menuHints('list', touch)).toEqual(['{[D-pad]} Choose', '{[Select]}']);
     expect(menuHints('saves', touch)).toEqual(['{[D-pad]} Choose', '{[Select]}', '{[Back]}']);
-    expect(menuHints('options', touch)).toEqual(['{[D-pad]} Choose and change', '{[Back]}']);
+    expect(menuHints('options', touch)).toEqual(['{[D-pad]} Change', '{[Back]}']);
     expect(menuHints('controls', touch)).toEqual(['{[Back]}']);
     expect(menuHints('pause', touch)).toEqual([
       '{[D-pad]} Choose',

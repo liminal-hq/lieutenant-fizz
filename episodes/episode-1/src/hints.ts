@@ -57,7 +57,7 @@ function touchMenuHints(screen: HintScreen): string[] {
   const back = touchCap(TOUCH_LABELS.back);
   switch (screen) {
     case 'options':
-      return [`${touchCap(TOUCH_LABELS.dpad)} Choose and change`, back];
+      return [`${touchCap(TOUCH_LABELS.dpad)} Change`, back];
     case 'saves':
       return [choose, select, back];
     case 'controls':

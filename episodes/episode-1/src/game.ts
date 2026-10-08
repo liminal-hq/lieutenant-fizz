@@ -25,6 +25,7 @@ import { TouchControls } from '@lieutenant-fizz/engine/touch-ui';
 import {
   readTouchSettings,
   touchSpec,
+  writeTouchSettings,
   type TouchSettings,
 } from '@lieutenant-fizz/engine/touch-settings';
 import simUrl from './wasm/sim.wasm?url';
@@ -52,6 +53,17 @@ import {
   type Options,
   type SettingKey,
 } from './options';
+import {
+  isStepRow,
+  resetArmed,
+  resetTouch,
+  stepTouch,
+  touchItems,
+  touchRowOf,
+  touchRows,
+  RESET_ARM_MS,
+  type TouchRow,
+} from './touch-options';
 import {
   applyProgress,
   captureProgress,
@@ -157,6 +169,18 @@ export class Game {
   private touchSettings: TouchSettings;
   /** `?touch`: touch mode stays on whatever device is used. */
   private readonly forcedTouch: boolean;
+  /**
+   * Whether this device has a touch screen: `?touch`, a coarse pointer at start, or any touch so far. It
+   * only ever turns on, so the Options rows never shift while the screen is open.
+   */
+  private touchCapable = false;
+  /** The Touch controls rows; Haptics is there only when the device can vibrate. */
+  private readonly touchRowList: TouchRow[] = touchRows({
+    haptics: typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function',
+  });
+  /** When Reset had its first tap (in `performance.now()` milliseconds), or null. */
+  private resetAt: number | null = null;
+  private resetTimer = 0;
   /** Whether the on-screen controls and the phone HUD are showing (it follows the device in use). */
   private touchMode = false;
   /** Whether the phone is held upright, so the Rotate screen is showing. */
@@ -287,8 +311,8 @@ export class Game {
     window.addEventListener('pointerdown', this.onTouchPointer, { capture: true, passive: true });
     ui.stage.addEventListener('contextmenu', this.onContextMenu);
     this.unwatchViewport = watchResize(() => this.onViewport());
-    if (this.forcedTouch || window.matchMedia?.('(pointer: coarse)').matches)
-      this.input.noteTouch();
+    this.touchCapable = this.forcedTouch || !!window.matchMedia?.('(pointer: coarse)').matches;
+    if (this.touchCapable) this.input.noteTouch();
     if (this.forcedTouch) this.setTouchMode(true);
     this.writer = new InstanceWriter(sim.instanceBuffer, atlas.rects);
     this.captionNames = sim.names(Table.CAPTIONS);
@@ -375,6 +399,7 @@ export class Game {
     this.backGuard.dispose();
     this.touchUi.dispose();
     window.clearTimeout(this.titleAction);
+    window.clearTimeout(this.resetTimer);
     this.input.dispose();
     this.audio.dispose();
     this.ui.dispose();
@@ -804,7 +829,7 @@ export class Game {
         if (move & Bits.UP) this.nav(-1);
         if (move & Bits.DOWN) this.nav(1);
       }
-      if (this.sub === 'options') {
+      if (this.sub === 'options' || this.sub === 'touch') {
         if (move & Bits.LEFT) this.adjust(-1);
         if (move & Bits.RIGHT) this.adjust(1);
       }
@@ -925,7 +950,14 @@ export class Game {
 
   /** A real touch anywhere switches to touch mode, even before a control has been touched. */
   private readonly onTouchPointer = (e: PointerEvent): void => {
-    if (e.pointerType === 'touch') this.input.noteTouch();
+    if (e.pointerType !== 'touch') return;
+    this.input.noteTouch();
+    if (!this.touchCapable) {
+      this.touchCapable = true;
+      // The Touch controls row appears before Back, so a selection on Back moves down with it.
+      if (this.sub === 'options' && this.menuIdx >= Game.OPTION_ROWS.length) this.menuIdx++;
+      if (this.sub === 'options') this.syncUi();
+    }
   };
 
   /** A long press on the controls must not open the browser's menu. */
@@ -1052,6 +1084,7 @@ export class Game {
         ? { id: `opt:${key}`, label, kind: 'meter', meter: o[key] }
         : { id: `opt:${key}`, label, kind: 'choice', value: text(key) },
     );
+    if (this.touchCapable) rows.push({ id: 'touch', label: 'Touch controls' });
     return [...rows, { id: 'back', label: 'Back' }];
   }
 
@@ -1081,6 +1114,12 @@ export class Game {
 
   private menuItems(): MenuItem[] {
     if (this.sub === 'options') return this.optionItems();
+    if (this.sub === 'touch')
+      return touchItems(
+        this.touchSettings,
+        this.touchRowList,
+        resetArmed(this.resetAt, performance.now()),
+      );
     if (this.sub === 'saves') return this.slotItems();
     if (this.screen === 'title') {
       if (this.sub === 'controls') return [];
@@ -1128,6 +1167,7 @@ export class Game {
       if (!items[i]?.disabled) break;
     }
     this.audio.play('menu');
+    this.disarmReset();
     this.menuIdx = i;
     this.benLook();
     this.syncUi();
@@ -1135,6 +1175,7 @@ export class Game {
 
   private hover(i: number): void {
     if (this.menuItems()[i]?.disabled || this.menuIdx === i) return;
+    this.disarmReset();
     this.menuIdx = i;
     this.benLook();
     this.syncUi();
@@ -1152,6 +1193,7 @@ export class Game {
   private closeSub(): void {
     if (!this.sub) return;
     this.audio.play('click');
+    this.disarmReset();
     const under = this.subStack.pop();
     this.sub = under?.sub ?? null;
     this.menuIdx = under?.idx ?? 0;
@@ -1181,8 +1223,12 @@ export class Game {
     }
   }
 
-  /** Left or right on an Options row. */
+  /** Left or right on an Options or Touch controls row. */
   private adjust(d: number): void {
+    if (this.sub === 'touch') {
+      this.stepTouchRow(this.touchRowList[this.menuIdx] ?? null, d, false);
+      return;
+    }
     if (this.sub !== 'options') return;
     const row = Game.OPTION_ROWS[this.menuIdx];
     if (!row) return;
@@ -1200,12 +1246,62 @@ export class Game {
 
   /** A tap on an Options row's stepper: selects the row and steps its setting down or up. */
   private stepRow(i: number, d: number): void {
-    if (this.sub !== 'options' || !Game.OPTION_ROWS[i]) return;
+    if (this.sub === 'touch') {
+      if (!isStepRow(this.touchRowList[i] ?? null)) return;
+    } else if (this.sub !== 'options' || !Game.OPTION_ROWS[i]) return;
     if (this.menuIdx !== i) {
       this.menuIdx = i;
       this.syncUi();
     }
     this.adjust(d);
+  }
+
+  /** Steps a Touch controls setting; Size and Left-handed show at once on the controls behind the menu. */
+  private stepTouchRow(row: TouchRow | null, d: number, wrap: boolean): void {
+    if (!row) return;
+    const s = this.touchSettings;
+    const next = stepTouch(s, row, d, wrap);
+    const changed =
+      next.size !== s.size ||
+      next.opacity !== s.opacity ||
+      next.leftHanded !== s.leftHanded ||
+      next.haptics !== s.haptics;
+    if (!changed) return;
+    this.disarmReset();
+    this.audio.play('menu');
+    this.applyTouchSettings(next);
+    this.syncUi();
+  }
+
+  /** Puts new touch settings to use now (the controls, their opacity and the room they take) and saves them. */
+  private applyTouchSettings(next: TouchSettings): void {
+    this.touchSettings = next;
+    this.touchUi.setSpec(touchSpec(next));
+    this.ui.setTouchOpacity(next.opacity);
+    this.ui.setTouchGutters(this.touchGutters());
+    writeTouchSettings(this.store, next);
+  }
+
+  /** Reset asks twice: the first tap arms it for a few seconds, the second puts every touch setting back. */
+  private tapReset(): void {
+    if (resetArmed(this.resetAt, performance.now())) {
+      this.disarmReset();
+      this.applyTouchSettings(resetTouch());
+      this.syncUi();
+      return;
+    }
+    this.resetAt = performance.now();
+    window.clearTimeout(this.resetTimer);
+    this.resetTimer = window.setTimeout(() => this.disarmReset(), RESET_ARM_MS);
+    this.syncUi();
+  }
+
+  /** Cancels a Reset waiting for its second tap, and redraws if it was showing. */
+  private disarmReset(): void {
+    window.clearTimeout(this.resetTimer);
+    if (this.resetAt === null) return;
+    this.resetAt = null;
+    if (this.sub === 'touch') this.syncUi();
   }
 
   /** Activates a menu item by index (mouse click or keyboard). */
@@ -1219,10 +1315,26 @@ export class Game {
     const i = idx ?? Math.min(this.menuIdx, items.length - 1);
     const it = items[i];
     if (!it || it.disabled) return;
+    // A tap chooses the row it lands on, so the screen it opens returns to that row.
+    this.menuIdx = i;
     this.audio.play('click');
     const id = it.id ?? '';
+    if (this.sub === 'touch') {
+      const row = touchRowOf(id);
+      if (row === 'back') this.closeSub();
+      else if (row === 'reset') this.tapReset();
+      else if (row === 'move') {
+        // The drag editor is a later change; until it lands the row only says so.
+        this.disarmReset();
+        this.ui.toast('Moving controls is coming soon');
+      } else {
+        this.stepTouchRow(row, 1, true);
+      }
+      return;
+    }
     if (this.sub === 'options') {
       if (id === 'back') this.closeSub();
+      else if (id === 'touch') this.openSub('touch');
       else if (id.startsWith('opt:')) {
         const key = id.slice(4) as SettingKey;
         this.step(key, 1, true);
@@ -1683,14 +1795,20 @@ export class Game {
     const items = this.menuItems();
     const sel = Math.min(this.menuIdx, Math.max(0, items.length - 1));
     const onTitle = s === 'title';
-    const over = this.sub === 'options' || this.sub === 'saves';
+    const over = this.sub === 'options' || this.sub === 'saves' || this.sub === 'touch';
     ui.showTitle(onTitle && !this.sub ? items : null, sel, onTitle && this.sub === 'controls');
     ui.setBack(this.touchMode && !!this.sub && (onTitle || s === 'pause'));
     if (onTitle && this.sub === 'controls') ui.showTitle(null, 0, true);
     if (over && (onTitle || s === 'pause')) {
       const saves = this.sub === 'saves';
       ui.showOverlay({
-        title: saves ? (this.saveMode === 'save' ? 'Save game' : 'Load game') : 'Options',
+        title: saves
+          ? this.saveMode === 'save'
+            ? 'Save game'
+            : 'Load game'
+          : this.sub === 'touch'
+            ? 'Touch controls'
+            : 'Options',
         text: '',
         items,
         sel,
@@ -1912,6 +2030,7 @@ export class Game {
       | 'title'
       | 'controls'
       | 'options'
+      | 'touch'
       | 'saves'
       | 'play'
       | 'map'
@@ -1958,6 +2077,14 @@ export class Game {
       return this.syncUi();
     }
     this.quitToTitle();
+    if (what === 'touch') {
+      // Title, then Options on its Touch controls row, then the screen, as a player gets there.
+      this.touchCapable = true;
+      this.openSub('options');
+      this.menuIdx = Game.OPTION_ROWS.length;
+      this.openSub('touch');
+      return;
+    }
     if (what === 'saves') return this.openSaves('load');
     this.sub = what === 'title' ? null : what;
     this.syncUi();
