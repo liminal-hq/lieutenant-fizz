@@ -34,10 +34,15 @@ describe('touch gutters', () => {
     const v = layoutVars(740, 360, false, { left: 190, right: 120 });
     expect(v['--lf-touch-left']).toBe('190px');
     expect(v['--lf-touch-right']).toBe('120px');
-    // 740 - 190 - 120 = 430 px: "Lieutenant Fizz" (102 glyph pixels) fits on one line at 4.
-    expect(v['--lf-n-logo']).toBe('4');
+    // 740 - 190 - 120 = 430 px: "Lieutenant Fizz" (102 glyph pixels) fits on one line at 4, and a
+    // phone under 420 px tall takes one scale off to leave the menu its rows.
+    expect(v['--lf-n-logo']).toBe('3');
     expect(Number(v['--lf-cols'])).toBe(Math.floor(430 / 12));
-    expect(layoutVars(844, 390, false, { left: 190, right: 120 })['--lf-n-logo']).toBe('5');
+    expect(layoutVars(844, 390, false, { left: 190, right: 120 })['--lf-n-logo']).toBe('4');
+    // Taller than that, the wordmark keeps the scale that fits.
+    expect(layoutVars(844, 480, false, { left: 190, right: 120 })['--lf-n-logo']).toBe('5');
+    // The step never goes under the smallest scale.
+    expect(layoutVars(300, 300, false, { left: 150, right: 100 })['--lf-n-logo']).toBe('2');
   });
 });
 

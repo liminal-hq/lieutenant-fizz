@@ -23,6 +23,27 @@
   left: max(calc(var(--lf-pad-x) + var(--lf-safe-left)), var(--lf-touch-left));
   right: max(calc(var(--lf-pad-x) + var(--lf-safe-right)), var(--lf-touch-right));
 }
+/* The one-column title gives its height to the menu: the bottom reserve is the hint line plus a small
+   gap (not the wide padding of the desktop), the wordmark sits closer to the menu, and the rows take
+   the width of the column so the whole line is the target. The text is outlined by one glyph pixel so
+   it reads over the cookies behind it. */
+#stage[data-touch] #title {
+  gap: calc(var(--n) * 4px);
+  padding-bottom: calc(
+    var(--lf-keys-bottom) + var(--lf-n-hint) * var(--lf-line) + 8px + var(--lf-safe-bottom)
+  );
+}
+#stage[data-touch] #title > .menu {
+  align-self: stretch;
+}
+#stage[data-touch] #title :is(.kicker, .episode, .menu button:not(.sel) .lbl, .keys) {
+  text-shadow:
+    calc(var(--n) * 1px) 0 0 #050507,
+    calc(var(--n) * -1px) 0 0 #050507,
+    0 calc(var(--n) * -1px) 0 #050507,
+    0 calc(var(--n) * 1px) 0 #050507;
+}
+
 /* The wordmark stays on one line between the controls (the shell sizes it to fit). */
 #stage[data-touch] #title .hero .w {
   display: inline;

@@ -20,6 +20,9 @@ export interface TouchGutters {
   right: number;
 }
 
+/** Below this height the wordmark steps down one scale on touch, to leave the menu its rows. */
+export const SHORT_PHONE = 420;
+
 export const NO_GUTTERS: TouchGutters = { left: 0, right: 0 };
 
 /**
@@ -38,8 +41,13 @@ export function layoutVars(
   const padX = sidePadding(width);
   const touch = gutters.left > 0 || gutters.right > 0;
   const content = width - Math.max(padX, gutters.left) - Math.max(padX, gutters.right);
+  const fitted = Math.min(
+    Math.max(MIN_SCALE, Math.floor(content / 102)),
+    steps.item + 3,
+    MAX_SCALE,
+  );
   const logo = touch
-    ? Math.min(Math.max(MIN_SCALE, Math.floor(content / 102)), steps.item + 3, MAX_SCALE)
+    ? Math.max(MIN_SCALE, height < SHORT_PHONE ? fitted - 1 : fitted)
     : wordmarkScale(width, padX, steps.item);
   return {
     '--lf-n': String(steps.item),
