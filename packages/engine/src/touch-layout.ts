@@ -107,6 +107,45 @@ export function sideGutters(
   return { left, right };
 }
 
+/** Which side of the screen a control is on: by its centre, so a left-handed layout works the same way. */
+export function controlSide(
+  placed: PlacedControls,
+  width: number,
+  id: ControlId,
+): 'left' | 'right' {
+  return placed.face[id].cx < width / 2 ? 'left' : 'right';
+}
+
+/** How far down from the top of the window the highest low control on each side starts (0 for none). */
+export interface SideTops {
+  left: number;
+  right: number;
+}
+
+/**
+ * Where content that sits above the controls must stop, for a `width` × `height` window: on each
+ * side, the top edge of the highest shown face in the lower half of the window, minus `margin`, or 0
+ * when that side has none. The corner controls (Pause) do not count: they are handled by the gutters,
+ * and the content they would limit sits well below them.
+ */
+export function sideTops(
+  placed: PlacedControls,
+  width: number,
+  height: number,
+  shown: readonly ControlId[],
+  margin = 16,
+): SideTops {
+  const tops: SideTops = { left: 0, right: 0 };
+  for (const id of shown) {
+    const f = placed.face[id];
+    if (f.cy < height / 2) continue;
+    const side = controlSide(placed, width, id);
+    const top = Math.floor(f.cy - f.r - margin);
+    if (tops[side] === 0 || top < tops[side]) tops[side] = top;
+  }
+  return tops;
+}
+
 /** The scale that keeps the smallest button at least `minHit` on a short screen, and never above 1. */
 const fit = (height: number, spec: TouchSpec): number => {
   const smallest = Math.min(spec.jump.d, spec.pogo.d, spec.fire.d);

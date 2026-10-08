@@ -15,10 +15,14 @@ const query = new URLSearchParams(location.search);
 const pixelsParam = query.get('pixels');
 const pixels = pixelsParam === 'sharp' || pixelsParam === 'soft' ? pixelsParam : undefined;
 
+// `?title=split` tries the phone title with the logo and the menu on opposite sides.
+const title = query.get('title') === 'split' ? 'split' : undefined;
+
 Game.start(stage, {
   previewStinger: query.has('previewStinger'),
   touch: query.has('touch'),
   ...(pixels ? { pixels } : {}),
+  ...(title ? { title } : {}),
 })
   .then((game) => {
     if (query.has('debug')) {

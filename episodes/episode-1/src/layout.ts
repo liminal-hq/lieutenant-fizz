@@ -8,6 +8,7 @@ import {
   MIN_SCALE,
   pixelScale,
   scaleSteps,
+  type ScaleSteps,
   sidePadding,
   verticalPadding,
   wordmarkScale,
@@ -18,9 +19,23 @@ import {
 export interface TouchGutters {
   left: number;
   right: number;
+  /** Where content above the controls must stop on the left and right (0 for none). */
+  leftTop: number;
+  rightTop: number;
+  /** The hand the controls are laid out for: `right` has the D-pad on the left. */
+  hand: 'left' | 'right';
 }
 
-export const NO_GUTTERS: TouchGutters = { left: 0, right: 0 };
+/** Below this height the wordmark steps down one scale on touch, to leave the menu its rows. */
+export const SHORT_PHONE = 420;
+
+export const NO_GUTTERS: TouchGutters = {
+  left: 0,
+  right: 0,
+  leftTop: 0,
+  rightTop: 0,
+  hand: 'right',
+};
 
 /**
  * The CSS custom properties that size the overlay, for a window of this size. With touch gutters the
@@ -38,8 +53,13 @@ export function layoutVars(
   const padX = sidePadding(width);
   const touch = gutters.left > 0 || gutters.right > 0;
   const content = width - Math.max(padX, gutters.left) - Math.max(padX, gutters.right);
+  const fitted = Math.min(
+    Math.max(MIN_SCALE, Math.floor(content / 102)),
+    steps.item + 3,
+    MAX_SCALE,
+  );
   const logo = touch
-    ? Math.min(Math.max(MIN_SCALE, Math.floor(content / 102)), steps.item + 3, MAX_SCALE)
+    ? Math.max(MIN_SCALE, height < SHORT_PHONE ? fitted - 1 : fitted)
     : wordmarkScale(width, padX, steps.item);
   return {
     '--lf-n': String(steps.item),
@@ -56,6 +76,25 @@ export function layoutVars(
     '--lf-touch-left': `${gutters.left}px`,
     '--lf-touch-right': `${gutters.right}px`,
   };
+}
+
+/** One way to set the title's wordmark: a pixel scale and one line or two. */
+export interface TitleCandidate {
+  logo: number;
+  lines: 1 | 2;
+}
+
+/**
+ * The wordmark sizes the split title tries, largest first: from the item scale plus three (never
+ * above 6) down to 2, each on one line and then on two. The first that fits beside the menu and above
+ * the D-pad is used.
+ */
+export function titleCandidates(steps: ScaleSteps): TitleCandidate[] {
+  const out: TitleCandidate[] = [];
+  for (let logo = Math.min(steps.item + 3, MAX_SCALE); logo >= MIN_SCALE; logo--) {
+    out.push({ logo, lines: 1 }, { logo, lines: 2 });
+  }
+  return out;
 }
 
 /** Writes the layout variables onto an element (the document root, so floating captions see them). */

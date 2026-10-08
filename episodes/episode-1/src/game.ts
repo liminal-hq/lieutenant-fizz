@@ -23,7 +23,7 @@ import simUrl from './wasm/sim.wasm?url';
 import { PATTERNS } from './audio/patterns';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { Cinematic, CINE_TALL } from './cine';
-import { isPortrait, watchResize } from './layout';
+import { isPortrait, watchResize, type TouchGutters } from './layout';
 import { touchFaces, type ShellScreen, type TouchFaces } from './touch-menus';
 import { EPISODE } from './episode';
 import {
@@ -68,7 +68,15 @@ import { defineSprites } from './sprites/catalog';
 import { CINE, CINE_TRACK, DIALOGUE, END, LEVELS, SAUCER_ID, SIGNS, type Line } from './story';
 import { MORTIMER_STINGER } from './stinger';
 import { BEN_LOOK, BEN_WAVE, benFrame, benScale, type BenPose } from './titleBen';
-import { Ui, type HudState, type MenuItem, type OptionKey, type Prompt, type SlotRow } from './ui';
+import {
+  Ui,
+  type HudState,
+  type TitleLayout,
+  type MenuItem,
+  type OptionKey,
+  type Prompt,
+  type SlotRow,
+} from './ui';
 
 export type Screen = ShellScreen;
 
@@ -85,6 +93,8 @@ export interface GameOptions {
    * devices (and `touch`) are Sharp and everything else is Soft.
    */
   pixels?: 'sharp' | 'soft';
+  /** `split` tries the phone title with the logo and the menu on opposite sides; the default is one column. */
+  title?: TitleLayout;
 }
 
 /** Whether the canvas should be whole-pixel: decided once at boot and kept for the session. */
@@ -275,6 +285,7 @@ export class Game {
       sim.setSprites(atlas.rects);
       const renderer = new InstancedRenderer(ui.gl, atlas, wantsSharp(options));
       game = new Game(sim, atlas, ui, renderer, options);
+      if (options.title) ui.setTitleLayout(options.title);
       game.initTouchFaces(grid('ben_pogo'), grid('soda'));
     } catch (e) {
       console.error(e);
@@ -906,6 +917,17 @@ export class Game {
     this.syncUi();
   }
 
+  /** The room the shown controls take around the menus: the gutters, where content must stop above them, the hand. */
+  private touchGutters(): TouchGutters {
+    const tops = this.touchUi.tops();
+    return {
+      ...this.touchUi.gutters(),
+      leftTop: tops.left,
+      rightTop: tops.right,
+      hand: this.touchUi.hand(),
+    };
+  }
+
   /** The window changed size or the phone turned: place the controls and show Rotate if upright. */
   private onViewport(): void {
     const rotate = this.touchMode && isPortrait(window.innerWidth, window.innerHeight);
@@ -916,7 +938,7 @@ export class Game {
       this.syncUi();
     }
     this.touchUi.relayout();
-    this.ui.setTouchGutters(this.touchUi.gutters());
+    this.ui.setTouchGutters(this.touchGutters());
   }
 
   /**
@@ -942,7 +964,7 @@ export class Game {
       if (t.pogoIcon) t.pogoIcon.hidden = !faces.play;
     }
     if (!faces.play) this.touchUi.setLit(false);
-    this.ui.setTouchGutters(this.touchUi.gutters());
+    this.ui.setTouchGutters(this.touchGutters());
   }
 
   // ---------- Menus ----------
@@ -1621,6 +1643,11 @@ export class Game {
     this.sim.x.game_new();
     this.sim.x.enter_level(id);
     this.handleEvents();
+  }
+
+  /** Test hook: switches the phone title between its two layouts. */
+  debugTitle(mode: TitleLayout): void {
+    this.ui.setTitleLayout(mode);
   }
 
   /** Test hook: opens a screen directly, so layout checks can visit each one. */
