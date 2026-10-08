@@ -15,6 +15,11 @@ const query = new URLSearchParams(location.search);
 const pixelsParam = query.get('pixels');
 const pixels = pixelsParam === 'sharp' || pixelsParam === 'soft' ? pixelsParam : undefined;
 
+// `?audio=enhanced` places sound effects in the stereo field and `?audio=classic` keeps the sound as
+// it has always been. Anything else leaves the default, which is Classic.
+const audioParam = query.get('audio');
+const audio = audioParam === 'classic' || audioParam === 'enhanced' ? audioParam : undefined;
+
 // `?title=split` tries the phone title with the logo and the menu on opposite sides.
 const title = query.get('title') === 'split' ? 'split' : undefined;
 
@@ -25,6 +30,7 @@ Game.start(stage, {
   touch: query.has('touch'),
   back: query.has('back'),
   ...(pixels ? { pixels } : {}),
+  ...(audio ? { audio } : {}),
   ...(title ? { title } : {}),
 })
   .then((game) => {

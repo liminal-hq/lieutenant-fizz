@@ -7,6 +7,7 @@ import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
+import { placeSound, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
 import {
   Input as Bits,
@@ -95,6 +96,11 @@ export interface GameOptions {
    * devices (and `touch`) are Sharp and everything else is Soft.
    */
   pixels?: 'sharp' | 'soft';
+  /**
+   * `classic` is the sound as it has always been; `enhanced` places sound effects in the stereo
+   * field by where they happen on screen. Left out, the game plays Classic.
+   */
+  audio?: AudioMode;
   /** `split` tries the phone title with the logo and the menu on opposite sides; the default is one column. */
   title?: TitleLayout;
   /** Takes the browser's Back button in an ordinary tab too (`?back`), to try it without fullscreen. */
@@ -157,6 +163,8 @@ export class Game {
   private readonly forcedBack: boolean;
   private unwatchBack: () => void = () => {};
   private readonly audio: GameAudio;
+  /** Whether `GameOptions.audio` chose the audio mode. */
+  private readonly audioForced: boolean;
   private readonly ui: Ui;
   private readonly cine = new Cinematic();
   private readonly writer: InstanceWriter;
@@ -244,6 +252,8 @@ export class Game {
       labels: { dpad: 'Move', jump: 'Jump', pogo: 'Pogo', fire: 'Fizz', pause: 'Pause' },
     });
     this.audio = new GameAudio(PATTERNS);
+    this.audioForced = options.audio !== undefined;
+    if (options.audio) this.audio.setMode(options.audio);
     this.settings = readOptions(this.store);
     this.applySettings();
     this.input.onDevice(() => this.syncHints());
@@ -662,7 +672,12 @@ export class Game {
   private caption(x: number, y: number, id: number): void {
     const text = this.captionNames[id];
     if (!text) return;
-    this.audio.caption(text);
+    // Only Enhanced places a sound; Classic gets no position at all, so it cannot change.
+    const at =
+      this.audio.mode === 'enhanced'
+        ? placeSound(x, y, this.sim.camera, { w: this.halfW, h: this.halfH })
+        : undefined;
+    this.audio.caption(text, at);
     const colour = this.sim.captionColour(id);
     if (!this.opts.captions || colour === 0) return;
     const now = performance.now();
@@ -1731,6 +1746,27 @@ export class Game {
     this.sim.x.game_new();
     this.sim.x.enter_level(id);
     this.handleEvents();
+  }
+
+  /**
+   * Test hook: reads (and, given a mode, sets) the audio mode, so Classic and Enhanced can be
+   * compared by ear on a phone. `emitters` counts the sounds placed since the page loaded.
+   */
+  debugAudio(mode?: AudioMode): {
+    mode: AudioMode;
+    forced: boolean;
+    backend: string;
+    emitters: number;
+    ctxState: string;
+  } {
+    if (mode) this.audio.setMode(mode);
+    return {
+      mode: this.audio.mode,
+      forced: this.audioForced,
+      backend: this.audio.backend,
+      emitters: this.audio.emitters,
+      ctxState: this.audio.ctxState,
+    };
   }
 
   /** Test hook: switches the phone title between its two layouts. */
