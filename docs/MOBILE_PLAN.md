@@ -58,7 +58,7 @@ Findings from reading the current code, with the seams each slice uses.
 ### Layout and display
 - `index.html`: `viewport-fit=cover`, `user-scalable=no`, `interactive-widget=resizes-content`, a theme colour.
 - CSS: `touch-action: manipulation` on every control, `user-select: none`, `-webkit-tap-highlight-color: transparent`, `overscroll-behavior: none`, a `contextmenu` guard, `100dvh`.
-- `layout.ts` reads the safe-area insets into `--lf-safe-*` variables (also overridable in tests), listens to `visualViewport` and `orientationchange`, and keeps controls and the HUD inside the insets and the system gesture margins. The Engine button is hidden on touch. The hint bar is hidden in play on touch and shows touch hints in menus.
+- **Safe areas, with the game drawn under them.** The canvas stays full-bleed, so the game renders under the cutout and the system bars. Only the controls, the HUD, menus and hints are kept out of that space, using the CSS `env(safe-area-inset-top|right|bottom|left)` values with `viewport-fit=cover`. The same CSS works in Firefox, Chrome and Safari and in the Tauri webview (Threshold's `MobileToolbar` pads with `env(safe-area-inset-top)` for the same reason), so one set of rules serves the web and the app. `layout.ts` reads the insets into `--lf-safe-*` variables (with a `0` fallback, and overridable in tests), listens to `visualViewport` and `orientationchange`, and keeps controls and the HUD inside the insets and the system gesture margins. The Engine button is hidden on touch. The hint bar is hidden in play on touch and shows touch hints in menus.
 - **Portrait** shows a "Rotate your phone" screen while touch is the device, and the game stays paused.
 
 ### Pixel-perfect scale on phones
@@ -115,10 +115,10 @@ Until slice 2 lands the game has no touch controls, so a phone can show the titl
 ## First phone test
 The first run on a real phone, with the slice 0 dev loop (Firefox for Android, landscape, a 120 Hz screen, the URL bar showing, over Wi-Fi).
 - **It runs well.** The engine panel reported 114 to 119 fps (about 8.5 ms a frame) with the simulation steady at 60 Hz, one draw call and about 350 instances. The Fizz type is crisp and readable, the title menu and the in-level HUD look right at that size, and the level shows 13.0 tiles as designed. Firefox for Android is a supported target alongside Chrome.
-- **A black strip on the left.** The browser keeps the page out of the display cutout, so there is a black band down the left edge. With `viewport-fit=cover` (slice 2) the page draws into it, so the HUD, controls and menus must then use the safe-area insets.
+- **A black strip on the left.** Without `viewport-fit=cover` the browser keeps the page out of the display cutout, so there is a black band down the left edge. The plan for slice 2 is to let the game render **under** the cutout and the bars, and to keep only the controls and UI out of them (see Layout and display).
 - **The Engine button and panel get in the way on touch.** The panel is tall enough to run off the bottom of the screen (its last toggles are cut off) and covers the "Attract" label. It is hidden on touch, as planned for slice 2, and the panel scrolls if it is ever opened on a small screen.
 - **Keyboard hints on a touch screen.** The title shows "Enter Select" and "↑↓ Choose". Touch hints are slice 5.
-- **The URL bar takes about 100 px of height**, so the visible height changes as it shows and hides. This confirms the `dvh` and `visualViewport` work in slice 2 and the fullscreen request in slice 7.
+- **The URL bar** was showing because the test was not in fullscreen: Firefox keeps it up for easy access. That is expected, not a problem. The visible height still changes in browsers that hide the bar as you scroll (Chrome), which is what the `dvh` and `visualViewport` work in slice 2 covers, and the fullscreen request in slice 7 removes the bar.
 - **120 Hz.** The game renders at the display rate while the simulation stays at 60 Hz. It holds that easily here, but a cap of 60 fps on touch devices would save battery and heat, so it is an option in slice 9 once there are battery numbers.
 - **The HUD** is the desktop panel (Score, Lives, Fizz and "Next life at 100"). It is large at this size and is replaced by the glass pills in slice 2.
 

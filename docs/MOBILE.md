@@ -20,7 +20,7 @@ The artboards are about the **UI**: layout, controls, spacing and type. They are
 
 ## Display
 - Landscape only, fullscreen in the app.
-- Safe-area insets from the browser (`env(safe-area-inset-*)`) and the native cutout in the Tauri app.
+- The game renders full-bleed, under the display cutout and the system bars. Controls, the HUD, menus and hints stay inside the safe area, using the CSS `env(safe-area-inset-*)` values, which work in browsers and in the Tauri webview.
 - The play field keeps its whole-pixel scale. Controls are drawn over it, translucent, because a phone has no spare margin.
 - **Pixels: Sharp or Soft** (an option, see APP.md) decides what happens to the slack: Sharp keeps whole pixels with thin bars, Soft stretches to the edges.
 
