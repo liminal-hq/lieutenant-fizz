@@ -10,7 +10,16 @@ if (!stage) throw new Error('missing #stage');
 
 const query = new URLSearchParams(location.search);
 
-Game.start(stage, { previewStinger: query.has('previewStinger'), touch: query.has('touch') })
+// `?pixels=sharp` draws at a whole pixel scale and `?pixels=soft` keeps the fractional one. Anything
+// else leaves the choice to the device (touch is Sharp, desktop is Soft).
+const pixelsParam = query.get('pixels');
+const pixels = pixelsParam === 'sharp' || pixelsParam === 'soft' ? pixelsParam : undefined;
+
+Game.start(stage, {
+  previewStinger: query.has('previewStinger'),
+  touch: query.has('touch'),
+  ...(pixels ? { pixels } : {}),
+})
   .then((game) => {
     if (query.has('debug')) {
       (window as unknown as { __lf: Game }).__lf = game;
