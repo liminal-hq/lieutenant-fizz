@@ -176,7 +176,10 @@ export function placeControls(
   insets: Insets,
   spec: TouchSpec = DEFAULT_TOUCH_SPEC,
 ): PlacedControls {
-  const s = fit(height, spec) * spec.scale;
+  // The Size scale applies after the short-screen fit, so a Small layout on a short screen would
+  // shrink the smallest button below minHit; the floor is applied to the product.
+  const smallest = Math.min(spec.jump.d, spec.pogo.d, spec.fire.d);
+  const s = Math.max(spec.minHit / smallest, fit(height, spec) * spec.scale);
   // Right-handed puts the D-pad on the left. Left-handed lays everything out as a mirror image, with
   // the insets swapped, and flips x at the end.
   const mirror = spec.leftHanded;

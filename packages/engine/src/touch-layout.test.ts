@@ -119,6 +119,18 @@ describe('placeControls', () => {
     expect(placeControls(844, 390, NONE, spec).face.jump.r).toBe(50);
   });
 
+  it('keeps Small buttons at 48 dp on a short screen', () => {
+    const small: TouchSpec = { ...DEFAULT_TOUCH_SPEC, scale: 0.85 };
+    for (const h of [320, 300, 200]) {
+      const { face } = placeControls(640, h, NONE, small);
+      for (const id of ['jump', 'pogo', 'fire'] as const) {
+        expect(face[id].r * 2, `${id} at ${h}`).toBeGreaterThanOrEqual(48 - 1e-9);
+      }
+    }
+    // On a tall screen Small is still 0.85 of the artboard.
+    expect(placeControls(844, 390, NONE, small).face.jump.r).toBeCloseTo(34, 9);
+  });
+
   it('keeps menu content right of the D-pad and left of the buttons', () => {
     const placed = placeControls(844, 390, NONE);
     // The D-pad's right edge is 24 + 150 = 174 px from the left, plus a 16 px margin.
