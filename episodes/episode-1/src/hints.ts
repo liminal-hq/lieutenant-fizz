@@ -103,3 +103,32 @@ export function stingerHints(c: HintContext): string[] {
  * wins while a pad is the device in use.
  */
 export const controlsColumn = (c: HintContext): number => (pad(c) ? 3 : c.layout === 1 ? 2 : 1);
+
+/** The Controls screen as data: a header, the rows, the column to pick out, and the note beneath. */
+export interface ControlsTable {
+  /** The header cells, the action column first. */
+  head: string[];
+  /** One row per action, a cell per header cell (hint tokens, drawn as keycaps). */
+  rows: string[][];
+  /** The index of the column to pick out (the device in use). */
+  on: number;
+  /** The hint under the table. */
+  note: string;
+}
+
+/** The Controls table: a column per scheme (Keen-style, Modern, Gamepad), the device in use picked out. */
+export function controlsTable(c: HintContext): ControlsTable {
+  return {
+    head: ['Action', 'Keen-style', 'Modern', 'Gamepad'],
+    rows: [
+      ['Move', '{[←]} {[→]}', '{[←]} {[→]} {[A]} {[D]}', 'D-pad / stick'],
+      ['Jump', '{Ctrl}', '{[Z]}', '{A}'],
+      ['Pogo (toggle)', '{Alt}', '{[X]}', '{B} {Y}'],
+      ['Fizz', '{Space}', '{[C]}', '{X} {RT}'],
+      ['Menu', '{Esc}', '{Esc} {[P]}', '{Start}'],
+      ['Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu'],
+    ],
+    on: controlsColumn(c),
+    note: 'Hold jump while pogoing for a high bounce. Aim fizz up with {[↑]}, or down with {[↓]} in the air.',
+  };
+}

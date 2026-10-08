@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   backHint,
   controlsColumn,
+  controlsTable,
   creditsHints,
   jumpHint,
   menuHint,
@@ -116,5 +117,24 @@ describe('controlsColumn', () => {
     expect(controlsColumn(modern)).toBe(2);
     expect(controlsColumn(pad)).toBe(3);
     expect(controlsColumn({ device: 'gamepad', layout: 1 })).toBe(3);
+  });
+});
+
+describe('controlsTable on a keyboard or gamepad', () => {
+  it('is the three-scheme table, unchanged, with the device column picked out', () => {
+    const t = controlsTable(keen);
+    expect(t.head).toEqual(['Action', 'Keen-style', 'Modern', 'Gamepad']);
+    expect(t.rows).toEqual([
+      ['Move', '{[←]} {[→]}', '{[←]} {[→]} {[A]} {[D]}', 'D-pad / stick'],
+      ['Jump', '{Ctrl}', '{[Z]}', '{A}'],
+      ['Pogo (toggle)', '{Alt}', '{[X]}', '{B} {Y}'],
+      ['Fizz', '{Space}', '{[C]}', '{X} {RT}'],
+      ['Menu', '{Esc}', '{Esc} {[P]}', '{Start}'],
+      ['Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu'],
+    ]);
+    expect(t.note).toBe(
+      'Hold jump while pogoing for a high bounce. Aim fizz up with {[↑]}, or down with {[↓]} in the air.',
+    );
+    expect([keen, modern, pad].map((c) => controlsTable(c).on)).toEqual([1, 2, 3]);
   });
 });

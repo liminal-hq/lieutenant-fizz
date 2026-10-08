@@ -10,7 +10,7 @@ import { EGA } from '@lieutenant-fizz/engine/palette';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import type { StingerContent, StingerPhase } from '@lieutenant-fizz/engine/stinger';
 import {
-  controlsColumn,
+  controlsTable,
   creditsHints,
   menuHints,
   stingerHints,
@@ -375,27 +375,20 @@ export class Ui {
 
   /** The Controls table, with the column for the device in use picked out. */
   private renderControls(): void {
-    const on = controlsColumn(this.ctx);
+    const t = controlsTable(this.ctx);
     const cell = (tag: string, col: number, text: string): string =>
-      `<${tag}${col === on ? ' class="on"' : ''}>${hintText(text)}</${tag}>`;
-    const row = (action: string, keen: string, modern: string, pad: string): string =>
-      `<tr>${cell('td', 0, action)}${cell('td', 1, keen)}${cell('td', 2, modern)}${cell('td', 3, pad)}</tr>`;
+      `<${tag}${col === t.on ? ' class="on"' : ''}>${hintText(text)}</${tag}>`;
+    const line = (tag: string, cells: string[]): string =>
+      `<tr>${cells.map((text, col) => cell(tag, col, text)).join('')}</tr>`;
+    const html = `${line('th', t.head)}
+      ${t.rows.map((r) => line('td', r)).join('\n      ')}`;
     const table = this.controls.querySelector('table');
-    const html = `<tr><th>Action</th>${['Keen-style', 'Modern', 'Gamepad']
-      .map((h, i) => cell('th', i + 1, h))
-      .join('')}</tr>
-      ${row('Move', '{[←]} {[→]}', '{[←]} {[→]} {[A]} {[D]}', 'D-pad / stick')}
-      ${row('Jump', '{Ctrl}', '{[Z]}', '{A}')}
-      ${row('Pogo (toggle)', '{Alt}', '{[X]}', '{B} {Y}')}
-      ${row('Fizz', '{Space}', '{[C]}', '{X} {RT}')}
-      ${row('Menu', '{Esc}', '{Esc} {[P]}', '{Start}')}
-      ${row('Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu')}`;
     if (table) {
       table.innerHTML = html;
       return;
     }
     this.controls.innerHTML = `<table>${html}</table>
-    <p class="note">${hintText('Hold jump while pogoing for a high bounce. Aim fizz up with {[↑]}, or down with {[↓]} in the air.')}</p>`;
+    <p class="note">${hintText(t.note)}</p>`;
   }
 
   /** Sizes the overlay's pixel text from the window. Called on resize and when text size changes. */
