@@ -268,6 +268,11 @@ export class InputManager {
 
   /** Held bits right now, without consuming the one-shot CONFIRM latch. */
   peek(): number {
+    return this.read(false);
+  }
+
+  /** Held bits from every source. A step (`consume`) also marks touch presses as seen by the sim. */
+  private read(consume: boolean): number {
     let padBits = 0;
     let pad = false;
     let start = false;
@@ -287,7 +292,13 @@ export class InputManager {
       {
         keys: keysToBits(this.keys),
         pad: padBits,
-        touch: touchToBits(this.touchEnabled ? this.touch.held(performance.now()) : NO_TOUCH),
+        touch: touchToBits(
+          !this.touchEnabled
+            ? NO_TOUCH
+            : consume
+              ? this.touch.sample(performance.now())
+              : this.touch.held(performance.now()),
+        ),
       },
       { touchEnabled: this.touchEnabled, blocked: this.blocked },
     );
@@ -295,7 +306,7 @@ export class InputManager {
 
   /** Held bits for one fixed tick; CONFIRM (from Enter) is a one-shot latch consumed here. */
   poll(): number {
-    let bits = this.peek();
+    let bits = this.read(true);
     if (this.confirmPending) {
       if (!this.blocked) bits |= Input.CONFIRM;
       this.confirmPending = false;

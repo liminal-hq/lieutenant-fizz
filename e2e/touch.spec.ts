@@ -195,8 +195,7 @@ test('moving and jumping work together', async ({ page }) => {
   expect(held.bits & (RIGHT | JUMP)).toBe(RIGHT | JUMP);
   expect(held.px).toBeGreaterThan(before.px);
   await t.end();
-  await page.waitForTimeout(150);
-  expect((await state(page)).bits).toBe(0);
+  await expect.poll(() => state(page).then((x) => x.bits)).toBe(0);
 });
 
 test('the D-pad rolls from one arm to another without lifting', async ({ page }) => {

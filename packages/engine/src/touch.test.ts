@@ -120,7 +120,7 @@ describe('TouchState', () => {
   it('keeps a held button held well past the minimum hold', () => {
     const t = state();
     t.down(1, 700, 320, 0);
-    expect(t.held(MIN_HOLD_MS * 10).jump).toBe(true);
+    expect(t.sample(MIN_HOLD_MS * 10).jump).toBe(true);
     t.up(1);
     expect(t.held(MIN_HOLD_MS * 10).jump).toBe(false);
   });
@@ -129,8 +129,27 @@ describe('TouchState', () => {
     const t = state();
     t.down(1, 690, 240, 0);
     t.up(1);
-    expect(t.held(40).pogo).toBe(true);
+    expect(t.sample(40).pogo).toBe(true);
     expect(t.held(MIN_HOLD_MS + 10).pogo).toBe(false);
+  });
+
+  it('keeps a tap until a step has sampled it, however long the frame takes', () => {
+    const t = state();
+    t.down(1, 690, 240, 0);
+    t.up(1);
+    // A slow frame arrives long after the finger lifted and the minimum hold ran out.
+    expect(t.held(500).pogo).toBe(true);
+    expect(t.sample(500).pogo).toBe(true);
+    expect(t.held(501).pogo).toBe(false);
+  });
+
+  it('does not let a sample end a button that is still held', () => {
+    const t = state();
+    t.down(1, 700, 320, 0);
+    expect(t.sample(10).jump).toBe(true);
+    expect(t.sample(500).jump).toBe(true);
+    t.up(1);
+    expect(t.sample(600).jump).toBe(false);
   });
 
   it('re-evaluates the D-pad as the thumb slides, without lifting', () => {
