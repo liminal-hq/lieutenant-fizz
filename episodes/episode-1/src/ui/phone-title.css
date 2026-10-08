@@ -1,0 +1,81 @@
+/* ── The split title (opt-in, `?title=split`) ──
+   On a phone the logo sits on the D-pad side above the D-pad and the menu on the Jump side, ending at
+   the right gutter, so the rows have the whole height for 48 dp. The shell (`fitTitle`) picks the
+   wordmark scale and sets `data-lines`, or falls back to the one-column title (`data-title-fit`) when
+   nothing fits. `#stage[data-hand]` says which side the D-pad is on: `right` (D-pad left) is the default,
+   `left` mirrors the grid. The Controls table keeps the one column. */
+#stage[data-touch][data-title='split']:not([data-title-fit='column'])
+  #title:not(:has(> #controls:not([hidden]))) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'head menu';
+  align-items: center;
+  column-gap: 24px;
+  padding-left: calc(var(--lf-pad-x) + var(--lf-safe-left));
+  padding-right: max(calc(var(--lf-pad-x) + var(--lf-safe-right)), var(--lf-touch-right));
+  background: linear-gradient(
+    270deg,
+    rgba(5, 5, 7, 0.88) 0%,
+    rgba(5, 5, 7, 0.6) 38%,
+    rgba(5, 5, 7, 0) 72%
+  );
+}
+#stage[data-touch][data-title='split']:not([data-title-fit='column'])
+  #title:not(:has(> #controls:not([hidden])))
+  > .head {
+  grid-area: head;
+  align-self: start;
+  justify-self: start;
+  width: max-content;
+}
+#stage[data-touch][data-title='split']:not([data-title-fit='column'])
+  #title:not(:has(> #controls:not([hidden])))
+  > .menu {
+  grid-area: menu;
+  align-self: center;
+  justify-self: end;
+  width: max-content;
+}
+/* The episode line takes the width of the wordmark and wraps under it, so a long line never decides
+   how wide the head is. */
+#stage[data-touch][data-title='split']:not([data-title-fit='column'])
+  #title:not(:has(> #controls:not([hidden])))
+  .episode {
+  width: 0;
+  min-width: 100%;
+  text-wrap: balance;
+}
+#stage[data-touch][data-title='split']:not([data-title-fit='column'])
+  #title:not(:has(> #controls:not([hidden])))[data-lines='2']
+  .hero
+  .w {
+  display: block;
+}
+
+/* Left-handed: the D-pad is on the right, so the head goes right and the menu left. */
+#stage[data-hand='left']
+  #stage[data-touch][data-title='split']:not([data-title-fit='column'])
+  #title:not(:has(> #controls:not([hidden]))) {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: 'menu head';
+  padding-left: max(calc(var(--lf-pad-x) + var(--lf-safe-left)), var(--lf-touch-left));
+  padding-right: calc(var(--lf-pad-x) + var(--lf-safe-right));
+  background: linear-gradient(
+    90deg,
+    rgba(5, 5, 7, 0.88) 0%,
+    rgba(5, 5, 7, 0.6) 38%,
+    rgba(5, 5, 7, 0) 72%
+  );
+}
+#stage[data-hand='left']
+  #stage[data-touch][data-title='split']:not([data-title-fit='column'])
+  #title:not(:has(> #controls:not([hidden])))
+  > .head {
+  justify-self: end;
+}
+#stage[data-hand='left']
+  #stage[data-touch][data-title='split']:not([data-title-fit='column'])
+  #title:not(:has(> #controls:not([hidden])))
+  > .menu {
+  justify-self: start;
+}

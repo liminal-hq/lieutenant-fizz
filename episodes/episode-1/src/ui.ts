@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { CreditsContent } from '@lieutenant-fizz/engine/credits';
+import { pixelScale, scaleSteps } from '@lieutenant-fizz/engine/font/scale';
 import { hintText } from '@lieutenant-fizz/engine/font/tokens';
 import { EGA } from '@lieutenant-fizz/engine/palette';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
@@ -23,6 +24,7 @@ import {
   creditsTransform,
   NO_GUTTERS,
   rowHeight,
+  titleCandidates,
   TOUCH_ROW,
   watchResize,
   type TouchGutters,
@@ -30,6 +32,9 @@ import {
 import { pillItems, type PillIcon } from './hud';
 import type { BenFrame, BenPose } from './titleBen';
 import './ui.css';
+
+/** How the title is laid out on a phone: one column, or the logo and the menu on opposite sides. */
+export type TitleLayout = 'column' | 'split';
 
 /** A save slot shown as a row: thumbnail, two lines of text and the cleared-level pips. */
 export interface SlotRow {
@@ -202,6 +207,8 @@ export class Ui {
   private panelVisibleAllowed = true;
   private readonly toggles = new Map<OptionKey, HTMLButtonElement>();
   private gutters: TouchGutters = NO_GUTTERS;
+  private titleLayout: TitleLayout = 'column';
+  private disposed = false;
   /** What each menu does when a row is chosen, for the taps handled on the menu itself. */
   private readonly choose = new WeakMap<HTMLElement, (i: number) => void>();
   /** A touch tap chose a row until this time, so the click the browser sends after it is ignored. */
@@ -330,10 +337,15 @@ export class Ui {
     this.relayout();
     this.refreshHints();
     this.unwatch = watchResize(() => this.relayout());
+    // The wordmark is measured in the Fizz font, so measure again once it has loaded.
+    void document.fonts?.ready.then(() => {
+      if (!this.disposed) this.relayout();
+    });
   }
 
   /** Stops listening to the window and cancels pending timers. */
   dispose(): void {
+    this.disposed = true;
     this.unwatch();
     window.clearTimeout(this.toastTimer);
   }
@@ -397,7 +409,54 @@ export class Ui {
       this.large,
       this.touchMode ? this.gutters : NO_GUTTERS,
     );
+    if (this.touchMode) this.stage.dataset.hand = this.gutters.hand;
+    else delete this.stage.dataset.hand;
+    this.fitTitle();
     this.fitRows();
+  }
+
+  /**
+   * Chooses how the title is laid out on a phone. `split` puts the logo on the D-pad side above the
+   * D-pad and the menu on the Jump side; `column` (the default) is the one-column title. Only a phone
+   * (touch mode) shows the split; a desktop window is unchanged.
+   */
+  setTitleLayout(mode: TitleLayout): void {
+    if (mode === this.titleLayout) return;
+    this.titleLayout = mode;
+    if (mode === 'split') this.stage.dataset.title = 'split';
+    else delete this.stage.dataset.title;
+    this.relayout();
+  }
+
+  /**
+   * Sizes the split title's wordmark: the first candidate (largest first, one line then two) whose
+   * right edge is at least 24 px from the menu and whose bottom is above the D-pad. When none fits (Large
+   * text on a short phone), the title falls back to the column (`data-title-fit="column"`).
+   */
+  private fitTitle(): void {
+    const t = this.title;
+    t.style.removeProperty('--lf-n-logo');
+    delete t.dataset.lines;
+    delete this.stage.dataset.titleFit;
+    const split = this.touchMode && this.titleLayout === 'split';
+    if (!split || t.hidden || !this.controls.hidden || this.menuEl.hidden) return;
+    const vv = window.visualViewport;
+    const height = Math.round(vv?.height ?? window.innerHeight);
+    const head = need(t, '.head');
+    const g = this.gutters;
+    const dpadOnLeft = g.hand === 'right';
+    const limit = dpadOnLeft ? g.leftTop : g.rightTop;
+    for (const c of titleCandidates(scaleSteps(pixelScale(height, this.large)))) {
+      t.style.setProperty('--lf-n-logo', String(c.logo));
+      t.dataset.lines = String(c.lines);
+      const h = head.getBoundingClientRect();
+      const m = this.menuEl.getBoundingClientRect();
+      const beside = dpadOnLeft ? h.right <= m.left - 24 : h.left >= m.right + 24;
+      if (beside && (limit === 0 || h.bottom <= limit)) return;
+    }
+    t.style.removeProperty('--lf-n-logo');
+    delete t.dataset.lines;
+    this.stage.dataset.titleFit = 'column';
   }
 
   /** Sets the room the touch controls take on each side, so menus start right of the D-pad. */
@@ -812,7 +871,10 @@ export class Ui {
     if (items) this.renderMenu(this.menuEl, items, sel);
     this.menuEl.hidden = controls || items === null;
     this.controls.hidden = !controls;
-    if (this.touchMode && !this.title.hidden) this.fitRows();
+    if (this.touchMode && !this.title.hidden) {
+      this.fitTitle();
+      this.fitRows();
+    }
   }
 
   showOverlay(
