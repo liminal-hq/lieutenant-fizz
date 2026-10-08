@@ -17,6 +17,7 @@
     "./pen": "./src/pen.ts",
     "./renderer": "./src/renderer.ts",
     "./stinger": "./src/stinger.ts",
+    "./touch": "./src/touch.ts",
     "./wasm": "./src/wasm.ts"
   },
   "license": "Apache-2.0 OR MIT",

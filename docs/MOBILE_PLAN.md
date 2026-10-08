@@ -43,12 +43,13 @@ Findings from reading the current code, with the seams each slice uses.
 
 ## Architecture
 ### Touch input (engine)
-- **`packages/engine/src/touch.ts`** (pure, tested): the geometry and mapping.
+- **`packages/engine/src/touch.ts`** (pure, tested; built in slice 1, with no UI): the geometry and the held state.
   - `TouchLayout` describes the control rectangles in CSS pixels: the D-pad circle, Jump, Pogo, Fizz and Pause, each with a visual size and a hit area of at least 48 dp.
-  - `slideDpad(point, centre, radius)` turns a point into LEFT, RIGHT, UP and DOWN bits with a dead zone. Sliding re-evaluates from the current position, so a thumb can roll from left to down without lifting. Left and right win over a small vertical offset, and the vertical arms are real arms (UP for aim and ladders, DOWN for look-down and ducking down a ladder).
-  - `touchToBits(pointers, layout)` maps every active pointer to a bit (multi-touch: moving and jumping together).
-  - `latch(bits, now)` holds a freshly pressed JUMP, POGO or FIRE bit for at least two frames so a quick tap survives until the next fixed step, while a held JUMP stays held (jump height and pogo height depend on it).
-- **`InputManager`** gains a `touch` source: `touchBits` ORed into `peek()`, `'touch'` in `InputDevice` and `nextDevice` (any touch input makes touch the device, any key or pad input takes it back), a public `command(cmd)` so the on-screen Pause can emit `pause`, and `release()` wired to `pointercancel`, `visibilitychange`, `blur` and `pagehide`. The unused `blocked` flag becomes the gate: touch bits are zero unless the screen is `play`.
+  - `dpadDirections(dx, dy, radius)` turns a thumb's offset from the D-pad centre into left, right, up and down. Inside a dead zone (0.3 of the radius) nothing is held. A diagonal holds two directions, unless one axis is more than twice the other, when only the stronger counts, so running right with the thumb drifting a little down never aims or looks down. Positions outside the circle count like the edge, so a sliding thumb stays captured.
+  - `hitTest(layout, x, y)` finds the control a new touch lands on (the buttons win where hit areas overlap), and `undersizedTargets(layout)` lists controls under 48 dp, for the slice 2 e2e audit.
+  - `TouchState` tracks every finger by pointer id (multi-touch: moving and jumping together). `down`, `move`, `up` and `cancelAll` update it and `held(now)` reports what is held. A finger on the D-pad re-evaluates as it slides, so a thumb can roll from left to down without lifting.
+  - A freshly pressed Jump, Pogo or Fizz button is held for at least 50 ms (`MIN_HOLD_MS`, about three frames) so a quick tap survives until the next fixed step, while a held button stays held (jump height and pogo height depend on it). Pause is a command, not a bit: `down` reports it and the caller runs the `pause` command.
+- **`InputManager`** gains a `touch` source (`TouchState`): the touch bits are combined with keyboard and pad bits by the pure `inputBits`, and count only while `setTouchEnabled(true)` (the game turns them on in play only, so a thumb on a control never drives a menu; turning them off drops any held finger). `'touch'` joins `InputDevice` and `nextDevice` (a touch makes touch the device, any key or pad input takes it back, and unplugging a pad leaves touch alone), and there is a public `command(cmd)` so the on-screen Pause can emit `pause`, a `noteTouch()` for the DOM controller, and `releaseTouch()`, called on `blur`, `pagehide` and `visibilitychange`. The unused `blocked` flag still silences every source.
 - **The DOM controller** (`packages/engine/src/touch-ui.ts`) owns a `#touch` layer between `#fx` and `#ui` (`touch-action: none`), tracks pointers by `pointerId` with `setPointerCapture`, and feeds the pure functions. Buttons are real `<button>` elements with names, so menus and the pause button stay reachable by TalkBack.
 
 ### The look (episode)
@@ -58,7 +59,7 @@ Findings from reading the current code, with the seams each slice uses.
 ### Layout and display
 - `index.html`: `viewport-fit=cover`, `user-scalable=no`, `interactive-widget=resizes-content`, a theme colour.
 - CSS: `touch-action: manipulation` on every control, `user-select: none`, `-webkit-tap-highlight-color: transparent`, `overscroll-behavior: none`, a `contextmenu` guard, `100dvh`.
-- `layout.ts` reads the safe-area insets into `--lf-safe-*` variables (also overridable in tests), listens to `visualViewport` and `orientationchange`, and keeps controls and the HUD inside the insets and the system gesture margins. The Engine button is hidden on touch. The hint bar is hidden in play on touch and shows touch hints in menus.
+- **Safe areas, with the game drawn under them.** The canvas stays full-bleed, so the game renders under the cutout and the system bars. Only the controls, the HUD, menus and hints are kept out of that space, using the CSS `env(safe-area-inset-top|right|bottom|left)` values with `viewport-fit=cover`. The same CSS works in Firefox, Chrome and Safari and in the Tauri webview (Threshold's `MobileToolbar` pads with `env(safe-area-inset-top)` for the same reason), so one set of rules serves the web and the app. `layout.ts` reads the insets into `--lf-safe-*` variables (with a `0` fallback, and overridable in tests), listens to `visualViewport` and `orientationchange`, and keeps controls and the HUD inside the insets and the system gesture margins. The Engine button is hidden on touch. The hint bar is hidden in play on touch and shows touch hints in menus.
 - **Portrait** shows a "Rotate your phone" screen while touch is the device, and the game stays paused.
 
 ### Pixel-perfect scale on phones
@@ -92,8 +93,8 @@ Each slice is one pull request unless noted, in order. S is a day or less, M a f
 
 | # | Slice | Main files | Size |
 |---|---|---|---|
-| 0 | **Phone dev loop.** `?touch` forces touch mode; `debugShow('play')`; a `dev:phone` script (`vite --host`); a short doc on `adb reverse` and a Pages preview for secure-context features. | `main.ts`, `game.ts` debug hooks, `package.json`, MOBILE_PLAN.md | S |
-| 1 | **Touch input core.** `touch.ts` pure functions, `InputManager` touch source, `'touch'` device and `nextDevice`, latch, gating, public `command`, release handlers. Unit tests only. | `engine/src/touch.ts`, `input.ts`, `input.test.ts`, `touch.test.ts` | M |
+| 0 | **Phone dev loop.** `debugShow('play')` and `?debug&level=N` reach a level without a keyboard; a `dev:phone` script (`vite --host`, prints the LAN addresses and the `adb reverse` command); the "Trying it on a phone" notes below. The `?touch` flag that forces touch mode on desktop moves to slice 2, where it has something to force. | `main.ts`, `game.ts` debug hooks, `scripts/dev-phone.sh`, `package.json`, `e2e/dev.spec.ts` | S |
+| 1 | **Touch input core.** `touch.ts` pure functions and `TouchState`, the `InputManager` touch source, the `'touch'` device and `nextDevice`, the 50 ms hold, gating to play, a public `command`, release handlers. Unit tests only; no UI. | `engine/src/touch.ts`, `input.ts`, `input.test.ts`, `touch.test.ts` | M |
 | 2 | **In-level touch controls and phone viewport.** `State.POGO_ON` export, `#touch` layer, D-pad slide, Jump, Pogo, Fizz, Pause, glass HUD pills, safe-area vars, viewport meta, touch CSS rules, orientation screen, Engine button hidden. First touch e2e project (844×390 at 3×, 740×360 at 2.6×): control sizes at least 48 dp, inside insets, no overlap, multi-touch jump while moving. **First milestone: Crater Fields is playable on a phone.** | `touch-ui.ts`, `ui.ts`, `ui.css`, `layout.ts`, `index.html`, `e2e/touch.spec.ts` | L |
 | 3 | **Pixel-perfect scale on phones.** DPR cap 3 on touch, integer scale and derived tile height, margin for the rest. A unit test for the scale maths and an e2e that measures sprite pixel size. | `renderer.ts`, `scale.ts`, `game.ts` frame | M |
 | 4 | **Menus on touch.** One-tap choosing, mouse-only hover, 48 dp rows, Option steppers, tap-to-advance, Back button and history handling, pause and score cards as touch targets. | `ui.ts`, `ui.css`, `game.ts` menu code, `e2e/menus.spec.ts` | M |
@@ -105,8 +106,25 @@ Each slice is one pull request unless noted, in order. S is a day or less, M a f
 
 After slice 9 the web phone experience is complete. The Tauri app, the launcher and the plugin-based haptics backend then follow [APP.md](APP.md), reusing the touch controller, the layout and the cue table unchanged.
 
+## Trying it on a phone
+Until slice 2 lands the game has no touch controls, so a phone can show the title and menus (taps work on the menu rows) and render a level, but cannot move Ben.
+- **Same Wi-Fi:** `bun run dev:phone` builds the WASM, starts Vite on every interface and prints the addresses. Open `http://<your-computer>:5173/` for the title screen, or `http://<your-computer>:5173/?debug&level=0` to start straight in Crater Fields (`level` is the level id, so `level=1` is Crystal Caves).
+- **A secure context:** plain http over the LAN is not one, so fullscreen, the wake lock and the Gamepad API are unavailable. With the phone plugged in and USB debugging on, `adb reverse tcp:5173 tcp:5173` makes the phone see `http://localhost:5173/`, which is a secure context.
+- **A preview without the dev server:** the GitHub Pages build of a branch works for anything that does not need the dev server.
+- **Checking on a phone, today:** the layout and type at phone sizes, the pixel scale and blur on a high-DPI screen, audio unlock on the first tap, and frame rate and heat.
+
+## First phone test
+The first run on a real phone, with the slice 0 dev loop (Firefox for Android, landscape, a 120 Hz screen, the URL bar showing, over Wi-Fi).
+- **It runs well.** The engine panel reported 114 to 119 fps (about 8.5 ms a frame) with the simulation steady at 60 Hz, one draw call and about 350 instances. The Fizz type is crisp and readable, the title menu and the in-level HUD look right at that size, and the level shows 13.0 tiles as designed. Firefox for Android is a supported target alongside Chrome.
+- **A black strip on the left.** Without `viewport-fit=cover` the browser keeps the page out of the display cutout, so there is a black band down the left edge. The plan for slice 2 is to let the game render **under** the cutout and the bars, and to keep only the controls and UI out of them (see Layout and display).
+- **The Engine button and panel get in the way on touch.** The panel is tall enough to run off the bottom of the screen (its last toggles are cut off) and covers the "Attract" label. It is hidden on touch, as planned for slice 2, and the panel scrolls if it is ever opened on a small screen.
+- **Keyboard hints on a touch screen.** The title shows "Enter Select" and "↑↓ Choose". Touch hints are slice 5.
+- **The URL bar** was showing because the test was not in fullscreen: Firefox keeps it up for easy access. That is expected, not a problem. The visible height still changes in browsers that hide the bar as you scroll (Chrome), which is what the `dvh` and `visualViewport` work in slice 2 covers, and the fullscreen request in slice 7 removes the bar.
+- **120 Hz.** The game renders at the display rate while the simulation stays at 60 Hz. It holds that easily here, but a cap of 60 fps on touch devices would save battery and heat, so it is an option in slice 9 once there are battery numbers.
+- **The HUD** is the desktop panel (Score, Lives, Fizz and "Next life at 100"). It is large at this size and is replaced by the glass pills in slice 2.
+
 ## Testing
-- **Unit (vitest):** `slideDpad` (dead zone, rolling between arms, diagonals), `touchToBits` (multi-pointer), `latch` (a quick tap survives a step, a hold stays held), `nextDevice` with touch, touch hints, the cue table (every caption id in the mapping exists, cooldowns, scaling), `lf-touch-v1` parsing, and the scale maths.
+- **Unit (vitest):** `dpadDirections` (dead zone, rolling between arms, diagonals), `TouchState` (multi-pointer, a quick tap survives a step, a hold stays held), `inputBits` gating, `nextDevice` with touch, touch hints, the cue table (every caption id in the mapping exists, cooldowns, scaling), `lf-touch-v1` parsing, and the scale maths.
 - **E2E (Playwright):** a touch project with `hasTouch`, `isMobile`, `deviceScaleFactor` and landscape viewports. `page.touchscreen.tap` for single taps, and the DevTools protocol (`Input.dispatchTouchEvent`) for multi-touch and slides. Audits: every control at least 48 × 48 dp, nothing under a safe-area inset, no control overlapping the HUD or the pause button, all pixel text `11 × n`, no horizontal overflow. `debugShow('play')` makes the in-level screen reachable.
 - **Real devices (a checklist, not CI):** thumb reach, ghosting with several fingers down, a notch and the gesture bar in landscape, the URL bar showing and hiding, fullscreen and orientation lock, `navigator.vibrate` feel, battery and heat over fifteen minutes, TalkBack on the menus, an older phone with an old WebView.
 

@@ -15,6 +15,7 @@ Where the real game stands against `ENGINE_SPEC.md` and `GAME_DESIGN.md`. The be
 ```sh
 bun install
 bun run dev            # builds the WASM, then Vite on http://localhost:5173 (add ?debug for window.__lf)
+bun run dev:phone      # the dev server on the local network, with the addresses to open on a phone
 bun run build          # WASM + production bundle in episodes/episode-1/dist (base /lieutenant-fizz/episode-1/)
 bun run build:site     # landing page + episodes assembled in dist-site/ (what Pages publishes)
 bun run validate       # format, lint, typecheck, vitest, clippy, cargo test, build

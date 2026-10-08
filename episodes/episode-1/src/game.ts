@@ -280,6 +280,8 @@ export class Game {
     this.halfW = (this.halfH * this.renderer.width) / this.renderer.height;
     sim.x.set_view(this.halfW, this.halfH);
 
+    // Touch controls drive play only, so a thumb on a control never moves a menu.
+    this.input.setTouchEnabled(this.screen === 'play');
     const bits = this.input.peek();
     this.menuInput(bits);
     this.lastBits = bits;
@@ -1406,6 +1408,7 @@ export class Game {
 
   /** Test hook: jumps straight into a level. */
   debugEnterLevel(id: number): void {
+    if (!LEVELS[id]) return;
     this.sim.x.game_new();
     this.sim.x.enter_level(id);
     this.handleEvents();
@@ -1413,9 +1416,23 @@ export class Game {
 
   /** Test hook: opens a screen directly, so layout checks can visit each one. */
   debugShow(
-    what: 'title' | 'controls' | 'options' | 'saves' | 'pause' | 'cine' | 'dialogue' | 'credits',
+    what:
+      | 'title'
+      | 'controls'
+      | 'options'
+      | 'saves'
+      | 'play'
+      | 'pause'
+      | 'cine'
+      | 'dialogue'
+      | 'credits',
   ): void {
     if (what === 'credits') return this.debugStartCredits();
+    if (what === 'play') {
+      // Entering the level raises LEVEL_START, which switches to the play screen.
+      this.debugEnterLevel(0);
+      return this.syncUi();
+    }
     if (what === 'cine') return this.newGame();
     if (what === 'pause' || what === 'dialogue') {
       this.debugEnterLevel(0);
