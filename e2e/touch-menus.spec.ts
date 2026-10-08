@@ -175,7 +175,7 @@ test('Back (Pogo) closes Options', async ({ page }) => {
   expect((await state(page)).sub).toBe(null);
 });
 
-for (const screen of ['pause', 'card', 'title', 'options', 'saves'] as const) {
+for (const screen of ['pause', 'card', 'title', 'options', 'touch', 'saves'] as const) {
   test(`${screen}: the controls stay up, the hints are for touch and nothing sits under a control`, async ({
     page,
   }) => {
