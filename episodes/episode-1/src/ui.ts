@@ -375,7 +375,7 @@ export class Ui {
 
   /** The Controls table, with the column for the device in use picked out. */
   private renderControls(): void {
-    const t = controlsTable(this.ctx);
+    const t = controlsTable(this.ctx, this.touchMode);
     const cell = (tag: string, col: number, text: string): string =>
       `<${tag}${col === t.on ? ' class="on"' : ''}>${hintText(text)}</${tag}>`;
     const line = (tag: string, cells: string[]): string =>
@@ -385,6 +385,7 @@ export class Ui {
     const table = this.controls.querySelector('table');
     if (table) {
       table.innerHTML = html;
+      need(this.controls, '.note').textContent = hintText(t.note);
       return;
     }
     this.controls.innerHTML = `<table>${html}</table>
@@ -682,6 +683,7 @@ export class Ui {
     if (on === this.touchMode) return;
     this.touchMode = on;
     this.stage.toggleAttribute('data-touch', on);
+    this.renderControls();
     this.setHud(this.hudState);
     this.relayout();
   }

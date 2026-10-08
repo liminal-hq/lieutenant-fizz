@@ -116,8 +116,29 @@ export interface ControlsTable {
   note: string;
 }
 
-/** The Controls table: a column per scheme (Keen-style, Modern, Gamepad), the device in use picked out. */
-export function controlsTable(c: HintContext): ControlsTable {
+/**
+ * The Controls table. The desktop table has a column per scheme (Keen-style, Modern, Gamepad) with the
+ * device in use picked out. The touch table has one column, the on-screen controls' own names, and
+ * uses only `TOUCH_LABELS`: no key or gamepad glyph.
+ */
+export function controlsTable(c: HintContext, onTouch: boolean): ControlsTable {
+  if (onTouch) {
+    const dpad = touchCap(TOUCH_LABELS.dpad);
+    return {
+      head: ['Action', 'Touch'],
+      rows: [
+        ['Move and aim', dpad],
+        ['Jump', 'Jump button'],
+        ['Pogo (toggle)', 'Pogo button'],
+        ['Fizz', 'Fizz button'],
+        ['Pause', touchCap(TOUCH_LABELS.pause)],
+        ['Menus', `${dpad} ${touchCap(TOUCH_LABELS.select)} ${touchCap(TOUCH_LABELS.back)}`],
+        ['Save / Load', 'Pause menu'],
+      ],
+      on: 1,
+      note: `Hold Jump while pogoing for a high bounce. Aim Fizz up or down with the ${dpad}.`,
+    };
+  }
   return {
     head: ['Action', 'Keen-style', 'Modern', 'Gamepad'],
     rows: [

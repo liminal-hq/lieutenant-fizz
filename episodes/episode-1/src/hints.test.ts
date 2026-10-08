@@ -14,6 +14,7 @@ import {
   menuHints,
   selectHint,
   stingerHints,
+  TOUCH_LABELS,
   type HintContext,
 } from './hints';
 
@@ -122,7 +123,7 @@ describe('controlsColumn', () => {
 
 describe('controlsTable on a keyboard or gamepad', () => {
   it('is the three-scheme table, unchanged, with the device column picked out', () => {
-    const t = controlsTable(keen);
+    const t = controlsTable(keen, false);
     expect(t.head).toEqual(['Action', 'Keen-style', 'Modern', 'Gamepad']);
     expect(t.rows).toEqual([
       ['Move', '{[←]} {[→]}', '{[←]} {[→]} {[A]} {[D]}', 'D-pad / stick'],
@@ -135,6 +136,34 @@ describe('controlsTable on a keyboard or gamepad', () => {
     expect(t.note).toBe(
       'Hold jump while pogoing for a high bounce. Aim fizz up with {[↑]}, or down with {[↓]} in the air.',
     );
-    expect([keen, modern, pad].map((c) => controlsTable(c).on)).toEqual([1, 2, 3]);
+    expect([keen, modern, pad].map((c) => controlsTable(c, false).on)).toEqual([1, 2, 3]);
+  });
+});
+
+describe('controlsTable on touch', () => {
+  const t = controlsTable(touch, true);
+
+  it('has an Action column and a Touch column, with Touch picked out', () => {
+    expect(t.head).toEqual(['Action', 'Touch']);
+    expect(t.on).toBe(1);
+    for (const r of t.rows) expect(r).toHaveLength(2);
+    expect(t.rows.map((r) => r[0])).toEqual([
+      'Move and aim',
+      'Jump',
+      'Pogo (toggle)',
+      'Fizz',
+      'Pause',
+      'Menus',
+      'Save / Load',
+    ]);
+  });
+
+  it('names the controls by TOUCH_LABELS and shows no keyboard or gamepad glyph', () => {
+    const cells = [...t.head, ...t.rows.flat(), t.note];
+    for (const c of cells) expect(c, c).not.toMatch(KEYS);
+    const text = cells.join(' ');
+    for (const label of Object.values(TOUCH_LABELS)) expect(text).toContain(`{[${label}]}`);
+    expect(t.rows.find((r) => r[0] === 'Menus')?.[1]).toBe('{[D-pad]} {[Select]} {[Back]}');
+    expect(t.rows.at(-1)).toEqual(['Save / Load', 'Pause menu']);
   });
 });
