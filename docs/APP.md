@@ -31,7 +31,7 @@ The launcher is a game-style screen, not a web page: the same menu language as t
 ### The carousel
 - **Episode stops.** A header reads `← Episode 1 · The Cocoa Caper →` with a pip per stop. Swipe the demo or tap the arrows to change stop, and the menu below follows. Each episode stop stands in for that episode's own title screen.
 - **Menu rows:** Continue (with the source on the right, such as "Autosave" or "Slot 2"), New game, Load game, Options. An episode with no saves leaves out Continue.
-- **Touch:** tap a row to select it, tap again to choose it. **Keyboard and pad:** ↑↓ select, ←→ change episode or value, Enter plays, Esc goes back.
+- **Touch:** a tap moves the cursor to a row and chooses it, as on any Android list (the artboards show select-then-choose, which is replaced to match Android). **Keyboard and pad:** ↑↓ select, ←→ change episode or value, Enter plays, Esc goes back.
 - **Behind the menu:** one tileable 640×144 demo strip per episode (sky, hills, crystals, platforms, pickups) with Ben running across it. It is pre-drawn sprite art, generated from the game's sprites (`design/melting/launcher-art.js` is the prototype of it), so **the launcher loads no WASM and no game code**.
 - **Footer:** a hint bar in the same keycap style as the game's.
 
@@ -108,6 +108,7 @@ The launcher navigates the WebView to the episode's own page with a launch contr
 ## Open questions
 - Is the Play Store a goal, or is installing a signed APK or AAB enough for now?
 - Will any episode ever be paid or separately priced? That is the one thing that would favour separate apps.
+- **Placeholder content in the artboards:** the artboards estimate content (episode titles, save values, the art), and the current implementation wins where they differ.
 - **Placeholder episodes:** the designs name Episode 2 "Chocolate Raid" and Episode 3 "Last Stand" in mock-ups. No episode title beyond Episode 1 is decided, so the real launcher shows later episodes as locked stops with no title and no teaser text.
 - **Pixel scale in the launcher:** the fullscreen design scales the art 4.8×. The type and art rule everywhere else is whole-pixel scales. Should the launcher follow the same rule (an integer scale with margins), or is a fractional scale acceptable for the demo strip behind the menu?
 - **Does the demo strip animate beyond Ben running?** The art generator draws a static strip with Ben's two run frames and the soda cursor.

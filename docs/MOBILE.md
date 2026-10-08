@@ -2,6 +2,9 @@
 
 **Status: planned.** Nothing here exists yet; today the game assumes a keyboard or a gamepad (see "Mobile and touch controls are not implemented" in `docs/STATUS.md`). This document follows `design/Mobile Design.dc.html` (turn 3) and plans the touch controls, a layout tailored to phones and haptics. It applies to the website on a phone browser as much as to the Tauri app in [APP.md](APP.md), because all of it is web UI in the shared engine and episode packages.
 
+## How to read the artboards
+The artboards are about the **UI**: layout, controls, spacing and type. They are not a spec for game content, and they estimate it (the cinematic panel count, the level and score values, the art behind a screen). Where an artboard and the game disagree on content, **the current implementation wins**. The 3a screens use the Fizz font faithfully, and Fizz is the type for every phone screen.
+
 ## Where the phone title and the launcher meet
 - **On the web (a phone browser):** the episode shows the mobile title screen below, with its own New game, Continue, Load game and Controls.
 - **In the Tauri app:** the launcher in APP.md replaces that title, and the episode starts embedded, straight into play. The mobile title is bypassed.
@@ -31,15 +34,25 @@
 
 ## The phone layout
 - **Title (web only):** "Ben Blaze in" over the Lieutenant Fizz wordmark and "Episode 1 · The Cocoa Caper" on the left, and the menu on the thumb side (right): New game, Continue (with the slot, such as "Slot 2"), Load game, Controls.
-- **Menus** use the desktop scrim style: a list over a soft scrim, a stepped orange plate that slowly cycles colour, and a can of cream soda as the cursor. Rows are **44 px tall**, and tapping a row selects it, tapping again chooses it.
-- **Cinematic:** the panels advance on tap. A tap finishes the typed line, and another tap moves to the next panel. A Skip button is always there.
+- **Menus** use the desktop scrim style: a list over a soft scrim, a stepped orange plate that slowly cycles colour, and a can of cream soda as the cursor. Rows are **48 dp tall** (see Android guidelines), and a tap moves the cursor to the row and chooses it, as a tap on any Android list does. The design's artboards show a select-then-choose tap; that is replaced here so the app behaves the way Android users expect. Destructive rows (Reset, Quit) still ask for a second tap.
+- **Cinematic:** the game's existing panels (the current implementation decides how many) advance on tap. A tap finishes the typed line, and another tap moves to the next panel. A Skip button is always there.
 - **Overworld map:** the same D-pad as a level. Walking next to a level opens a card with its name, a line about it and an "Enter level" button.
 - **In level:** the HUD and controls above.
 - **Pause menu:** the scrim menu over the frozen level: Resume, Save game (with the slot), Load game, Controls, Leave level, Quit to title. The Back gesture opens it in a level.
-- **Score card:** "<Level> cleared" with totals that count up (Snacks, Fizz fired, Zargs stunned, Secrets, Time, Best time) and one clear next step, "Back to the map".
+- **Score card (pending):** "<Level> cleared" with totals that count up (Snacks, Fizz fired, Zargs stunned, Secrets, Time, Best time) and one clear next step, "Back to the map". **Pending:** none of Fizz fired, Zargs stunned, Secrets or Best time are tracked today, so the card first ships with the totals the game already has, and the rest follow once the shell or sim counts them.
 - **Game over:** calm, with your last save offered first.
 - **Dialogue and cards** advance on tap anywhere as well as with buttons.
 - The e2e layout checks gain phone-sized landscape viewports with touch emulation (for example 844×390 and 740×360) and the same rules: nothing overflows, clips or sits under a control, and all pixel text is `11 × n` in Fizz.
+
+## Android guidelines
+The phone UI follows Android's guidelines for the best experience, which in a WebView (where one CSS pixel is one dp) means:
+- **Touch targets are at least 48 × 48 dp, with at least 8 dp between targets.** That covers menu rows, every on-screen control (the glass buttons and the D-pad's arms), the pause button, the Skip button and the Touch controls panel chips. Visuals may be smaller than the hit area, but the hit area is never smaller. This replaces the artboards' 44 px rows.
+- **Gesture navigation.** Android's back and home gestures start at the screen edges, so controls sit inset from the edges, and the app registers system gesture exclusion rects for the D-pad and the buttons so a thumb sliding near them does not trigger Back. The Back gesture itself goes through predictive back (the `predictive-back` plugin) and opens the pause menu in a level.
+- **Edge to edge with cutouts.** Draw behind the system bars, and keep the HUD and controls inside the display cutout and gesture insets (`env(safe-area-inset-*)` on the web, the window insets in the app).
+- **Accessibility.** Menus and cards are real DOM controls with names, roles and focus order, so TalkBack and Switch Access can drive them. The on-screen game controls have content descriptions. Text and controls meet contrast of 4.5:1 (3:1 for large text and graphics). Honour the system's "remove animations" setting through the Motion option, and the system font and display size through Text size (the minimum stays n = 2).
+- **Haptics** use the system's own feedback constants for the UI lane (see Haptics), which respect the user's touch-feedback setting.
+- **Large screens and foldables.** On Android 16 and later, apps that target API 36 or higher ignore a landscape-only lock on large screens (600 dp and wider), so the layout adapts to any window size instead of assuming a locked orientation, and works in split-screen and resizable windows.
+- **Audio and lifecycle.** Request audio focus, pause when it is lost (a call) and when the app is backgrounded, and play on the media volume.
 
 ## Lifecycle and performance
 - Pause when the app goes to the background, when the screen locks and when the Back gesture is used in a level.
@@ -94,10 +107,7 @@ The proposal's section 8 gives each event a pattern, the effect at tiers 4, 3 an
 - Real devices (a recent phone and an older one with a stale WebView) for feel, performance and haptics. Feel can only be judged on hardware.
 
 ## Open questions
+- **Score card (pending):** which of Fizz fired, Zargs stunned, Secrets found and Best time are worth tracking, and where do the counters live (shell or sim events)? Best time needs a save-format addition.
+- **Large screens:** should tablets and foldables get a different layout (for example the controls moved out onto the margins), or the same one at a larger scale?
 - **Controller connected:** should the touch controls hide, or dim, when a gamepad is in use?
-- **Touch-target size:** the design uses 44 px rows and Android's guideline is 48 dp. Is 44 px a deliberate choice, or should the rows grow to 48?
-- **Two-tap menus:** tap to select, tap again to choose avoids accidents, but is slower on the pause menu. Keep it everywhere, or single tap in the pause menu?
-- **Font in the controls:** the design says all text is Fizz, but the glass button labels ("Jump", "Pogo") and the Touch controls panel chips look like a system sans in the mock. Should the controls and the panel be Fizz too?
-- **Cinematic length:** the mobile mock shows "six panels". The game's cinematic is eight panels, so the count in the mock is stale.
-- **Score card stats:** Fizz fired, Zargs stunned, Secrets found per level and Best time are not tracked today. They need counters in the shell or sim events, and a save-format addition for the best time.
 - Which events are strong and which stay silent? The table above follows the proposal and is to be tuned on a device.
