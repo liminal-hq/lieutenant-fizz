@@ -200,3 +200,26 @@ test.describe('motion', () => {
     expect(svg).toContain('prefers-reduced-motion');
   });
 });
+
+test.describe('social card', () => {
+  for (const path of ['', 'guide/']) {
+    test(`/${path} points apps at a 1200×630 image that loads`, async ({ page }) => {
+      await page.goto(SITE + path);
+      const meta = (sel: string): Promise<string | null> =>
+        page.locator(sel).getAttribute('content');
+      const image = await meta('meta[property="og:image"]');
+      expect(image).toBe('https://liminalhq.ca/lieutenant-fizz/assets/social-card.png');
+      expect(await meta('meta[name="twitter:image"]')).toBe(image);
+      expect(await meta('meta[name="twitter:card"]')).toBe('summary_large_image');
+      expect(await meta('meta[property="og:image:width"]')).toBe('1200');
+      expect(await meta('meta[property="og:image:height"]')).toBe('630');
+      expect(await meta('meta[property="og:image:alt"]')).toBeTruthy();
+      // The same file, served from this test's site.
+      const res = await page.request.get(`${SITE}assets/social-card.png`);
+      expect(res.status()).toBe(200);
+      const body = await res.body();
+      expect(body.readUInt32BE(16)).toBe(1200);
+      expect(body.readUInt32BE(20)).toBe(630);
+    });
+  }
+});
