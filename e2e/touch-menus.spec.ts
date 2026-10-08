@@ -15,6 +15,7 @@ interface Circle {
 type ControlId = 'dpad' | 'jump' | 'pogo' | 'fire' | 'pause';
 interface Lf {
   debugShow(s: string): void;
+  debugTitle(mode: 'split' | 'column'): void;
   debugState: { screen: string; sub: string | null; menu: number };
   debugTouch: { face: Record<ControlId, Circle> } | null;
 }
@@ -48,11 +49,11 @@ const SAVE = {
 };
 
 /** Opens a screen with the controls pinned on (`?touch`), as a phone shows it. */
-async function open(page: Page, screen: string): Promise<void> {
+async function open(page: Page, screen: string, query = ''): Promise<void> {
   await page.addInitScript((save) => {
     localStorage.setItem('lf-ep1-slot-1', JSON.stringify(save));
   }, SAVE);
-  await page.goto('/?debug&touch');
+  await page.goto(`/?debug&touch${query}`);
   const gl = await page.evaluate(() => !!document.createElement('canvas').getContext('webgl2'));
   if (!gl)
     throw new Error('This Chromium has no WebGL2. Try LF_CHROMIUM_ARGS="--use-angle=gl-egl".');
@@ -380,4 +381,117 @@ test('sliding off Select before lifting cancels it', async ({ page }) => {
   // A real tap afterwards still works.
   await tapControl(page, 'jump');
   await expect.poll(() => state(page).then((s) => s.screen)).toBe('play');
+});
+
+/** Rows of a one-column title, by window height: what a phone of that height can give them. */
+const COLUMN_ROWS: Record<number, number> = { 390: 38, 360: 35, 320: 30 };
+
+interface TitleBoxes {
+  rows: number[];
+  head: DOMRect;
+  menu: DOMRect;
+  dpad: DOMRect;
+  touchRight: number;
+  data: { title?: string; fit?: string };
+}
+
+const titleBoxes = (page: Page): Promise<TitleBoxes> =>
+  page.evaluate(() => {
+    const stage = document.getElementById('stage')!;
+    const menu = document.querySelector<HTMLElement>('#title > .menu')!;
+    return {
+      rows: [...menu.querySelectorAll('button')].map((b) => b.getBoundingClientRect().height),
+      head: document.querySelector('#title .head')!.getBoundingClientRect().toJSON(),
+      menu: menu.getBoundingClientRect().toJSON(),
+      dpad: document
+        .querySelector('#touch [data-control="dpad"] .face')!
+        .getBoundingClientRect()
+        .toJSON(),
+      touchRight: Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--lf-touch-right'),
+      ),
+      data: { title: stage.dataset.title, fit: stage.dataset.titleFit },
+    };
+  });
+
+const TITLE_SIZES: [string, { width: number; height: number } | null][] = [
+  ['the project window', null],
+  ['640×320', { width: 640, height: 320 }],
+];
+
+for (const mode of ['column', 'split'] as const) {
+  for (const [label, size] of TITLE_SIZES) {
+    test(`the ${mode} title at ${label}: nothing under the controls, rows and head fit`, async ({
+      page,
+    }) => {
+      if (size) await page.setViewportSize(size);
+      await open(page, 'title', mode === 'split' ? '&title=split' : '');
+      const height = page.viewportSize()!.height;
+      const b = await titleBoxes(page);
+      expect(b.rows).toHaveLength(5);
+      const min = Math.min(...b.rows);
+      if (mode === 'column') {
+        // No flag leaves the layout unset, and the rows keep the height the head leaves them.
+        expect(b.data.title).toBeUndefined();
+        expect(min).toBeGreaterThanOrEqual(COLUMN_ROWS[height]!);
+        expect(b.head.bottom).toBeLessThanOrEqual(b.menu.top);
+      } else {
+        expect(b.data).toEqual({ title: 'split', fit: undefined });
+        expect(min).toBeGreaterThanOrEqual(47.9);
+        expect(b.head.bottom).toBeLessThanOrEqual(b.dpad.top);
+        expect(b.head.right).toBeLessThanOrEqual(b.menu.left);
+        expect(b.menu.right).toBeLessThanOrEqual(page.viewportSize()!.width - b.touchRight + 0.5);
+      }
+      expect(await underControls(page)).toEqual([]);
+      const { checked, ...problems } = await page.evaluate(audit, { roots: ['#ui', '#touch'] });
+      expect(checked).toBeGreaterThan(3);
+      expect(problems, JSON.stringify(problems, null, 2)).toMatchObject({
+        pageOverflow: [],
+        outside: [],
+        badSize: [],
+        clipped: [],
+        crowdsHints: [],
+      });
+    });
+  }
+}
+
+test('the title text is outlined by one glyph pixel on touch', async ({ page }) => {
+  await open(page, 'title');
+  const shadows = await page.evaluate(() => {
+    const pick = (sel: string): string => getComputedStyle(document.querySelector(sel)!).textShadow;
+    return [
+      pick('#title .kicker'),
+      pick('#title .episode'),
+      pick('#title .menu button:not(.sel) .lbl'),
+      pick('#title .keys'),
+    ];
+  });
+  for (const shadow of shadows) {
+    expect(shadow.match(/rgb\(5, 5, 7\)/g)).toHaveLength(4);
+  }
+});
+
+test('debugTitle switches between the two title layouts live', async ({ page }) => {
+  await open(page, 'title');
+  const layout = (): Promise<string | undefined> =>
+    page.evaluate(() => document.getElementById('stage')!.dataset.title);
+  expect(await layout()).toBeUndefined();
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugTitle('split'));
+  expect(await layout()).toBe('split');
+  await expect
+    .poll(async () => Math.min(...(await titleBoxes(page)).rows))
+    .toBeGreaterThanOrEqual(47.9);
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugTitle('column'));
+  expect(await layout()).toBeUndefined();
+});
+
+test('Controls on the split title shows the one-column table', async ({ page }) => {
+  await open(page, 'title', '&title=split');
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('controls'));
+  await expect(page.locator('#controls')).toBeVisible();
+  const grid = await page.evaluate(
+    () => getComputedStyle(document.getElementById('title')!).display,
+  );
+  expect(grid).toBe('flex');
 });
