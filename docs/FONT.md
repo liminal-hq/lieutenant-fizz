@@ -97,6 +97,10 @@ The outline tracer (`outline.ts`) walks the edge of each shape's ink instead of 
 
 `bun scripts/build-font.ts --specimen specimen.html` writes one HTML page with every face embedded as base64 WOFF2 and a sample of each character group. Open it in a browser to review, or take a screenshot to share. It sets `line-height` to eleven pixels times the scale so box drawing joins.
 
+### The hero banner
+
+The text in `assets/hero.svg` (and its copy `site/assets/hero.svg`, used by the landing page) is drawn from the glyph grids as vector shapes, so the banner needs no font to display and looks the same as an image anywhere, including the README on GitHub. `bun run build:hero` rewrites the generated block between the `hero-text` markers; `bun run check:hero` (part of `validate`) fails if the committed SVGs are stale. Edit the text, colours and positions in `scripts/build-hero.ts`, not in the SVG.
+
 ### Adding a glyph
 
 1. Add the grid to `RAW` (or `EXTRA`) in `fizz-glyphs.ts`, keyed by the character. Draw from the cap top: 7 rows, or 9 with a descender.
