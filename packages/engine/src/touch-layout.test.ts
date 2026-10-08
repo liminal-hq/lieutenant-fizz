@@ -10,7 +10,9 @@ import {
   DEFAULT_TOUCH_SPEC,
   controlSide,
   controlZone,
+  dragControl,
   inside,
+  offsetOf,
   placeControls,
   safeRect,
   sideGutters,
@@ -441,4 +443,75 @@ describe('placement invariants', () => {
       }
     }
   }
+});
+
+describe('offsetOf and dragControl', () => {
+  const ALL: MovableId[] = ['dpad', 'jump', 'pogo', 'fire'];
+
+  it('is the inverse of placement for both hands, with and without insets', () => {
+    for (const insets of [NONE, NOTCH]) {
+      for (const leftHanded of [false, true]) {
+        for (const scale of [0.85, 1, 1.2]) {
+          const spec: TouchSpec = { ...DEFAULT_TOUCH_SPEC, leftHanded, scale };
+          const p = placeControls(844, 390, insets, spec);
+          for (const id of ALL) {
+            const off = offsetOf(id, p.face[id], 844, 390, insets, spec);
+            const want = id === 'dpad' ? DEFAULT_TOUCH_SPEC.dpad : DEFAULT_TOUCH_SPEC[id];
+            expect(off.side, `${id} side`).toBeCloseTo('left' in want ? want.left : want.right, 9);
+            expect(off.bottom, `${id} bottom`).toBeCloseTo(want.bottom, 9);
+            // Placing the offset again lands on the same face.
+            const again = placeControls(844, 390, insets, { ...spec, moved: { [id]: off } });
+            expect(again.face[id].cx).toBeCloseTo(p.face[id].cx, 9);
+            expect(again.face[id].cy).toBeCloseTo(p.face[id].cy, 9);
+          }
+        }
+      }
+    }
+  });
+
+  it('reads {side: 75, bottom: 115} for a D-pad at (150, 200)', () => {
+    expect(offsetOf('dpad', { cx: 150, cy: 200 }, 844, 390, NONE)).toEqual({
+      side: 75,
+      bottom: 115,
+    });
+  });
+
+  it('follows the finger inside the zone', () => {
+    const p = placeControls(844, 390, NONE);
+    const c = dragControl(p, 'dpad', { cx: 150, cy: 200 }, 844, 390, NONE);
+    expect(c).toEqual({ cx: 150, cy: 200, r: 75 });
+  });
+
+  it('clamps a drag into the zone', () => {
+    const p = placeControls(844, 390, NONE);
+    const c = dragControl(p, 'dpad', { cx: 422, cy: 0 }, 844, 390, NONE);
+    expect(c.cx).toBe(181);
+    expect(c.cy).toBe(171);
+  });
+
+  it('pushes Jump out of Pogo to the face gap', () => {
+    const p = placeControls(844, 390, NONE);
+    const pogo = p.face.pogo;
+    const c = dragControl(p, 'jump', { cx: pogo.cx, cy: pogo.cy }, 844, 390, NONE);
+    const dist = Math.hypot(c.cx - pogo.cx, c.cy - pogo.cy);
+    // The hit areas (40 + 31) need less than the faces plus the gap (40 + 31 + 8).
+    expect(dist).toBeCloseTo(79, 6);
+    expect(c.cx).toBeCloseTo(780, 0);
+    expect(c.cy).toBeCloseTo(320, 0);
+  });
+
+  it('sticks when boxed in', () => {
+    // Pogo and Fizz are pushed close to Jump so no place in its zone is free.
+    const p = placeControls(844, 390, NONE);
+    const z = controlZone('jump', 844, 390, NONE);
+    const boxed = {
+      ...p,
+      face: {
+        ...p.face,
+        pogo: { cx: z.x + z.w / 2, cy: z.y + z.h / 2, r: 400 },
+      },
+    };
+    const c = dragControl(boxed, 'jump', { cx: z.x + 5, cy: z.y + 5 }, 844, 390, NONE);
+    expect(c).toEqual(p.face.jump);
+  });
 });

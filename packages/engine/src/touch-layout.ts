@@ -344,6 +344,91 @@ export function validPlacement(placed: PlacedControls, safe: Rect, gap: number):
   return true;
 }
 
+/**
+ * The offset that puts a movable control's face centre at `c` (window coordinates): the inverse of
+ * placement, for either hand. The result is not rounded or clamped.
+ */
+export function offsetOf(
+  id: MovableId,
+  c: { cx: number; cy: number },
+  width: number,
+  height: number,
+  insets: Insets,
+  spec: TouchSpec = DEFAULT_TOUCH_SPEC,
+): EdgeOffset {
+  const f = frameOf(width, height, insets, spec);
+  const d = diameter(f, id);
+  const x = flipX(f, c.cx);
+  const side = id === 'dpad' ? (x - f.left) / f.s - d / 2 : (f.w - f.right - x) / f.s - d / 2;
+  return { side, bottom: (f.h - f.insets.bottom - c.cy) / f.s - d / 2 };
+}
+
+/** The radius of a placed control's hit area (Pause is a square; its half-width stands in). */
+function placedHitRadius(placed: PlacedControls, id: ControlId): number {
+  const h = placed.hit[id];
+  return 'r' in h ? h.r : h.w / 2;
+}
+
+/**
+ * Where a control being dragged ends up when the finger wants its centre at `want`: clamped into its
+ * zone, then pushed out of every other control to a face gap of `reserve.gap` (and never closer than
+ * their hit areas allow), re-clamping each time. If it cannot find a free place it stays where it was.
+ */
+export function dragControl(
+  placed: PlacedControls,
+  id: MovableId,
+  want: { cx: number; cy: number },
+  width: number,
+  height: number,
+  insets: Insets,
+  spec: TouchSpec = DEFAULT_TOUCH_SPEC,
+): Circle {
+  const current = placed.face[id];
+  const z = controlZone(id, width, height, insets, spec);
+  const inZone = (p: { cx: number; cy: number }): { cx: number; cy: number } => ({
+    cx: clamp(p.cx, z.x, z.x + z.w),
+    cy: clamp(p.cy, z.y, z.y + z.h),
+  });
+  const ownHit = placedHitRadius(placed, id);
+  const others = (['dpad', 'jump', 'pogo', 'fire', 'pause'] as const).filter((o) => o !== id);
+  const need = (o: ControlId): number =>
+    Math.max(current.r + placed.face[o].r + spec.reserve.gap, ownHit + placedHitRadius(placed, o));
+
+  let p = inZone(want);
+  for (let pass = 0; pass < 4; pass++) {
+    let moved = false;
+    for (const o of others) {
+      const q = placed.face[o];
+      const min = need(o);
+      let dx = p.cx - q.cx;
+      let dy = p.cy - q.cy;
+      let dist = Math.hypot(dx, dy);
+      if (dist >= min - EPS) continue;
+      if (dist < EPS) {
+        // Dead centre: leave the way the control came from.
+        dx = current.cx - q.cx;
+        dy = current.cy - q.cy;
+        dist = Math.hypot(dx, dy);
+        if (dist < EPS) {
+          dx = 0;
+          dy = 1;
+          dist = 1;
+        }
+      }
+      p = { cx: q.cx + (dx / dist) * min, cy: q.cy + (dy / dist) * min };
+      moved = true;
+    }
+    p = inZone(p);
+    if (!moved) break;
+  }
+  for (const o of others) {
+    if (Math.hypot(p.cx - placed.face[o].cx, p.cy - placed.face[o].cy) < need(o) - EPS) {
+      return current;
+    }
+  }
+  return { cx: p.cx, cy: p.cy, r: current.r };
+}
+
 /** Builds the placement for a frame, with these controls moved (clamped into their zones). */
 function build(f: Frame, moved: TouchSpec['moved']): PlacedControls {
   const { spec } = f;
