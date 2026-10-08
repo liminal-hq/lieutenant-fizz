@@ -35,8 +35,9 @@ export interface TouchFaces {
 /**
  * The controls a screen shows. In play, all of them. On a menu, the D-pad moves, Jump is Select, and
  * Pogo (Back) shows only on a screen it goes back from. Fizz is hidden outside play, since it would
- * only repeat Select. Pause shows where it does something: it resumes from the pause menu, closes a
- * screen opened over a menu, and skips the cinematic, the credits and the stinger. The text screens
+ * only repeat Select. Pause shows where it does something: it resumes from the pause menu and skips the
+ * cinematic, the credits and the stinger. A screen opened over a menu (Controls, Options, Saves) shows
+ * Back instead, and closes with it, with Select or with the Back button. The text screens
  * (cinematic, dialogue, ending, credits, stinger) have nothing to move, so they show no D-pad.
  */
 export function touchFaces(screen: ShellScreen, sub: SubScreen): TouchFaces {
@@ -56,7 +57,7 @@ export function touchFaces(screen: ShellScreen, sub: SubScreen): TouchFaces {
       };
     case 'title':
     case 'pause':
-      if (sub) return menu(['dpad', 'jump', 'pogo', 'pause']);
+      if (sub) return menu(['dpad', 'jump', 'pogo']);
       return menu(screen === 'pause' ? ['dpad', 'jump', 'pause'] : ['dpad', 'jump']);
     case 'card':
       return menu(['dpad', 'jump']);

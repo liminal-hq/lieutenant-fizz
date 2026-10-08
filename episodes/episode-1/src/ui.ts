@@ -10,7 +10,7 @@ import { EGA } from '@lieutenant-fizz/engine/palette';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import type { StingerContent, StingerPhase } from '@lieutenant-fizz/engine/stinger';
 import {
-  controlsColumn,
+  controlsTable,
   creditsHints,
   menuHints,
   stingerHints,
@@ -125,7 +125,8 @@ export interface UiHandlers {
   skipCine(): void;
   toggle(k: OptionKey): void;
   zoom(f: number | 'reset'): void;
-  backFromControls(): void;
+  /** Closes the screen opened over the title or the pause menu (Controls, Options, Saves). */
+  back(): void;
   creditsPress(): void;
   creditsSkip(): void;
   stingerPress(): void;
@@ -177,6 +178,7 @@ export class Ui {
   private readonly dialogue: HTMLElement;
   private readonly panel: HTMLElement;
   private readonly panelBtn: HTMLElement;
+  private readonly backBtn: HTMLButtonElement;
   private readonly credits: HTMLElement;
   private readonly stinger: HTMLElement;
   private creditsFor: CreditsContent | null = null;
@@ -245,7 +247,7 @@ export class Ui {
     this.controls = el('div', { id: 'controls', hidden: '' });
     this.renderControls();
     this.backMenu = el('div', { class: 'menu' });
-    this.renderMenu(this.backMenu, [{ label: 'Back' }], 0, () => h.backFromControls());
+    this.renderMenu(this.backMenu, [{ label: 'Back' }], 0, () => h.back());
     this.controls.append(this.backMenu);
     this.bindTaps(this.menuEl);
     this.bindTaps(this.backMenu);
@@ -313,6 +315,8 @@ export class Ui {
     this.loading = el('div', { id: 'loading', class: 'lf' }, 'Loading Zargoth…');
     this.err = el('div', { id: 'err', class: 'lf', hidden: '' });
 
+    this.backBtn = el('button', { id: 'backBtn', class: 'lf btn ghost', hidden: '' }, '← Back');
+    this.backBtn.addEventListener('click', () => h.back());
     this.attractFade = el('div', { id: 'attractFade', hidden: '' });
     this.attractTag = el('div', { id: 'attractTag', class: 'lf', hidden: '' });
     this.root.append(
@@ -328,6 +332,7 @@ export class Ui {
       this.dialogue,
       this.credits,
       this.stinger,
+      this.backBtn,
       this.panelBtn,
       this.panel,
       this.loading,
@@ -375,27 +380,21 @@ export class Ui {
 
   /** The Controls table, with the column for the device in use picked out. */
   private renderControls(): void {
-    const on = controlsColumn(this.ctx);
+    const t = controlsTable(this.ctx, this.touchMode);
     const cell = (tag: string, col: number, text: string): string =>
-      `<${tag}${col === on ? ' class="on"' : ''}>${hintText(text)}</${tag}>`;
-    const row = (action: string, keen: string, modern: string, pad: string): string =>
-      `<tr>${cell('td', 0, action)}${cell('td', 1, keen)}${cell('td', 2, modern)}${cell('td', 3, pad)}</tr>`;
+      `<${tag}${col === t.on ? ' class="on"' : ''}>${hintText(text)}</${tag}>`;
+    const line = (tag: string, cells: string[]): string =>
+      `<tr>${cells.map((text, col) => cell(tag, col, text)).join('')}</tr>`;
+    const html = `${line('th', t.head)}
+      ${t.rows.map((r) => line('td', r)).join('\n      ')}`;
     const table = this.controls.querySelector('table');
-    const html = `<tr><th>Action</th>${['Keen-style', 'Modern', 'Gamepad']
-      .map((h, i) => cell('th', i + 1, h))
-      .join('')}</tr>
-      ${row('Move', '{[←]} {[→]}', '{[←]} {[→]} {[A]} {[D]}', 'D-pad / stick')}
-      ${row('Jump', '{Ctrl}', '{[Z]}', '{A}')}
-      ${row('Pogo (toggle)', '{Alt}', '{[X]}', '{B} {Y}')}
-      ${row('Fizz', '{Space}', '{[C]}', '{X} {RT}')}
-      ${row('Menu', '{Esc}', '{Esc} {[P]}', '{Start}')}
-      ${row('Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu')}`;
     if (table) {
       table.innerHTML = html;
+      need(this.controls, '.note').textContent = hintText(t.note);
       return;
     }
     this.controls.innerHTML = `<table>${html}</table>
-    <p class="note">${hintText('Hold jump while pogoing for a high bounce. Aim fizz up with {[↑]}, or down with {[↓]} in the air.')}</p>`;
+    <p class="note">${hintText(t.note)}</p>`;
   }
 
   /** Sizes the overlay's pixel text from the window. Called on resize and when text size changes. */
@@ -607,7 +606,7 @@ export class Ui {
     const c = document.createElement('canvas');
     this.paintGrid(c, grid);
     this.bulletUrl = c.toDataURL();
-    this.renderMenu(this.backMenu, [{ label: 'Back' }], 0, () => this.h.backFromControls());
+    this.renderMenu(this.backMenu, [{ label: 'Back' }], 0, () => this.h.back());
   }
 
   private buildPanel(): void {
@@ -689,8 +688,17 @@ export class Ui {
     if (on === this.touchMode) return;
     this.touchMode = on;
     this.stage.toggleAttribute('data-touch', on);
+    this.renderControls();
     this.setHud(this.hudState);
     this.relayout();
+  }
+
+  /**
+   * Shows the Back button, which closes a screen opened over the title or the pause menu (Controls,
+   * Options, Saves). Only a phone shows it: a keyboard has Esc, and a gamepad has B.
+   */
+  setBack(on: boolean): void {
+    this.backBtn.hidden = !(on && this.touchMode);
   }
 
   /** Shows or hides the "Rotate your phone" screen. */

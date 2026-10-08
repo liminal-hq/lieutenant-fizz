@@ -261,7 +261,7 @@ export class Game {
       skipCine: () => game?.skipCine(),
       toggle: (k) => game?.toggle(k),
       zoom: (f) => game?.setZoom(f),
-      backFromControls: () => game?.backFromControls(),
+      back: () => game?.backFromSub(),
       creditsPress: () => game?.primary(),
       creditsSkip: () => game?.skipEnding(),
       stingerPress: () => game?.primary(),
@@ -1210,7 +1210,8 @@ export class Game {
     }
   }
 
-  private backFromControls(): void {
+  /** The Back button: closes the screen opened over the title or the pause menu. */
+  private backFromSub(): void {
     this.closeSub();
   }
 
@@ -1556,6 +1557,7 @@ export class Game {
     const onTitle = s === 'title';
     const over = this.sub === 'options' || this.sub === 'saves';
     ui.showTitle(onTitle && !this.sub ? items : null, sel, onTitle && this.sub === 'controls');
+    ui.setBack(this.touchMode && !!this.sub && (onTitle || s === 'pause'));
     if (onTitle && this.sub === 'controls') ui.showTitle(null, 0, true);
     if (over && (onTitle || s === 'pause')) {
       const saves = this.sub === 'saves';

@@ -119,6 +119,11 @@
     display: none;
   }
 }
+/* The touch Controls table is a reference for the on-screen controls, which are their own Back, so
+   the Back row is not needed. */
+#stage[data-touch] #controls > .menu {
+  display: none;
+}
 /* The Controls table needs the height the wordmark would take. */
 #stage[data-touch] #title:has(> #controls:not([hidden])) > .head {
   display: none;
@@ -143,4 +148,24 @@
 /* "Select" is six letters, so the labels use the condensed cut to stay inside an 80 px face. */
 #touch .lbl {
   font-family: var(--lf-condensed);
+}
+
+/* 640×320: the table's rows (seven, plus the header) trim their padding to fit between the controls. */
+@media (max-height: 340px) {
+  #stage[data-touch] #controls td,
+  #stage[data-touch] #controls th {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* The Back button closes Controls, Options and Saves on a phone. It sits at the top left, clear of the
+   notch and the D-pad's gutter, and is at least 48 dp (the `.btn` rule above). */
+#backBtn {
+  pointer-events: auto;
+  top: calc(var(--lf-safe-top) + 8px);
+  left: calc(var(--lf-safe-left) + 16px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
