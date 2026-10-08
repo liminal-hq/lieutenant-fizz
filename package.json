@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "bun run build:wasm && bun run --cwd episodes/episode-1 dev",
     "build": "bun run build:wasm && bun run --cwd episodes/episode-1 build",
+    "dev:phone": "bash scripts/dev-phone.sh",
     "build:wasm": "bash scripts/build-wasm.sh",
     "build:site": "bash scripts/build-site.sh",
     "build:font": "bun scripts/build-font.ts",

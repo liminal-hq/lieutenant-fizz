@@ -14,6 +14,9 @@ Game.start(stage, { previewStinger: query.has('previewStinger') })
   .then((game) => {
     if (query.has('debug')) {
       (window as unknown as { __lf: Game }).__lf = game;
+      // `?debug&level=N` starts straight in level N, so a phone can show a level without a keyboard.
+      const level = query.get('level');
+      if (level !== null) game.debugEnterLevel(Number.parseInt(level, 10));
     }
   })
   .catch(() => {

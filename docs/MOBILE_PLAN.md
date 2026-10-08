@@ -92,7 +92,7 @@ Each slice is one pull request unless noted, in order. S is a day or less, M a f
 
 | # | Slice | Main files | Size |
 |---|---|---|---|
-| 0 | **Phone dev loop.** `?touch` forces touch mode; `debugShow('play')`; a `dev:phone` script (`vite --host`); a short doc on `adb reverse` and a Pages preview for secure-context features. | `main.ts`, `game.ts` debug hooks, `package.json`, MOBILE_PLAN.md | S |
+| 0 | **Phone dev loop.** `debugShow('play')` and `?debug&level=N` reach a level without a keyboard; a `dev:phone` script (`vite --host`, prints the LAN addresses and the `adb reverse` command); the "Trying it on a phone" notes below. The `?touch` flag that forces touch mode on desktop moves to slice 2, where it has something to force. | `main.ts`, `game.ts` debug hooks, `scripts/dev-phone.sh`, `package.json`, `e2e/dev.spec.ts` | S |
 | 1 | **Touch input core.** `touch.ts` pure functions, `InputManager` touch source, `'touch'` device and `nextDevice`, latch, gating, public `command`, release handlers. Unit tests only. | `engine/src/touch.ts`, `input.ts`, `input.test.ts`, `touch.test.ts` | M |
 | 2 | **In-level touch controls and phone viewport.** `State.POGO_ON` export, `#touch` layer, D-pad slide, Jump, Pogo, Fizz, Pause, glass HUD pills, safe-area vars, viewport meta, touch CSS rules, orientation screen, Engine button hidden. First touch e2e project (844×390 at 3×, 740×360 at 2.6×): control sizes at least 48 dp, inside insets, no overlap, multi-touch jump while moving. **First milestone: Crater Fields is playable on a phone.** | `touch-ui.ts`, `ui.ts`, `ui.css`, `layout.ts`, `index.html`, `e2e/touch.spec.ts` | L |
 | 3 | **Pixel-perfect scale on phones.** DPR cap 3 on touch, integer scale and derived tile height, margin for the rest. A unit test for the scale maths and an e2e that measures sprite pixel size. | `renderer.ts`, `scale.ts`, `game.ts` frame | M |
@@ -104,6 +104,13 @@ Each slice is one pull request unless noted, in order. S is a day or less, M a f
 | 9 | **Polish and audit.** The full touch e2e matrix, score card totals the game already has (the extra stats stay pending), an accessibility pass with TalkBack, a battery and heat check, a real-device checklist, STATUS.md. | e2e, docs | M |
 
 After slice 9 the web phone experience is complete. The Tauri app, the launcher and the plugin-based haptics backend then follow [APP.md](APP.md), reusing the touch controller, the layout and the cue table unchanged.
+
+## Trying it on a phone
+Until slice 2 lands the game has no touch controls, so a phone can show the title and menus (taps work on the menu rows) and render a level, but cannot move Ben.
+- **Same Wi-Fi:** `bun run dev:phone` builds the WASM, starts Vite on every interface and prints the addresses. Open `http://<your-computer>:5173/` for the title screen, or `http://<your-computer>:5173/?debug&level=0` to start straight in Crater Fields (`level` is the level id, so `level=1` is Crystal Caves).
+- **A secure context:** plain http over the LAN is not one, so fullscreen, the wake lock and the Gamepad API are unavailable. With the phone plugged in and USB debugging on, `adb reverse tcp:5173 tcp:5173` makes the phone see `http://localhost:5173/`, which is a secure context.
+- **A preview without the dev server:** the GitHub Pages build of a branch works for anything that does not need the dev server.
+- **Checking on a phone, today:** the layout and type at phone sizes, the pixel scale and blur on a high-DPI screen, audio unlock on the first tap, and frame rate and heat.
 
 ## Testing
 - **Unit (vitest):** `slideDpad` (dead zone, rolling between arms, diagonals), `touchToBits` (multi-pointer), `latch` (a quick tap survives a step, a hold stays held), `nextDevice` with touch, touch hints, the cue table (every caption id in the mapping exists, cooldowns, scaling), `lf-touch-v1` parsing, and the scale maths.
