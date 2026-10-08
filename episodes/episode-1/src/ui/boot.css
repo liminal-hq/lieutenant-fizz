@@ -1,0 +1,39 @@
+#err {
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  padding: 24px;
+  text-align: center;
+  pointer-events: auto;
+}
+#err div {
+  --n: var(--lf-n-small);
+  --lf-line: 15px;
+  max-width: calc(var(--lf-cols) * 6px * var(--n));
+}
+#err h2 {
+  --n: var(--lf-n-head);
+  margin: 0 0 calc(var(--n) * 3px);
+  font-weight: 700;
+  color: #ff5555;
+}
+#err p {
+  margin: 0;
+}
+#loading {
+  --n: var(--lf-n-small);
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lf-dim);
+}
+
+@media (max-width: 640px) {
+  #hud {
+    top: 8px;
+    left: 8px;
+  }
+}

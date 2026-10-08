@@ -1,0 +1,16 @@
+/* Sound captions */
+.cap {
+  --n: var(--lf-n-hint);
+  position: absolute;
+  font-family: var(--lf-font);
+  font-weight: 700;
+  font-style: italic;
+  font-synthesis: none;
+  font-kerning: none;
+  letter-spacing: 0;
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  text-shadow: calc(var(--n) * 1px) calc(var(--n) * 1px) 0 #000;
+  white-space: nowrap;
+}
