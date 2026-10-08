@@ -57,7 +57,7 @@ The desktop window (1280×720) is the same carousel with a frameless title bar. 
 
 ### Settings in scope
 The designs show settings the game does not have today. In scope for the first app release:
-- **Pixels: Sharp or Soft.** Sharp keeps whole pixels with thin bars at the edges. Soft ("Fill") stretches to the edges, a little soft.
+- **Pixels: Sharp or Soft.** Sharp keeps whole pixels and shows a slightly taller view (more of the level) instead of bars. Soft ("Fill") stretches to the edges, a little soft. Touch defaults to Sharp and desktop to Soft; until the option is built, `?pixels=sharp|soft` sets it. A later display settings slice (6b in `docs/MOBILE_PLAN.md`) adds Auto, a render-scale step for slower GPUs and CPUs, and the choice on desktop.
 - **Desktop window mode** and **controller rumble**, as above.
 - **Scanlines** (a CRT scanline overlay) and **Screen shake** (on or off). Both are new presentation features, and Screen shake must stay out of the sim.
 
