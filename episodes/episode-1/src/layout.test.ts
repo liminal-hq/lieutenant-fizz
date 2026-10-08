@@ -12,9 +12,11 @@ import {
   isPortrait,
   layoutVars,
   NO_GUTTERS,
+  promptClear,
   rowHeight,
   titleCandidates,
   watchResize,
+  type TouchGutters,
 } from './layout';
 
 const SIZES: [number, number][] = [
@@ -244,5 +246,51 @@ describe('captions', () => {
   it('centres a caption on a whole pixel', () => {
     expect(captionPosition(100.5, 50.5, 33, 27)).toEqual({ left: 84, top: 37 });
     expect(captionPosition(10, 10, 20, 20)).toEqual({ left: 0, top: 0 });
+  });
+});
+
+describe('promptClear', () => {
+  const DEFAULT: TouchGutters = {
+    left: 190,
+    right: 120,
+    leftTop: 202,
+    rightTop: 194,
+    hand: 'right',
+  };
+
+  it('leaves the prompt alone with the controls in their default places', () => {
+    for (const h of [320, 360, 390, 412]) {
+      expect(promptClear({ ...DEFAULT, leftTop: h - 188, rightTop: h - 196 }, h)).toEqual({
+        left: 0,
+        right: 0,
+      });
+    }
+    expect(promptClear(NO_GUTTERS, 390)).toEqual({ left: 0, right: 0 });
+  });
+
+  it('clears a side only when its highest control rises above the prompt line', () => {
+    // 390 - 200 = 190: a D-pad raised to 150 reaches into the prompt's row, the buttons do not.
+    expect(promptClear({ ...DEFAULT, leftTop: 150 }, 390)).toEqual({ left: 190, right: 0 });
+    expect(promptClear({ ...DEFAULT, leftTop: 150, rightTop: 100 }, 390)).toEqual({
+      left: 190,
+      right: 120,
+    });
+    expect(promptClear({ ...DEFAULT, leftTop: 190 }, 390).left).toBe(0);
+    expect(promptClear({ ...DEFAULT, leftTop: 189 }, 390).left).toBe(190);
+  });
+
+  it('follows a different bottom', () => {
+    // A lower prompt line (bottom 120: 270 down) is crossed by a control starting at 202; a higher one is not.
+    expect(promptClear(DEFAULT, 390, 120)).toEqual({ left: 190, right: 120 });
+    expect(promptClear(DEFAULT, 390, 220)).toEqual({ left: 0, right: 0 });
+  });
+
+  it('writes the sides as layout variables, 0px by default', () => {
+    const plain = layoutVars(844, 390, false);
+    expect(plain['--lf-prompt-left']).toBe('0px');
+    expect(plain['--lf-prompt-right']).toBe('0px');
+    const v = layoutVars(844, 390, false, { ...DEFAULT, leftTop: 150 });
+    expect(v['--lf-prompt-left']).toBe('190px');
+    expect(v['--lf-prompt-right']).toBe('0px');
   });
 });
