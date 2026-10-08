@@ -97,8 +97,9 @@ The launcher navigates the WebView to the episode's own page with a launch contr
 - The Pages deploy is unaffected.
 
 ## Phasing
-1. **Spike:** scaffold `apps/player`, run the existing episode build in an Android emulator, and see how WebGL2, WASM, audio and the gamepad behave in the WebView.
-2. **Touch controls and the phone layout** (MOBILE.md). They are web UI, so the website and phone browsers get them too.
+The mobile experience on the web comes first, because it is an extension of the game as it is today and needs no new app. It is planned in slices in [MOBILE_PLAN.md](MOBILE_PLAN.md). The app work follows.
+1. **Touch controls, the phone layout and basic haptics on the web** (MOBILE_PLAN.md, slices 0 to 9). They are web UI, so the website and phone browsers get them, and everything below reuses them.
+2. **Spike:** scaffold `apps/player`, run the existing episode build in an Android emulator, and see how WebGL2, WASM, audio and the gamepad behave in the WebView.
 3. **Shared options and the launch contract:** the shared options key with per-episode overrides, `parseLaunch()`, and embedded mode in Episode 1.
 4. **The launcher:** the carousel, App settings, Saves export and import, and the demo-strip art.
 5. **Android lifecycle and release:** orientation and fullscreen, the Back button, pausing on background, the icon set, signing, the heavy CI job and the dev-build script.

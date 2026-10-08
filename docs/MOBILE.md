@@ -2,6 +2,8 @@
 
 **Status: planned.** Nothing here exists yet; today the game assumes a keyboard or a gamepad (see "Mobile and touch controls are not implemented" in `docs/STATUS.md`). This document follows `design/Mobile Design.dc.html` (turn 3) and plans the touch controls, a layout tailored to phones and haptics. It applies to the website on a phone browser as much as to the Tauri app in [APP.md](APP.md), because all of it is web UI in the shared engine and episode packages.
 
+The build order and the code changes are in [MOBILE_PLAN.md](MOBILE_PLAN.md).
+
 ## How to read the artboards
 The artboards are about the **UI**: layout, controls, spacing and type. They are not a spec for game content, and they estimate it (the cinematic panel count, the level and score values, the art behind a screen). Where an artboard and the game disagree on content, **the current implementation wins**. The 3a screens use the Fizz font faithfully, and Fizz is the type for every phone screen.
 
