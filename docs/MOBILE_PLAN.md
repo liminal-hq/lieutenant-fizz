@@ -53,7 +53,7 @@ Findings from reading the current code, with the seams each slice uses.
 
 ### The look (episode)
 - The glass controls from design 2a, set in Fizz: a round D-pad with arrow glyphs, Jump (largest, where the thumb rests), Pogo (small, lit while pogo is on) and Fizz (shows the ammo count), a top-left HUD of three glass pills (lives, snacks in yellow, fizz in cyan) and a top-right pause button. Styling is CSS in `ui.css` driven by `--lf-touch-*` variables (size, opacity, hand), so the settings in slice 7 only change variables.
-- Pogo's lit state needs the pogo flag. If the sim does not already export it, add one read-only value to the per-frame state in the Rust crate and `protocol.ts`.
+- Pogo's lit state needs the pogo flag. The sim does not export it today (`State.POGO_HEIGHT` is a tuning value, not the toggle), so slice 2 adds one read-only value, `State.POGO_ON`, to the per-frame state in the Rust crate and `protocol.ts`. It is a read-only export and changes no sim behaviour.
 
 ### Layout and display
 - `index.html`: `viewport-fit=cover`, `user-scalable=no`, `interactive-widget=resizes-content`, a theme colour.
@@ -62,20 +62,20 @@ Findings from reading the current code, with the seams each slice uses.
 - **Portrait** shows a "Rotate your phone" screen while touch is the device, and the game stays paused.
 
 ### Pixel-perfect scale on phones
-- Raise the pixel-ratio cap from 2 to 3 on touch devices, and under **Pixels: Sharp** choose an integer number of device pixels per sprite pixel, `s = floor(deviceHeight / (16 × 13))` clamped to at least 2. Derive the visible tile height from that, `deviceHeight / (16 × s)`, instead of a fixed 13. Keep the visible height between 11 and 15 tiles so level design still holds, and let the rest become a margin.
+- Raise the pixel-ratio cap from 2 to 3 on touch devices, and under **Pixels: Sharp** choose an integer number of device pixels per sprite pixel, `s = floor(deviceHeight / (16 × 13))` clamped to at least 2. Derive the visible tile height from that, `deviceHeight / (16 × s)`, instead of a fixed 13. The visible height is a **hard clamp of 11 to 15 tiles**: pick the largest integer scale that stays in that range and let the rest become a margin. This is one global rule, not a per-level setting.
 - Under **Pixels: Soft** (and on desktop for now) the current behaviour stays. The option itself arrives with the shared options model, so until then touch devices default to Sharp.
 - The camera snap to the device pixel grid already exists.
 
 ### Menus on touch
 - One tap chooses a row (`pointerup`, with `pointerType` checked): the hover-select path runs only for a mouse. Rows get a minimum 48 dp hit height through padding while the glyphs keep their size. Option rows get explicit ◄ and ► steppers (each 48 dp) so a tap can go backwards or set a meter.
 - Tap-to-advance on the cinematic, dialogue, ending and card text. Skip, Continue and Pause are 48 dp targets.
-- The Back affordances: a visible Back button on sub-screens, and on the web the browser's Back button is intercepted (push a history state in play, open the pause menu on `popstate`) so a stray Back never leaves the game.
+- The Back affordances: a visible Back button on sub-screens. The browser's Back button is intercepted **only in fullscreen or when installed** (`display-mode: fullscreen` or `standalone`, or a fullscreen element): there it behaves like an app, so a history state is pushed in play and the pause menu opens on `popstate`. In a normal browser tab, Back leaves the page as usual.
 - The Controls screen gets a touch column and a Touch controls entry. The pause menu hides F5 and F9 on touch and shows the slot instead.
 
 ### Lifecycle (web)
 - On the first tap of New game or Continue, request fullscreen and lock landscape (`screen.orientation.lock`), inside `try`, since both need a user gesture and fullscreen. Hold a screen wake lock while playing, release it on pause, hide and blur. Both need a secure context and degrade silently.
 - Auto-pause on `visibilitychange`, `pagehide`, `blur` while playing, a switch to portrait, and `popstate`.
-- A `manifest.webmanifest` (`display: fullscreen`, `orientation: landscape`, icons from the chosen 2g source) so "Add to Home screen" gives a clean full-screen launch on Android. No service worker is needed yet.
+- A `manifest.webmanifest` (`display: fullscreen`, `orientation: landscape`) so "Add to Home screen" gives a clean full-screen launch on Android. It ships in this slice with icons exported at the manifest sizes straight from the chosen 2g design SVG (metadata stripped). The full icon set under `assets/icon/` follows with the app work. No service worker is needed yet.
 
 ### Haptics (web first)
 - **`packages/engine/src/haptics.ts`**: `GameHaptics` with a backend interface, a cue-to-pattern lookup supplied by the episode, a master scale and per-cue cooldowns (the 180 ms caption throttle is the model). Backends: none, `navigator.vibrate` (durations only, Android Chrome, after a user gesture) and, later, the Tauri plugin and gamepad rumble.
@@ -94,12 +94,12 @@ Each slice is one pull request unless noted, in order. S is a day or less, M a f
 |---|---|---|---|
 | 0 | **Phone dev loop.** `?touch` forces touch mode; `debugShow('play')`; a `dev:phone` script (`vite --host`); a short doc on `adb reverse` and a Pages preview for secure-context features. | `main.ts`, `game.ts` debug hooks, `package.json`, MOBILE_PLAN.md | S |
 | 1 | **Touch input core.** `touch.ts` pure functions, `InputManager` touch source, `'touch'` device and `nextDevice`, latch, gating, public `command`, release handlers. Unit tests only. | `engine/src/touch.ts`, `input.ts`, `input.test.ts`, `touch.test.ts` | M |
-| 2 | **In-level touch controls and phone viewport.** `#touch` layer, D-pad slide, Jump, Pogo, Fizz, Pause, glass HUD pills, safe-area vars, viewport meta, touch CSS rules, orientation screen, Engine button hidden. First touch e2e project (844×390 at 3×, 740×360 at 2.6×): control sizes at least 48 dp, inside insets, no overlap, multi-touch jump while moving. **First milestone: Crater Fields is playable on a phone.** | `touch-ui.ts`, `ui.ts`, `ui.css`, `layout.ts`, `index.html`, `e2e/touch.spec.ts` | L |
+| 2 | **In-level touch controls and phone viewport.** `State.POGO_ON` export, `#touch` layer, D-pad slide, Jump, Pogo, Fizz, Pause, glass HUD pills, safe-area vars, viewport meta, touch CSS rules, orientation screen, Engine button hidden. First touch e2e project (844×390 at 3×, 740×360 at 2.6×): control sizes at least 48 dp, inside insets, no overlap, multi-touch jump while moving. **First milestone: Crater Fields is playable on a phone.** | `touch-ui.ts`, `ui.ts`, `ui.css`, `layout.ts`, `index.html`, `e2e/touch.spec.ts` | L |
 | 3 | **Pixel-perfect scale on phones.** DPR cap 3 on touch, integer scale and derived tile height, margin for the rest. A unit test for the scale maths and an e2e that measures sprite pixel size. | `renderer.ts`, `scale.ts`, `game.ts` frame | M |
 | 4 | **Menus on touch.** One-tap choosing, mouse-only hover, 48 dp rows, Option steppers, tap-to-advance, Back button and history handling, pause and score cards as touch targets. | `ui.ts`, `ui.css`, `game.ts` menu code, `e2e/menus.spec.ts` | M |
 | 5 | **Phone title and Controls screen.** The title with logo left and menu on the thumb side, touch hints (`hints.ts`), the Controls screen touch column, F5 and F9 hidden on touch. | `ui.ts`, `hints.ts`, `hints.test.ts`, `ui.css` | M |
 | 6 | **Touch controls settings.** `lf-touch-v1`, the Size, Opacity, Left-handed and Haptics settings, the drag-to-move editor and Reset. | `touch-settings.ts` (new), `ui.ts`, `touch-ui.ts` | M |
-| 7 | **Lifecycle.** Fullscreen and landscape lock on the first tap, wake lock, auto-pause rules, web manifest and icons. | `game.ts`, `main.ts`, `index.html`, `public/manifest.webmanifest` | M |
+| 7 | **Lifecycle.** Fullscreen and landscape lock on the first tap, wake lock, auto-pause rules, Back interception in fullscreen or installed mode, web manifest and 2g icons at manifest sizes. | `game.ts`, `main.ts`, `index.html`, `public/manifest.webmanifest` | M |
 | 8 | **Haptics core and web backends.** `GameHaptics`, `navigator.vibrate` backend, the cue table and the hooks, the Haptics setting from slice 6 wired up. Unit tests with a fake backend. | `engine/src/haptics.ts`, `fizz-haptics.ts`, `game.ts` | M |
 | 9 | **Polish and audit.** The full touch e2e matrix, score card totals the game already has (the extra stats stay pending), an accessibility pass with TalkBack, a battery and heat check, a real-device checklist, STATUS.md. | e2e, docs | M |
 
@@ -119,8 +119,11 @@ After slice 9 the web phone experience is complete. The Tauri app, the launcher 
 - **Sub-frame taps** are prevented by the latch in slice 1.
 - **Phones with a stale WebView** are covered by a device in the checklist and by keeping Soft available as the fallback.
 
+## Decisions
+- **Pogo state:** exported as a new read-only `State.POGO_ON` in slice 2.
+- **Visible tile height:** a hard global clamp of 11 to 15 tiles under the integer scale, with the rest as margin.
+- **Web manifest:** ships in the lifecycle slice, with the 2g icon exported at manifest sizes.
+- **Browser Back:** intercepted only in fullscreen or installed mode.
+
 ## Open questions
-- Does the sim already export the pogo flag, or does slice 2 add a read-only export?
-- Should the visible tile height clamp (11 to 15) be a hard rule, or tuned per level?
-- Should the web manifest ship in slice 7, or wait for the app icons from APP.md?
-- On the web, is intercepting the browser Back button acceptable on every browser, or only when the game is full-screen or installed?
+- None yet. Questions raised while building each slice are added here.
