@@ -38,6 +38,8 @@ const BUTTONS: readonly Exclude<ControlId, 'dpad'>[] = ['jump', 'pogo', 'fire', 
 export interface TouchControlsOptions {
   /** The accessible name of each control. */
   labels: Record<ControlId, string>;
+  /** The accessible name of a movable control in the editor; without one it is "Move" and the control's name. */
+  editLabels?: Partial<Record<MovableId, string>>;
   spec?: TouchSpec;
 }
 
@@ -246,7 +248,10 @@ export class TouchControls {
   /** Writes a control's accessible name: "Move Jump" in the editor, else its own name. */
   private label(id: ControlId): void {
     const el = id === 'dpad' ? this.dpad : this.buttons[id];
-    const name = this.editing && id !== 'pause' ? `Move ${this.names[id]}` : this.names[id];
+    const name =
+      this.editing && id !== 'pause'
+        ? (this.opts.editLabels?.[id] ?? `Move ${this.names[id]}`)
+        : this.names[id];
     if (el.getAttribute('aria-label') !== name) el.setAttribute('aria-label', name);
   }
 

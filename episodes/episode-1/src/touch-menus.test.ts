@@ -47,6 +47,19 @@ describe('touchFaces', () => {
     }
   });
 
+  it('shows the four movable controls, and not Pause, in the editor', () => {
+    for (const screen of ['title', 'pause'] as const) {
+      expect(touchFaces(screen, 'touchEdit')).toEqual({
+        shown: ['dpad', 'jump', 'pogo', 'fire'],
+        jump: 'Jump',
+        pogo: 'Pogo',
+        play: true,
+        edit: true,
+      });
+    }
+    expect(touchFaces('play', null).edit).toBeUndefined();
+  });
+
   it('keeps the D-pad off the text screens, and Pause where it skips', () => {
     expect(touchFaces('cine', null).shown).toEqual(['jump', 'pause']);
     expect(touchFaces('credits', null).shown).toEqual(['jump', 'pause']);

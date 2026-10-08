@@ -30,6 +30,8 @@ export interface TouchFaces {
   pogo: string;
   /** Whether the controls are the game's (play) or a gamepad for the menus. */
   play: boolean;
+  /** The controls are being moved (the editor): they take drags, not presses. */
+  edit?: boolean;
 }
 
 /**
@@ -57,6 +59,16 @@ export function touchFaces(screen: ShellScreen, sub: SubScreen): TouchFaces {
       };
     case 'title':
     case 'pause':
+      // The editor shows the four movable controls as they look in play, and Pause is out of the way.
+      if (sub === 'touchEdit') {
+        return {
+          shown: ['dpad', 'jump', 'pogo', 'fire'],
+          jump: 'Jump',
+          pogo: 'Pogo',
+          play: true,
+          edit: true,
+        };
+      }
       if (sub) return menu(['dpad', 'jump', 'pogo']);
       return menu(screen === 'pause' ? ['dpad', 'jump', 'pause'] : ['dpad', 'jump']);
     case 'card':

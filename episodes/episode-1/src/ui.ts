@@ -127,6 +127,8 @@ export interface UiHandlers {
   zoom(f: number | 'reset'): void;
   /** Closes the screen opened over the title or the pause menu (Controls, Options, Saves). */
   back(): void;
+  /** A tap on Reset in the touch controls editor. */
+  editReset(): void;
   creditsPress(): void;
   creditsSkip(): void;
   stingerPress(): void;
@@ -179,6 +181,8 @@ export class Ui {
   private readonly panel: HTMLElement;
   private readonly panelBtn: HTMLElement;
   private readonly backBtn: HTMLButtonElement;
+  private readonly touchEdit: HTMLElement;
+  private readonly editReset: HTMLButtonElement;
   private readonly credits: HTMLElement;
   private readonly stinger: HTMLElement;
   private creditsFor: CreditsContent | null = null;
@@ -317,6 +321,17 @@ export class Ui {
 
     this.backBtn = el('button', { id: 'backBtn', class: 'lf btn ghost', hidden: '' }, '← Back');
     this.backBtn.addEventListener('click', () => h.back());
+    // The touch controls editor: a scrim, and a bar with Done, the heading and Reset. The controls
+    // themselves are in `#touch`, which sits above this layer so they take the drags.
+    this.touchEdit = el(
+      'div',
+      { id: 'touchEdit', class: 'lf', hidden: '' },
+      `<div class="bar"><button type="button" class="btn done">Done</button><h2>Move controls</h2><button type="button" class="btn ghost reset">Reset</button></div>
+      <p class="hint">Drag a control to move it</p>`,
+    );
+    this.editReset = need(this.touchEdit, '.reset') as HTMLButtonElement;
+    need(this.touchEdit, '.done').addEventListener('click', () => h.back());
+    this.editReset.addEventListener('click', () => h.editReset());
     this.attractFade = el('div', { id: 'attractFade', hidden: '' });
     this.attractTag = el('div', { id: 'attractTag', class: 'lf', hidden: '' });
     this.root.append(
@@ -328,6 +343,7 @@ export class Ui {
       this.toastEl,
       this.title,
       this.overlay,
+      this.touchEdit,
       this.letterbox,
       this.dialogue,
       this.credits,
@@ -709,6 +725,17 @@ export class Ui {
    */
   setBack(on: boolean): void {
     this.backBtn.hidden = !(on && this.touchMode);
+  }
+
+  /**
+   * Shows the touch controls editor (null hides it). `armed` is whether Reset has had its first tap.
+   * Done is the Back handler, so it closes the editor the way the Back button closes any screen.
+   */
+  showTouchEditor(v: { armed: boolean } | null): void {
+    this.touchEdit.hidden = !v || !this.touchMode;
+    if (!v) return;
+    const text = v.armed ? 'Tap again' : 'Reset';
+    if (this.editReset.textContent !== text) this.editReset.textContent = text;
   }
 
   /** Shows or hides the "Rotate your phone" screen. */
