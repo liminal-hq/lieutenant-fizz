@@ -46,6 +46,7 @@ The last stop is App settings, with three rows:
 - Options opened from inside an episode get the per-row scope switch. Options at the launcher stop are global (there is no switch on the App settings stop).
 - **Reset** needs a second tap within three seconds. On an episode it clears that episode's overrides, and in App settings it restores every default.
 - **Storage (proposed):** one shared options key holds the global values, and each episode keeps a sparse overrides object. The current `lf-ep1-options-v1` is migrated into the shared key, with no overrides.
+- **Touch settings** (size, opacity, hand, haptics and moved controls) belong to the device, not to an episode: they are in `lf-touch-v1`, reached on a touch device from Options > Touch controls, and fold into the shared key with the launcher work (the same migration as `lf-ep1-options-v1`). The launcher's Settings > Controls tab shows the same rows.
 
 ### Desktop
 The desktop window (1280×720) is the same carousel with a frameless title bar. Hovering a row selects it and a click chooses it, and Tab switches section. Desktop swaps the touch settings for its own:
