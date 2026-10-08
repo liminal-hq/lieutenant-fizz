@@ -108,6 +108,6 @@ The proposal's section 8 gives each event a pattern, the effect at tiers 4, 3 an
 
 ## Open questions
 - **Score card (pending):** which of Fizz fired, Zargs stunned, Secrets found and Best time are worth tracking, and where do the counters live (shell or sim events)? Best time needs a save-format addition.
-- **Large screens:** should tablets and foldables get a different layout (for example the controls moved out onto the margins), or the same one at a larger scale?
+- **Large screens (later):** whether tablets and foldables get a different layout or the same one scaled up is deferred. The first build adapts to any window size, as the Android guidelines section says.
 - **Controller connected:** should the touch controls hide, or dim, when a gamepad is in use?
 - Which events are strong and which stay silent? The table above follows the proposal and is to be tuned on a device.
