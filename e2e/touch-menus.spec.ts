@@ -81,8 +81,8 @@ async function fingers(page: Page): Promise<{
   };
 }
 
-/** A short press on a D-pad arm. */
-async function dpad(page: Page, dir: 'up' | 'down' | 'left' | 'right', holdMs = 80): Promise<void> {
+/** A tap on a D-pad arm: a touch that lifts at once, which the controls count as one press. */
+async function dpad(page: Page, dir: 'up' | 'down' | 'left' | 'right'): Promise<void> {
   const d = (await faces(page)).dpad;
   const off = d.r * 0.7;
   const at = {
@@ -91,11 +91,8 @@ async function dpad(page: Page, dir: 'up' | 'down' | 'left' | 'right', holdMs = 
     left: { x: d.cx - off, y: d.cy },
     right: { x: d.cx + off, y: d.cy },
   }[dir];
-  const f = await fingers(page);
-  await f.down({ ...at, id: 1 });
-  await page.waitForTimeout(holdMs);
-  await f.up();
-  await page.waitForTimeout(80);
+  await page.touchscreen.tap(at.x, at.y);
+  await page.waitForTimeout(150);
 }
 
 async function tapControl(page: Page, id: ControlId): Promise<void> {
@@ -227,7 +224,11 @@ test('a held D-pad direction repeats', async ({ page }) => {
   await open(page, 'pause');
   expect((await state(page)).menu).toBe(0);
   // One press and then repeats from 350 ms, every 90 ms.
-  await dpad(page, 'down', 600);
+  const d = (await faces(page)).dpad;
+  const f = await fingers(page);
+  await f.down({ x: d.cx, y: d.cy + d.r * 0.7, id: 1 });
+  await page.waitForTimeout(600);
+  await f.up();
   const moved = (await state(page)).menu;
   expect(moved).toBeGreaterThanOrEqual(2);
 });

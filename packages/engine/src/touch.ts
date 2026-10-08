@@ -138,6 +138,8 @@ export class TouchState {
   private readonly latchedUntil: Record<Button, number> = { jump: 0, pogo: 0, fire: 0 };
   /** A button pressed since the sim last sampled: held until a step has seen it, however long that takes. */
   private readonly unseen: Record<Button, boolean> = { jump: false, pogo: false, fire: false };
+  /** The D-pad directions a press landed on, held until a step has sampled them (a very quick tap). */
+  private unseenDirs = { left: false, right: false, up: false, down: false };
 
   constructor(
     /** The control geometry. Set by the DOM controller; with none, no touch lands on a control. */
@@ -156,6 +158,15 @@ export class TouchState {
     if (control !== 'dpad') {
       this.latchedUntil[control] = now + this.minHoldMs;
       this.unseen[control] = true;
+    } else {
+      const d = this.layout.dpad;
+      const dir = dpadDirections(x - d.cx, y - d.cy, d.r - 8);
+      this.unseenDirs = {
+        left: this.unseenDirs.left || dir.left,
+        right: this.unseenDirs.right || dir.right,
+        up: this.unseenDirs.up || dir.up,
+        down: this.unseenDirs.down || dir.down,
+      };
     }
     return control;
   }
@@ -181,6 +192,7 @@ export class TouchState {
       this.latchedUntil[b] = 0;
       this.unseen[b] = false;
     }
+    this.unseenDirs = { left: false, right: false, up: false, down: false };
   }
 
   /** Whether any finger is on the controls. */
@@ -208,6 +220,10 @@ export class TouchState {
       }
     }
     for (const b of BUTTONS) if (now < this.latchedUntil[b] || this.unseen[b]) h[b] = true;
+    h.left ||= this.unseenDirs.left;
+    h.right ||= this.unseenDirs.right;
+    h.up ||= this.unseenDirs.up;
+    h.down ||= this.unseenDirs.down;
     return h;
   }
 
@@ -219,6 +235,7 @@ export class TouchState {
   sample(now: number): TouchHeld {
     const h = this.held(now);
     for (const b of BUTTONS) this.unseen[b] = false;
+    this.unseenDirs = { left: false, right: false, up: false, down: false };
     return h;
   }
 }
