@@ -402,7 +402,15 @@ export class Ui {
 
   /** Sets the room the touch controls take on each side, so menus start right of the D-pad. */
   setTouchGutters(g: TouchGutters): void {
-    if (g.left === this.gutters.left && g.right === this.gutters.right) return;
+    const cur = this.gutters;
+    if (
+      g.left === cur.left &&
+      g.right === cur.right &&
+      g.leftTop === cur.leftTop &&
+      g.rightTop === cur.rightTop &&
+      g.hand === cur.hand
+    )
+      return;
     this.gutters = g;
     this.relayout();
   }

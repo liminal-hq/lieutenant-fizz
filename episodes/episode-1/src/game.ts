@@ -23,7 +23,7 @@ import simUrl from './wasm/sim.wasm?url';
 import { PATTERNS } from './audio/patterns';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { Cinematic, CINE_TALL } from './cine';
-import { isPortrait, watchResize } from './layout';
+import { isPortrait, watchResize, type TouchGutters } from './layout';
 import { touchFaces, type ShellScreen, type TouchFaces } from './touch-menus';
 import { EPISODE } from './episode';
 import {
@@ -906,6 +906,17 @@ export class Game {
     this.syncUi();
   }
 
+  /** The room the shown controls take around the menus: the gutters, where content must stop above them, the hand. */
+  private touchGutters(): TouchGutters {
+    const tops = this.touchUi.tops();
+    return {
+      ...this.touchUi.gutters(),
+      leftTop: tops.left,
+      rightTop: tops.right,
+      hand: this.touchUi.hand(),
+    };
+  }
+
   /** The window changed size or the phone turned: place the controls and show Rotate if upright. */
   private onViewport(): void {
     const rotate = this.touchMode && isPortrait(window.innerWidth, window.innerHeight);
@@ -916,7 +927,7 @@ export class Game {
       this.syncUi();
     }
     this.touchUi.relayout();
-    this.ui.setTouchGutters(this.touchUi.gutters());
+    this.ui.setTouchGutters(this.touchGutters());
   }
 
   /**
@@ -942,7 +953,7 @@ export class Game {
       if (t.pogoIcon) t.pogoIcon.hidden = !faces.play;
     }
     if (!faces.play) this.touchUi.setLit(false);
-    this.ui.setTouchGutters(this.touchUi.gutters());
+    this.ui.setTouchGutters(this.touchGutters());
   }
 
   // ---------- Menus ----------

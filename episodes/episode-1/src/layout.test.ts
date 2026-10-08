@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { scaleSteps } from '@lieutenant-fizz/engine/font/scale';
 import { describe, expect, it } from 'vitest';
 import {
   captionAnimation,
@@ -10,7 +11,9 @@ import {
   creditsTransform,
   isPortrait,
   layoutVars,
+  NO_GUTTERS,
   rowHeight,
+  titleCandidates,
   watchResize,
 } from './layout';
 
@@ -26,23 +29,51 @@ const SIZES: [number, number][] = [
 describe('touch gutters', () => {
   it('changes nothing without gutters', () => {
     const plain = layoutVars(844, 390, false);
-    expect(layoutVars(844, 390, false, { left: 0, right: 0 })).toEqual(plain);
+    expect(layoutVars(844, 390, false, NO_GUTTERS)).toEqual(plain);
     expect(plain['--lf-touch-left']).toBe('0px');
   });
 
   it('writes the gutters and sizes the wordmark and columns for the room between them', () => {
-    const v = layoutVars(740, 360, false, { left: 190, right: 120 });
+    const v = layoutVars(740, 360, false, { ...NO_GUTTERS, left: 190, right: 120 });
     expect(v['--lf-touch-left']).toBe('190px');
     expect(v['--lf-touch-right']).toBe('120px');
     // 740 - 190 - 120 = 430 px: "Lieutenant Fizz" (102 glyph pixels) fits on one line at 4, and a
     // phone under 420 px tall takes one scale off to leave the menu its rows.
     expect(v['--lf-n-logo']).toBe('3');
     expect(Number(v['--lf-cols'])).toBe(Math.floor(430 / 12));
-    expect(layoutVars(844, 390, false, { left: 190, right: 120 })['--lf-n-logo']).toBe('4');
+    expect(
+      layoutVars(844, 390, false, { ...NO_GUTTERS, left: 190, right: 120 })['--lf-n-logo'],
+    ).toBe('4');
     // Taller than that, the wordmark keeps the scale that fits.
-    expect(layoutVars(844, 480, false, { left: 190, right: 120 })['--lf-n-logo']).toBe('5');
+    expect(
+      layoutVars(844, 480, false, { ...NO_GUTTERS, left: 190, right: 120 })['--lf-n-logo'],
+    ).toBe('5');
     // The step never goes under the smallest scale.
-    expect(layoutVars(300, 300, false, { left: 150, right: 100 })['--lf-n-logo']).toBe('2');
+    expect(
+      layoutVars(300, 300, false, { ...NO_GUTTERS, left: 150, right: 100 })['--lf-n-logo'],
+    ).toBe('2');
+  });
+});
+
+describe('titleCandidates', () => {
+  it('tries the largest wordmark first, one line then two, down to the smallest scale', () => {
+    expect(titleCandidates(scaleSteps(2))).toEqual([
+      { logo: 5, lines: 1 },
+      { logo: 5, lines: 2 },
+      { logo: 4, lines: 1 },
+      { logo: 4, lines: 2 },
+      { logo: 3, lines: 1 },
+      { logo: 3, lines: 2 },
+      { logo: 2, lines: 1 },
+      { logo: 2, lines: 2 },
+    ]);
+  });
+
+  it('never goes above 6, and still reaches 2 from a large item scale', () => {
+    const list = titleCandidates(scaleSteps(5));
+    expect(list[0]).toEqual({ logo: 6, lines: 1 });
+    expect(list.at(-1)).toEqual({ logo: 2, lines: 2 });
+    expect(list).toHaveLength(10);
   });
 });
 
