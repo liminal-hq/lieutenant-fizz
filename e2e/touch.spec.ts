@@ -190,10 +190,8 @@ test('moving and jumping work together', async ({ page }) => {
   const jump: Point = { id: 2, x: p.face.jump.cx, y: p.face.jump.cy };
   await t.start([pad]);
   await t.start([pad, jump]);
-  await page.waitForTimeout(250);
-  const held = await state(page);
-  expect(held.bits & (RIGHT | JUMP)).toBe(RIGHT | JUMP);
-  expect(held.px).toBeGreaterThan(before.px);
+  await expect.poll(() => state(page).then((x) => x.bits & (RIGHT | JUMP))).toBe(RIGHT | JUMP);
+  await expect.poll(() => state(page).then((x) => x.px)).toBeGreaterThan(before.px);
   await t.end();
   await expect.poll(() => state(page).then((x) => x.bits)).toBe(0);
 });
@@ -204,13 +202,9 @@ test('the D-pad rolls from one arm to another without lifting', async ({ page })
   const t = await touchSession(page);
   const d = p.face.dpad;
   await t.start([{ id: 1, x: d.cx + d.r * 0.7, y: d.cy }]);
-  await page.waitForTimeout(150);
-  expect((await state(page)).bits & RIGHT).toBe(RIGHT);
+  await expect.poll(() => state(page).then((x) => x.bits & RIGHT)).toBe(RIGHT);
   await t.move([{ id: 1, x: d.cx, y: d.cy + d.r * 0.7 }]);
-  await page.waitForTimeout(150);
-  const bits = (await state(page)).bits;
-  expect(bits & DOWN).toBe(DOWN);
-  expect(bits & RIGHT).toBe(0);
+  await expect.poll(() => state(page).then((x) => x.bits & (DOWN | RIGHT))).toBe(DOWN);
   await t.end();
 });
 
