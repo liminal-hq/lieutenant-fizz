@@ -22,6 +22,11 @@ import { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
 import { frameView, type FrameView } from '@lieutenant-fizz/engine/view-scale';
 import { HeldRepeat } from '@lieutenant-fizz/engine/repeat';
 import { TouchControls } from '@lieutenant-fizz/engine/touch-ui';
+import {
+  readTouchSettings,
+  touchSpec,
+  type TouchSettings,
+} from '@lieutenant-fizz/engine/touch-settings';
 import simUrl from './wasm/sim.wasm?url';
 import { captureState, labItems } from './audio/lab';
 import { MIX, mixFor, mixNameFor, type MixName } from './audio/mix';
@@ -148,6 +153,8 @@ export class Game {
   private readonly renderer: InstancedRenderer;
   private readonly input: InputManager;
   private readonly touchUi: TouchControls;
+  /** The player's touch settings, read at start and kept up to date as they change. */
+  private touchSettings: TouchSettings;
   /** `?touch`: touch mode stays on whatever device is used. */
   private readonly forcedTouch: boolean;
   /** Whether the on-screen controls and the phone HUD are showing (it follows the device in use). */
@@ -261,9 +268,12 @@ export class Game {
     this.input = new InputManager(ui.stage);
     this.forcedTouch = options.touch ?? false;
     this.forcedBack = options.back ?? false;
+    this.touchSettings = readTouchSettings(this.store);
     this.touchUi = new TouchControls(ui.touchLayer, this.input, {
       labels: { dpad: 'Move', jump: 'Jump', pogo: 'Pogo', fire: 'Fizz', pause: 'Pause' },
+      spec: touchSpec(this.touchSettings),
     });
+    ui.setTouchOpacity(this.touchSettings.opacity);
     this.audio = new GameAudio({ ...PATTERNS, mix: MIX });
     this.audioForced = options.audio !== undefined;
     this.audio.setMode(resolveAudioMode(options.audio));
@@ -1991,6 +2001,11 @@ export class Game {
     return this.touchUi.placed;
   }
 
+  /** Test hook: the touch settings in use. */
+  get debugTouchSettings(): TouchSettings {
+    return this.touchSettings;
+  }
+
   get debugState(): Record<string, unknown> {
     return {
       screen: this.screen,
@@ -2006,6 +2021,7 @@ export class Game {
       ammo: this.sim.get(State.AMMO),
       bits: this.lastBits,
       touch: this.touchMode,
+      custom: this.touchUi.placed?.custom ?? false,
       back: { enabled: this.backOn(), armed: this.backGuard.armed },
       instances: this.lastCount,
       atlas: this.atlas.size,

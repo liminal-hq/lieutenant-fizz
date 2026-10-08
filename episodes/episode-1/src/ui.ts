@@ -458,6 +458,11 @@ export class Ui {
     this.stage.dataset.titleFit = 'column';
   }
 
+  /** Sets how opaque the on-screen controls are in play, in percent (menus keep them solid). */
+  setTouchOpacity(percent: number): void {
+    this.touchLayer.style.setProperty('--lf-touch-opacity', String(percent / 100));
+  }
+
   /** Sets the room the touch controls take on each side, so menus start right of the D-pad. */
   setTouchGutters(g: TouchGutters): void {
     const cur = this.gutters;
