@@ -152,10 +152,11 @@ const underControls = (page: Page): Promise<string[]> =>
 test('on the pause menu the D-pad moves and Select chooses', async ({ page }) => {
   await open(page, 'pause');
   expect(await selected(page)).toBe('Resume');
+  // A tap is seen once however slow the frame that reads it, so wait for the move, not for the clock.
   await dpad(page, 'down');
-  expect(await selected(page)).toBe('Save game');
+  await expect.poll(() => selected(page)).toBe('Save game');
   await dpad(page, 'up');
-  expect(await selected(page)).toBe('Resume');
+  await expect.poll(() => selected(page)).toBe('Resume');
   await tapControl(page, 'jump');
   await expect.poll(() => state(page).then((s) => s.screen)).toBe('play');
   // Back in play, every control shows again and Jump is Jump.
@@ -227,10 +228,10 @@ test('a held D-pad direction repeats', async ({ page }) => {
   const d = (await faces(page)).dpad;
   const f = await fingers(page);
   await f.down({ x: d.cx, y: d.cy + d.r * 0.7, id: 1 });
-  await page.waitForTimeout(600);
+  await expect
+    .poll(() => state(page).then((s) => s.menu), { timeout: 10_000 })
+    .toBeGreaterThanOrEqual(2);
   await f.up();
-  const moved = (await state(page)).menu;
-  expect(moved).toBeGreaterThanOrEqual(2);
 });
 
 test('a Jump held as the level-cleared card appears chooses nothing until pressed again', async ({

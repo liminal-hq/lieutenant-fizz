@@ -45,11 +45,10 @@ test('a held arrow key repeats down the Options rows', async ({ page }) => {
   expect(await menu()).toBe(0);
   // The browser's own key repeat is ignored: the game repeats a held direction itself, after 350 ms.
   await page.keyboard.down('ArrowDown');
-  await page.waitForTimeout(150);
-  expect(await menu()).toBe(1);
-  await page.waitForTimeout(450);
+  await expect.poll(menu).toBeGreaterThanOrEqual(1);
+  // Wait for the repeats by what they do, not by the clock: a slow frame rate delays every one of them.
+  await expect.poll(menu, { timeout: 10_000 }).toBeGreaterThanOrEqual(3);
   await page.keyboard.up('ArrowDown');
-  expect(await menu()).toBeGreaterThanOrEqual(3);
 });
 
 test('Escape goes back from the Options screen', async ({ page }) => {
