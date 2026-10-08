@@ -93,5 +93,4 @@
 }
 
 /* The cast has four wide entries: one to a row, so a big sprite never squeezes its text. */
-.entries.cast { grid-template-columns: 1fr; }
-.entries.cast .spr { min-width: 128px; text-align: center; }
+.entries.cast { grid-template-columns: minmax(0, 1fr); }
