@@ -62,8 +62,8 @@ export interface CapsEnv {
 /** The `display-mode` values an installed app runs in. */
 const INSTALLED_MODES = ['standalone', 'fullscreen', 'minimal-ui'];
 
-/** Finds what the page can do. Never throws; a missing or failing API counts as unavailable. */
-export function detectCaps(env: CapsEnv): Caps {
+/** Whether the page runs as an installed app: a standalone, fullscreen or minimal-ui `display-mode`, or `navigator.standalone`. */
+export function isInstalled(env: Pick<CapsEnv, 'matchMedia' | 'nav'>): boolean {
   const mq = (q: string): boolean => {
     try {
       return env.matchMedia?.(q).matches ?? false;
@@ -71,14 +71,26 @@ export function detectCaps(env: CapsEnv): Caps {
       return false;
     }
   };
+  return INSTALLED_MODES.some((m) => mq(`(display-mode: ${m})`)) || env.nav?.standalone === true;
+}
+
+/**
+ * Whether the browser's own bars are gone, so the window reaches the bottom of the phone: an element is
+ * fullscreen, or the page is an installed app. The touch controls are lifted by the bar's height then.
+ */
+export function chromeHidden(state: { fullscreen: boolean; installed: boolean }): boolean {
+  return state.fullscreen || state.installed;
+}
+
+/** Finds what the page can do. Never throws; a missing or failing API counts as unavailable. */
+export function detectCaps(env: CapsEnv): Caps {
   return {
     fullscreen:
       env.doc?.fullscreenEnabled === true &&
       typeof env.doc.documentElement?.requestFullscreen === 'function',
     orientationLock: typeof env.orientation?.lock === 'function',
     wakeLock: env.isSecureContext !== false && !!env.nav?.wakeLock,
-    installed:
-      INSTALLED_MODES.some((m) => mq(`(display-mode: ${m})`)) || env.nav?.standalone === true,
+    installed: isInstalled(env),
     host: env.host,
   };
 }
