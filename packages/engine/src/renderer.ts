@@ -151,6 +151,8 @@ export class InstancedRenderer {
     const r = new WebGLRenderer({
       antialias: false,
       alpha: true,
+      // The material neither tests nor writes depth, so the drawing buffer needs no depth buffer.
+      depth: false,
       powerPreference: 'high-performance',
     });
     r.setPixelRatio(1);
