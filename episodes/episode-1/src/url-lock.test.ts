@@ -4,7 +4,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { firstEnabled, linkValue, lockedItem, parseHapticsParam } from './url-lock';
+import {
+  firstEnabled,
+  linkValue,
+  lockedItem,
+  parseHapticsParam,
+  parsePixelsParam,
+} from './url-lock';
 
 describe('parseHapticsParam', () => {
   it('reads the bare flag and =on as on, and =off as off', () => {
@@ -25,6 +31,26 @@ describe('parseHapticsParam', () => {
     expect(q('haptics=1')).toBeUndefined();
     expect(parseHapticsParam(undefined)).toBeUndefined();
     expect(parseHapticsParam(null)).toBeUndefined();
+  });
+});
+
+describe('parsePixelsParam', () => {
+  const q = (s: string) => parsePixelsParam(new URLSearchParams(s).get('pixels'));
+  it('reads the four names in any case', () => {
+    expect(q('pixels=auto')).toBe('auto');
+    expect(q('pixels=sharp')).toBe('sharp');
+    expect(q('pixels=soft')).toBe('soft');
+    expect(q('pixels=fast')).toBe('fast');
+    expect(q('debug&pixels=FAST')).toBe('fast');
+    expect(q('pixels=%20Soft%20')).toBe('soft');
+  });
+  it('chooses nothing without the flag or with a value it does not know', () => {
+    expect(q('')).toBeUndefined();
+    expect(q('pixels')).toBeUndefined();
+    expect(q('pixels=fastest')).toBeUndefined();
+    expect(q('pixels=1')).toBeUndefined();
+    expect(parsePixelsParam(null)).toBeUndefined();
+    expect(parsePixelsParam(undefined)).toBeUndefined();
   });
 });
 
