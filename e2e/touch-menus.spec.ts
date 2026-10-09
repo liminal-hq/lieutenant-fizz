@@ -175,7 +175,7 @@ test('Back (Pogo) closes Options', async ({ page }) => {
   expect((await state(page)).sub).toBe(null);
 });
 
-for (const screen of ['pause', 'card', 'title', 'options', 'touch', 'saves'] as const) {
+for (const screen of ['pause', 'card', 'title', 'options', 'sound', 'touch', 'saves'] as const) {
   test(`${screen}: the controls stay up, the hints are for touch and nothing sits under a control`, async ({
     page,
   }) => {
@@ -247,9 +247,9 @@ test('one tap on a row chooses it', async ({ page }) => {
   expect((await state(page)).sub).toBe('options');
 });
 
-test('the Options steppers go down and up', async ({ page }) => {
-  await open(page, 'options');
-  const music = page.locator('#overlay .menu button').first();
+test('the Sound steppers go down and up', async ({ page }) => {
+  await open(page, 'sound');
+  const music = page.locator('#overlay .menu button').nth(1);
   const lit = (): Promise<number> => music.locator('.meter i.on').count();
   const before = await lit();
   const less = (await music.locator('[data-step="-1"]').boundingBox())!;
@@ -260,8 +260,8 @@ test('the Options steppers go down and up', async ({ page }) => {
   const more2 = (await music.locator('[data-step="1"]').boundingBox())!;
   await page.touchscreen.tap(more2.x + more2.width / 2, more2.y + more2.height / 2);
   await expect.poll(lit).toBe(before);
-  // The row a stepper is on becomes the selected one.
-  expect((await state(page)).menu).toBe(0);
+  // The row a stepper is on becomes the selected one (Style is selected when the screen opens).
+  expect((await state(page)).menu).toBe(1);
 });
 
 test('a tap on the cinematic text finishes the line, then moves on', async ({ page }) => {
@@ -294,9 +294,9 @@ test('Skip and Continue are at least 48 dp', async ({ page }) => {
 });
 
 test('Select works again after a long press, on a screen that stays', async ({ page }) => {
-  await open(page, 'options');
-  // The selected row's meter (a save makes the title start on Continue, so this is not always row 0).
-  const lit = (): Promise<number> => page.locator('#overlay .menu button.sel .meter i.on').count();
+  await open(page, 'sound');
+  // The selected row's value: the Sound screen opens on Style, which Select flips between two styles.
+  const lit = (): Promise<string> => page.locator('#overlay .menu button.sel .val').innerText();
   const select = (await faces(page)).jump;
   const f = await fingers(page);
   const start = await lit();

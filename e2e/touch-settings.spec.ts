@@ -356,7 +356,7 @@ test('Options offers Touch controls on touch, and it opens the Touch controls sc
   const labels = await rowLabels(page);
   // Before Back, after the setting rows.
   expect(labels.slice(-2)).toEqual(['Touch controls', 'Back']);
-  expect(labels).toHaveLength(8);
+  expect(labels).toHaveLength(7);
   const touchRow = row(page, 'Touch controls');
   // It opens a screen, so it has no steppers.
   await expect(touchRow.locator('.step')).toHaveCount(0);

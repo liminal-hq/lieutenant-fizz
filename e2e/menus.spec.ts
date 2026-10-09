@@ -36,11 +36,11 @@ for (const [label, key] of [
   });
 }
 
-test('the Back button stays hidden on a desktop, over Controls, Options and Saves', async ({
+test('the Back button stays hidden on a desktop, over Controls, Options, Sound and Saves', async ({
   page,
 }) => {
   await open(page, 'title');
-  for (const screen of ['controls', 'options', 'saves']) {
+  for (const screen of ['controls', 'options', 'sound', 'saves']) {
     await page.evaluate((s) => (window as unknown as { __lf: Lf }).__lf.debugShow(s), screen);
     await page.waitForTimeout(150);
     await expect(page.locator('#backBtn')).toBeHidden();
@@ -73,5 +73,5 @@ test('a desktop Options screen has no Touch controls row', async ({ page }) => {
   await open(page, 'options');
   const labels = await page.locator('#overlay .menu button .lbl').allInnerTexts();
   expect(labels).not.toContain('Touch controls');
-  expect(labels.at(-1)).toBe('Back');
+  expect(labels).toEqual(['Sound', 'Captions', 'Controls', 'Text size', 'Motion', 'Back']);
 });
