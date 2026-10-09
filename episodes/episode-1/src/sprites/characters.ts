@@ -74,11 +74,11 @@ export function ben(pose: BenPose): Grid {
   R(6, 10, 4, 1, 'W');
   R(7, 12, 2, 2, 'y');
   if (pose === 'mantle1') {
-    // Both arms stretched up to the lip, gloves gripping it.
-    R(12, 3, 2, 8, 'r');
-    R(12, 1, 2, 2, 'W');
-    R(14, 4, 2, 7, 'R');
-    R(14, 2, 2, 2, 'W');
+    // Both arms reaching up for the lip, gloves gripping it.
+    R(12, 5, 2, 6, 'r');
+    R(12, 3, 2, 2, 'W');
+    R(14, 6, 2, 5, 'R');
+    R(14, 4, 2, 2, 'W');
   } else if (pose === 'mantle2') {
     // Elbows bent, forearms flat on the lip.
     R(10, 9, 6, 2, 'r');
