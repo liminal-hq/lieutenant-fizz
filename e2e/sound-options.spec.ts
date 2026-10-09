@@ -64,7 +64,7 @@ test('Options > Sound: Left and Enter change the style, which is saved, and Esca
   ]);
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Sound');
   // Enter opens the Sound screen.
-  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter', { delay: 300 });
   await expect(page.locator('#overlay h2')).toHaveText('Sound');
   expect(await labels(page)).toEqual(['Style', 'Music', 'Effects', 'Reset', 'Back']);
   // Auto resolves to the game's default.
@@ -77,7 +77,7 @@ test('Options > Sound: Left and Enter change the style, which is saved, and Esca
   await expect.poll(() => lf(page, (g) => g.debugAudio().mode)).toBe('classic');
   expect(await stored(page)).toMatchObject({ v: 1, audio: 1, music: 8, sfx: 8 });
   // Enter on the row goes round to Enhanced.
-  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter', { delay: 300 });
   await expect.poll(() => lf(page, (g) => g.debugAudio().mode)).toBe('enhanced');
   expect(await stored(page)).toMatchObject({ audio: 2 });
   // Music and Effects moved here: Down, then Left lowers the meter and saves the level.
@@ -88,7 +88,7 @@ test('Options > Sound: Left and Enter change the style, which is saved, and Esca
   expect(checked).toBeGreaterThan(3);
   expect(problems, JSON.stringify(problems)).toMatchObject({ pageOverflow: [], clipped: [] });
   // Escape goes back to Options with the selection on Sound.
-  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape', { delay: 300 });
   await expect(page.locator('#overlay h2')).toHaveText('Options');
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Sound');
   expect(errors).toEqual([]);
