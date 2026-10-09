@@ -64,7 +64,7 @@ test('Options > Sound: Left and Enter change the style, which is saved, and Esca
     () => document.querySelector('#overlay h2')?.textContent === 'Sound',
   );
   await expect(page.locator('#overlay h2')).toHaveText('Sound');
-  expect(await labels(page)).toEqual(['Style', 'Music', 'Effects', 'Reset', 'Back']);
+  expect(await labels(page)).toEqual(['Style', 'Music', 'Effects', 'Sound lab', 'Reset', 'Back']);
   // Auto resolves to the game's default.
   expect(await styleValue(page)).toBe('Enhanced');
   expect((await lf(page, (g) => g.debugAudio())).mode).toBe('enhanced');
@@ -136,4 +136,41 @@ test('?audio= wins over the saved style, fixes Style and writes nothing', async 
   await expect.poll(async () => (await stored(page))?.['music']).toBe(7);
   expect((await stored(page))?.['audio']).toBe(2);
   expect((await lf(page, (g) => g.debugAudio())).mode).toBe('classic');
+});
+
+test('Options > Sound: the Sound lab row is Off by default, and On it shows the Lab button without ?debug, closing it when turned Off', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  const options = page.locator('#title .menu button', { hasText: 'Options' });
+  await expect(options).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('#labBtn, #lab')).toHaveCount(0);
+  await options.click();
+  await page.locator('#overlay .menu button', { hasText: 'Sound' }).click();
+  await expect(page.locator('#overlay h2')).toHaveText('Sound');
+  const lab = page.locator('#overlay .menu button', { hasText: 'Sound lab' });
+  await expect(lab.locator('.val')).toHaveText('Off');
+  expect((await stored(page))?.['lab']).not.toBe(true);
+  // On: the button appears at once, and the setting is saved.
+  await lab.click();
+  await expect(lab.locator('.val')).toContainText('On');
+  await expect(page.locator('#labBtn')).toBeVisible();
+  expect(await stored(page)).toMatchObject({ v: 1, lab: true });
+  // Open the lab, then switch the row Off from the keyboard: the lab closes and leaves the page.
+  await page.locator('#labBtn').click();
+  await expect(page.locator('#lab')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#lab')).toBeHidden();
+  await hold(page, 'ArrowLeft');
+  await expect(page.locator('#labBtn, #lab')).toHaveCount(0);
+  expect(await stored(page)).toMatchObject({ lab: false });
+  expect(errors).toEqual([]);
+});
+
+test('?debug shows the Lab button whatever the Sound lab option says', async ({ page }) => {
+  await boot(page, '');
+  await expect(page.locator('#labBtn')).toBeVisible({ timeout: 20_000 });
+  expect((await stored(page))?.['lab']).not.toBe(true);
 });

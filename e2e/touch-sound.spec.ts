@@ -31,12 +31,12 @@ const stored = (page: Page): Promise<Record<string, unknown> | null> =>
     return raw ? JSON.parse(raw) : null;
   }, KEY);
 
-test('Options > Sound on touch: 48 dp rows, the Style stepper switches the mode, and Back returns to Sound', async ({
+test('Options > Sound on touch: full-height rows, the Style stepper switches the mode, and Back returns to Sound', async ({
   page,
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  // The split menus give every row on this screen its full 48 dp at both phone heights.
+  // The split menus give the six rows their full 48 dp at 390 dp tall and 47 dp at 360 dp.
   await page.goto('/?debug&touch&title=split');
   await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
     timeout: 20_000,
@@ -51,8 +51,20 @@ test('Options > Sound on touch: 48 dp rows, the Style stepper switches the mode,
   const heights = await page
     .locator('#overlay .menu button')
     .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
-  expect(heights).toHaveLength(5);
-  expect(Math.min(...heights)).toBeGreaterThanOrEqual(47.9);
+  expect(heights).toHaveLength(6);
+  expect(Math.min(...heights)).toBeGreaterThanOrEqual(
+    page.viewportSize()!.height >= 390 ? 47.9 : 46.9,
+  );
+  // The Sound lab row sits after Effects and starts Off.
+  expect(await page.locator('#overlay .menu button .lbl').allInnerTexts()).toEqual([
+    'Style',
+    'Music',
+    'Effects',
+    'Sound lab',
+    'Reset',
+    'Back',
+  ]);
+  await expect(row(page, 'Sound lab').locator('.val')).toHaveText('Off');
   const { checked, ...problems } = await page.evaluate(audit, { roots: ['#ui', '#touch'] });
   expect(checked).toBeGreaterThan(3);
   expect(problems, JSON.stringify(problems, null, 2)).toMatchObject({
@@ -76,5 +88,36 @@ test('Options > Sound on touch: 48 dp rows, the Style stepper switches the mode,
   await tapAt(page.locator('#backBtn'), page);
   await expect(page.locator('#overlay h2')).toHaveText('Options');
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Sound');
+  expect(errors).toEqual([]);
+});
+
+test('the Sound lab row shows the Lab button without ?debug, and it is still there after a reload', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?touch&title=split');
+  const options = page.locator('#title .menu button', { hasText: 'Options' });
+  await expect(options).toBeVisible({ timeout: 20_000 });
+  // Off by default: no button and no overlay in the page.
+  await expect(page.locator('#labBtn, #lab')).toHaveCount(0);
+  await tapAt(options, page);
+  await tapAt(row(page, 'Sound'), page);
+  await expect(page.locator('#overlay h2')).toHaveText('Sound');
+  await expect(row(page, 'Sound lab').locator('.val')).toHaveText('Off');
+  await tapAt(row(page, 'Sound lab'), page);
+  await expect(row(page, 'Sound lab').locator('.val')).toHaveText('On');
+  await expect(page.locator('#labBtn')).toBeVisible();
+  expect(await stored(page)).toMatchObject({ v: 1, lab: true });
+  // It survives a reload, and Reset turns it off again.
+  await page.reload();
+  await expect(page.locator('#labBtn')).toBeVisible({ timeout: 20_000 });
+  await tapAt(options, page);
+  await tapAt(row(page, 'Sound'), page);
+  await expect(row(page, 'Sound lab').locator('.val')).toHaveText('On');
+  await tapAt(row(page, 'Reset'), page);
+  await tapAt(row(page, 'Reset'), page);
+  await expect(page.locator('#labBtn, #lab')).toHaveCount(0);
+  expect(await stored(page)).toMatchObject({ lab: false });
   expect(errors).toEqual([]);
 });
