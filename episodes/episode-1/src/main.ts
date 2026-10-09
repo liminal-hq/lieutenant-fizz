@@ -36,6 +36,8 @@ Game.start(stage, {
   .then((game) => {
     if (query.has('debug')) {
       (window as unknown as { __lf: Game }).__lf = game;
+      // The sound lab: a Lab button for auditioning and tuning the sound by ear. `?debug&lab` opens it.
+      game.debugLab(query.has('lab'));
       // `?debug&level=N` starts straight in level N, so a phone can show a level without a keyboard.
       const level = query.get('level');
       if (level !== null) game.debugEnterLevel(Number.parseInt(level, 10));

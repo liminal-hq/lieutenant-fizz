@@ -23,8 +23,9 @@ import { frameView, type FrameView } from '@lieutenant-fizz/engine/view-scale';
 import { HeldRepeat } from '@lieutenant-fizz/engine/repeat';
 import { TouchControls } from '@lieutenant-fizz/engine/touch-ui';
 import simUrl from './wasm/sim.wasm?url';
-import { MIX, mixFor } from './audio/mix';
-import { PATTERNS } from './audio/patterns';
+import { captureState, labItems } from './audio/lab';
+import { MIX, mixFor, mixNameFor, type MixName } from './audio/mix';
+import { MUSIC, PATTERNS, SFX } from './audio/patterns';
 import { ROOMS, roomFor, roomProfile, type RoomName } from './audio/rooms';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { backAction, backEnabled } from './back';
@@ -68,6 +69,7 @@ import {
   type SlotSummary,
 } from './slots';
 import { thumbDataUrl } from './thumb';
+import { SoundLab } from './ui/sound-lab';
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
@@ -170,6 +172,11 @@ export class Game {
   private readonly audioForced: boolean;
   /** The room the sound is in, and whether the speaker is a phone's (shorter rooms, lower sends). */
   private roomName: RoomName = 'neutral';
+  /** What the sound lab holds in place of the game's choice; null follows the game. */
+  private labRoom: RoomName | null = null;
+  private labMix: MixName | null = null;
+  private labMusic = false;
+  private lab: SoundLab | null = null;
   private coarseSpeaker = false;
   private readonly ui: Ui;
   private readonly cine = new Cinematic();
@@ -1722,7 +1729,7 @@ export class Game {
   private updateRoom(force = false): void {
     const mode = this.sim.x.mode();
     const level = this.sim.get(State.LEVEL_ID);
-    const name = roomFor(this.screen, mode, level);
+    const name = this.labRoom ?? roomFor(this.screen, mode, level);
     if (name === this.roomName && !force) return;
     this.roomName = name;
     this.audio.setRoom(roomProfile(name, this.coarseSpeaker));
@@ -1730,7 +1737,9 @@ export class Game {
 
   /** Tells the audio how the music should be heard on this screen (muffled on pause, ducked under speech). */
   private syncMix(): void {
-    this.audio.setMix(mixFor(this.screen, this.sub, this.coarseSpeaker));
+    this.audio.setMix(
+      this.labMix ? { ...MIX[this.labMix] } : mixFor(this.screen, this.sub, this.coarseSpeaker),
+    );
   }
 
   private musicFor(): string | null {
@@ -1751,6 +1760,7 @@ export class Game {
   }
 
   private updateMusic(): void {
+    if (this.labMusic) return;
     const t = this.musicFor();
     if (t !== null || this.screen !== 'pause') this.audio.playMusic(t);
   }
@@ -1814,6 +1824,67 @@ export class Game {
     if (tune.mix) this.syncMix();
     if (tune.rooms) this.updateRoom(true);
     return report;
+  }
+
+  /**
+   * Test hook: adds the sound lab (a "Lab" button and its overlay) and opens it if asked, for
+   * `?debug` and `?debug&lab`. Auditioning never touches the saved options: it plays through the
+   * audio directly and holds a room, a mix state or a track only until "Follow" is chosen again.
+   */
+  debugLab(open = false): void {
+    if (!this.lab) {
+      this.lab = new SoundLab({
+        sfx: labItems(Object.keys(SFX)),
+        music: labItems(Object.keys(MUSIC)),
+        rooms: labItems(Object.keys(ROOMS)),
+        mixes: labItems(Object.keys(MIX)),
+        playSfx: (name, at) => this.audio.play(name, at),
+        playMusic: (name) => {
+          this.labMusic = true;
+          this.audio.playMusic(name, true);
+        },
+        followGame: () => {
+          this.labMusic = false;
+          this.updateMusic();
+        },
+        mode: () => this.audio.mode,
+        setMode: (m) => this.audio.setMode(m),
+        room: () => ({ held: this.labRoom, current: this.roomName }),
+        setRoom: (name) => {
+          this.labRoom = name as RoomName | null;
+          this.updateRoom(true);
+        },
+        mix: () => ({
+          held: this.labMix,
+          current: mixNameFor(this.screen, this.coarseSpeaker),
+        }),
+        setMix: (name) => {
+          this.labMix = name as MixName | null;
+          this.syncMix();
+        },
+        tune: (patch) => void this.debugAudioTune(patch),
+        state: () => captureState(),
+        status: () => {
+          const a = this.audio;
+          const ctx = a.ctxState === 'none' ? 'tap anywhere to start audio' : a.ctxState;
+          const off = [
+            a.music ? '' : 'music is off in Options',
+            a.sfx ? '' : 'sound is off in Options',
+          ];
+          return [ctx, a.mode, ...off].filter(Boolean).join(' · ');
+        },
+        copy: async (text) => {
+          try {
+            await navigator.clipboard.writeText(text);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      });
+      this.ui.mount(this.lab.button, this.lab.root);
+    }
+    if (open) this.lab.open();
   }
 
   /** Test hook: switches the phone title between its two layouts. */
