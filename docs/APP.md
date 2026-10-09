@@ -37,7 +37,7 @@ The launcher is a game-style screen, not a web page: the same menu language as t
 
 ### The App settings stop
 The last stop is App settings, with three rows:
-- **Settings:** Sound, Display and Controls tabs, with a Reset button. The Sound tab carries Style (Classic or Enhanced, starting on Auto), Music and Effects, the same three settings as the game's Options > Sound screen (later also Night mode and Mono, 8c.5).
+- **Settings:** Sound, Display and Controls tabs, with a Reset button. The Sound tab carries Style (Classic or Enhanced, starting on Auto), Music and Effects, the same three settings as the game's Options > Sound screen (which also has a Sound lab switch; the app does not) (later also Night mode and Mono, 8c.5).
 - **Saves:** export every episode's saves to one file and import them back. The file is `.fizzsave`, a versioned JSON bundle of each episode's autosave and slots, and is written through the Tauri dialog and fs plugins in the app.
 - **About:** version, licences (the Fizz font is OFL-1.1), links. Tapping Version seven times unlocks the engine panel.
 
