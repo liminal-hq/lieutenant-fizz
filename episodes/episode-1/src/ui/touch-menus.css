@@ -23,14 +23,15 @@
   left: max(calc(var(--lf-pad-x) + var(--lf-safe-left)), var(--lf-touch-left));
   right: max(calc(var(--lf-pad-x) + var(--lf-safe-right)), var(--lf-touch-right));
 }
-/* The one-column title gives its height to the menu: the bottom reserve is the hint line plus a small
-   gap (not the wide padding of the desktop), the wordmark sits closer to the menu, and the rows take
-   the width of the column so the whole line is the target. The text is outlined by one glyph pixel so
-   it reads over the cookies behind it. */
+/* The one-column title gives its height to the menu: the bottom reserve is the hint bar (one line, or its
+   measured height when a keyboard's hints wrap it, `--lf-keys-h`) plus a small gap (not the wide padding of
+   the desktop), the wordmark sits closer to the menu, and the rows take the width of the column so the whole
+   line is the target. The text is outlined by one glyph pixel so it reads over the cookies behind it. */
 #stage[data-touch] #title {
   gap: calc(var(--n) * 4px);
   padding-bottom: calc(
-    var(--lf-keys-bottom) + var(--lf-n-hint) * var(--lf-line) + 8px + var(--lf-safe-bottom)
+    var(--lf-keys-bottom) + max(var(--lf-n-hint) * var(--lf-line), var(--lf-keys-h, 0px)) + 8px +
+      var(--lf-safe-bottom)
   );
 }
 /* The one-column overlay screens keep their rows above the hint bar even when it wraps to a second line
