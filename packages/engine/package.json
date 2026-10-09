@@ -15,6 +15,7 @@
     "./font/tokens": "./src/font/tokens.ts",
     "./haptic-backends": "./src/haptic-backends.ts",
     "./haptic-pattern": "./src/haptic-pattern.ts",
+    "./haptic-strength": "./src/haptic-strength.ts",
     "./haptics": "./src/haptics.ts",
     "./input": "./src/input.ts",
     "./instances": "./src/instances.ts",

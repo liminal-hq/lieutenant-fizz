@@ -1,4 +1,4 @@
-// The player's touch control settings: size, opacity, hand, haptics and moved controls, stored on this device.
+// The player's touch control settings: size, opacity, hand, haptic strength and moved controls, stored on this device.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -6,6 +6,7 @@
 // Pure, with no DOM: parsing, saving and turning the settings into a `TouchSpec` are unit-tested. The
 // settings belong to the device and every episode shares them, so they live in the engine.
 
+import { DEFAULT_STRENGTH, isStrength } from './haptic-strength';
 import {
   DEFAULT_TOUCH_SPEC,
   type EdgeOffset,
@@ -31,8 +32,11 @@ export interface TouchSettings {
   /** Opacity of the controls in play, in percent (one of {@link OPACITIES}). */
   opacity: number;
   leftHanded: boolean;
-  /** Stored here so one place holds every touch setting; the haptics runtime reads it. */
-  haptics: boolean;
+  /**
+   * How strong the phone's haptics are: 0 Off, 1 Light, 2 Medium, 3 Strong (see `haptic-strength.ts`). It is
+   * a device setting like the others here, and the Haptics screen is where it is changed.
+   */
+  hapticStrength: number;
   /** Controls moved from their default place; a missing control is where it starts. */
   pos: Partial<Record<MovableId, EdgeOffset>>;
 }
@@ -41,7 +45,7 @@ export const DEFAULT_TOUCH_SETTINGS: Readonly<TouchSettings> = {
   size: 'M',
   opacity: 85,
   leftHanded: false,
-  haptics: true,
+  hapticStrength: DEFAULT_STRENGTH,
   pos: {},
 };
 
@@ -68,6 +72,16 @@ const snapOpacity = (v: unknown, fallback: number): number => {
   return best;
 };
 
+/**
+ * The stored strength. Settings saved before there were strengths kept a `haptics` boolean: false reads
+ * as Off and anything else as the default. A `hapticStrength` that is there but not 0 to 3 is Strong.
+ */
+const storedStrength = (raw: Record<string, unknown>): number => {
+  const v = raw['hapticStrength'];
+  if (v !== undefined) return isStrength(v) ? v : DEFAULT_STRENGTH;
+  return raw['haptics'] === false ? 0 : DEFAULT_STRENGTH;
+};
+
 /** Parses stored settings; anything missing or invalid falls back to its default, and an unknown version to all defaults. */
 export function parseTouchSettings(json: string | null): TouchSettings {
   const d = defaults();
@@ -86,7 +100,7 @@ export function parseTouchSettings(json: string | null): TouchSettings {
       size: SIZES.includes(raw['size'] as TouchSize) ? (raw['size'] as TouchSize) : d.size,
       opacity: snapOpacity(raw['opacity'], d.opacity),
       leftHanded: typeof raw['leftHanded'] === 'boolean' ? raw['leftHanded'] : d.leftHanded,
-      haptics: typeof raw['haptics'] === 'boolean' ? raw['haptics'] : d.haptics,
+      hapticStrength: storedStrength(raw),
       pos,
     };
   } catch {
@@ -101,7 +115,7 @@ export function serialiseTouchSettings(s: TouchSettings): string {
     size: s.size,
     opacity: s.opacity,
     leftHanded: s.leftHanded,
-    haptics: s.haptics,
+    hapticStrength: s.hapticStrength,
     pos: s.pos,
   });
 }
