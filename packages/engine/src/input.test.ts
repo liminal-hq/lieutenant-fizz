@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   Input,
   inputBits,
+  isFullscreenKey,
   keysToBits,
   nextDevice,
   padLostInUse,
@@ -137,5 +138,35 @@ describe('pickPad', () => {
   it('returns null with no pad', () => {
     expect(pickPad([], -1)).toBeNull();
     expect(pickPad([null, null], 0)).toBeNull();
+  });
+});
+
+describe('the fullscreen key', () => {
+  const press = (over: Partial<Parameters<typeof isFullscreenKey>[0]> = {}) =>
+    isFullscreenKey({
+      code: 'KeyF',
+      repeat: false,
+      ctrlKey: false,
+      altKey: false,
+      metaKey: false,
+      ...over,
+    });
+
+  it('is F on its own, on the first press only', () => {
+    expect(press()).toBe(true);
+    expect(press({ repeat: true })).toBe(false);
+  });
+
+  it('leaves Ctrl+F, Alt+F (Alt is Pogo) and Meta+F alone', () => {
+    expect(press({ ctrlKey: true })).toBe(false);
+    expect(press({ altKey: true })).toBe(false);
+    expect(press({ metaKey: true })).toBe(false);
+  });
+
+  it('is not any other key, and F holds no game bit in either layout', () => {
+    for (const code of ['KeyD', 'KeyG', 'F5', 'F9', 'Enter', 'Space', 'KeyC', 'KeyZ', 'KeyX']) {
+      expect(press({ code })).toBe(false);
+    }
+    expect(keysToBits(new Set(['KeyF']))).toBe(0);
   });
 });

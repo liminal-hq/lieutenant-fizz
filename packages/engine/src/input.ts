@@ -29,7 +29,8 @@ export type Command =
   | { type: 'quickLoad' }
   | { type: 'togglePanel' }
   | { type: 'zoom'; factor: number }
-  | { type: 'zoomReset' };
+  | { type: 'zoomReset' }
+  | { type: 'fullscreen' };
 
 /** Which kind of input the player last used, so hints can show the matching labels. */
 export type InputDevice = 'keyboard' | 'gamepad' | 'touch';
@@ -63,6 +64,21 @@ export function nextDevice(current: InputDevice, event: DeviceEvent, padsLeft = 
  */
 export function padLostInUse(device: InputDevice, lastPad: number, index: number): boolean {
   return device === 'gamepad' && (lastPad < 0 || lastPad === index);
+}
+
+/**
+ * Whether a key press is the fullscreen shortcut: `F` on its own. `F` is free in both layouts (movement
+ * is the arrows and WASD, the actions Ctrl, Alt and Space or Z, X and C), so it needs no rebinding.
+ * Ctrl, Alt (Pogo) and Meta with `F` are left to the browser and the game, and a held key does not repeat.
+ */
+export function isFullscreenKey(e: {
+  code: string;
+  repeat: boolean;
+  ctrlKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+}): boolean {
+  return e.code === 'KeyF' && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey;
 }
 
 const MAPPED = new Set([
@@ -186,6 +202,8 @@ export class InputManager {
     this.setDevice('key');
     if (e.repeat) return;
     this.keys.add(e.code);
+    // Emitted inside the keydown handler, so a handler can ask for fullscreen while the press counts as a gesture.
+    if (isFullscreenKey(e)) this.emit({ type: 'fullscreen' });
     switch (e.code) {
       case 'Escape':
       case 'KeyP':
