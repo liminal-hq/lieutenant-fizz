@@ -9,11 +9,19 @@
 // (CSS) and the icons inside each face.
 
 import type { InputManager } from './input';
-import { contains, hitTest, type ControlId, type TouchLayout } from './touch';
+import {
+  contains,
+  hitTest,
+  type ControlId,
+  type Rect,
+  type Shape,
+  type TouchLayout,
+} from './touch';
 import {
   DEFAULT_TOUCH_SPEC,
   dragOffset,
   placeControls,
+  safeRect,
   controlSide,
   sideGutters,
   sideTops,
@@ -291,6 +299,20 @@ export class TouchControls {
     if (!this.visible || !this.placed) return { left: 0, right: 0 };
     const w = this.layer.clientWidth || window.innerWidth;
     return sideTops(this.placed, w, this.shown, margin);
+  }
+
+  /**
+   * The window's safe area and the hit area and drawn face of each control showing now, in CSS pixels, for
+   * content that must keep clear of them (null when the controls are hidden).
+   */
+  boxes(): { safe: Rect; controls: { hit: Shape; face: Shape }[] } | null {
+    if (!this.visible || !this.placed) return null;
+    const { w, h } = this.size();
+    const placed = this.placed;
+    return {
+      safe: safeRect(w, h, this.readInsets()),
+      controls: this.shown.map((id) => ({ hit: placed.hit[id], face: placed.face[id] })),
+    };
   }
 
   /** The hand the layout is for: `right` has the D-pad on the left, `left` has it on the right. */

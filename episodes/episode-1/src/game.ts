@@ -175,6 +175,7 @@ import { BEN_LOOK, BEN_WAVE, benFrame, benScale, type BenPose } from './titleBen
 import {
   Ui,
   type HudState,
+  type MapAnchor,
   type TitleLayout,
   type MenuItem,
   type OptionKey,
@@ -253,6 +254,8 @@ const PAUSE_NOTE =
   'Saves stay on this device. The map also saves automatically each time you return to it.';
 
 const TALL = { level: 13, map: 12, cine: CINE_TALL };
+/** Ben's body on the map is this many world units across (`Body::new(x, y, 0.6, 0.6)` in the game crate). */
+const BEN_BODY = 0.6;
 
 /** The Episode 1 game shell: boots the engine, runs the loop and drives the screen flow. */
 export class Game {
@@ -809,6 +812,23 @@ export class Game {
     });
     this.lastCount = info.instances;
     this.lastCalls = info.calls;
+    this.camDrawn.x = camX;
+    this.camDrawn.y = camY;
+    if (this.touchMode && this.ui.promptShown) {
+      this.ui.dockPrompt(this.benAnchor(camX, camY), this.touchUi.boxes());
+    }
+  }
+
+  private readonly camDrawn = { x: 0, y: 0 };
+
+  /** Where Ben is on screen on the map (the middle of his body), for the map panel to dock away from him. */
+  private benAnchor(camX: number, camY: number): MapAnchor | null {
+    if (this.sim.x.mode() !== Mode.MAP) return null;
+    const r = this.renderer;
+    const ppu = r.pixelsPerUnit(this.halfH);
+    const x = (this.sim.get(State.PLAYER_X) + BEN_BODY / 2 - camX) * ppu + r.width / 2;
+    const y = r.height / 2 - (this.sim.get(State.PLAYER_Y) + BEN_BODY / 2 - camY) * ppu;
+    return { x, y, ppu };
   }
 
   // ---------- Events from the sim ----------
@@ -3187,6 +3207,7 @@ export class Game {
       ammo: this.sim.get(State.AMMO),
       bits: this.lastBits,
       touch: this.touchMode,
+      ben: this.benAnchor(this.camDrawn.x, this.camDrawn.y),
       custom: this.touchUi.placed?.custom ?? false,
       back: { enabled: this.backOn(), armed: this.backGuard.armed },
       lifecycle: {

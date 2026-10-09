@@ -56,6 +56,25 @@
     calc(100% - var(--lf-prompt-left, 0px) - var(--lf-prompt-right, 0px))
   );
 }
+/*
+ * Docked on the map (map-panel.ts): the card sits at a measured place beside the controls, away from Ben,
+ * and wraps to more lines in its narrower column. It takes no touches and does not animate. Until the
+ * game has placed it, it stays unseen.
+ */
+#stage[data-touch] #prompt[data-dock] {
+  left: var(--lf-dock-x, 0px);
+  top: var(--lf-dock-y, 0px);
+  right: auto;
+  bottom: auto;
+  margin: 0;
+  width: var(--lf-dock-w, auto);
+  max-width: none;
+  text-align: left;
+  pointer-events: none;
+}
+#stage[data-touch] #prompt[data-dock='pending'] {
+  visibility: hidden;
+}
 
 /* Shown over everything while a touch device is held upright. */
 #rotate {
@@ -74,4 +93,7 @@
   --n: var(--lf-n);
   margin: 0;
   color: var(--lf-muted);
+}
+#stage[data-touch] #prompt[data-dock] .a {
+  margin-top: calc(var(--n) * 1px);
 }
