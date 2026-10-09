@@ -2,6 +2,21 @@
 #lab .lab-switch[hidden] {
   display: none;
 }
+/* The Sound | Haptics switch picks a lab, so it stands apart from the controls inside it (the backend choice, strength and so on): a wider gap and a rule after it keep the two groups from reading as one row of chips. */
+#lab .lab-head .lab-switch {
+  position: relative;
+  margin-right: calc(var(--n) * 8px);
+}
+#lab .lab-head .lab-switch::after {
+  content: '';
+  position: absolute;
+  top: 12%;
+  bottom: 12%;
+  right: calc(var(--n) * -4px - 1px);
+  border-right: 2px solid var(--lf-accent);
+  opacity: 0.6;
+  pointer-events: none;
+}
 #lab button:disabled {
   opacity: 0.45;
   cursor: default;
