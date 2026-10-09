@@ -2319,6 +2319,7 @@ export class Game {
     };
     const onFullscreen = (): void => {
       this.onFullscreenChange();
+      this.ui.fullscreenChanged();
       this.syncBack();
       this.syncFullscreenButton();
       this.syncHints();

@@ -415,23 +415,24 @@ export class Ui {
     this.relayout();
     this.refreshHints();
     this.unwatch = watchResize(() => this.relayout());
-    // Fullscreen resizes the window too, but the story repacks as soon as the mode changes.
-    document.addEventListener('fullscreenchange', this.onFullscreen);
     // The wordmark is measured in the Fizz font, so measure again once it has loaded.
     void document.fonts?.ready.then(() => {
       if (!this.disposed) this.relayout();
     });
   }
 
-  private readonly onFullscreen = (): void => {
+  /**
+   * Lays the overlay out again now. Fullscreen resizes the window too, but the story repacks as soon
+   * as the mode changes, so the game calls this when its fullscreen backend reports a change.
+   */
+  fullscreenChanged(): void {
     if (!this.disposed) this.relayout();
-  };
+  }
 
   /** Stops listening to the window and cancels pending timers. */
   dispose(): void {
     this.disposed = true;
     this.unwatch();
-    document.removeEventListener('fullscreenchange', this.onFullscreen);
     window.clearTimeout(this.toastTimer);
   }
 
