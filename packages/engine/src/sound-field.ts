@@ -6,6 +6,23 @@
 /** Classic plays today's sound untouched; Enhanced places sound effects in the stereo field. */
 export type AudioMode = 'classic' | 'enhanced';
 
+/**
+ * The mode a player gets when nothing chose one. Enhanced is the default; Classic stays available
+ * with `?audio=classic` until the Options row lands. `GameAudio` itself still starts in Classic, so
+ * the engine never changes behaviour unless a game asks for a mode.
+ */
+export const AUDIO_DEFAULT: AudioMode = 'enhanced';
+
+/** Reads a `?audio=` value: `classic` or `enhanced` choose a mode, anything else chooses nothing. */
+export function parseAudioParam(value: string | null | undefined): AudioMode | undefined {
+  return value === 'classic' || value === 'enhanced' ? value : undefined;
+}
+
+/** The mode in effect: the one chosen explicitly, or `AUDIO_DEFAULT`. */
+export function resolveAudioMode(chosen: AudioMode | undefined): AudioMode {
+  return chosen ?? AUDIO_DEFAULT;
+}
+
 /** Where a sound sits: `pan` from -1 (left) to 1 (right), and a loudness multiplier. */
 export interface SoundAt {
   pan: number;

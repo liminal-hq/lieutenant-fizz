@@ -7,7 +7,7 @@ import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
-import { placeSound, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
+import { placeSound, resolveAudioMode, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
 import {
   Input as Bits,
@@ -98,7 +98,7 @@ export interface GameOptions {
   pixels?: 'sharp' | 'soft';
   /**
    * `classic` is the sound as it has always been; `enhanced` places sound effects in the stereo
-   * field by where they happen on screen. Left out, the game plays Classic.
+   * field by where they happen on screen. Left out, the game plays `AUDIO_DEFAULT` (Enhanced).
    */
   audio?: AudioMode;
   /** `split` tries the phone title with the logo and the menu on opposite sides; the default is one column. */
@@ -163,7 +163,7 @@ export class Game {
   private readonly forcedBack: boolean;
   private unwatchBack: () => void = () => {};
   private readonly audio: GameAudio;
-  /** Whether `GameOptions.audio` chose the audio mode. */
+  /** Whether `GameOptions.audio` chose the audio mode, rather than the default applying. */
   private readonly audioForced: boolean;
   private readonly ui: Ui;
   private readonly cine = new Cinematic();
@@ -253,7 +253,7 @@ export class Game {
     });
     this.audio = new GameAudio(PATTERNS);
     this.audioForced = options.audio !== undefined;
-    if (options.audio) this.audio.setMode(options.audio);
+    this.audio.setMode(resolveAudioMode(options.audio));
     this.settings = readOptions(this.store);
     this.applySettings();
     this.input.onDevice(() => this.syncHints());

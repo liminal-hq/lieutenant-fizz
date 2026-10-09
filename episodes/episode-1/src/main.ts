@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { parseAudioParam } from '@lieutenant-fizz/engine/sound-field';
 import { Game } from './game';
 
 const stage = document.getElementById('stage');
@@ -15,10 +16,9 @@ const query = new URLSearchParams(location.search);
 const pixelsParam = query.get('pixels');
 const pixels = pixelsParam === 'sharp' || pixelsParam === 'soft' ? pixelsParam : undefined;
 
-// `?audio=enhanced` places sound effects in the stereo field and `?audio=classic` keeps the sound as
-// it has always been. Anything else leaves the default, which is Classic.
-const audioParam = query.get('audio');
-const audio = audioParam === 'classic' || audioParam === 'enhanced' ? audioParam : undefined;
+// Sound effects are placed in the stereo field (Enhanced) unless `?audio=classic` keeps the sound as
+// it has always been. `?audio=enhanced` is the default spelled out. Anything else leaves the default.
+const audio = parseAudioParam(query.get('audio'));
 
 // `?title=split` tries the phone title with the logo and the menu on opposite sides.
 const title = query.get('title') === 'split' ? 'split' : undefined;
