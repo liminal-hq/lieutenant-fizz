@@ -32,11 +32,12 @@ export const MIX: Record<MixName, MixShape> = {
 /**
  * The mix for a screen, and the sub-screen open over it. Pause and everything opened from it
  * (Options, Saves, Controls) are muffled; the title and its sub-screens, play (which includes the
- * map) and the credits are open. A Sound screen, when it exists, stays open even from Pause, so the music can be
+ * map) and the credits are open. The Sound screen stays open even from Pause, so the music can be
  * judged while its volume is changed. The result is a copy, so the caller cannot change `MIX`.
  */
 export function mixFor(screen: ShellScreen, sub: SubScreen, coarse = false): MixShape {
-  void sub; // Pause muffles whatever is open over it; the title's sub-screens are open like the title.
+  // Pause muffles whatever is open over it, except Sound; the title's sub-screens are open like the title.
+  if (sub === 'sound') return { ...MIX.open };
   return { ...MIX[mixNameFor(screen, coarse)] };
 }
 

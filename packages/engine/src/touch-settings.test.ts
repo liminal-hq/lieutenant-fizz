@@ -27,12 +27,12 @@ describe('parseTouchSettings', () => {
     }
   });
 
-  it('defaults to Medium, 85%, right-handed, haptics on and nothing moved', () => {
+  it('defaults to Medium, 85%, right-handed, Strong haptics and nothing moved', () => {
     expect(DEFAULT_TOUCH_SETTINGS).toEqual({
       size: 'M',
       opacity: 85,
       leftHanded: false,
-      haptics: true,
+      hapticStrength: 3,
       pos: {},
     });
   });
@@ -67,18 +67,37 @@ describe('parseTouchSettings', () => {
     expect(parseTouchSettings('{"v":1,"opacity":1e999}').opacity).toBe(85);
   });
 
-  it('accepts only real booleans', () => {
-    expect(parseTouchSettings(v1({ leftHanded: true, haptics: false }))).toMatchObject({
+  it('accepts only a real boolean for the hand', () => {
+    expect(parseTouchSettings(v1({ leftHanded: true }))).toMatchObject({ leftHanded: true });
+    expect(parseTouchSettings(v1({ leftHanded: 'true' })).leftHanded).toBe(false);
+    expect(parseTouchSettings(v1({ leftHanded: 1 })).leftHanded).toBe(false);
+  });
+
+  it('reads the haptic strength, and falls back to Strong for anything else', () => {
+    for (const level of [0, 1, 2, 3])
+      expect(parseTouchSettings(v1({ hapticStrength: level })).hapticStrength).toBe(level);
+    for (const bad of [4, -1, 1.5, '2', null, true, 'loud', Number.NaN, [2]])
+      expect(parseTouchSettings(v1({ hapticStrength: bad })).hapticStrength, String(bad)).toBe(3);
+  });
+
+  it('reads the boolean an older save kept: false is Off, anything else is Strong', () => {
+    expect(parseTouchSettings(v1({ haptics: false })).hapticStrength).toBe(0);
+    expect(parseTouchSettings(v1({ haptics: true })).hapticStrength).toBe(3);
+    expect(parseTouchSettings(v1({ haptics: 'false' })).hapticStrength).toBe(3);
+    expect(parseTouchSettings(v1({ haptics: 0 })).hapticStrength).toBe(3);
+    // A strength, when there is one, wins over the old boolean.
+    expect(parseTouchSettings(v1({ haptics: false, hapticStrength: 2 })).hapticStrength).toBe(2);
+    expect(parseTouchSettings(v1({ haptics: false, hapticStrength: 'x' })).hapticStrength).toBe(3);
+  });
+
+  it('loads an old save unchanged apart from the strength', () => {
+    const old = v1({ size: 'L', opacity: 40, leftHanded: true, haptics: false, pos: {} });
+    expect(parseTouchSettings(old)).toEqual({
+      size: 'L',
+      opacity: 40,
       leftHanded: true,
-      haptics: false,
-    });
-    expect(parseTouchSettings(v1({ leftHanded: 'true', haptics: 'false' }))).toMatchObject({
-      leftHanded: false,
-      haptics: true,
-    });
-    expect(parseTouchSettings(v1({ leftHanded: 1, haptics: 0 }))).toMatchObject({
-      leftHanded: false,
-      haptics: true,
+      hapticStrength: 0,
+      pos: {},
     });
   });
 
@@ -127,7 +146,7 @@ describe('parseTouchSettings', () => {
       size: 'L',
       opacity: 40,
       leftHanded: true,
-      haptics: false,
+      hapticStrength: 1,
       pos: { dpad: { side: 75, bottom: 115 }, fire: { side: 10, bottom: 20 } },
     };
     expect(parseTouchSettings(serialiseTouchSettings(s))).toEqual(s);
@@ -142,7 +161,7 @@ describe('serialiseTouchSettings', () => {
       extra: 1,
     } as TouchSettings);
     expect(json).toBe(
-      '{"v":1,"size":"M","opacity":85,"leftHanded":false,"haptics":true,"pos":{"dpad":{"side":75,"bottom":115}}}',
+      '{"v":1,"size":"M","opacity":85,"leftHanded":false,"hapticStrength":3,"pos":{"dpad":{"side":75,"bottom":115}}}',
     );
   });
 });

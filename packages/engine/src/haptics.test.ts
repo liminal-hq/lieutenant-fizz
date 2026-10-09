@@ -5,6 +5,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBackend, noneBackend, type FakeBackend } from './haptic-backends';
+import { RUMBLE_COMPILE, VIBRATE_COMPILE } from './haptic-pattern';
 import type { HapticCue, HapticTable } from './haptic-pattern';
 import { GameHaptics, onScreen, routeFor } from './haptics';
 
@@ -532,5 +533,126 @@ describe('GameHaptics routing', () => {
     expect(routeFor('gamepad')).toBe('controller');
     expect(routeFor('touch')).toBe('device');
     expect(routeFor('keyboard')).toBe('device');
+  });
+});
+
+describe('GameHaptics.preview', () => {
+  let pad: FakeBackend;
+  beforeEach(() => {
+    pad = fakeBackend({ target: 'controller' });
+    h.setBackends({ controller: pad });
+  });
+
+  it('plays a game cue at once on the target, outside a level and without a flush', () => {
+    h.setGameplay(false);
+    expect(h.preview('light', 'device')).toBe(true);
+    expect(fake.plays).toHaveLength(1);
+    expect(pad.plays).toHaveLength(0);
+    expect(h.preview('heavy', 'controller')).toBe(true);
+    expect(pad.plays).toHaveLength(1);
+  });
+
+  it('plays at the strength of the target it is sent to', () => {
+    h.setScale(0.5, 0.75);
+    h.preview('light', 'device');
+    h.preview('light', 'controller');
+    expect(fake.plays[0]?.scale).toBe(0.5);
+    expect(pad.plays[0]?.scale).toBe(0.75);
+  });
+
+  it('plays nothing at a strength of Off, for an unknown cue or while the page is hidden', () => {
+    h.setScale(0, 1);
+    expect(h.preview('light', 'device')).toBe(false);
+    expect(h.preview('light', 'controller')).toBe(true);
+    expect(h.preview('nope', 'controller')).toBe(false);
+    h.setActive(false);
+    expect(h.preview('light', 'controller')).toBe(false);
+    expect(fake.plays).toHaveLength(0);
+    expect(pad.plays).toHaveLength(1);
+  });
+
+  it('ignores the cooldown, so every step of a held key is felt, and shows in the report', () => {
+    h.preview('light', 'device');
+    h.preview('light', 'device');
+    expect(fake.plays).toHaveLength(2);
+    expect(h.report().plays.map((p) => p.cue)).toEqual(['light', 'light']);
+  });
+});
+
+describe('GameHaptics.audition', () => {
+  let pad: FakeBackend;
+  const tap = {
+    events: [{ kind: 'transient' as const, at: 0, intensity: 0.7, sharpness: 0.2 }],
+  };
+  beforeEach(() => {
+    pad = fakeBackend({ target: 'controller' });
+    h.setBackends({ controller: pad });
+  });
+
+  it('plays at once on the target it is given, whatever the lane, route, strength and cooldown', () => {
+    h.setGameplay(false);
+    h.setRoute('none');
+    h.setScale(0, 0);
+    expect(h.audition(tap, 'device', 1.5)?.ok).toBe(true);
+    expect(h.audition(tap, 'device', 1.5)?.ok).toBe(true);
+    expect(h.audition(tap, 'controller')?.ok).toBe(true);
+    expect(fake.plays.map((p) => p.scale)).toEqual([1.5, 1.5]);
+    expect(pad.plays).toHaveLength(1);
+  });
+
+  it('plays nothing while the page is hidden', () => {
+    h.setActive(false);
+    expect(h.audition(tap, 'device')).toBeNull();
+    expect(fake.plays).toHaveLength(0);
+  });
+
+  it('shows in the report as an audition with what it compiled to', () => {
+    h.audition(tap, 'device', 1);
+    expect(h.report().plays[0]).toMatchObject({
+      cue: 'audition',
+      target: 'device',
+      ok: true,
+      compiled: [21],
+    });
+  });
+
+  it('reports a target that cannot play without throwing', () => {
+    h.setBackends({ controller: fakeBackend({ available: false, target: 'controller' }) });
+    expect(h.audition(tap, 'controller')).toMatchObject({ ok: false });
+  });
+});
+
+describe('GameHaptics.cues and tuning', () => {
+  it('gives a copy of the cues, tuning included, that cannot change the live table', () => {
+    h.tune({ cues: { light: { cooldownMs: 7 } } });
+    const c = h.cues();
+    expect(c['light']?.cooldownMs).toBe(7);
+    c['light']!.cooldownMs = 999;
+    expect(h.cues()['light']?.cooldownMs).toBe(7);
+  });
+
+  it('gives the compiler constants and budget as tuned', () => {
+    expect(h.tuning()).toEqual({
+      compile: VIBRATE_COMPILE,
+      rumble: RUMBLE_COMPILE,
+      budget: { onMs: 400, windowMs: 1000 },
+    });
+    h.tune({ compile: { floor: 0.3 }, budget: { onMs: 250 } });
+    expect(h.tuning().compile.floor).toBe(0.3);
+    expect(h.tuning().budget.onMs).toBe(250);
+  });
+
+  it('tunes the rumble compiler through the controller backend and refuses it without one', () => {
+    expect(h.tune({ rumble: { tapBase: 60 } })).toEqual({
+      applied: [],
+      refused: ['rumble.tapBase'],
+    });
+    const pad = fakeBackend({ target: 'controller' });
+    h.setBackends({ controller: pad });
+    const r = h.tune({ rumble: { tapBase: 60, slice: 5, bogus: 1 } as never });
+    expect(r.applied).toEqual(['rumble.tapBase']);
+    expect(r.refused.sort()).toEqual(['rumble.bogus', 'rumble.slice']);
+    expect(pad.tunedRumble).toEqual([{ tapBase: 60 }]);
+    expect(h.tuning().rumble.tapBase).toBe(60);
   });
 });

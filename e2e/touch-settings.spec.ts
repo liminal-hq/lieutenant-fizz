@@ -28,7 +28,7 @@ interface Settings {
   size: string;
   opacity: number;
   leftHanded: boolean;
-  haptics: boolean;
+  hapticStrength: number;
   pos: Record<string, { side: number; bottom: number }>;
 }
 interface Lf {
@@ -213,7 +213,7 @@ for (const [name, value] of CORRUPT) {
     expect((await lf(page, (g) => g.debugState)).custom).toBe(false);
     const s = await lf(page, (g) => g.debugTouchSettings);
     expect(s.pos).toEqual({});
-    expect(s).toEqual({ size: 'M', opacity: 85, leftHanded: false, haptics: true, pos: {} });
+    expect(s).toEqual({ size: 'M', opacity: 85, leftHanded: false, hapticStrength: 3, pos: {} });
     expect(
       await page.evaluate(() => getComputedStyle(document.querySelector('#touch')!).opacity),
     ).toBe('0.85');
@@ -248,7 +248,7 @@ test('with nothing stored the layout is the default and opacity is 85%', async (
     size: 'M',
     opacity: 85,
     leftHanded: false,
-    haptics: true,
+    hapticStrength: 3,
     pos: {},
   });
   expect(
@@ -354,20 +354,28 @@ test('Options offers Touch controls on touch, and it opens the Touch controls sc
   });
   await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('options'));
   const labels = await rowLabels(page);
-  // Before Back, after the setting rows.
+  // Before Back, after the setting rows; Haptics sits under Sound where the phone can vibrate.
   expect(labels.slice(-2)).toEqual(['Touch controls', 'Back']);
-  expect(labels).toHaveLength(8);
+  expect(labels).toEqual([
+    'Sound',
+    ...((await canVibrate(page)) ? ['Haptics'] : []),
+    'Captions',
+    'Controls',
+    'Text size',
+    'Motion',
+    'Touch controls',
+    'Back',
+  ]);
   const touchRow = row(page, 'Touch controls');
   // It opens a screen, so it has no steppers.
   await expect(touchRow.locator('.step')).toHaveCount(0);
   await tapAt(page, touchRow);
   await expect(page.locator('#overlay h2')).toHaveText('Touch controls');
-  const vibrates = await canVibrate(page);
+  // Haptics has its own screen under Options, so it is not a row here.
   expect(await rowLabels(page)).toEqual([
     'Size',
     'Opacity',
     'Left-handed',
-    ...(vibrates ? ['Haptics'] : []),
     'Move controls',
     'Reset',
     'Back',
@@ -493,7 +501,7 @@ test('Reset needs two taps and puts every setting back', async ({ page }) => {
   await tapAt(page, row(page, 'Reset'));
   await expect
     .poll(() => lf(page, (g) => g.debugTouchSettings))
-    .toEqual({ size: 'M', opacity: 85, leftHanded: false, haptics: true, pos: {} });
+    .toEqual({ size: 'M', opacity: 85, leftHanded: false, hapticStrength: 3, pos: {} });
   expect(await rowValue(page, 'Size')).toBe('Medium');
   expect(await rowValue(page, 'Left-handed')).toBe('Off');
   expect((await stored(page))?.size).toBe('M');

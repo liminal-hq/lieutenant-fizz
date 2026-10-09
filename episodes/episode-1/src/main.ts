@@ -5,6 +5,7 @@
 
 import { parseAudioParam } from '@lieutenant-fizz/engine/sound-field';
 import { Game } from './game';
+import { parseHapticsParam } from './url-lock';
 
 const stage = document.getElementById('stage');
 if (!stage) throw new Error('missing #stage');
@@ -23,7 +24,9 @@ const audio = parseAudioParam(query.get('audio'));
 // `?title=split` tries the phone title with the logo and the menu on opposite sides.
 const title = query.get('title') === 'split' ? 'split' : undefined;
 
-// `?haptics` turns on the phone's vibration (and, later, controller rumble), which are still being tried.
+// Haptics (the phone's vibration and a controller's rumble) are on where the device has them. `?haptics`
+// (or `?haptics=on`) forces them on and `?haptics=off` forces them off, for this visit only.
+const haptics = parseHapticsParam(query.get('haptics'));
 
 // `?back` makes the browser's Back button the game's in an ordinary tab, to try it without fullscreen.
 
@@ -31,7 +34,7 @@ Game.start(stage, {
   previewStinger: query.has('previewStinger'),
   touch: query.has('touch'),
   back: query.has('back'),
-  haptics: query.has('haptics'),
+  ...(haptics ? { haptics } : {}),
   ...(pixels ? { pixels } : {}),
   ...(audio ? { audio } : {}),
   ...(title ? { title } : {}),
@@ -39,8 +42,9 @@ Game.start(stage, {
   .then((game) => {
     if (query.has('debug')) {
       (window as unknown as { __lf: Game }).__lf = game;
-      // The sound lab: a Lab button for auditioning and tuning the sound by ear. `?debug&lab` opens it.
-      game.debugLab(query.has('lab'));
+      // The labs: a Lab button for auditioning and tuning the sound and the haptics. `?debug&lab` opens
+      // the sound lab and `?debug&lab=haptics` the haptics lab.
+      void game.debugLab(query.get('lab') === 'haptics' ? 'haptics' : query.has('lab'));
       // `?debug&level=N` starts straight in level N, so a phone can show a level without a keyboard.
       const level = query.get('level');
       if (level !== null) game.debugEnterLevel(Number.parseInt(level, 10));

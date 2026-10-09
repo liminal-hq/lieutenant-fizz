@@ -922,6 +922,12 @@ export class Ui {
       // On touch an Options row has its own ◄ and ► steppers, so a tap can go either way.
       const steppers = this.touchMode && !!it.kind;
       const stepper = (d: number): HTMLElement => {
+        // A row the address fixes keeps the room of its steppers but offers none.
+        if (it.disabled) {
+          const gap = el('span', { class: 'step off', 'aria-hidden': 'true' });
+          gap.textContent = d < 0 ? '◄' : '►';
+          return gap;
+        }
         const st = el('span', {
           class: 'step',
           'data-step': String(d),

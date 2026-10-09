@@ -457,7 +457,9 @@ export class TouchControls {
     // Pause runs on release inside its hit area, so sliding off cancels it and the finger never lands
     // on the pause menu that opens.
     const { x, y } = this.local(e);
-    if (this.placed && contains(this.placed.hit.pause, x, y)) this.input.command({ type: 'pause' });
+    if (this.placed && contains(this.placed.hit.pause, x, y)) {
+      this.input.command({ type: 'pause', leave: true });
+    }
   };
 
   private readonly onCancel = (e: PointerEvent): void => {
@@ -547,7 +549,7 @@ export class TouchControls {
     const id = el?.dataset.control as ControlId | undefined;
     if (!id || id === 'dpad' || !this.placed || !this.shown.includes(id)) return;
     if (id === 'pause') {
-      this.input.command({ type: 'pause' });
+      this.input.command({ type: 'pause', leave: true });
       return;
     }
     // A tap on a game button: press it where its centre is, and let the minimum hold carry it.

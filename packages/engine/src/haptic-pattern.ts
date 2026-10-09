@@ -289,6 +289,17 @@ export const RUMBLE_COMPILE: Readonly<RumbleCompile> = {
   maxMs: 1000,
 };
 
+/** The range each rumble constant may take when tuned (the lab and the console). */
+export const RUMBLE_LIMITS: Readonly<Record<keyof RumbleCompile, readonly [number, number]>> = {
+  tapBase: [10, 200],
+  tapSpan: [0, 200],
+  slice: [20, 200],
+  merge: [0, 0.5],
+  floor: [0, 1],
+  maxSegments: [1, 8],
+  maxMs: [50, 3000],
+};
+
 const hundredths = (n: number): number => Math.round(n * 100) / 100;
 
 /**

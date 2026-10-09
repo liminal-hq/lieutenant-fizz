@@ -17,6 +17,7 @@ const SCREENS = [
   'title',
   'controls',
   'options',
+  'sound',
   'saves',
   'pause',
   'cine',

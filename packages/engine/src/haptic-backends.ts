@@ -46,6 +46,8 @@ export interface HapticBackend {
   stop(): void;
   /** Changes the compiler constants while running (the lab and the console); absent where nothing compiles. */
   tune?(patch: Partial<VibrateCompile>): void;
+  /** Changes the rumble compiler constants while running; absent where nothing rumbles. */
+  tuneRumble?(patch: Partial<RumbleCompile>): void;
   dispose(): void;
 }
 
@@ -200,7 +202,7 @@ export function gamepadBackend(
   opts: { timers?: RumbleTimers; compile?: Readonly<RumbleCompile> } = {},
 ): HapticBackend {
   const timers = opts.timers ?? realTimers;
-  const compile = opts.compile ?? RUMBLE_COMPILE;
+  const compile: RumbleCompile = { ...(opts.compile ?? RUMBLE_COMPILE) };
   let handles: unknown[] = [];
   let used: RumbleActuator | null = null;
   const actuator = (): RumbleActuator | null => {
@@ -290,6 +292,9 @@ export function gamepadBackend(
         /* nothing to stop */
       }
     },
+    tuneRumble(patch) {
+      Object.assign(compile, patch);
+    },
     dispose() {
       this.stop();
     },
@@ -301,6 +306,8 @@ export interface FakeBackend extends HapticBackend {
   readonly plays: { pattern: HapticPattern; scale: number; compiled: number[] }[];
   /** The compiler patches it was given. */
   readonly tuned: Partial<VibrateCompile>[];
+  /** The rumble compiler patches it was given. */
+  readonly tunedRumble: Partial<RumbleCompile>[];
   stops: number;
 }
 
@@ -314,6 +321,7 @@ export function fakeBackend(
   const b: FakeBackend = {
     plays,
     tuned: [],
+    tunedRumble: [],
     stops: 0,
     caps: () => ({
       id: 'fake',
@@ -349,6 +357,9 @@ export function fakeBackend(
     tune(patch) {
       Object.assign(compile, patch);
       b.tuned.push(patch);
+    },
+    tuneRumble(patch) {
+      b.tunedRumble.push(patch);
     },
     dispose() {},
   };

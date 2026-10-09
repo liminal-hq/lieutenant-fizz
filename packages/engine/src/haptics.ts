@@ -7,13 +7,18 @@ import { noneBackend, type HapticBackend, type PlayResult } from './haptic-backe
 import type { InputDevice } from './input';
 import {
   COMPILE_LIMITS,
+  RUMBLE_COMPILE,
+  RUMBLE_LIMITS,
+  VIBRATE_COMPILE,
   calmPattern,
   onTime,
   patternLength,
   readEvents,
   type HapticCue,
+  type HapticPattern,
   type HapticTable,
   type Policy,
+  type RumbleCompile,
   type VibrateCompile,
 } from './haptic-pattern';
 
@@ -58,6 +63,7 @@ export interface HapticTune {
     }
   >;
   compile?: Partial<VibrateCompile>;
+  rumble?: Partial<RumbleCompile>;
   budget?: { onMs?: number; windowMs?: number };
 }
 
@@ -162,6 +168,7 @@ export class GameHaptics {
   private readonly pending = new Map<string, Waiting>();
   private readonly lastPlay = new Map<string, number>();
   private budget = { onMs: 400, windowMs: 1000 };
+  private readonly compiler = { compile: { ...VIBRATE_COMPILE }, rumble: { ...RUMBLE_COMPILE } };
   private readonly log: PlayRecord[] = [];
   private readonly dropped: Record<string, number> = {};
 
@@ -252,6 +259,54 @@ export class GameHaptics {
   /** Raises a menu cue (`ui.move`, `ui.select`, and so on). */
   ui(kind: string): void {
     this.cue(`ui.${kind}`);
+  }
+
+  /**
+   * Plays a cue at once on one target at that target's strength, for a settings screen that lets the player
+   * feel a change. It ignores the lane, the cooldown, the route and the budget, but not the strength (Off
+   * plays nothing) or a hidden page. Returns whether a play was sent.
+   */
+  preview(id: string, target: Target): boolean {
+    const cue = this.table.cues[id];
+    if (!cue || !this.active || this.ch[target].master <= 0) return false;
+    this.play(target, { id, scale: 1, count: 1, order: this.order++, cue }, this.clock.now());
+    return true;
+  }
+
+  /**
+   * Plays a pattern now on one target for the lab: at `scale` and nothing else (the strength setting, the
+   * lane, the route, the cooldown and the budget do not apply), but not while the page is hidden. Returns
+   * what the backend did, or null when the page is hidden. The play shows in `report()` as `audition`.
+   */
+  audition(pattern: HapticPattern, target: Target, scale = 1): PlayResult | null {
+    if (!this.active) return null;
+    const ch = this.ch[target];
+    const now = this.clock.now();
+    const r = ch.backend.play(pattern, Math.max(0, scale));
+    if (r.ok) {
+      ch.busyUntil = now + r.ms;
+      ch.runPriority = 0;
+    }
+    this.record(target, 'audition', scale, r, now);
+    return r;
+  }
+
+  /** A copy of the cues as they are now, tuning included, for the lab to show and edit. */
+  cues(): Record<string, HapticCue> {
+    return structuredClone(this.table.cues);
+  }
+
+  /** The compiler constants and budget as they are now, tuning included. */
+  tuning(): {
+    compile: VibrateCompile;
+    rumble: RumbleCompile;
+    budget: { onMs: number; windowMs: number };
+  } {
+    return {
+      compile: { ...this.compiler.compile },
+      rumble: { ...this.compiler.rumble },
+      budget: { ...this.budget },
+    };
   }
 
   private drop(reason: string): void {
@@ -354,11 +409,15 @@ export class GameHaptics {
       const on = typeof first === 'number' ? onTime(r.compiled as number[]) : r.ms;
       if (ch.budgeted && on > 0) ch.spent.push({ t: now, ms: on });
     } else this.drop(r.reason ?? 'unavailable');
+    this.record(target, c.id, c.scale, r, now);
+  }
+
+  private record(target: Target, cue: string, scale: number, r: PlayResult, now: number): void {
     this.log.push({
       at: now,
       target,
-      cue: c.id,
-      scale: c.scale,
+      cue,
+      scale,
       ok: r.ok,
       tier: r.tier,
       ...(r.reason ? { reason: r.reason } : {}),
@@ -455,7 +514,28 @@ export class GameHaptics {
         applied.push(`compile.${key}`);
       } else refused.push(`compile.${key}`);
     }
-    if (Object.keys(compile).length > 0) this.ch.device.backend.tune?.(compile);
+    if (Object.keys(compile).length > 0) {
+      this.ch.device.backend.tune?.(compile);
+      Object.assign(this.compiler.compile, compile);
+    }
+    const rumble: Partial<RumbleCompile> = {};
+    for (const [key, v] of Object.entries(p.rumble ?? {})) {
+      const lim = (RUMBLE_LIMITS as Record<string, readonly [number, number] | undefined>)[key];
+      if (
+        lim &&
+        typeof v === 'number' &&
+        v >= lim[0] &&
+        v <= lim[1] &&
+        this.ch.controller.backend.tuneRumble
+      ) {
+        (rumble as Record<string, number>)[key] = v;
+        applied.push(`rumble.${key}`);
+      } else refused.push(`rumble.${key}`);
+    }
+    if (Object.keys(rumble).length > 0) {
+      this.ch.controller.backend.tuneRumble?.(rumble);
+      Object.assign(this.compiler.rumble, rumble);
+    }
     for (const [key, v] of Object.entries(p.budget ?? {})) {
       const ok =
         (key === 'onMs' && typeof v === 'number' && v >= 0 && v <= 1000) ||

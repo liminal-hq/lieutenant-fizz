@@ -1,7 +1,14 @@
-// Player options: volumes, captions, controls layout, text size and motion, saved on this device.
+// Player options: volumes, sound style, captions, controls layout, text size and motion, saved on this device.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
+
+import {
+  DEFAULT_STRENGTH,
+  isStrength,
+  MAX_STRENGTH,
+} from '@lieutenant-fizz/engine/haptic-strength';
+import type { AudioMode } from '@lieutenant-fizz/engine/sound-field';
 
 /** Storage key for the options; the version lives inside the saved JSON. */
 export const OPTIONS_KEY = 'lf-ep1-options-v1';
@@ -12,12 +19,16 @@ export const METER_BLOCKS = 8;
 export const LAYOUTS = ['Keen-style', 'Modern'] as const;
 export const TEXT_SIZES = ['Normal', 'Large'] as const;
 export const MOTIONS = ['System', 'Reduced', 'Full'] as const;
+/** The stored sound style: Auto follows the game's default, the others are the player's choice. */
+export const AUDIO_CHOICES = ['Auto', 'Classic', 'Enhanced'] as const;
 
 export interface Options {
   /** Music volume, 0 to 8. */
   music: number;
   /** Sound effect volume, 0 to 8. */
   sfx: number;
+  /** Sound style: 0 Auto (the game's default), 1 Classic, 2 Enhanced. */
+  audio: number;
   /** Floating sound captions on or off. */
   captions: boolean;
   /** Which keyboard layout the hints and Controls table show: 0 Keen-style, 1 Modern. */
@@ -26,6 +37,12 @@ export interface Options {
   text: number;
   /** Motion: 0 follows the system setting, 1 is reduced, 2 is full. */
   motion: number;
+  /** Whether the sound lab is available without `?debug`. Off by default. */
+  lab: boolean;
+  /** Controller rumble strength: 0 Off, 1 Light, 2 Medium, 3 Strong (the phone's strength is in the touch settings). */
+  rumble: number;
+  /** Whether the haptics lab is available without `?debug`. Off by default. */
+  hapticsLab: boolean;
 }
 
 /** The keys of {@link Options} the Options screen can change. */
@@ -35,10 +52,14 @@ export type SettingKey = keyof Options;
 export const DEFAULT_OPTIONS: Readonly<Options> = {
   music: METER_BLOCKS,
   sfx: METER_BLOCKS,
+  audio: 0,
   captions: true,
   layout: 0,
   text: 0,
   motion: 0,
+  lab: false,
+  rumble: DEFAULT_STRENGTH,
+  hapticsLab: false,
 };
 
 const int = (v: unknown, lo: number, hi: number, fallback: number): number =>
@@ -53,10 +74,14 @@ export function parseOptions(json: string | null): Options {
     return {
       music: int(raw['music'], 0, METER_BLOCKS, d.music),
       sfx: int(raw['sfx'], 0, METER_BLOCKS, d.sfx),
+      audio: int(raw['audio'], 0, AUDIO_CHOICES.length - 1, d.audio),
       captions: typeof raw['captions'] === 'boolean' ? raw['captions'] : d.captions,
       layout: int(raw['layout'], 0, LAYOUTS.length - 1, d.layout),
       text: int(raw['text'], 0, TEXT_SIZES.length - 1, d.text),
       motion: int(raw['motion'], 0, MOTIONS.length - 1, d.motion),
+      lab: typeof raw['lab'] === 'boolean' ? raw['lab'] : d.lab,
+      rumble: isStrength(raw['rumble']) ? raw['rumble'] : d.rumble,
+      hapticsLab: typeof raw['hapticsLab'] === 'boolean' ? raw['hapticsLab'] : d.hapticsLab,
     };
   } catch {
     return { ...d };
@@ -87,6 +112,11 @@ export function writeOptions(store: Writer | null, o: Options): boolean {
   }
 }
 
+/** The sound style the player chose, or undefined while it is on Auto. */
+export function audioChoice(o: Pick<Options, 'audio'>): AudioMode | undefined {
+  return o.audio === 1 ? 'classic' : o.audio === 2 ? 'enhanced' : undefined;
+}
+
 /** A meter level as a gain from 0 to 1. */
 export const volumeOf = (level: number): number => level / METER_BLOCKS;
 
@@ -97,7 +127,11 @@ export function reducedMotion(o: Pick<Options, 'motion'>, system: boolean): bool
 
 /** The number of values a choice option cycles through. */
 const CHOICES: Partial<Record<SettingKey, number>> = {
+  audio: AUDIO_CHOICES.length,
   captions: 2,
+  lab: 2,
+  hapticsLab: 2,
+  rumble: MAX_STRENGTH + 1,
   layout: LAYOUTS.length,
   text: TEXT_SIZES.length,
   motion: MOTIONS.length,
@@ -116,5 +150,7 @@ export function stepOption(o: Options, key: SettingKey, delta: number, wrapMeter
   }
   const n = CHOICES[key] ?? 1;
   if (key === 'captions') return { ...o, captions: !o.captions };
+  if (key === 'lab') return { ...o, lab: !o.lab };
+  if (key === 'hapticsLab') return { ...o, hapticsLab: !o.hapticsLab };
   return { ...o, [key]: mod(o[key] + delta, n) };
 }

@@ -58,7 +58,7 @@ export interface SliderSpec {
   min: number;
   max: number;
   step: number;
-  unit: '' | 'dB' | 'Hz' | 's' | 'x';
+  unit: '' | 'dB' | 'Hz' | 's' | 'x' | 'ms';
   scale?: Scale;
   /** True when applying the value is heavy (it restarts the music or rebuilds a room), so wait for the release. */
   onRelease?: boolean;

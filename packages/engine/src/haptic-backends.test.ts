@@ -276,3 +276,23 @@ describe('gamepadBackend', () => {
     expect(r).toMatchObject({ ok: true, ms: 0 });
   });
 });
+
+describe('gamepadBackend tuneRumble', () => {
+  it('compiles later plays with the tuned constants', () => {
+    const calls: { duration: number }[] = [];
+    const a: RumbleActuator = {
+      playEffect: (_t, p) => {
+        calls.push(p);
+        return Promise.resolve();
+      },
+    };
+    const b = gamepadBackend(() => ({ id: 'Pad', vibrationActuator: a }));
+    const bonk = {
+      events: [{ kind: 'transient' as const, at: 0, intensity: 0.7, sharpness: 0.2 }],
+    };
+    b.play(bonk, 1);
+    b.tuneRumble?.({ tapBase: 100 });
+    b.play(bonk, 1);
+    expect(calls.map((c) => c.duration)).toEqual([68, 128]);
+  });
+});

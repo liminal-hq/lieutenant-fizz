@@ -47,11 +47,11 @@ const settings = (hand: 'right' | 'left', pos: Record<string, unknown> = {}): st
     size: 'M',
     opacity: 100,
     leftHanded: hand === 'left',
-    haptics: false,
+    hapticStrength: 0,
     pos,
   });
 
-type Screen = 'pause' | 'options' | 'touch' | 'saves' | 'card' | 'controls';
+type Screen = 'pause' | 'options' | 'sound' | 'haptics' | 'touch' | 'saves' | 'card' | 'controls';
 
 /**
  * The shortest row each screen gets by window height, measured in the split layout and in the one
@@ -63,13 +63,17 @@ const ROWS: Record<
 > = {
   title: { split: { 390: 48, 360: 48, 320: 48 }, column: { 390: 38, 360: 35, 320: 30 } },
   pause: { split: { 390: 48, 360: 47, 320: 35 }, column: { 390: 41, 360: 36, 320: 29 } },
+  // Options has eight rows on a touch device (Haptics and Touch controls), so they are shorter.
   options: { split: { 390: 39, 360: 35, 320: 30 }, column: { 390: 30, 360: 27, 320: 22 } },
-  touch: { split: { 390: 45, 360: 40, 320: 35 }, column: { 390: 35, 360: 31, 320: 25 } },
+  sound: { split: { 390: 48, 360: 47, 320: 41 }, column: { 390: 41, 360: 36, 320: 29 } },
+  // Touch controls lost its Haptics row, so it has six rows like Sound. Haptics has four (five with a pad).
+  haptics: { split: { 390: 48, 360: 48, 320: 48 }, column: { 390: 48, 360: 48, 320: 44 } },
+  touch: { split: { 390: 48, 360: 47, 320: 41 }, column: { 390: 41, 360: 36, 320: 29 } },
   saves: { split: { 390: 48, 360: 47, 320: 40 }, column: { 390: 41, 360: 36, 320: 29 } },
   card: { split: { 390: 48, 360: 48, 320: 48 }, column: { 390: 48, 360: 48, 320: 32 } },
   controls: { split: {}, column: {} },
 };
-const MENUS: Screen[] = ['pause', 'options', 'touch', 'saves', 'card'];
+const MENUS: Screen[] = ['pause', 'options', 'sound', 'haptics', 'touch', 'saves', 'card'];
 
 /** Opens the game with the controls pinned on and the touch settings stored, then waits for it. */
 async function boot(
@@ -286,7 +290,7 @@ test('a raised D-pad: each menu is split while its heading fits above it, else o
   page,
 }) => {
   const height = page.viewportSize()!.height;
-  // The D-pad's top is 80 px down: the pause heading fits above it, Options (below Back) does not.
+  // The D-pad's top is 80 px down: the heading fits above it on neither Pause nor Options, since both sit under Back.
   await boot(page, { pos: { dpad: { side: 24, bottom: height - 230 } } });
   const modes: Record<string, string> = {};
   for (const screen of MENUS) {
@@ -303,9 +307,10 @@ test('a raised D-pad: each menu is split while its heading fits above it, else o
     modes[screen] = r.stage.menuFit ?? 'split';
     await expectClean(page, screen);
   }
-  // Options sits under the Back button, which pushes its heading down past the raised D-pad.
+  // These sit under the Back button, which pushes their heading down past the raised D-pad.
   expect(modes.options).toBe('column');
-  expect(modes.pause).toBe('split');
+  expect(modes.sound).toBe('column');
+  expect(modes.pause).toBe('column');
 });
 
 test('a raised, Left-handed D-pad mirrors the fallback', async ({ page }) => {

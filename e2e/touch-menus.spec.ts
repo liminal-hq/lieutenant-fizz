@@ -175,7 +175,7 @@ test('Back (Pogo) closes Options', async ({ page }) => {
   expect((await state(page)).sub).toBe(null);
 });
 
-for (const screen of ['pause', 'card', 'title', 'options', 'touch', 'saves'] as const) {
+for (const screen of ['pause', 'card', 'title', 'options', 'sound', 'touch', 'saves'] as const) {
   test(`${screen}: the controls stay up, the hints are for touch and nothing sits under a control`, async ({
     page,
   }) => {
@@ -247,9 +247,9 @@ test('one tap on a row chooses it', async ({ page }) => {
   expect((await state(page)).sub).toBe('options');
 });
 
-test('the Options steppers go down and up', async ({ page }) => {
-  await open(page, 'options');
-  const music = page.locator('#overlay .menu button').first();
+test('the Sound steppers go down and up', async ({ page }) => {
+  await open(page, 'sound');
+  const music = page.locator('#overlay .menu button').nth(1);
   const lit = (): Promise<number> => music.locator('.meter i.on').count();
   const before = await lit();
   const less = (await music.locator('[data-step="-1"]').boundingBox())!;
@@ -260,8 +260,8 @@ test('the Options steppers go down and up', async ({ page }) => {
   const more2 = (await music.locator('[data-step="1"]').boundingBox())!;
   await page.touchscreen.tap(more2.x + more2.width / 2, more2.y + more2.height / 2);
   await expect.poll(lit).toBe(before);
-  // The row a stepper is on becomes the selected one.
-  expect((await state(page)).menu).toBe(0);
+  // The row a stepper is on becomes the selected one (Style is selected when the screen opens).
+  expect((await state(page)).menu).toBe(1);
 });
 
 test('a tap on the cinematic text finishes the line, then moves on', async ({ page }) => {
@@ -294,9 +294,9 @@ test('Skip and Continue are at least 48 dp', async ({ page }) => {
 });
 
 test('Select works again after a long press, on a screen that stays', async ({ page }) => {
-  await open(page, 'options');
-  // The selected row's meter (a save makes the title start on Continue, so this is not always row 0).
-  const lit = (): Promise<number> => page.locator('#overlay .menu button.sel .meter i.on').count();
+  await open(page, 'sound');
+  // The selected row's value: the Sound screen opens on Style, which Select flips between two styles.
+  const lit = (): Promise<string> => page.locator('#overlay .menu button.sel .val').innerText();
   const select = (await faces(page)).jump;
   const f = await fingers(page);
   const start = await lit();
@@ -532,7 +532,7 @@ const rect = (page: Page, selector: string): Promise<Box[]> =>
   );
 
 for (const [label, size] of TITLE_SIZES) {
-  for (const sub of SUBS) {
+  for (const sub of [...SUBS, 'pause'] as const) {
     test(`the Back button over ${sub} at ${label} is 48 dp, inside the safe area and clear of the content`, async ({
       page,
     }) => {
@@ -569,13 +569,13 @@ for (const [label, size] of TITLE_SIZES) {
   }
 }
 
-test('the Back button is hidden on the title menu, in play and on the pause menu', async ({
+test('the Back button is hidden on the title menu and in play, and shows on the pause menu', async ({
   page,
 }) => {
   await open(page, 'title');
   await expect(page.locator('#backBtn')).toBeHidden();
   await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('pause'));
-  await expect(page.locator('#backBtn')).toBeHidden();
+  await expect(page.locator('#backBtn')).toBeVisible();
   await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('play'));
   await expect(page.locator('#backBtn')).toBeHidden();
 });
@@ -599,18 +599,72 @@ for (const [sub, row] of [
 ] as const) {
   test(`a tap on Back closes ${sub} on the pause menu`, async ({ page }) => {
     await open(page, 'pause');
-    await expect(page.locator('#backBtn')).toBeHidden();
+    await expect(page.locator('#backBtn')).toBeVisible();
     const r = (await page.locator('#overlay .menu button', { hasText: row }).boundingBox())!;
     await page.touchscreen.tap(r.x + r.width / 2, r.y + r.height / 2);
     await expect.poll(() => state(page).then((s) => s.sub)).toBe(sub);
     await expect(page.locator('#backBtn')).toBeVisible();
-    // Pause has nothing to do on a screen opened over the menu: Back closes it.
-    expect(await shown(page)).toEqual(['dpad', 'jump', 'pogo']);
+    // Pause stays up over the screen, and leaves the whole menu; Back closes this one level.
+    expect(await shown(page)).toEqual(['dpad', 'jump', 'pogo', 'pause']);
     const b = (await page.locator('#backBtn').boundingBox())!;
     await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
     await expect.poll(() => state(page).then((s) => s.sub)).toBe(null);
     expect((await state(page)).screen).toBe('pause');
-    await expect(page.locator('#backBtn')).toBeHidden();
+    // Back stays up on the pause menu itself, where it resumes.
+    await expect(page.locator('#backBtn')).toBeVisible();
     await expect(page.locator('#overlay h2')).toHaveText('Paused');
   });
 }
+
+test('a tap on Back on the pause menu resumes the game', async ({ page }) => {
+  await open(page, 'pause');
+  await expect(page.locator('#backBtn')).toBeVisible();
+  const b = (await page.locator('#backBtn').boundingBox())!;
+  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+  await expect.poll(() => state(page).then((s) => s.screen)).toBe('play');
+  await expect(page.locator('#backBtn')).toBeHidden();
+});
+
+/** Taps the row of the menu showing whose label has `text`. */
+async function tapRow(page: Page, text: string): Promise<void> {
+  const r = (await page.locator('#ui .menu:visible button', { hasText: text }).boundingBox())!;
+  await page.touchscreen.tap(r.x + r.width / 2, r.y + r.height / 2);
+}
+
+test('Pause shows on a sub-screen and leaves the whole menu from Options > Sound over the pause menu', async ({
+  page,
+}) => {
+  await open(page, 'pause');
+  await tapRow(page, 'Options');
+  await expect.poll(() => state(page).then((s) => s.sub)).toBe('options');
+  await tapRow(page, 'Sound');
+  await expect.poll(() => state(page).then((s) => s.sub)).toBe('sound');
+  await expect.poll(() => shown(page)).toContain('pause');
+  await tapControl(page, 'pause');
+  await expect.poll(() => state(page).then((s) => s.screen)).toBe('play');
+  expect((await state(page)).sub).toBe(null);
+  await expect(page.locator('#overlay')).toBeHidden();
+  await expect(page.locator('#backBtn')).toBeHidden();
+  // Pausing again opens the pause menu itself, not a screen left open underneath.
+  await tapControl(page, 'pause');
+  await expect.poll(() => state(page).then((s) => s.screen)).toBe('pause');
+  expect((await state(page)).sub).toBe(null);
+  await expect(page.locator('#overlay h2')).toHaveText('Paused');
+});
+
+test('Pause leaves Options over the title for the title menu, with Options selected', async ({
+  page,
+}) => {
+  await open(page, 'title');
+  const rows = await page.locator('#title > .menu button').allInnerTexts();
+  const at = rows.findIndex((t) => t.includes('Options'));
+  await tapRow(page, 'Options');
+  await expect.poll(() => state(page).then((s) => s.sub)).toBe('options');
+  await tapRow(page, 'Sound');
+  await expect.poll(() => state(page).then((s) => s.sub)).toBe('sound');
+  await tapControl(page, 'pause');
+  await expect.poll(() => state(page).then((s) => s.sub)).toBe(null);
+  expect(await state(page)).toMatchObject({ screen: 'title', menu: at });
+  await expect(page.locator('#title > .menu')).toBeVisible();
+  await expect(page.locator('#backBtn')).toBeHidden();
+});
