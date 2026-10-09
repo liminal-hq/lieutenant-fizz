@@ -47,3 +47,24 @@ export interface BackContext {
 export function backEnabled(c: BackContext): boolean {
   return c.standalone || c.fullscreen || c.forced;
 }
+
+/**
+ * What a `pause` command does: pause in play; on a menu with a screen over it, close one level (Esc, P,
+ * a gamepad's Start) or, from the on-screen Pause button (`leave`), leave the whole menu — resume over
+ * the pause menu, back to the title's top level over the title; resume from the pause menu itself; skip
+ * a cinematic, the credits or the stinger; nothing elsewhere.
+ */
+export type PauseAction =
+  'pause' | 'close' | 'leaveToGame' | 'leaveToTitle' | 'resume' | 'skipCine' | 'skipEnding' | null;
+
+export function pauseAction(screen: ShellScreen, sub: SubScreen, leave: boolean): PauseAction {
+  if (screen === 'play') return 'pause';
+  if (sub && (screen === 'pause' || screen === 'title')) {
+    if (!leave) return 'close';
+    return screen === 'pause' ? 'leaveToGame' : 'leaveToTitle';
+  }
+  if (screen === 'pause') return 'resume';
+  if (screen === 'cine') return 'skipCine';
+  if (screen === 'credits' || screen === 'stinger') return 'skipEnding';
+  return null;
+}

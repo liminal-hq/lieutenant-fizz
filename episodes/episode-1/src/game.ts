@@ -42,7 +42,7 @@ import { MUSIC, PATTERNS, SFX } from './audio/patterns';
 import { ROOMS, roomFor, roomProfile, type RoomName } from './audio/rooms';
 import { FIZZ_HAPTICS } from './haptics/fizz-haptics';
 import { attractFade, attractLabel, nextAttract } from './attract';
-import { backAction, backEnabled } from './back';
+import { backAction, backEnabled, pauseAction } from './back';
 import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
 import { Cinematic, CINE_TALL } from './cine';
 import { isPortrait, watchResize, type TouchGutters } from './layout';
@@ -942,15 +942,34 @@ export class Game {
         this.primary();
         break;
       case 'pause':
-        if (this.screen === 'play') {
-          this.screen = 'pause';
-          this.menuIdx = 0;
-          this.syncUi();
-        } else if (this.sub && (this.screen === 'pause' || this.screen === 'title'))
-          this.closeSub();
-        else if (this.screen === 'pause') this.resume();
-        else if (this.screen === 'cine') this.skipCine();
-        else if (this.screen === 'credits' || this.screen === 'stinger') this.skipEnding();
+        switch (pauseAction(this.screen, this.sub, !!c.leave)) {
+          case 'pause':
+            this.screen = 'pause';
+            this.menuIdx = 0;
+            this.syncUi();
+            break;
+          case 'close':
+            this.closeSub();
+            break;
+          case 'leaveToGame':
+            this.leaveSubs();
+            this.resume();
+            break;
+          case 'leaveToTitle':
+            this.leaveSubs();
+            break;
+          case 'resume':
+            this.resume();
+            break;
+          case 'skipCine':
+            this.skipCine();
+            break;
+          case 'skipEnding':
+            this.skipEnding();
+            break;
+          case null:
+            break;
+        }
         break;
       case 'quickSave':
         this.quickSave();
@@ -1312,6 +1331,23 @@ export class Game {
     this.syncUi();
   }
 
+  /**
+   * Leaves every screen opened over the menu at once (the on-screen Pause button): the stack is
+   * dropped, and over the title the selection goes back to the row that opened the first one.
+   */
+  private leaveSubs(): void {
+    if (!this.sub) return;
+    this.audio.play('click');
+    this.haptics.ui('select');
+    this.disarmReset();
+    this.cancelPreview();
+    const first = this.subStack[0];
+    this.sub = null;
+    this.subStack = [];
+    this.menuIdx = first?.idx ?? 0;
+    this.syncUi();
+  }
+
   private openSaves(mode: 'save' | 'load'): void {
     this.saveMode = mode;
     this.refreshSlots();
@@ -1612,9 +1648,14 @@ export class Game {
     }
   }
 
-  /** The Back button: closes the screen opened over the title or the pause menu. */
+  /** The Back button: closes the screen opened over the title or the pause menu, or resumes from the pause menu itself. */
   private backFromSub(): void {
-    this.closeSub();
+    if (this.sub) this.closeSub();
+    else if (this.screen === 'pause') {
+      this.audio.play('click');
+      this.haptics.ui('back');
+      this.resume();
+    }
   }
 
   /**
@@ -2035,7 +2076,8 @@ export class Game {
       this.sub === 'touch';
     ui.showTitle(onTitle && !this.sub ? items : null, sel, onTitle && this.sub === 'controls');
     const editing = this.sub === 'touchEdit' && (onTitle || s === 'pause');
-    ui.setBack(this.touchMode && !!this.sub && !editing && (onTitle || s === 'pause'));
+    // Back shows over every screen opened over a menu and on the pause menu itself (where it resumes).
+    ui.setBack(this.touchMode && !editing && (s === 'pause' || (onTitle && !!this.sub)));
     ui.showTouchEditor(editing ? { armed: resetArmed(this.resetAt, performance.now()) } : null);
     if (onTitle && this.sub === 'controls') ui.showTitle(null, 0, true);
     if (editing) {

@@ -19,7 +19,11 @@ export const Input = {
 
 /** One-shot commands for the shell (menus, saves, camera zoom). */
 export type Command =
-  | { type: 'pause' }
+  /**
+   * Pause, or one step back out of a menu. `leave` is set by the on-screen Pause button: from a screen
+   * opened over a menu it leaves the whole menu instead of going back one level.
+   */
+  | { type: 'pause'; leave?: boolean }
   | { type: 'confirm' }
   | { type: 'quickSave' }
   | { type: 'quickLoad' }
