@@ -5,25 +5,32 @@
    the left, the default; `left` mirrors the grid). The heading's side keeps 24 px from the edge, the
    same as the D-pad's face, so it lines up with it and leaves the rows the most room. The shell
    (`fitOverlay`) picks the heading scale that fits above the D-pad, or falls back to the column
-   (`data-menu-fit`) when none does, and writes where the Back button ends (`--lf-back-right`,
-   `--lf-back-bottom`, 0 without it) so neither the heading nor the menu sits under it. The Controls table is wide and keeps the room between the controls, on
+   (`data-menu-fit`) when none does. It also writes what to keep clear of: where the Back button ends
+   (`--lf-back-right`), where the corner control above the heading ends (`--lf-head-clear`) and the
+   hint bar's height (`--lf-keys-h`, two lines on a narrow screen), all 0 when there is none. The Controls table is wide and keeps the room between the controls, on
    the Jump side. */
 #stage[data-touch][data-title='split']:not([data-menu-fit='column']) #overlay {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  /* The Jump side is never wider than the room right of the D-pad: the heading's column may shrink to
+     nothing, the rows may not slide under the controls. */
+  grid-template-columns:
+    minmax(0, 1fr)
+    fit-content(calc(100% - max(0px, var(--lf-touch-left) - 24px - var(--lf-safe-left))));
   grid-template-areas: 'head menu';
   align-items: center;
   column-gap: 24px;
   padding-left: calc(24px + var(--lf-safe-left));
   padding-right: max(calc(var(--lf-pad-x) + var(--lf-safe-right)), var(--lf-touch-right));
   padding-bottom: calc(
-    var(--lf-keys-bottom) + var(--lf-n-hint) * var(--lf-line) + 8px + var(--lf-safe-bottom)
+    var(--lf-keys-bottom) + max(var(--lf-n-hint) * var(--lf-line), var(--lf-keys-h, 0px)) + 8px +
+      var(--lf-safe-bottom)
   );
 }
 #stage[data-touch][data-title='split']:not([data-menu-fit='column']) #overlay .box {
   display: contents;
 }
-/* The heading goes below the Back button when one shows (it is at the top left). */
+/* The heading goes below the corner control above it: Back at the top left, or Pause at the top right
+   when Left-handed (`--lf-head-clear`, 0 when there is none). */
 #stage[data-touch][data-title='split']:not([data-menu-fit='column']) #overlay h2 {
   grid-area: head;
   align-self: start;
@@ -31,7 +38,7 @@
   max-width: 100%;
   margin-top: max(
     0px,
-    calc(var(--lf-back-bottom, 0px) + 8px - var(--lf-pad-y) - var(--lf-safe-top))
+    calc(var(--lf-head-clear, 0px) + 8px - var(--lf-pad-y) - var(--lf-safe-top))
   );
 }
 #stage[data-touch][data-title='split']:not([data-menu-fit='column']) #overlay .body {
@@ -42,7 +49,6 @@
   gap: calc(var(--n) * 8px);
   align-self: center;
   justify-self: end;
-  max-width: 100%;
 }
 /* A card's text beside its button is a short column, not the wide measure of the one-column card. */
 #stage[data-touch][data-title='split']:not([data-menu-fit='column']) #overlay .text {
@@ -60,7 +66,9 @@
 
 /* Left-handed: the D-pad is on the right, so the heading goes right and the rows left (clear of Back). */
 #stage[data-hand='left'][data-touch][data-title='split']:not([data-menu-fit='column']) #overlay {
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns:
+    fit-content(calc(100% - max(0px, var(--lf-touch-right) - 24px - var(--lf-safe-right))))
+    minmax(0, 1fr);
   grid-template-areas: 'menu head';
   padding-left: max(
     calc(var(--lf-pad-x) + var(--lf-safe-left)),
@@ -71,7 +79,6 @@
 }
 #stage[data-hand='left'][data-touch][data-title='split']:not([data-menu-fit='column']) #overlay h2 {
   justify-self: end;
-  margin-top: 0;
 }
 #stage[data-hand='left'][data-touch][data-title='split']:not([data-menu-fit='column'])
   #overlay

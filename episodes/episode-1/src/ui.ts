@@ -379,6 +379,7 @@ export class Ui {
     if (ctx.device === this.ctx.device && ctx.layout === this.ctx.layout) return;
     this.ctx = ctx;
     this.refreshHints();
+    if (this.touchMode) this.relayout();
   }
 
   private setKeys(into: HTMLElement, hints: string[]): void {
@@ -491,15 +492,26 @@ export class Ui {
    * the heading on the D-pad side, the text and rows on the thumb side. Tries the heading scales
    * largest first (`headCandidates`) with the same test as the title; when none fits (Large text on a
    * short phone, a raised D-pad) the screen falls back to the column (`data-menu-fit="column"`).
-   * It also tells the CSS where the Back button ends, so the heading or the menu steps clear of it.
+   * It also tells the CSS what to keep clear of: the Back button's right edge (a Left-handed menu starts
+   * after it), the bottom of the corner control above the heading (Back at the top left, or Pause at
+   * the top right for a Left-handed heading), and the height of the hint bar, which wraps to a second line
+   * on a narrow screen.
    */
   private fitOverlay(): void {
     const o = this.overlay;
     o.style.removeProperty('--lf-n-head');
     delete this.stage.dataset.menuFit;
-    const back = this.backBtn.hidden ? null : this.backBtn.getBoundingClientRect();
-    o.style.setProperty('--lf-back-right', `${back ? Math.ceil(back.right) : 0}px`);
-    o.style.setProperty('--lf-back-bottom', `${back ? Math.ceil(back.bottom) : 0}px`);
+    const rect = (e: Element | null): DOMRect | null => {
+      const r = e?.getBoundingClientRect();
+      return r && r.width > 0 ? r : null;
+    };
+    const back = this.backBtn.hidden ? null : rect(this.backBtn);
+    const pause = rect(this.touchLayer.querySelector('[data-control="pause"] .face'));
+    const corner = this.gutters.hand === 'right' ? back : pause;
+    const px = (v: number): string => `${Math.ceil(v)}px`;
+    o.style.setProperty('--lf-back-right', px(back?.right ?? 0));
+    o.style.setProperty('--lf-head-clear', px(corner?.bottom ?? 0));
+    o.style.setProperty('--lf-keys-h', px(rect(need(o, '.keys'))?.height ?? 0));
     if (!this.touchMode || this.titleLayout !== 'split' || o.hidden) return;
     const vv = window.visualViewport;
     const height = Math.round(vv?.height ?? window.innerHeight);
@@ -551,8 +563,17 @@ export class Ui {
       for (const m of menus) m.style.setProperty('--lf-row-h', `${TOUCH_ROW}px`);
       const overflow = screen.scrollHeight - screen.clientHeight;
       const glyph = Math.round(Number.parseFloat(getComputedStyle(first).fontSize));
-      const h = rowHeight(overflow, rows.length, glyph);
+      let h = rowHeight(overflow, rows.length, glyph);
       for (const m of menus) m.style.setProperty('--lf-row-h', `${h}px`);
+      // A save slot that wraps stays taller than its share, so the split menus take what is still over
+      // from the other rows (the column keeps its measure).
+      if (screen === this.overlay && this.stage.dataset.title === 'split') {
+        const over = screen.scrollHeight - screen.clientHeight;
+        if (over > 0 && h > glyph) {
+          h = rowHeight(overflow + over, rows.length, glyph);
+          for (const m of menus) m.style.setProperty('--lf-row-h', `${h}px`);
+        }
+      }
     }
   }
 
