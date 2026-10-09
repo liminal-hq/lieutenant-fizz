@@ -24,12 +24,18 @@ import {
   creditsTransform,
   NO_GUTTERS,
   headCandidates,
-  rowHeight,
   titleCandidates,
-  TOUCH_ROW,
   watchResize,
   type TouchGutters,
 } from './layout';
+import {
+  CHEVRON_SIZE,
+  chevronSvg,
+  isTap,
+  menuViewport,
+  scrollCues,
+  scrollToReveal,
+} from './menu-scroll';
 import { pillItems, type PillIcon } from './hud';
 import type { BenFrame, BenPose } from './titleBen';
 import './ui.css';
@@ -195,6 +201,11 @@ export class Ui {
   private readonly loading: HTMLElement;
   private toastTimer = 0;
   private bulletUrl = '';
+  private hoverRow = -1;
+  /** The "more rows" chevron, drawn once as whole-pixel art. */
+  private readonly chevronUrl = `data:image/svg+xml,${encodeURIComponent(chevronSvg('#ffffff', '#050507'))}`;
+  /** The cues of each menu screen: shown at an edge of its menu when rows are scrolled out of view there. */
+  private readonly cues = new Map<HTMLElement, { up: HTMLElement; down: HTMLElement }>();
   private touchMode = false;
   private hudState: HudState | null = null;
   private hudIcons: Partial<Record<PillIcon, string>> = {};
@@ -258,6 +269,7 @@ export class Ui {
     this.bindTaps(this.backMenu);
     this.titleKeys = el('div', { class: 'keys' });
     this.title.append(this.menuEl, this.controls, this.titleKeys);
+    this.makeCues(this.title, this.menuEl);
 
     this.overlay = el('div', { id: 'overlay', class: 'lf screen', hidden: '' });
     const box = el('div', { class: 'box' });
@@ -270,6 +282,7 @@ export class Ui {
     need(box, '.body').append(this.overlayMenu, this.overlayNote);
     this.overlayKeys = el('div', { class: 'keys' });
     this.overlay.append(box, this.overlayKeys);
+    this.makeCues(this.overlay, this.overlayMenu);
     // A card's text chooses its highlighted row on a tap, as Select does.
     this.onTap(need(box, '.text'), () => {
       if (this.overlayKind === 'list') h.advance();
@@ -546,35 +559,103 @@ export class Ui {
   }
 
   /**
-   * On touch, makes each menu row 48 px tall where the screen has room, and as tall as fits where it
-   * does not, so a short phone never scrolls the menu. Measured after the menu is drawn.
+   * Lets a menu that does not fit its screen scroll inside its own area. Rows keep their height
+   * (`--lf-menu-row` on touch, the glyph cell on a desktop window); when the menu runs the screen over,
+   * the menu's height is cut by the overflow and it scrolls, while the head, the hint bar, the Back
+   * button and the touch controls stay put. A "more rows" cue shows at each edge with rows past it, and
+   * the selected row is kept in view. A menu that fits is left alone. Measured after the menu is drawn.
    */
   private fitRows(): void {
     for (const screen of [this.title, this.overlay]) {
       const menus = [...screen.querySelectorAll<HTMLElement>('.menu')];
-      if (!this.touchMode || screen.hidden) {
-        for (const m of menus) m.style.removeProperty('--lf-row-h');
-        continue;
+      for (const m of menus) {
+        m.style.removeProperty('max-height');
+        delete m.dataset.scroll;
       }
       const shown = menus.find((m) => !m.hidden && m.offsetParent);
-      const rows = shown?.querySelectorAll('button');
-      const first = rows?.[0];
-      if (!rows || !first) continue;
-      for (const m of menus) m.style.setProperty('--lf-row-h', `${TOUCH_ROW}px`);
-      const overflow = screen.scrollHeight - screen.clientHeight;
-      const glyph = Math.round(Number.parseFloat(getComputedStyle(first).fontSize));
-      let h = rowHeight(overflow, rows.length, glyph);
-      for (const m of menus) m.style.setProperty('--lf-row-h', `${h}px`);
-      // A save slot that wraps stays taller than its share, so the split menus take what is still over
-      // from the other rows (the column keeps its measure).
-      if (screen === this.overlay && this.stage.dataset.title === 'split') {
-        const over = screen.scrollHeight - screen.clientHeight;
-        if (over > 0 && h > glyph) {
-          h = rowHeight(overflow + over, rows.length, glyph);
-          for (const m of menus) m.style.setProperty('--lf-row-h', `${h}px`);
+      if (screen.hidden || !shown || !shown.firstElementChild) {
+        this.updateCues(screen, null);
+        continue;
+      }
+      const keep = shown.scrollTop;
+      const natural = shown.offsetHeight;
+      const row = shown.firstElementChild.getBoundingClientRect().height;
+      // The head and controls decide what is left; two rows is the least worth scrolling through.
+      let view = menuViewport(natural, screen.scrollHeight - screen.clientHeight, row * 2);
+      if (view !== null) {
+        shown.style.maxHeight = `${view}px`;
+        shown.dataset.scroll = '';
+        // A grid or a wrapped slot can leave some overflow after the first cut; take the rest off too.
+        const left = screen.scrollHeight - screen.clientHeight;
+        if (left > 0) {
+          view = menuViewport(view, left, row * 2);
+          if (view !== null) shown.style.maxHeight = `${view}px`;
         }
       }
+      this.revealSelected(shown, keep);
+      this.updateCues(screen, shown);
     }
+  }
+
+  /** Scrolls `menu` (from `from`) just far enough to show its selected row, leaving room for the cue. */
+  private revealSelected(menu: HTMLElement, from: number): void {
+    if (!('scroll' in menu.dataset)) {
+      menu.scrollTop = 0;
+      return;
+    }
+    const row = menu.querySelector<HTMLElement>(`button[data-i="${menu.dataset.sel}"]`);
+    menu.scrollTop = from;
+    // A row the mouse chose by hovering is under the pointer already; moving it would chase the pointer.
+    const hovered = this.hoverRow === Number(menu.dataset.sel);
+    this.hoverRow = -1;
+    if (!row || hovered) return;
+    const top = row.getBoundingClientRect().top - menu.getBoundingClientRect().top + menu.scrollTop;
+    const n = Number.parseFloat(getComputedStyle(this.stage).getPropertyValue('--lf-n')) || 2;
+    menu.scrollTop = scrollToReveal(
+      top,
+      row.offsetHeight,
+      menu.scrollTop,
+      menu.clientHeight,
+      menu.scrollHeight,
+      Math.ceil(CHEVRON_SIZE.height * n) + 2,
+    );
+  }
+
+  /** Shows the "more above" and "more below" cues of `menu` (none when `menu` is null or fits). */
+  private updateCues(screen: HTMLElement, menu: HTMLElement | null): void {
+    const cues = this.cues.get(screen);
+    if (!cues) return;
+    const scrolls = !!menu && 'scroll' in menu.dataset;
+    const c = scrolls
+      ? scrollCues(menu.scrollTop, menu.clientHeight, menu.scrollHeight)
+      : { above: false, below: false };
+    cues.up.hidden = !c.above;
+    cues.down.hidden = !c.below;
+    if (!scrolls) return;
+    const s = screen.getBoundingClientRect();
+    const m = menu.getBoundingClientRect();
+    // The cues stand in the bullet gutter at the left of the rows, clear of the text a row cut at the
+    // edge still shows.
+    const gut = menu.querySelector('.gut')?.getBoundingClientRect();
+    for (const cue of [cues.up, cues.down]) {
+      cue.style.left = `${m.left - s.left}px`;
+      cue.style.width = `${gut?.width ?? m.width}px`;
+    }
+    cues.up.style.top = `${m.top - s.top}px`;
+    cues.down.style.bottom = `${s.bottom - m.bottom}px`;
+  }
+
+  /** Makes the cue pair of a screen: one pointing up, one down, inert and hidden until a menu scrolls. */
+  private makeCues(screen: HTMLElement, menu: HTMLElement): void {
+    const cue = (dir: 'up' | 'down'): HTMLElement => {
+      const c = el('div', { class: `more ${dir}`, 'aria-hidden': 'true', hidden: '' });
+      c.append(el('img', { alt: '', src: this.chevronUrl }));
+      return c;
+    };
+    const cues = { up: cue('up'), down: cue('down') };
+    this.cues.set(screen, cues);
+    screen.append(cues.up, cues.down);
+    menu.addEventListener('scroll', () => this.updateCues(screen, menu), { passive: true });
   }
 
   /**
@@ -608,7 +689,7 @@ export class Ui {
     menu.addEventListener('pointerup', (e) => {
       const p = press;
       press = null;
-      if (!p || e.pointerId !== p.id || Math.hypot(e.clientX - p.x, e.clientY - p.y) > 12) return;
+      if (!p || e.pointerId !== p.id || !isTap(e.clientX - p.x, e.clientY - p.y)) return;
       const hit = hitAt(e);
       if (!hit || hit.row !== p.row || hit.step !== p.step) return;
       this.tapUntil = performance.now() + 600;
@@ -886,7 +967,10 @@ export class Ui {
     sel: number,
     onClick: (i: number) => void = (i) => this.h.menuClick(i),
   ): void {
+    // Redrawing keeps the list where it was scrolled; `fitRows` brings the selected row into view.
+    const scrolled = into.scrollTop;
     into.replaceChildren();
+    into.dataset.sel = String(sel);
     this.choose.set(into, onClick);
     const click = (i: number) => (): void => {
       // A touch tap already chose the row on its lift; this is the browser's click that follows it.
@@ -896,7 +980,9 @@ export class Ui {
     const hover =
       (i: number) =>
       (e: PointerEvent): void => {
-        if (e.pointerType === 'mouse') this.h.menuHover(i);
+        if (e.pointerType !== 'mouse') return;
+        this.hoverRow = i;
+        this.h.menuHover(i);
       };
     items.forEach((it, i) => {
       const selected = i === sel && !it.disabled;
@@ -954,6 +1040,7 @@ export class Ui {
       b.addEventListener('pointerenter', hover(i));
       into.append(b);
     });
+    into.scrollTop = scrolled;
   }
 
   /** A save slot's content: thumbnail, two text lines and one pip per level. */
@@ -982,8 +1069,8 @@ export class Ui {
     if (items) this.renderMenu(this.menuEl, items, sel);
     this.menuEl.hidden = controls || items === null;
     this.controls.hidden = !controls;
-    if (this.touchMode && !this.title.hidden) {
-      this.fitTitle();
+    if (!this.title.hidden) {
+      if (this.touchMode) this.fitTitle();
       this.fitRows();
     }
   }
@@ -1013,10 +1100,8 @@ export class Ui {
     this.overlayNote.textContent = o.note ?? '';
     this.overlayNote.hidden = !o.note;
     this.renderMenu(this.overlayMenu, o.items, o.sel);
-    if (this.touchMode) {
-      this.fitOverlay();
-      this.fitRows();
-    }
+    if (this.touchMode) this.fitOverlay();
+    this.fitRows();
   }
 
   showLetterbox(

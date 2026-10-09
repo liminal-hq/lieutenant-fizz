@@ -5,6 +5,8 @@
   gap: 2px;
 }
 .menu button {
+  /* Rows keep their height when a menu scrolls (`.menu[data-scroll]`, below). */
+  flex: none;
   /* One full glyph cell high, so the line box never spills out of the row or its plate. */
   --lf-line: 11px;
   display: flex;
@@ -95,6 +97,58 @@
 }
 .menu button.sel .meter i.on {
   background: var(--lf-ink);
+}
+/* A menu that does not fit its screen scrolls inside its own area, cut to height by the shell. The
+   scrollbar is hidden: the chevrons at the edges say there are more rows. */
+.menu[data-scroll] {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: none;
+}
+.menu[data-scroll]::-webkit-scrollbar {
+  display: none;
+}
+/* The "more rows" chevrons sit over the top and bottom edge of a scrolling menu, centred on it. */
+.screen .more {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  padding: calc(var(--lf-n) * 1px) 0;
+  pointer-events: none;
+}
+.screen .more[hidden] {
+  display: none;
+}
+.screen .more img {
+  width: calc(var(--lf-n) * 11px);
+  height: calc(var(--lf-n) * 7px);
+  image-rendering: pixelated;
+  animation: lf-more 1.26s step-end infinite;
+}
+.screen .more.up img {
+  transform: scaleY(-1);
+  animation-name: lf-more-up;
+}
+@keyframes lf-more {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(calc(var(--lf-n) * 1px));
+  }
+}
+@keyframes lf-more-up {
+  0%,
+  100% {
+    transform: scaleY(-1) translateY(0);
+  }
+  50% {
+    transform: scaleY(-1) translateY(calc(var(--lf-n) * 1px));
+  }
 }
 .menu[hidden],
 #controls[hidden] {

@@ -53,16 +53,22 @@
   display: none;
 }
 
-/* Rows are 48 px tall where the screen has room (`--lf-row-h`, measured by the shell); the glyphs keep
-   their size and the plate fills the row, so the whole row is the target. */
+/* ── The menu row height: the one number to change ──
+   Every menu row on touch is this tall (Android's 48 dp touch target), whatever the phone's height. The
+   glyphs keep their size and the plate fills the row, so the whole row is the target. A menu that does
+   not fit its screen at this height scrolls inside its own area (`Ui.fitRows`), so a shorter row buys
+   more rows on screen at the cost of a smaller target. */
+:root {
+  --lf-menu-row: 48px;
+}
 #stage[data-touch] .menu {
   gap: 0;
 }
 #stage[data-touch] .menu button:not(.slot) {
-  height: var(--lf-row-h, calc(var(--n) * 11px));
+  height: var(--lf-menu-row);
 }
 #stage[data-touch] .menu button.slot {
-  min-height: max(calc(var(--n) * 10px), var(--lf-row-h, 0px));
+  min-height: max(calc(var(--n) * 10px), var(--lf-menu-row));
 }
 .menu .step {
   display: inline-flex;
