@@ -75,6 +75,15 @@ describe('softRatio', () => {
     expect(softRatio(1, 3840, 2160)).toBe(1);
     expect(softRatio(2, 1920, 1080)).toBe(2);
   });
+  it('backs a desktop canvas at the full window size at a device ratio of 1', () => {
+    for (const [w, h] of [
+      [1280, 720],
+      [2560, 1440],
+    ] as const) {
+      const r = softRatio(1, w, h);
+      expect([Math.round(w * r), Math.round(h * r)]).toEqual([w, h]);
+    }
+  });
   it('is capped by the budget past UHD', () => {
     const r = softRatio(2, 2560, 1440 * 2);
     expect(r).toBeLessThan(2);
@@ -171,6 +180,30 @@ describe('frameView', () => {
     expect(v.scale).toBe(5);
     expect(v.halfH * 2).toBeCloseTo(14.625, 9);
     expect(v.halfW).toBeCloseTo((v.halfH * 2532) / 1170, 9);
+  });
+
+  it('is Sharp at the phone sizes the browser checks run at, with a whole scale and no bars', () => {
+    // The canvas backs onto device pixels, so its size is the CSS size times the device ratio.
+    for (const [w, h, dpr, scale] of [
+      [844, 390, 3, 5],
+      [740, 360, 2.6, 4],
+    ] as const) {
+      const devW = Math.round(w * dpr);
+      const devH = Math.round(h * dpr);
+      const v = frameView(out(), {
+        cssW: w,
+        cssH: h,
+        devW,
+        devH,
+        target: 13,
+        zoom: 1,
+        sharp: true,
+      });
+      expect(v.scale, `${w}×${h}`).toBe(scale);
+      expect(v.halfH * 2).toBeCloseTo(14.625, 9);
+      expect(v.halfH * 2 * 16 * v.scale).toBeCloseTo(devH, 6);
+      expect(v.halfW).toBeCloseTo((v.halfH * devW) / devH, 9);
+    }
   });
 
   it('falls back to Soft when the screen is too short', () => {

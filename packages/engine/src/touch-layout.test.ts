@@ -46,6 +46,12 @@ describe('placeControls', () => {
           expect(undersizedTargets(placed.hit)).toEqual([]);
         });
 
+        it('draws the Jump, Pogo and Fizz faces at least 48 dp across', () => {
+          for (const id of ['jump', 'pogo', 'fire'] as const) {
+            expect(placed.face[id].r * 2, id).toBeGreaterThanOrEqual(48);
+          }
+        });
+
         it('keeps every hit area and face inside the safe area', () => {
           for (const id of IDS) {
             expect(inside(safe, placed.hit[id]), `${id} hit area`).toBe(true);
