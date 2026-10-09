@@ -6,6 +6,7 @@
 import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
+import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import { placeSound, resolveAudioMode, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
@@ -1757,6 +1758,7 @@ export class Game {
     forced: boolean;
     backend: string;
     emitters: number;
+    masterBuilt: boolean;
     ctxState: string;
   } {
     if (mode) this.audio.setMode(mode);
@@ -1765,8 +1767,19 @@ export class Game {
       forced: this.audioForced,
       backend: this.audio.backend,
       emitters: this.audio.emitters,
+      masterBuilt: this.audio.masterBuilt,
       ctxState: this.audio.ctxState,
     };
+  }
+
+  /**
+   * Test hook: tunes the Enhanced sound live, so it can be set by ear on a phone or headphones. Any
+   * part of `MASTER` (`master`), `FIELD` (`field`) and `PART_PAN` (`partPan`) can change, for example
+   * `__lf.debugAudioTune({ master: { trim: 0.7, comp: { ratio: 3 } }, partPan: { bell: 0.2 } })`.
+   * Returns which values were set and which were refused. See `AudioTune`.
+   */
+  debugAudioTune(tune: AudioTune): TuneReport {
+    return this.audio.tune(tune);
   }
 
   /** Test hook: switches the phone title between its two layouts. */

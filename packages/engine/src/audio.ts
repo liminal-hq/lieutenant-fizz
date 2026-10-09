@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { ControlPatch, Pattern, SoundType } from '@liminal-hq/undertone';
+import { applyAudioTune, type AudioTune, type TuneReport } from './audio-tune';
+import { Master } from './master';
 import { routedContext, createEmitter, createMusicBus, type MusicBus } from './sound-graph';
 import {
   isPanned,
@@ -14,6 +16,9 @@ import {
   type PartRole,
   type SoundAt,
 } from './sound-field';
+
+/** How long the master chain stays after the switch to Classic, so sounds already in it can finish. */
+const MASTER_DETACH_MS = 2000;
 
 /** Where an unplaced sound sits in Enhanced: the centre, at full level. */
 const CENTRE: SoundAt = { pan: 0, gain: 1 };
@@ -425,6 +430,9 @@ export class GameAudio {
   private disposed = false;
   /** The Enhanced music route, built the first time Enhanced music plays. */
   private musicBus: MusicBus | null = null;
+  /** The Enhanced master chain, built on first use and taken down shortly after Classic returns. */
+  private master: Master | null = null;
+  private masterTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly cache = new Map<string, Voice>();
   private readonly unlock = (): void => {
     if (this.disposed) return;
@@ -499,15 +507,63 @@ export class GameAudio {
   setMode(mode: AudioMode): void {
     if (mode === this.mode) return;
     this.mode = mode;
+    clearTimeout(this.masterTimer);
+    if (mode === 'classic' && this.master) {
+      // Sounds already in the chain finish first; a quick switch back keeps the chain.
+      this.masterTimer = setTimeout(() => this.detachMaster(), MASTER_DETACH_MS);
+    }
     // The running loop is on the old route, so start it again on the new one.
     if (this.handle && this.music && this.track) this.playMusic(this.track, true);
+  }
+
+  /**
+   * The master chain, built the first time Enhanced needs it, or null (send sound straight to the
+   * destination, as before the chain existed) if the context cannot build one.
+   */
+  private masterFor(ctx: AudioContext): Master | null {
+    if (this.master) return this.master;
+    try {
+      const coarse = !!window.matchMedia?.('(pointer: coarse)').matches;
+      this.master = new Master(ctx, ctx.destination, coarse);
+      return this.master;
+    } catch (err) {
+      console.warn('Master chain unavailable, playing Enhanced sound unmastered', err);
+      return null;
+    }
+  }
+
+  /** Takes the master chain and the music bus that feeds it out of the graph. */
+  private detachMaster(): void {
+    this.masterTimer = undefined;
+    if (this.mode !== 'classic') return;
+    this.master?.dispose();
+    this.master = null;
+    this.musicBus = null;
+  }
+
+  /** True while the master chain exists (Enhanced has been used and Classic has not yet detached it). */
+  get masterBuilt(): boolean {
+    return this.master !== null;
+  }
+
+  /**
+   * Applies a live change to `MASTER`, `FIELD` and `PART_PAN` (see `AudioTune`). The master chain
+   * glides to its new values; a new pan restarts the music, whose voices are built with the pans.
+   */
+  tune(t: AudioTune): TuneReport {
+    const report = applyAudioTune(t);
+    this.master?.apply();
+    if (t.partPan && this.mode === 'enhanced' && this.handle && this.music && this.track) {
+      this.playMusic(this.track, true);
+    }
+    return report;
   }
 
   /** The music bus for Enhanced, or null (play the music as Classic) if the context cannot build one. */
   private enhancedMusic(ctx: AudioContext): MusicBus | null {
     if (this.musicBus) return this.musicBus;
     try {
-      this.musicBus = createMusicBus(ctx, ctx.destination);
+      this.musicBus = createMusicBus(ctx, this.masterFor(ctx)?.musicBus ?? ctx.destination);
       return this.musicBus;
     } catch (err) {
       console.warn('Music field unavailable, playing the music as Classic', err);
@@ -518,7 +574,7 @@ export class GameAudio {
   /** An emitter for one Enhanced sound, or null (play it as Classic) if the context cannot build one. */
   private emitter(ctx: AudioContext, at: SoundAt): GainNode | null {
     try {
-      const e = createEmitter(ctx, at, ctx.destination);
+      const e = createEmitter(ctx, at, this.masterFor(ctx)?.sfxBus ?? ctx.destination);
       this.emitters++;
       return e;
     } catch (err) {
@@ -628,6 +684,9 @@ export class GameAudio {
 
   dispose(): void {
     this.disposed = true;
+    clearTimeout(this.masterTimer);
+    this.master?.dispose();
+    this.master = null;
     this.handle?.stop();
     this.handle = null;
     window.removeEventListener('pointerdown', this.unlock);

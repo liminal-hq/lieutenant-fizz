@@ -6,6 +6,7 @@
   "exports": {
     "./atlas": "./src/atlas.ts",
     "./audio": "./src/audio.ts",
+    "./audio-tune": "./src/audio-tune.ts",
     "./back-guard": "./src/back-guard.ts",
     "./credits": "./src/credits.ts",
     "./episode": "./src/episode.ts",

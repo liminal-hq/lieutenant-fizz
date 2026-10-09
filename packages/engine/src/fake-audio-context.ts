@@ -22,6 +22,10 @@ export class FakeParam {
     this.calls.push({ method: 'exponentialRampToValueAtTime', args: [value, time] });
     return this;
   }
+  setTargetAtTime(value: number, time: number, timeConstant: number): this {
+    this.calls.push({ method: 'setTargetAtTime', args: [value, time, timeConstant] });
+    return this;
+  }
 }
 
 /** A recorded node: `kind` is the factory that made it, and `out` lists what it connects to. */
@@ -33,6 +37,11 @@ export class FakeNode {
   readonly delayTime = new FakeParam(0);
   readonly Q = new FakeParam(1);
   readonly playbackRate = new FakeParam(1);
+  readonly threshold = new FakeParam(-24);
+  readonly knee = new FakeParam(30);
+  readonly ratio = new FakeParam(12);
+  readonly attack = new FakeParam(0.003);
+  readonly release = new FakeParam(0.25);
   type = '';
   loop = false;
   buffer: unknown = null;
@@ -43,6 +52,10 @@ export class FakeNode {
   connect(to: FakeNode): FakeNode {
     this.out.push(to);
     return to;
+  }
+  /** Disconnects every output of this node, as `disconnect()` with no argument does. */
+  disconnect(): void {
+    this.out.length = 0;
   }
   start(when = 0): void {
     this.started.push(when);
