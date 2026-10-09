@@ -7,6 +7,8 @@ import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
+import { noneBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
+import { GameHaptics } from '@lieutenant-fizz/engine/haptics';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import { placeSound, resolveAudioMode, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
@@ -35,6 +37,7 @@ import { captureState, labItems } from './audio/lab';
 import { MIX, mixFor, mixNameFor, type MixName } from './audio/mix';
 import { MUSIC, PATTERNS, SFX } from './audio/patterns';
 import { ROOMS, roomFor, roomProfile, type RoomName } from './audio/rooms';
+import { FIZZ_HAPTICS } from './haptics/fizz-haptics';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { backAction, backEnabled } from './back';
 import { Cinematic, CINE_TALL } from './cine';
@@ -129,6 +132,8 @@ export interface GameOptions {
   title?: TitleLayout;
   /** Takes the browser's Back button in an ordinary tab too (`?back`), to try it without fullscreen. */
   back?: boolean;
+  /** Turns on haptics (`?haptics`), which are still being tried: the phone's vibrator, in Chrome for Android. */
+  haptics?: boolean;
 }
 
 /** The `display-mode` values an installed app runs in. */
@@ -215,6 +220,7 @@ export class Game {
   private labMusic = false;
   private lab: SoundLab | null = null;
   private coarseSpeaker = false;
+  private readonly haptics: GameHaptics;
   private readonly ui: Ui;
   private readonly cine = new Cinematic();
   private readonly writer: InstanceWriter;
@@ -310,6 +316,8 @@ export class Game {
     this.audioForced = options.audio !== undefined;
     this.audio.setMode(resolveAudioMode(options.audio));
     this.coarseSpeaker = !!window.matchMedia?.('(pointer: coarse)').matches;
+    this.haptics = new GameHaptics(FIZZ_HAPTICS, performance);
+    this.haptics.setBackend(options.haptics ? vibrateBackend(navigator) : noneBackend);
     this.settings = readOptions(this.store);
     this.applySettings();
     this.input.onDevice(() => this.syncHints());
@@ -410,6 +418,7 @@ export class Game {
     window.clearTimeout(this.resetTimer);
     this.input.dispose();
     this.audio.dispose();
+    this.haptics.dispose();
     this.ui.dispose();
     this.renderer.dispose();
   }
@@ -464,6 +473,8 @@ export class Game {
     // The sim samples touch presses in play; a menu has no step, so it marks them seen itself.
     if (screen !== 'play') this.input.markTouchSeen();
 
+    // Gameplay haptics follow the level only: the title's attract loop raises captions too.
+    this.haptics.setGameplay(screen === 'play');
     if (screen === 'play' || screen === 'title') {
       this.alpha = this.stepper.advance(dt, () => {
         sim.step(screen === 'play' ? this.input.poll() : 0);
@@ -493,6 +504,7 @@ export class Game {
       sim.drainEvents().forEach((e) => this.onEvent(e));
     }
     if (this.touchMode) this.touchUi.frame(performance.now());
+    this.haptics.flush();
     this.tickTypewriter(dt);
     this.tickTitle();
     this.draw();
@@ -736,6 +748,7 @@ export class Game {
         ? placeSound(x, y, this.sim.camera, { w: this.halfW, h: this.halfH })
         : undefined;
     this.audio.caption(text, at);
+    this.haptics.caption(text);
     const colour = this.sim.captionColour(id);
     if (!this.opts.captions || colour === 0) return;
     const now = performance.now();
@@ -943,6 +956,7 @@ export class Game {
   private readonly onVisibility = (): void => {
     this.visible = document.visibilityState === 'visible';
     this.audio.setActive(this.visible);
+    this.haptics.setActive(this.visible);
     if (!this.visible) this.autoPause();
   };
 
@@ -1180,6 +1194,7 @@ export class Game {
     }
     this.audio.play('menu');
     this.disarmReset();
+    this.haptics.ui('move');
     this.menuIdx = i;
     this.benLook();
     this.syncUi();
@@ -1353,6 +1368,7 @@ export class Game {
     // A tap chooses the row it lands on, so the screen it opens returns to that row.
     this.menuIdx = i;
     this.audio.play('click');
+    this.haptics.ui('select');
     const id = it.id ?? '';
     if (this.sub === 'touch') {
       const row = touchRowOf(id);
@@ -2055,6 +2071,11 @@ export class Game {
       this.ui.mount(this.lab.button, this.lab.root);
     }
     if (open) this.lab.open();
+  }
+
+  /** Test hook: what haptics last played, what each compiled to, and what the backend can do. */
+  debugHaptics(): ReturnType<GameHaptics['report']> {
+    return this.haptics.report();
   }
 
   /** Test hook: switches the phone title between its two layouts. */
