@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   VIBRATE_COMPILE,
   calmPattern,
+  compileRumble,
   compileVibrate,
   onTime,
   patternLength,
@@ -176,5 +177,62 @@ describe('readEvents', () => {
       Array.from({ length: 9 }, () => good[0]),
     ];
     for (const b of bad) expect(readEvents(b), JSON.stringify(b)).toBeNull();
+  });
+});
+
+describe('compileRumble', () => {
+  it('turns a tap into one segment, the low motor for a dull thud and the high one for a click', () => {
+    expect(compileRumble({ events: [tap(0.7, 0.2)] })).toEqual([
+      { at: 0, duration: 68, strong: 0.56, weak: 0.14 },
+    ]);
+    expect(compileRumble({ events: [tap(1, 1, 30)] })).toEqual([
+      { at: 30, duration: 80, strong: 0, weak: 1 },
+    ]);
+  });
+
+  it('scales strength and plays nothing under the floor', () => {
+    expect(compileRumble({ events: [tap(0.7, 0.2)] }, 0.5)).toEqual([
+      { at: 0, duration: 54, strong: 0.28, weak: 0.07 },
+    ]);
+    expect(compileRumble({ events: [tap(0.04, 0.5)] })).toEqual([]);
+    expect(compileRumble({ events: [] })).toEqual([]);
+  });
+
+  it('cuts a hum into slices of at least 40 ms sampled in the middle', () => {
+    const out = compileRumble({ events: [ramp(0, 120, 0.9, 0, 0)] });
+    expect(out.map((s) => [s.at, s.duration, s.strong])).toEqual([
+      [0, 40, 0.75],
+      [40, 40, 0.45],
+      [80, 40, 0.15],
+    ]);
+  });
+
+  it('merges neighbouring slices that are nearly the same', () => {
+    expect(compileRumble({ events: [ramp(0, 200, 0.5, 0.5, 0)] })).toEqual([
+      { at: 0, duration: 200, strong: 0.5, weak: 0 },
+    ]);
+  });
+
+  it('lets a later segment take over from an earlier one it overlaps', () => {
+    // The whoa: a tap, then a hum that begins 25 ms in.
+    const out = compileRumble({ events: [tap(1, 0.6), ramp(25, 120, 0.9, 0, 0.1)] });
+    expect(out[0]).toEqual({ at: 0, duration: 25, strong: 0.4, weak: 0.6 });
+    expect(out[1]?.at).toBe(25);
+    expect(out).toHaveLength(4);
+  });
+
+  it('keeps a long hum to eight segments and the whole pattern to a second', () => {
+    const out = compileRumble({ events: [ramp(0, 1000, 1, 0.1, 0)] });
+    expect(out.length).toBeLessThanOrEqual(8);
+    const end = out[out.length - 1];
+    expect((end?.at ?? 0) + (end?.duration ?? 0)).toBeLessThanOrEqual(1000);
+    expect(compileRumble({ events: [tap(1, 0, 1500)] })).toEqual([]);
+    const late = compileRumble({ events: [tap(1, 0, 980)] });
+    expect(late[0]?.duration).toBe(20);
+  });
+
+  it('never makes a segment longer than 1000 ms', () => {
+    for (const s of compileRumble({ events: [ramp(0, 1000, 1, 1, 0)] }))
+      expect(s.duration).toBeLessThanOrEqual(1000);
   });
 });

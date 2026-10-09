@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBackend, noneBackend, type FakeBackend } from './haptic-backends';
 import type { HapticCue, HapticTable } from './haptic-pattern';
-import { GameHaptics, onScreen } from './haptics';
+import { GameHaptics, onScreen, routeFor } from './haptics';
 
 const cue = (over: Partial<HapticCue> = {}): HapticCue => ({
   pattern: { events: [{ kind: 'transient', at: 0, intensity: 0.7, sharpness: 0.2 }] },
@@ -39,7 +39,7 @@ beforeEach(() => {
   t = 1000;
   fake = fakeBackend();
   h = new GameHaptics(table, { now: () => t });
-  h.setBackend(fake);
+  h.setBackends({ device: fake });
   h.setGameplay(true);
 });
 
@@ -147,11 +147,11 @@ describe('GameHaptics', () => {
   });
 
   it('never throws on an unavailable or no-op backend', () => {
-    h.setBackend(fakeBackend({ available: false }));
+    h.setBackends({ device: fakeBackend({ available: false }) });
     h.cue('light');
     expect(() => h.flush()).not.toThrow();
     expect(h.report().plays[0]).toMatchObject({ ok: false });
-    h.setBackend(noneBackend);
+    h.setBackends({ device: noneBackend });
     h.cue('heavy');
     expect(() => h.flush()).not.toThrow();
   });
@@ -162,7 +162,7 @@ describe('GameHaptics', () => {
       frame(50);
     }
     expect(h.report().plays).toHaveLength(20);
-    expect(h.report().caps.id).toBe('fake');
+    expect(h.report().caps.device.id).toBe('fake');
   });
 
   it('dispose stops the backend', () => {
@@ -196,7 +196,7 @@ describe('GameHaptics policies', () => {
   const plays = (): string[] => h.report().plays.map((p) => p.cue);
   beforeEach(() => {
     h = new GameHaptics(pol, { now: () => t });
-    h.setBackend(fake);
+    h.setBackends({ device: fake });
     h.setGameplay(true);
   });
 
@@ -413,5 +413,124 @@ describe('onScreen', () => {
     expect(onScreen(20.4, 5, cam, 10, 6.5)).toBe(true);
     expect(onScreen(21, 5, cam, 10, 6.5)).toBe(false);
     expect(onScreen(10, -3, cam, 10, 6.5)).toBe(false);
+  });
+});
+
+describe('GameHaptics routing', () => {
+  let pad: FakeBackend;
+  beforeEach(() => {
+    pad = fakeBackend({ target: 'controller' });
+    h.setBackends({ controller: pad });
+  });
+
+  it('sends gameplay cues to the phone by default', () => {
+    h.cue('light');
+    h.flush();
+    expect(fake.plays).toHaveLength(1);
+    expect(pad.plays).toHaveLength(0);
+    expect(h.report().plays[0]?.target).toBe('device');
+  });
+
+  it('sends gameplay cues to the controller when that is the route, and menu cues stay on the phone', () => {
+    h.setRoute('controller');
+    h.cue('light');
+    h.cue('menu');
+    h.flush();
+    expect(pad.plays).toHaveLength(1);
+    expect(fake.plays).toHaveLength(1);
+    expect(
+      h
+        .report()
+        .plays.map((p) => [p.cue, p.target])
+        .sort(),
+    ).toEqual([
+      ['light', 'controller'],
+      ['menu', 'device'],
+    ]);
+  });
+
+  it('plays nothing for gameplay on the none route, but still the menus', () => {
+    h.setRoute('none');
+    h.cue('light');
+    h.flush();
+    expect(fake.plays.length + pad.plays.length).toBe(0);
+    h.cue('menu');
+    h.flush();
+    expect(fake.plays).toHaveLength(1);
+  });
+
+  it('drops gameplay cues when the controller cannot rumble, rather than buzzing the phone', () => {
+    h.setBackends({ controller: fakeBackend({ available: false, target: 'controller' }) });
+    h.setRoute('controller');
+    h.cue('light');
+    h.flush();
+    expect(fake.plays).toHaveLength(0);
+    expect(h.report().plays[0]).toMatchObject({ ok: false, target: 'controller' });
+  });
+
+  it('stops whatever runs when the route changes', () => {
+    h.setRoute('controller');
+    expect(fake.stops).toBe(1);
+    expect(pad.stops).toBe(1);
+    h.setRoute('controller');
+    expect(pad.stops).toBe(1);
+  });
+
+  it('scales each target on its own', () => {
+    h.setScale(0.5, 1);
+    h.setRoute('controller');
+    h.cue('light');
+    h.cue('menu');
+    h.flush();
+    expect(pad.plays[0]?.scale).toBe(1);
+    expect(fake.plays[0]?.scale).toBe(0.5);
+    h.setScale(1, 0);
+    t += 1000;
+    h.cue('light');
+    h.flush();
+    expect(pad.plays).toHaveLength(1);
+  });
+
+  it('keeps a cue running on one target from blocking the other', () => {
+    h.setRoute('controller');
+    h.cue('heavy');
+    h.cue('menu');
+    h.flush();
+    expect(pad.plays).toHaveLength(1);
+    expect(fake.plays).toHaveLength(1);
+  });
+
+  it('does not hold the controller to the phone budget', () => {
+    h.setBackends({ controller: fakeBackend({ target: 'controller' }) });
+    const p2 = fakeBackend({ target: 'controller' });
+    h.setBackends({ controller: p2 });
+    h.setRoute('controller');
+    for (let i = 0; i < 8; i++) {
+      h.cue('light');
+      frame(120);
+    }
+    expect(p2.plays).toHaveLength(8);
+    expect(h.report().spentMs).toBe(0);
+  });
+
+  it('stops both targets when the page hides or the game lane closes', () => {
+    h.setActive(false);
+    expect([fake.stops, pad.stops]).toEqual([1, 1]);
+    h.setActive(true);
+    h.setGameplay(false);
+    expect([fake.stops, pad.stops]).toEqual([2, 2]);
+  });
+
+  it('reports both backends', () => {
+    const r = h.report();
+    expect(r.caps.device.id).toBe('fake');
+    expect(r.caps.controller.target).toBe('controller');
+    expect(r.route).toBe('device');
+  });
+
+  it('maps the input device to a route', () => {
+    expect(routeFor('gamepad')).toBe('controller');
+    expect(routeFor('touch')).toBe('device');
+    expect(routeFor('keyboard')).toBe('device');
   });
 });

@@ -1,4 +1,4 @@
-// Browser checks that haptics reach `navigator.vibrate` only with `?haptics`, and stop when the page hides.
+// Browser checks that haptics reach `navigator.vibrate` or a pad's motors only with `?haptics`, and stop when the page hides.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -7,11 +7,38 @@ import { expect, test, type Page } from '@playwright/test';
 
 interface Win {
   __vib: unknown[];
+  __rumble: { effects: unknown[]; resets: number };
+  __pad: { buttons: { pressed: boolean }[] };
   __lf: { debugState: { menu: number }; debugHaptics(): { plays: { cue: string }[] } };
 }
 
 /** Boots the title with a `navigator.vibrate` that records what it is given. */
-async function open(page: Page, query: string): Promise<void> {
+async function open(page: Page, query: string, withPad = false): Promise<void> {
+  if (withPad)
+    await page.addInitScript(() => {
+      // A standard pad whose motors record what they are asked to do.
+      const rumble = { effects: [] as unknown[], resets: 0 };
+      const pad = {
+        index: 0,
+        id: 'Fake pad',
+        connected: true,
+        mapping: 'standard',
+        axes: [0, 0, 0, 0],
+        buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0, touched: false })),
+        vibrationActuator: {
+          playEffect: (_t: string, p: unknown) => {
+            rumble.effects.push(p);
+            return Promise.resolve('complete');
+          },
+          reset: () => {
+            rumble.resets++;
+            return Promise.resolve('complete');
+          },
+        },
+      };
+      Object.assign(window, { __rumble: rumble, __pad: pad });
+      navigator.getGamepads = () => [pad as unknown as Gamepad];
+    });
   await page.addInitScript(() => {
     const calls: unknown[] = [];
     (window as unknown as Win).__vib = calls;
@@ -69,5 +96,26 @@ test.describe('haptics', () => {
       () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
     );
     expect(await calls(page)).toEqual([]);
+  });
+
+  test('with a controller, gameplay rumbles the pad and not the phone, and hiding resets it', async ({
+    page,
+  }, info) => {
+    test.skip(info.project.name !== ONE, 'one viewport');
+    await open(page, '&haptics&level=0', true);
+    await page.evaluate(() => {
+      (window as unknown as Win).__pad.buttons[0]!.pressed = true;
+    });
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as Win).__rumble.effects.length))
+      .toBeGreaterThan(0);
+    expect(await calls(page)).toEqual([]);
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as Win).__rumble.resets))
+      .toBeGreaterThan(0);
   });
 });

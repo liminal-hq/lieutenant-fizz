@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { fakeBackend } from '@lieutenant-fizz/engine/haptic-backends';
 import {
   calmPattern,
+  compileRumble,
   compileVibrate,
   onTime,
   patternLength,
@@ -72,6 +73,16 @@ describe('FIZZ_HAPTICS', () => {
     }
   });
 
+  it('compiles every cue to a controller rumble of at most eight segments inside a second', () => {
+    for (const [id, cue] of cues) {
+      const out = compileRumble(cue.pattern);
+      expect(out.length, id).toBeGreaterThan(0);
+      expect(out.length, id).toBeLessThanOrEqual(8);
+      const end = out[out.length - 1];
+      expect((end?.at ?? 0) + (end?.duration ?? 0), id).toBeLessThanOrEqual(1000);
+    }
+  });
+
   it('keeps menu cues in the ui lane and the rest in the game lane', () => {
     for (const [id, cue] of cues) expect(cue.lane, id).toBe(id.startsWith('ui.') ? 'ui' : 'game');
   });
@@ -92,7 +103,7 @@ describe('FIZZ_HAPTICS', () => {
     const fake = fakeBackend();
     let t = 0;
     const h = new GameHaptics(FIZZ_HAPTICS, { now: () => t });
-    h.setBackend(fake);
+    h.setBackends({ device: fake });
     h.setGameplay(true);
     h.caption('jump');
     h.flush();
