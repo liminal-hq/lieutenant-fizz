@@ -1,10 +1,11 @@
-// Browser checks for Options > Sound on a phone: 48 dp rows in the split menus, the steppers change the style, and Back lands on Sound.
+// Browser checks for Options > Sound on a phone: full-height rows in the split menus, the steppers change the style, and Back lands on Sound.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { expect, test, type Page } from '@playwright/test';
 import { audit } from './audit';
+import { ROW_MIN } from './density';
 
 const KEY = 'lf-ep1-options-v1';
 
@@ -36,7 +37,7 @@ test('Options > Sound on touch: full-height rows, the Style stepper switches the
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  // The split menus give the six rows their full 48 dp at 390 dp tall and 47 dp at 360 dp.
+  // The split menus give the six rows their full height (40 dp) at both phone sizes.
   await page.goto('/?debug&touch&title=split');
   await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
     timeout: 20_000,
@@ -52,9 +53,7 @@ test('Options > Sound on touch: full-height rows, the Style stepper switches the
     .locator('#overlay .menu button')
     .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
   expect(heights).toHaveLength(6);
-  expect(Math.min(...heights)).toBeGreaterThanOrEqual(
-    page.viewportSize()!.height >= 390 ? 47.9 : 46.9,
-  );
+  expect(Math.min(...heights)).toBeGreaterThanOrEqual(ROW_MIN);
   // The Sound lab row sits after Effects. ?debug puts the lab on, so the row shows On (link), fixed.
   expect(await page.locator('#overlay .menu button .lbl').allInnerTexts()).toEqual([
     'Style',

@@ -6,6 +6,7 @@
 import { expect, test, type CDPSession, type Page } from '@playwright/test';
 import { hintText } from '../packages/engine/src/font/tokens';
 import { audit } from './audit';
+import { ROW_MIN, STEP_MIN } from './density';
 
 interface Circle {
   cx: number;
@@ -257,7 +258,7 @@ test('the Sound steppers go down and up', async ({ page }) => {
   const before = await lit();
   const less = (await music.locator('[data-step="-1"]').boundingBox())!;
   const more = (await music.locator('[data-step="1"]').boundingBox())!;
-  expect(Math.min(less.width, more.width)).toBeGreaterThanOrEqual(47.9);
+  expect(Math.min(less.width, more.width)).toBeGreaterThanOrEqual(STEP_MIN);
   await page.touchscreen.tap(less.x + less.width / 2, less.y + less.height / 2);
   await expect.poll(lit).toBe(before - 1);
   const more2 = (await music.locator('[data-step="1"]').boundingBox())!;
@@ -371,8 +372,7 @@ test('sliding off Select before lifting cancels it', async ({ page }) => {
   await expect.poll(() => state(page).then((s) => s.screen)).toBe('play');
 });
 
-/** Rows keep the full touch height (`--lf-menu-row`, 48 dp) in the column too; a title that does not fit scrolls its menu. */
-const ROW_MIN = 47.9;
+/** Rows keep the full touch height (`--lf-menu-row`, 40 dp by default) in the column too; a title that does not fit scrolls its menu. */
 
 interface TitleBoxes {
   rows: number[];
@@ -424,7 +424,7 @@ for (const mode of ['column', 'split'] as const) {
         expect(b.head.bottom).toBeLessThanOrEqual(b.menu.top);
       } else {
         expect(b.data).toEqual({ title: 'split', fit: undefined });
-        expect(min).toBeGreaterThanOrEqual(47.9);
+        expect(min).toBeGreaterThanOrEqual(ROW_MIN);
         expect(b.head.bottom).toBeLessThanOrEqual(b.dpad.top);
         expect(b.head.right).toBeLessThanOrEqual(b.menu.left);
         expect(b.menu.right).toBeLessThanOrEqual(page.viewportSize()!.width - b.touchRight + 0.5);
@@ -471,7 +471,7 @@ test('debugTitle switches between the two title layouts live', async ({ page }) 
   expect(await layout()).toBe('split');
   await expect
     .poll(async () => Math.min(...(await titleBoxes(page)).rows))
-    .toBeGreaterThanOrEqual(47.9);
+    .toBeGreaterThanOrEqual(ROW_MIN);
   await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugTitle('column'));
   expect(await layout()).toBeUndefined();
 });

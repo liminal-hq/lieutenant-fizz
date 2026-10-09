@@ -69,7 +69,9 @@ test('Options > Display: the keyboard steps Fullscreen and Keep screen on, both 
     'Enter',
     () => document.querySelector('#overlay h2')?.textContent === 'Display',
   );
+  // Row spacing only sets the touch menus' rows, so a desktop page does not show it.
   expect(await labels(page)).toEqual(['Fullscreen', 'Keep screen on', 'Back']);
+  await expect(page.locator('#overlay .menu button', { hasText: 'Row spacing' })).toHaveCount(0);
   expect(await valueOf(page, 'Fullscreen')).toBe('Auto');
   expect(await valueOf(page, 'Keep screen on')).toBe('On');
   expect(await lf(page, (g) => g.debugState.lifecycle)).toMatchObject({

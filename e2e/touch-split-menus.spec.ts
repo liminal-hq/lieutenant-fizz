@@ -5,6 +5,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { audit } from './audit';
+import { ROW_MIN } from './density';
 
 // Times out under software GL on the shared CI runner. Disabled for now and kept, to be profiled and
 // re-enabled; set LF_E2E_SPLIT_MENUS=1 to run it locally.
@@ -53,8 +54,7 @@ const settings = (hand: 'right' | 'left', pos: Record<string, unknown> = {}): st
 
 type Screen = 'pause' | 'options' | 'sound' | 'haptics' | 'touch' | 'saves' | 'card' | 'controls';
 
-/** Rows keep the full touch height (`--lf-menu-row`, 48 dp) on every screen and window; a menu that does not fit scrolls. */
-const ROW_MIN = 47.9;
+/** Rows keep the full touch height (`--lf-menu-row`, 40 dp by default) on every screen and window; a menu that does not fit scrolls. */
 const MENUS: Screen[] = ['pause', 'options', 'sound', 'haptics', 'touch', 'saves', 'card'];
 
 /** Opens the game with the controls pinned on and the touch settings stored, then waits for it. */

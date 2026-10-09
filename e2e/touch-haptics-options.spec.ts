@@ -5,6 +5,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { audit } from './audit';
+import { ROW_MIN } from './density';
 
 const TOUCH = 'lf-touch-v1';
 const OPTIONS = 'lf-ep1-options-v1';
@@ -56,7 +57,7 @@ test('Options > Haptics on touch: full-height rows, Strength steps with a previe
 }) => {
   const errors = await openHaptics(page);
   expect(await lf(page, (g) => g.debugState.sub)).toBe('haptics');
-  // No pad has been seen, so there is no Rumble row. Four rows keep the full 48 dp.
+  // No pad has been seen, so there is no Rumble row. Four rows keep the full height (40 dp).
   expect(await page.locator('#overlay .menu button .lbl').allInnerTexts()).toEqual([
     'Strength',
     'Haptics lab',
@@ -68,7 +69,7 @@ test('Options > Haptics on touch: full-height rows, Strength steps with a previe
   const heights = await page
     .locator('#overlay .menu button')
     .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
-  expect(Math.min(...heights)).toBeGreaterThanOrEqual(47.9);
+  expect(Math.min(...heights)).toBeGreaterThanOrEqual(ROW_MIN);
   const { checked, ...problems } = await page.evaluate(audit, { roots: ['#ui', '#touch'] });
   expect(checked).toBeGreaterThan(3);
   expect(problems, JSON.stringify(problems, null, 2)).toMatchObject({
