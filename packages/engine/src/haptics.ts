@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { noneBackend, type HapticBackend, type PlayResult } from './haptic-backends';
+import type { InputDevice } from './input';
 import {
   COMPILE_LIMITS,
   calmPattern,
@@ -19,6 +20,7 @@ import {
 /** One play the backend was asked for, kept for `report()`. */
 export interface PlayRecord {
   at: number;
+  target: Target;
   cue: string;
   scale: number;
   ok: boolean;
@@ -28,8 +30,12 @@ export interface PlayRecord {
 }
 
 export interface HapticReport {
-  caps: ReturnType<HapticBackend['caps']>;
-  master: number;
+  /** What each backend can do right now. */
+  caps: Record<Target, ReturnType<HapticBackend['caps']>>;
+  /** Where gameplay cues go right now. */
+  route: Route;
+  /** The master strength of each target. */
+  master: Record<Target, number>;
   /** The last plays, oldest first. */
   plays: readonly PlayRecord[];
   /** How many cues were dropped and why (`cooldown`, `busy`, `budget`, `frame`), since the start. */
@@ -53,6 +59,21 @@ export interface HapticTune {
   >;
   compile?: Partial<VibrateCompile>;
   budget?: { onMs?: number; windowMs?: number };
+}
+
+/** The two places a cue can be felt: the phone itself or a controller. */
+export type Target = 'device' | 'controller';
+
+/** Where gameplay cues go: the phone, the controller, or nowhere. Menu cues always stay on the phone. */
+export type Route = Target | 'none';
+
+/**
+ * Where gameplay haptics go for the input device in use: a controller's rumble while a gamepad is
+ * being played, the phone otherwise (a phone held in the hands is the touch device, and a keyboard
+ * on a tablet still feels the tablet).
+ */
+export function routeFor(device: InputDevice): Route {
+  return device === 'gamepad' ? 'controller' : 'device';
 }
 
 const KEEP = 20;
@@ -84,13 +105,40 @@ interface Waiting {
   order: number;
 }
 
+type Candidate = Waiting & { cue: HapticCue; queued: boolean };
+
 const coalesceMs = (p: Policy): number => (typeof p === 'object' ? p.coalesce : 0);
+
+/** One place a cue can play (the phone or a controller) with what is running on it. */
+class Channel {
+  backend: HapticBackend = noneBackend;
+  /** Strength of everything played here: 0 turns it off, 1 is the pattern as written. */
+  master = 1;
+  busyUntil = 0;
+  runPriority = 0;
+  queued: Waiting[] = [];
+  spent: { t: number; ms: number }[] = [];
+
+  /** `budgeted` channels (the phone's battery) hold small cues back once they have vibrated enough. */
+  constructor(readonly budgeted: boolean) {}
+
+  stop(): void {
+    this.backend.stop();
+    this.busyUntil = 0;
+    this.runPriority = 0;
+  }
+}
 
 /**
  * The haptics runtime beside `GameAudio`. The game raises cues through `cue`, `caption` and `ui`; they
- * wait until `flush`, which the game calls once a frame, and then the strongest one plays. Cues in the
- * `game` lane are dropped unless `setGameplay(true)` (a level is being played), and nothing plays or
- * keeps running while the page is hidden.
+ * wait until `flush`, which the game calls once a frame, and then the strongest one plays on each
+ * target. Cues in the `game` lane are dropped unless `setGameplay(true)` (a level is being played), and
+ * nothing plays or keeps running while the page is hidden.
+ *
+ * Where: there are two targets, the phone's vibrator (`device`) and a controller's motors
+ * (`controller`). `setRoute` picks where the `game` lane goes (see `routeFor`); the `ui` lane always
+ * stays on the phone. Each target has its own backend, strength, running pattern and queue, and gets at
+ * most one backend call a frame.
  *
  * Who plays: each cue has a priority and a policy. A cue never cuts off a higher priority that is still
  * running. `interrupt` replaces what runs, `drop-if-busy` is skipped while anything runs, `queue` waits
@@ -101,19 +149,18 @@ const coalesceMs = (p: Policy): number => (typeof p === 'object' ? p.coalesce : 
  * battery and keeps a run of small cues from becoming a hum.
  */
 export class GameHaptics {
-  private backend: HapticBackend = noneBackend;
+  private readonly ch: Record<Target, Channel> = {
+    device: new Channel(true),
+    controller: new Channel(false),
+  };
   private readonly table: HapticTable;
-  private master = 1;
+  private route: Route = 'device';
   private gameplay = false;
   private active = true;
   private calm = false;
   private order = 0;
   private readonly pending = new Map<string, Waiting>();
-  private queued: Waiting[] = [];
   private readonly lastPlay = new Map<string, number>();
-  private busyUntil = 0;
-  private runPriority = 0;
-  private spent: { t: number; ms: number }[] = [];
   private budget = { onMs: 400, windowMs: 1000 };
   private readonly log: PlayRecord[] = [];
   private readonly dropped: Record<string, number> = {};
@@ -126,17 +173,27 @@ export class GameHaptics {
     this.table = structuredClone(table);
   }
 
-  /** Swaps the backend, stopping whatever the old one was doing. */
-  setBackend(b: HapticBackend): void {
-    this.backend.stop();
-    this.backend = b;
-    this.busyUntil = 0;
-    this.runPriority = 0;
+  /** Swaps the backends given, stopping whatever the old ones were doing. */
+  setBackends(b: { device?: HapticBackend; controller?: HapticBackend }): void {
+    for (const target of ['device', 'controller'] as const) {
+      const next = b[target];
+      if (!next) continue;
+      this.ch[target].stop();
+      this.ch[target].backend = next;
+    }
   }
 
-  /** The master strength: 0 turns haptics off, 1 is the pattern as written. */
-  setScale(master: number): void {
-    this.master = Math.max(0, master);
+  /** Where the game lane goes. A change stops whatever is running, so a pattern never lingers on the old target. */
+  setRoute(route: Route): void {
+    if (route === this.route) return;
+    this.route = route;
+    this.stopAll();
+  }
+
+  /** The strength of each target: 0 turns it off, 1 is the pattern as written. The controller follows the phone if not given. */
+  setScale(device: number, controller = device): void {
+    this.ch.device.master = Math.max(0, device);
+    this.ch.controller.master = Math.max(0, controller);
   }
 
   /** Calm keeps cues marked `calm` short and soft, for players who asked for less motion. */
@@ -151,7 +208,8 @@ export class GameHaptics {
     if (on) return;
     for (const id of [...this.pending.keys()])
       if (this.table.cues[id]?.lane === 'game') this.pending.delete(id);
-    this.queued = this.queued.filter((q) => this.table.cues[q.id]?.lane !== 'game');
+    for (const c of Object.values(this.ch))
+      c.queued = c.queued.filter((q) => this.table.cues[q.id]?.lane !== 'game');
     this.stopAll();
   }
 
@@ -161,14 +219,12 @@ export class GameHaptics {
     this.active = visible;
     if (visible) return;
     this.pending.clear();
-    this.queued = [];
+    for (const c of Object.values(this.ch)) c.queued = [];
     this.stopAll();
   }
 
   private stopAll(): void {
-    this.backend.stop();
-    this.busyUntil = 0;
-    this.runPriority = 0;
+    for (const c of Object.values(this.ch)) c.stop();
   }
 
   /**
@@ -177,7 +233,7 @@ export class GameHaptics {
    */
   cue(id: string, scale = 1, onScreen = true): void {
     const cue = this.table.cues[id];
-    if (!cue || !this.active || this.master <= 0) return;
+    if (!cue || !this.active) return;
     if (cue.lane === 'game' && !this.gameplay) return;
     if (cue.world && !onScreen) return;
     const w = this.pending.get(id);
@@ -202,31 +258,42 @@ export class GameHaptics {
     this.dropped[reason] = (this.dropped[reason] ?? 0) + 1;
   }
 
-  /** Plays the strongest waiting cue (one backend call per frame) and keeps the queued ones that can still wait. */
+  /** Plays the strongest waiting cue on each target (one backend call each) and keeps the queued ones that can still wait. */
   flush(): void {
-    if (this.pending.size === 0 && this.queued.length === 0) return;
+    const queuedAny = this.ch.device.queued.length + this.ch.controller.queued.length > 0;
+    if (this.pending.size === 0 && !queuedAny) return;
     const now = this.clock.now();
-    this.spent = this.spent.filter((s) => now - s.t < this.budget.windowMs);
-
-    const cands: (Waiting & { cue: HapticCue; queued: boolean })[] = [];
+    const by: Record<Target, Candidate[]> = { device: [], controller: [] };
     for (const w of this.pending.values()) {
       const cue = this.table.cues[w.id];
       if (!cue) continue;
+      const target: Target | null =
+        cue.lane === 'ui' ? 'device' : this.route === 'none' ? null : this.route;
+      if (target === null || this.ch[target].master <= 0) continue;
       const last = this.lastPlay.get(w.id);
       if (last !== undefined && now - last < Math.max(cue.cooldownMs, coalesceMs(cue.policy))) {
         this.drop('cooldown');
         continue;
       }
       const stack = coalesceMs(cue.policy) > 0 ? Math.min(w.count, COALESCE_MAX) - 1 : 0;
-      cands.push({ ...w, scale: w.scale * (1 + COALESCE_STEP * stack), cue, queued: false });
+      by[target].push({ ...w, scale: w.scale * (1 + COALESCE_STEP * stack), cue, queued: false });
     }
-    for (const q of this.queued) {
-      const cue = this.table.cues[q.id];
-      if (cue && !this.pending.has(q.id)) cands.push({ ...q, cue, queued: true });
+    for (const target of ['device', 'controller'] as const) {
+      const ch = this.ch[target];
+      for (const q of ch.queued) {
+        const cue = this.table.cues[q.id];
+        if (cue && !this.pending.has(q.id)) by[target].push({ ...q, cue, queued: true });
+      }
+      ch.queued = [];
     }
     this.pending.clear();
-    this.queued = [];
+    for (const target of ['device', 'controller'] as const)
+      this.flushTarget(target, by[target], now);
+  }
 
+  private flushTarget(target: Target, cands: Candidate[], now: number): void {
+    const ch = this.ch[target];
+    ch.spent = ch.spent.filter((s) => now - s.t < this.budget.windowMs);
     const len = (c: HapticCue): number => patternLength(c.pattern);
     cands.sort(
       (a, b) =>
@@ -234,61 +301,62 @@ export class GameHaptics {
         len(b.cue) - len(a.cue) ||
         (a.queued === b.queued ? a.order - b.order : a.queued ? -1 : 1),
     );
-
     let played = false;
-    const later: typeof cands = [];
+    const later: Candidate[] = [];
     for (const c of cands) {
       if (played) {
         later.push(c);
         continue;
       }
-      const wait = this.busyUntil - now;
+      const wait = ch.busyUntil - now;
       if (wait > 0) {
         const policy = c.cue.policy;
-        const outranked = c.cue.priority < this.runPriority;
+        const outranked = c.cue.priority < ch.runPriority;
         if (outranked || policy === 'drop-if-busy' || policy === 'queue') {
-          if (policy === 'queue' && wait <= QUEUE_WAIT) this.hold(c);
+          if (policy === 'queue' && wait <= QUEUE_WAIT) this.hold(ch, c);
           else this.drop('busy');
           continue;
         }
       }
-      if (c.cue.priority < 4 && this.spentMs() >= this.budget.onMs) {
+      if (ch.budgeted && c.cue.priority < 4 && this.spentMs(ch) >= this.budget.onMs) {
         this.drop('budget');
         continue;
       }
-      this.play(c, now);
+      this.play(target, c, now);
       played = true;
     }
     for (const c of later) {
-      if (c.cue.policy === 'queue' && this.busyUntil - now <= QUEUE_WAIT) this.hold(c);
+      if (c.cue.policy === 'queue' && ch.busyUntil - now <= QUEUE_WAIT) this.hold(ch, c);
       else this.drop('frame');
     }
   }
 
-  private hold(c: Waiting): void {
-    if (this.queued.length < QUEUE_MAX)
-      this.queued.push({ id: c.id, scale: c.scale, count: c.count, order: c.order });
+  private hold(ch: Channel, c: Waiting): void {
+    if (ch.queued.length < QUEUE_MAX)
+      ch.queued.push({ id: c.id, scale: c.scale, count: c.count, order: c.order });
   }
 
-  private spentMs(): number {
-    return this.spent.reduce((a, s) => a + s.ms, 0);
+  private spentMs(ch: Channel): number {
+    return ch.spent.reduce((a, s) => a + s.ms, 0);
   }
 
-  private play(c: Waiting & { cue: HapticCue }, now: number): void {
+  private play(target: Target, c: Waiting & { cue: HapticCue }, now: number): void {
+    const ch = this.ch[target];
     const soft = this.calm && c.cue.calm === true;
     const pattern = soft ? calmPattern(c.cue.pattern) : c.cue.pattern;
-    const strength = c.scale * this.master;
-    const r = this.backend.play(pattern, soft ? Math.min(strength, CALM_STRENGTH) : strength);
+    const strength = c.scale * ch.master;
+    const r = ch.backend.play(pattern, soft ? Math.min(strength, CALM_STRENGTH) : strength);
     if (r.ok) {
       this.lastPlay.set(c.id, now);
-      this.busyUntil = now + r.ms;
-      this.runPriority = c.cue.priority;
-      const on =
-        r.compiled && r.compiled.every((n) => typeof n === 'number') ? onTime(r.compiled) : r.ms;
-      if (on > 0) this.spent.push({ t: now, ms: on });
+      ch.busyUntil = now + r.ms;
+      ch.runPriority = c.cue.priority;
+      const first = r.compiled?.[0];
+      const on = typeof first === 'number' ? onTime(r.compiled as number[]) : r.ms;
+      if (ch.budgeted && on > 0) ch.spent.push({ t: now, ms: on });
     } else this.drop(r.reason ?? 'unavailable');
     this.log.push({
       at: now,
+      target,
       cue: c.id,
       scale: c.scale,
       ok: r.ok,
@@ -299,14 +367,18 @@ export class GameHaptics {
     if (this.log.length > KEEP) this.log.shift();
   }
 
-  /** The last plays with what each compiled to, what was dropped and what the backend can do. */
+  /** The last plays with what each compiled to, what was dropped and what each backend can do. */
   report(): HapticReport {
     return {
-      caps: this.backend.caps(),
-      master: this.master,
+      caps: {
+        device: this.ch.device.backend.caps(),
+        controller: this.ch.controller.backend.caps(),
+      },
+      route: this.route,
+      master: { device: this.ch.device.master, controller: this.ch.controller.master },
       plays: [...this.log],
       dropped: { ...this.dropped },
-      spentMs: this.spentMs(),
+      spentMs: this.spentMs(this.ch.device),
     };
   }
 
@@ -372,12 +444,18 @@ export class GameHaptics {
     const compile: Partial<VibrateCompile> = {};
     for (const [key, v] of Object.entries(p.compile ?? {})) {
       const lim = (COMPILE_LIMITS as Record<string, readonly [number, number] | undefined>)[key];
-      if (lim && typeof v === 'number' && v >= lim[0] && v <= lim[1] && this.backend.tune) {
+      if (
+        lim &&
+        typeof v === 'number' &&
+        v >= lim[0] &&
+        v <= lim[1] &&
+        this.ch.device.backend.tune
+      ) {
         (compile as Record<string, number>)[key] = v;
         applied.push(`compile.${key}`);
       } else refused.push(`compile.${key}`);
     }
-    if (Object.keys(compile).length > 0) this.backend.tune?.(compile);
+    if (Object.keys(compile).length > 0) this.ch.device.backend.tune?.(compile);
     for (const [key, v] of Object.entries(p.budget ?? {})) {
       const ok =
         (key === 'onMs' && typeof v === 'number' && v >= 0 && v <= 1000) ||
@@ -392,9 +470,11 @@ export class GameHaptics {
 
   dispose(): void {
     this.pending.clear();
-    this.queued = [];
-    this.backend.stop();
-    this.backend.dispose();
-    this.backend = noneBackend;
+    for (const c of Object.values(this.ch)) {
+      c.queued = [];
+      c.stop();
+      c.backend.dispose();
+      c.backend = noneBackend;
+    }
   }
 }

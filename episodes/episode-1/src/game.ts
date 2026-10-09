@@ -7,8 +7,12 @@ import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
-import { noneBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
-import { GameHaptics, onScreen } from '@lieutenant-fizz/engine/haptics';
+import {
+  gamepadBackend,
+  noneBackend,
+  vibrateBackend,
+} from '@lieutenant-fizz/engine/haptic-backends';
+import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import { placeSound, resolveAudioMode, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
@@ -323,7 +327,16 @@ export class Game {
     this.audio.setMode(resolveAudioMode(options.audio));
     this.coarseSpeaker = !!window.matchMedia?.('(pointer: coarse)').matches;
     this.haptics = new GameHaptics(FIZZ_HAPTICS, performance);
-    this.haptics.setBackend(options.haptics ? vibrateBackend(navigator) : noneBackend);
+    this.haptics.setBackends(
+      options.haptics
+        ? {
+            device: vibrateBackend(navigator),
+            controller: gamepadBackend(() => this.input.activePad()),
+          }
+        : { device: noneBackend, controller: noneBackend },
+    );
+    this.haptics.setRoute(routeFor(this.input.device));
+    this.input.onDevice((d) => this.haptics.setRoute(routeFor(d)));
     this.settings = readOptions(this.store);
     this.applySettings();
     this.input.onDevice(() => this.syncHints());
