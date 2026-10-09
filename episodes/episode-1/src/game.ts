@@ -79,6 +79,7 @@ import {
   type Options,
   type SettingKey,
 } from './options';
+import { densityRow } from './menu-density';
 import {
   displayItems,
   displayLinkValue,
@@ -1158,6 +1159,7 @@ export class Game {
     this.applyHaptics();
     if (before !== this.reducedMotion && this.screen === 'title') this.loadAttract(this.attractIdx);
     this.ui.setTextLarge(o.text === 1);
+    this.ui.setMenuRow(densityRow(o.density));
     this.ui.setToggle('music', o.music > 0);
     this.ui.setToggle('sfx', o.sfx > 0);
     this.ui.setToggle('captions', o.captions);
@@ -1201,6 +1203,7 @@ export class Game {
     return {
       fullscreen: this.caps.fullscreen && this.caps.host === 'web',
       keepAwake: this.keepAwake.kind !== 'none',
+      touch: this.touchCapable,
     };
   }
 
@@ -1778,12 +1781,18 @@ export class Game {
 
   /**
    * Steps a Display setting and saves it. A row the address fixes does not step. Turning Keep screen on
-   * off lets the screen go at once; turning Fullscreen off never leaves fullscreen, only stops asking.
+   * off lets the screen go at once; turning Fullscreen off never leaves fullscreen, only stops asking. Row spacing resizes the menu rows
+   * at once, the open screen included.
    */
   private stepDisplayRow(row: DisplayRow | null, d: number): void {
     if (!row || this.menuItems()[this.menuIdx]?.disabled) return;
     const next = stepDisplay(this.settings, row, d, this.urlLocks());
-    if (next.fullscreen === this.settings.fullscreen && next.awake === this.settings.awake) return;
+    if (
+      next.fullscreen === this.settings.fullscreen &&
+      next.awake === this.settings.awake &&
+      next.density === this.settings.density
+    )
+      return;
     this.settings = next;
     this.audio.play('menu');
     if (row === 'awake') this.haptics.ui(next.awake ? 'toggleOn' : 'toggleOff');

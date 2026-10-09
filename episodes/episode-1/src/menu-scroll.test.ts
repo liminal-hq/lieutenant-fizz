@@ -12,7 +12,10 @@ import {
   menuViewport,
   rowVisible,
   scrollCues,
-  scrollToReveal,
+  revealRow,
+  snapScroll,
+  snapViewport,
+  type RowBox,
   TAP_SLOP,
   visibleWindow,
 } from './menu-scroll';
@@ -76,37 +79,126 @@ describe('scrollCues', () => {
   });
 });
 
-describe('scrollToReveal', () => {
-  // Nine rows of 48 px (432 px) through a 240 px viewport.
-  const at = (row: number, scroll: number, margin = 0): number =>
-    scrollToReveal(row * 48, 48, scroll, 240, 432, margin);
+/** Nine rows of 40 px laid end to end, as a touch menu draws them. */
+const nine = (row = 40, gap = 0): RowBox[] =>
+  Array.from({ length: 9 }, (_, i) => ({ top: i * (row + gap), height: row }));
+
+describe('snapViewport', () => {
+  it('cuts the view to a whole number of rows', () => {
+    // 255 px holds six 40 px rows (240); the 15 px over is not a half row.
+    expect(snapViewport(nine(), 255)).toBe(240);
+    expect(snapViewport(nine(), 239.9)).toBe(200);
+    expect(snapViewport(nine(), 240)).toBe(240);
+  });
+
+  it('counts the gaps between rows but not one after the last row shown', () => {
+    // Rows 24 px with a 2 px gap: four rows are 4 × 24 + 3 × 2 = 102 px.
+    expect(snapViewport(nine(24, 2), 110)).toBe(102);
+    expect(snapViewport(nine(24, 2), 101)).toBe(76);
+  });
+
+  it('never shows fewer than two rows, even when they do not fit', () => {
+    expect(snapViewport(nine(), 70)).toBe(80);
+    expect(snapViewport(nine(), 0)).toBe(80);
+    expect(snapViewport(nine(), 100, 3)).toBe(120);
+  });
+
+  it('leaves a view that already holds every row as it is', () => {
+    expect(snapViewport(nine(), 400)).toBe(400);
+    expect(snapViewport(nine().slice(0, 2), 50)).toBe(50);
+  });
+
+  it('measures from the first row and handles an empty list', () => {
+    const shifted = nine().map((r) => ({ ...r, top: r.top + 30 }));
+    expect(snapViewport(shifted, 255)).toBe(240);
+    expect(snapViewport([], 100)).toBe(0);
+  });
+
+  it('follows rows of different heights', () => {
+    const mixed: RowBox[] = [
+      { top: 0, height: 40 },
+      { top: 40, height: 64 },
+      { top: 104, height: 40 },
+      { top: 144, height: 40 },
+    ];
+    expect(snapViewport(mixed, 150)).toBe(144);
+    expect(snapViewport(mixed, 143)).toBe(104);
+  });
+});
+
+describe('snapScroll', () => {
+  // Nine rows (360 px) through a 240 px view scroll at most 120 px.
+  it('lands on the nearest row top', () => {
+    expect(snapScroll(nine(), 0, 120)).toBe(0);
+    expect(snapScroll(nine(), 18, 120)).toBe(0);
+    expect(snapScroll(nine(), 22, 120)).toBe(40);
+    expect(snapScroll(nine(), 79, 120)).toBe(80);
+  });
+
+  it('breaks an exact tie towards the earlier row', () => {
+    expect(snapScroll(nine(), 20, 120)).toBe(0);
+  });
+
+  it('never goes past where the list scrolls', () => {
+    expect(snapScroll(nine(), 500, 120)).toBe(120);
+    expect(snapScroll(nine(), 110, 120)).toBe(120);
+    expect(snapScroll(nine(), -30, 120)).toBe(0);
+  });
+
+  it('stops at the end even when it is not a row top', () => {
+    expect(snapScroll(nine(), 100, 105)).toBe(105);
+  });
+
+  it('has nowhere to go when the list fits', () => {
+    expect(snapScroll(nine(), 33, 0)).toBe(0);
+    expect(snapScroll([], 33, 0)).toBe(0);
+  });
+});
+
+describe('revealRow', () => {
+  // Nine rows of 40 px through a 240 px view (six rows) scroll at most 120 px.
+  const at = (row: number, scroll: number): number => revealRow(nine(), row, scroll, 240, 360);
 
   it('stays where it is when the row is in view', () => {
     expect(at(0, 0)).toBe(0);
-    expect(at(4, 0)).toBe(0);
-    expect(at(3, 96)).toBe(96);
+    expect(at(5, 0)).toBe(0);
+    expect(at(3, 80)).toBe(80);
   });
 
-  it('scrolls down just far enough for a row below the window', () => {
-    expect(at(5, 0)).toBe(48);
-    expect(at(8, 0)).toBe(192);
+  it('scrolls down by whole rows for a row below the window', () => {
+    expect(at(6, 0)).toBe(40);
+    expect(at(7, 0)).toBe(80);
+    expect(at(8, 0)).toBe(120);
   });
 
-  it('scrolls up just far enough for a row above the window', () => {
-    expect(at(1, 192)).toBe(48);
-    expect(at(0, 192)).toBe(0);
-  });
-
-  it('leaves the margin for a cue, except where the list ends', () => {
-    expect(at(5, 0, 12)).toBe(60);
-    expect(at(8, 0, 12)).toBe(192);
-    expect(at(1, 192, 12)).toBe(36);
-    expect(at(0, 192, 12)).toBe(0);
+  it('scrolls up to put a row above the window at the top edge', () => {
+    expect(at(1, 120)).toBe(40);
+    expect(at(0, 120)).toBe(0);
   });
 
   it('wraps from the last row to the first and back', () => {
-    expect(at(8, at(0, 0))).toBe(192);
+    expect(at(8, at(0, 0))).toBe(120);
     expect(at(0, at(8, 0))).toBe(0);
+  });
+
+  it('puts a stray offset on a row boundary, keeping the row in view', () => {
+    expect(at(2, 17)).toBe(0);
+    expect(at(2, 23)).toBe(40);
+    expect(at(8, 23)).toBe(120);
+  });
+
+  it('always ends on a row top or the end of the list, with the row whole in view', () => {
+    for (let row = 0; row < 9; row++) {
+      for (let scroll = 0; scroll <= 130; scroll += 7) {
+        const next = at(row, scroll);
+        expect([0, 40, 80, 120]).toContain(next);
+        expect(rowVisible(row * 40, 40, next, 240)).toBe(true);
+      }
+    }
+  });
+
+  it('ignores a row that does not exist', () => {
+    expect(at(20, 23)).toBe(40);
   });
 });
 

@@ -29,12 +29,14 @@ import {
   type TouchGutters,
 } from './layout';
 import {
-  CHEVRON_SIZE,
   chevronSvg,
   isTap,
   menuViewport,
+  revealRow,
   scrollCues,
-  scrollToReveal,
+  snapScroll,
+  snapViewport,
+  type RowBox,
 } from './menu-scroll';
 import { pillItems, type PillIcon } from './hud';
 import type { BenFrame, BenPose } from './titleBen';
@@ -559,17 +561,31 @@ export class Ui {
   }
 
   /**
+   * Sets the height of a menu row on touch (the Row spacing setting), in CSS pixels, and lays the
+   * screens out again. `--lf-menu-row` is the one variable the row rules read.
+   */
+  setMenuRow(px: number): void {
+    const root = document.documentElement.style;
+    if (root.getPropertyValue('--lf-menu-row') === `${px}px`) return;
+    root.setProperty('--lf-menu-row', `${px}px`);
+    this.relayout();
+  }
+
+  /**
    * Lets a menu that does not fit its screen scroll inside its own area. Rows keep their height
    * (`--lf-menu-row` on touch, the glyph cell on a desktop window); when the menu runs the screen over,
-   * the menu's height is cut by the overflow and it scrolls, while the head, the hint bar, the Back
-   * button and the touch controls stay put. A "more rows" cue shows at each edge with rows past it, and
-   * the selected row is kept in view. A menu that fits is left alone. Measured after the menu is drawn.
+   * the menu's height is cut by the overflow, then down to a whole number of rows (never fewer than
+   * two), and it scrolls while the head, the hint bar, the Back button and the touch controls stay put.
+   * Half the pixels the cut freed go above the menu as spacing and the rest stay below it, so no row
+   * shows half cut at either edge. A "more rows" cue shows at each edge with rows past it, and the
+   * selected row is kept in view. A menu that fits is left alone. Measured after the menu is drawn.
    */
   private fitRows(): void {
     for (const screen of [this.title, this.overlay]) {
       const menus = [...screen.querySelectorAll<HTMLElement>('.menu')];
       for (const m of menus) {
         m.style.removeProperty('max-height');
+        m.style.removeProperty('margin-top');
         delete m.dataset.scroll;
       }
       const shown = menus.find((m) => !m.hidden && m.offsetParent);
@@ -579,46 +595,62 @@ export class Ui {
       }
       const keep = shown.scrollTop;
       const natural = shown.offsetHeight;
-      const row = shown.firstElementChild.getBoundingClientRect().height;
+      const boxes = this.rowBoxes(shown);
       // The head and controls decide what is left; two rows is the least worth scrolling through.
-      let view = menuViewport(natural, screen.scrollHeight - screen.clientHeight, row * 2);
-      if (view !== null) {
+      const least = snapViewport(boxes, 0);
+      let raw = menuViewport(natural, screen.scrollHeight - screen.clientHeight, least);
+      if (raw !== null) {
+        let view = snapViewport(boxes, raw);
         shown.style.maxHeight = `${view}px`;
         shown.dataset.scroll = '';
         // A grid or a wrapped slot can leave some overflow after the first cut; take the rest off too.
         const left = screen.scrollHeight - screen.clientHeight;
         if (left > 0) {
-          view = menuViewport(view, left, row * 2);
-          if (view !== null) shown.style.maxHeight = `${view}px`;
+          raw = menuViewport(view, left, least);
+          if (raw !== null) {
+            view = snapViewport(boxes, raw);
+            shown.style.maxHeight = `${view}px`;
+          }
         }
+        if (raw !== null) shown.style.marginTop = `${Math.floor((raw - view) / 2)}px`;
       }
       this.revealSelected(shown, keep);
       this.updateCues(screen, shown);
     }
   }
 
-  /** Scrolls `menu` (from `from`) just far enough to show its selected row, leaving room for the cue. */
+  /** Where each row of `menu` sits in the menu's own pixels, whatever the menu is scrolled to. */
+  private rowBoxes(menu: HTMLElement): RowBox[] {
+    const top = menu.getBoundingClientRect().top - menu.scrollTop;
+    return [...menu.querySelectorAll<HTMLElement>(':scope > button')].map((b) => {
+      const r = b.getBoundingClientRect();
+      return { top: r.top - top, height: r.height };
+    });
+  }
+
+  /**
+   * Scrolls `menu` (from `from`) to a row boundary that shows its selected row whole, moving by the
+   * fewest rows. A row the mouse chose by hovering is under the pointer already, so only the boundary
+   * is found.
+   */
   private revealSelected(menu: HTMLElement, from: number): void {
     if (!('scroll' in menu.dataset)) {
       menu.scrollTop = 0;
       return;
     }
-    const row = menu.querySelector<HTMLElement>(`button[data-i="${menu.dataset.sel}"]`);
     menu.scrollTop = from;
-    // A row the mouse chose by hovering is under the pointer already; moving it would chase the pointer.
     const hovered = this.hoverRow === Number(menu.dataset.sel);
     this.hoverRow = -1;
-    if (!row || hovered) return;
-    const top = row.getBoundingClientRect().top - menu.getBoundingClientRect().top + menu.scrollTop;
-    const n = Number.parseFloat(getComputedStyle(this.stage).getPropertyValue('--lf-n')) || 2;
-    menu.scrollTop = scrollToReveal(
-      top,
-      row.offsetHeight,
-      menu.scrollTop,
-      menu.clientHeight,
-      menu.scrollHeight,
-      Math.ceil(CHEVRON_SIZE.height * n) + 2,
-    );
+    const boxes = this.rowBoxes(menu);
+    menu.scrollTop = hovered
+      ? snapScroll(boxes, menu.scrollTop, menu.scrollHeight - menu.clientHeight)
+      : revealRow(
+          boxes,
+          Number(menu.dataset.sel),
+          menu.scrollTop,
+          menu.clientHeight,
+          menu.scrollHeight,
+        );
   }
 
   /** Shows the "more above" and "more below" cues of `menu` (none when `menu` is null or fits). */

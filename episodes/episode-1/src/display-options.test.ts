@@ -22,24 +22,38 @@ import {
 } from './display-options';
 
 const base = (): Options => ({ ...DEFAULT_OPTIONS });
-const BOTH = { fullscreen: true, keepAwake: true };
+const BOTH = { fullscreen: true, keepAwake: true, touch: false };
+const TOUCH = { fullscreen: true, keepAwake: true, touch: true };
+const NOTHING = { fullscreen: false, keepAwake: false, touch: false };
 const rows = displayRows(BOTH);
 
 describe('displayRows', () => {
-  it('lists Fullscreen, Keep screen on and Back where the page can do both', () => {
+  it('lists Fullscreen, Keep screen on and Back where the page can do both, with no Row spacing off touch', () => {
     expect(rows).toEqual(['fullscreen', 'awake', 'back']);
   });
 
+  it('adds Row spacing before Back on a touch device', () => {
+    expect(displayRows(TOUCH)).toEqual(['fullscreen', 'awake', 'density', 'back']);
+  });
+
   it('leaves out a row the page cannot do, and keeps Back', () => {
-    expect(displayRows({ fullscreen: false, keepAwake: true })).toEqual(['awake', 'back']);
-    expect(displayRows({ fullscreen: true, keepAwake: false })).toEqual(['fullscreen', 'back']);
-    expect(displayRows({ fullscreen: false, keepAwake: false })).toEqual(['back']);
+    expect(displayRows({ ...NOTHING, keepAwake: true })).toEqual(['awake', 'back']);
+    expect(displayRows({ ...NOTHING, fullscreen: true })).toEqual(['fullscreen', 'back']);
+    expect(displayRows(NOTHING)).toEqual(['back']);
+  });
+
+  it('keeps Row spacing on a touch device that can neither go fullscreen nor hold the screen on', () => {
+    expect(displayRows({ ...NOTHING, touch: true })).toEqual(['density', 'back']);
   });
 
   it('is offered from Options only when there is a row besides Back', () => {
     expect(displayShown(BOTH)).toBe(true);
-    expect(displayShown({ fullscreen: true, keepAwake: false })).toBe(true);
-    expect(displayShown({ fullscreen: false, keepAwake: false })).toBe(false);
+    expect(displayShown({ ...NOTHING, fullscreen: true })).toBe(true);
+    expect(displayShown(NOTHING)).toBe(false);
+  });
+
+  it('is offered on a touch device even where only Row spacing remains', () => {
+    expect(displayShown({ ...NOTHING, touch: true })).toBe(true);
   });
 
   it('round-trips a row through its menu id and rejects anything else', () => {
@@ -70,12 +84,18 @@ describe('displayItems', () => {
     expect(displayItems({ ...base(), fullscreen: 1 }, NO_LOCKS, rows)[0]?.value).toBe('On');
   });
 
+  it('shows Row spacing as Cozy by default and as the saved density, a choice that is never locked', () => {
+    const touch = displayRows(TOUCH);
+    const at = (density: number) => displayItems({ ...base(), density }, NO_LOCKS, touch)[2];
+    expect(at(1)).toMatchObject({ id: 'display:density', label: 'Row spacing', kind: 'choice' });
+    expect([0, 1, 2].map((d) => at(d)?.value)).toEqual(['Compact', 'Cozy', 'Comfy']);
+    const locked = displayItems(base(), { ...NO_LOCKS, fullscreen: 'on', wake: 'off' }, touch)[2];
+    expect(locked).toMatchObject({ value: 'Cozy' });
+    expect(locked?.disabled).toBeUndefined();
+  });
+
   it('shows only the rows it is given', () => {
-    const items = displayItems(
-      base(),
-      NO_LOCKS,
-      displayRows({ fullscreen: false, keepAwake: true }),
-    );
+    const items = displayItems(base(), NO_LOCKS, displayRows({ ...NOTHING, keepAwake: true }));
     expect(items.map((i) => i.label)).toEqual(['Keep screen on', 'Back']);
   });
 
@@ -138,8 +158,12 @@ describe('displayLocked and isDisplayStepRow', () => {
     );
   });
 
-  it('steps Fullscreen and Keep screen on only', () => {
-    expect(rows.filter((r) => isDisplayStepRow(r))).toEqual(['fullscreen', 'awake']);
+  it('steps Fullscreen, Keep screen on and Row spacing only', () => {
+    expect(displayRows(TOUCH).filter((r) => isDisplayStepRow(r))).toEqual([
+      'fullscreen',
+      'awake',
+      'density',
+    ]);
     expect(isDisplayStepRow(null)).toBe(false);
   });
 });
@@ -161,10 +185,22 @@ describe('stepDisplay', () => {
     expect(stepDisplay({ ...base(), awake: false }, 'awake', -1).awake).toBe(true);
   });
 
+  it('goes round Compact, Cozy, Comfy and back, either way', () => {
+    let o = base();
+    const seen: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      o = stepDisplay(o, 'density', 1);
+      seen.push(o.density);
+    }
+    expect(seen).toEqual([2, 0, 1, 2]);
+    expect(stepDisplay(base(), 'density', -1).density).toBe(0);
+  });
+
   it('changes nothing else', () => {
     const o = { ...base(), music: 3, lab: true, captions: false };
     expect(stepDisplay(o, 'fullscreen', 1)).toEqual({ ...o, fullscreen: 1 });
     expect(stepDisplay(o, 'awake', 1)).toEqual({ ...o, awake: false });
+    expect(stepDisplay(o, 'density', 1)).toEqual({ ...o, density: 2 });
   });
 
   it('returns the same options for a row that does not step or that the link fixes', () => {
@@ -173,5 +209,6 @@ describe('stepDisplay', () => {
     expect(stepDisplay(o, 'fullscreen', 1, { ...NO_LOCKS, fullscreen: 'on' })).toBe(o);
     expect(stepDisplay(o, 'awake', 1, { ...NO_LOCKS, wake: 'off' })).toBe(o);
     expect(stepDisplay(o, 'awake', 1, { ...NO_LOCKS, fullscreen: 'on' })).not.toBe(o);
+    expect(stepDisplay(o, 'density', 1, { ...NO_LOCKS, fullscreen: 'on', wake: 'on' })).not.toBe(o);
   });
 });

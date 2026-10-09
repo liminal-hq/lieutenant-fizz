@@ -106,6 +106,12 @@
   overscroll-behavior: contain;
   touch-action: pan-y;
   scrollbar-width: none;
+  /* A drag, a fling or the wheel comes to rest with a whole row at the top edge; the shell cuts the
+     menu to a whole number of rows, so the bottom edge falls between rows too. */
+  scroll-snap-type: y mandatory;
+}
+.menu[data-scroll] > button {
+  scroll-snap-align: start;
 }
 .menu[data-scroll]::-webkit-scrollbar {
   display: none;

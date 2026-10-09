@@ -62,25 +62,62 @@ export function scrollCues(scrollTop: number, viewport: number, content: number)
   };
 }
 
+/** Where one row of a list sits, in the list's own pixels: `top` down from the list's start. */
+export interface RowBox {
+  top: number;
+  height: number;
+}
+
+/** The fewest rows a scrolling list shows at once. */
+export const MIN_ROWS = 2;
+
 /**
- * The scroll offset that brings a row into view, or `scrollTop` itself when it already is. A row that
- * is cut at an edge, or beyond it, moves to `margin` px inside that edge (room for the cue drawn
- * there), though never past where the list can scroll.
+ * The height of a scrolling list that shows only whole rows: the most rows from the first that fit in
+ * `view` (never fewer than `minRows`), cut at the end of the last of them. What `view` has over is left
+ * for the screen to spend as spacing, never as a row shown half. Returns `view` itself when it already
+ * holds every row, and 0 for an empty list.
  */
-export function scrollToReveal(
-  rowTop: number,
-  rowHeight: number,
+export function snapViewport(rows: readonly RowBox[], view: number, minRows = MIN_ROWS): number {
+  const first = rows[0];
+  if (!first) return 0;
+  const end = (i: number): number => rows[i]!.top + rows[i]!.height - first.top;
+  let fit = 0;
+  while (fit < rows.length && end(fit) <= view + 0.01) fit++;
+  const shown = Math.min(rows.length, Math.max(fit, minRows));
+  return shown >= rows.length ? view : end(shown - 1);
+}
+
+/**
+ * The scroll offset that puts a whole row at the top edge, nearest to `scrollTop`: a row top, or the
+ * furthest the list scrolls (`limit`) when that is nearer. An exact tie goes to the earlier offset.
+ */
+export function snapScroll(rows: readonly RowBox[], scrollTop: number, limit: number): number {
+  const stops = [...rows.map((r) => r.top).filter((t) => t < limit), Math.max(0, limit)];
+  let best = stops[0] ?? 0;
+  for (const s of stops) if (Math.abs(s - scrollTop) < Math.abs(best - scrollTop)) best = s;
+  return Math.max(0, best);
+}
+
+/**
+ * The scroll offset that brings row `index` wholly into view with the window on a row boundary, or the
+ * boundary `scrollTop` already snaps to when the row is in view. A row above moves to the top edge and
+ * a row below moves in from the bottom by the fewest rows, though never past where the list scrolls.
+ */
+export function revealRow(
+  rows: readonly RowBox[],
+  index: number,
   scrollTop: number,
   viewport: number,
   content: number,
-  margin = 0,
 ): number {
   const limit = maxScroll(viewport, content);
-  let next = scrollTop;
-  if (rowTop - margin < next) next = rowTop - margin;
-  else if (rowTop + rowHeight + margin > next + viewport)
-    next = rowTop + rowHeight + margin - viewport;
-  return Math.min(limit, Math.max(0, Math.round(next)));
+  const at = snapScroll(rows, scrollTop, limit);
+  const row = rows[index];
+  if (!row) return at;
+  if (row.top < at) return snapScroll(rows, row.top, limit);
+  if (row.top + row.height <= at + viewport + 0.01) return at;
+  const stops = [...rows.map((r) => r.top).filter((t) => t < limit), limit].sort((a, b) => a - b);
+  return stops.find((s) => s + viewport + 0.01 >= row.top + row.height) ?? limit;
 }
 
 /** The "more rows below" chevron, one character per art pixel (`#` is the chevron, drawn with an outline). */
