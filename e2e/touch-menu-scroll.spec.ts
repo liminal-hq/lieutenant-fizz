@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type CDPSession, type Page } from '@playwright/test';
 import { audit } from './audit';
 import { ROW_DP, ROW_MIN } from './density';
 import { pressUntil, settle } from './keys';
@@ -161,19 +161,8 @@ test('a drag scrolls the Options list and a tap on a scrolled row activates the 
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'touch-844', 'one project is enough');
   await openOptions(page, '&title=split');
-  const menu = (await page.locator('#overlay .menu').boundingBox())!;
-  const cdp = await page.context().newCDPSession(page);
   // A finger dragged up the list (from over a stepper, which a tap there would change).
-  const x = menu.x + menu.width / 2;
-  const y = menu.y + menu.height / 2;
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-  for (let i = 1; i <= 12; i++) {
-    await cdp.send('Input.dispatchTouchEvent', {
-      type: 'touchMove',
-      touchPoints: [{ x, y: y - i * 20 }],
-    });
-  }
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await drag(page, -240);
   await expect.poll(async () => (await view(page)).top).toBeGreaterThan(0);
   // Where the drag comes to rest, a whole row is at the top and none is cut at either edge.
   await expect
@@ -235,10 +224,11 @@ for (const [density, name] of [
   });
 }
 
-test('Row spacing on Display resizes the open screen, is saved, and holds after a reload', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'touch-844', 'one project is enough');
+/** Opens Options, then Display, and returns the helpers the Row spacing checks share. */
+async function openDisplay(page: Page): Promise<{
+  heights: () => Promise<number[]>;
+  stored: () => Promise<unknown>;
+}> {
   await openOptions(page, '');
   await pressUntil(page, 'ArrowDown', selIs, 'Haptics');
   await pressUntil(page, 'ArrowDown', selIs, 'Display');
@@ -247,9 +237,25 @@ test('Row spacing on Display resizes the open screen, is saved, and holds after 
     'Enter',
     () => document.querySelector('#overlay h2')?.textContent === 'Display',
   );
-  const heights = (): Promise<number[]> => view(page).then((v) => v.rows);
-  const stored = (): Promise<unknown> =>
-    page.evaluate(() => JSON.parse(localStorage.getItem('lf-ep1-options-v1') ?? '{}').density);
+  return {
+    heights: () => view(page).then((v) => v.rows),
+    stored: () =>
+      page.evaluate(() => JSON.parse(localStorage.getItem('lf-ep1-options-v1') ?? '{}').density),
+  };
+}
+
+/** For `pressUntil`: the selected row's value is `v` (its arrows aside). */
+const valIs = (v: string): boolean =>
+  document
+    .querySelector('#overlay .menu button.sel .val')
+    ?.textContent?.replace(/[◄►]/g, '')
+    .trim() === v;
+
+test('Row spacing on Display resizes the open screen at once and is saved', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'touch-844', 'one project is enough');
+  const { heights, stored } = await openDisplay(page);
   expect(await page.locator('#overlay .menu button .lbl').allInnerTexts()).toEqual([
     'Fullscreen',
     'Keep screen on',
@@ -262,11 +268,6 @@ test('Row spacing on Display resizes the open screen, is saved, and holds after 
   await pressUntil(page, 'ArrowDown', selIs, 'Keep screen on');
   await pressUntil(page, 'ArrowDown', selIs, 'Row spacing');
   // Right goes Cozy to Comfy, which resizes the rows at once, then wraps round to Compact.
-  const valIs = (v: string): boolean =>
-    document
-      .querySelector('#overlay .menu button.sel .val')
-      ?.textContent?.replace(/[◄►]/g, '')
-      .trim() === v;
   await pressUntil(page, 'ArrowRight', valIs, 'Comfy');
   await expect.poll(async () => (await heights()).every((h) => Math.abs(h - 48) < 0.5)).toBe(true);
   expect(await stored()).toBe(2);
@@ -274,7 +275,16 @@ test('Row spacing on Display resizes the open screen, is saved, and holds after 
   await expect.poll(async () => (await heights()).every((h) => Math.abs(h - 36) < 0.5)).toBe(true);
   expect(await stored()).toBe(0);
   await expectClean(page);
-  // The choice holds after a reload (the page seeds nothing the second time).
+});
+
+test('Row spacing holds after a reload', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'touch-844', 'one project is enough');
+  const { heights, stored } = await openDisplay(page);
+  await pressUntil(page, 'ArrowDown', selIs, 'Keep screen on');
+  await pressUntil(page, 'ArrowDown', selIs, 'Row spacing');
+  await pressUntil(page, 'ArrowRight', valIs, 'Comfy');
+  await expect.poll(stored).toBe(2);
+  // The page seeds nothing the second time, so Options opens on what was saved.
   await page.reload();
   await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
     timeout: 20_000,
@@ -286,17 +296,28 @@ test('Row spacing on Display resizes the open screen, is saved, and holds after 
   });
   await expect(page.locator('#overlay .menu button')).toHaveCount(9);
   await settle(page);
-  expect((await heights()).every((h) => Math.abs(h - 36) < 0.5)).toBe(true);
-  expect(await stored()).toBe(0);
+  expect((await heights()).every((h) => Math.abs(h - 48) < 0.5)).toBe(true);
+  expect(await stored()).toBe(2);
 });
 
-/** A finger dragged `dy` px (negative is up) over the middle of the menu of `root`, in small moves. */
+/** One CDP session per page: a session per drag would pile up for the page's life. */
+const touchSessions = new WeakMap<Page, CDPSession>();
+
+/**
+ * A finger dragged `dy` px (negative is up) over the middle of the menu of `root`, in a few big moves.
+ * Each move is a round trip to a page that is busy drawing under software GL, so a move every 20 px made
+ * a 400 px drag take seconds on a shared CI runner; four moves are still enough to start a scroll.
+ */
 async function drag(page: Page, dy: number, root = '#overlay'): Promise<void> {
   const menu = (await page.locator(`${root} .menu`).first().boundingBox())!;
-  const cdp = await page.context().newCDPSession(page);
+  let cdp = touchSessions.get(page);
+  if (!cdp) {
+    cdp = await page.context().newCDPSession(page);
+    touchSessions.set(page, cdp);
+  }
   const x = menu.x + menu.width / 2;
   const y = menu.y + menu.height / 2;
-  const steps = Math.ceil(Math.abs(dy) / 20);
+  const steps = Math.ceil(Math.abs(dy) / 100);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
   for (let i = 1; i <= steps; i++) {
     await cdp.send('Input.dispatchTouchEvent', {
@@ -373,7 +394,7 @@ for (const [label, width, height] of SIZES) {
       [1, 'Cozy'],
       [0, 'Compact'],
     ] as const) {
-      test(`Saves with long, wrapping slots at ${label} (${layoutName}, ${densityName}): one row unit, no sliver after keys, a drag or the bottom`, async ({
+      test(`Saves with long, wrapping slots at ${label} (${layoutName}, ${densityName}): one row unit, no sliver after keys and at the bottom`, async ({
         page,
       }, testInfo) => {
         test.skip(testInfo.project.name !== 'touch-844', 'sizes are set here');
@@ -396,25 +417,37 @@ for (const [label, width, height] of SIZES) {
         }
         expect(v.sel).toBe('Back');
         // At the bottom, nothing is hidden below.
-        if (v.scrolls) {
-          expect({ up: v.up, down: v.down }).toEqual({ up: true, down: false });
-          // A drag back up comes to rest on a whole row, and a drag down ends at the bottom the same way.
-          await drag(page, 400);
-          await expect.poll(async () => (await view(page)).top).toBe(0);
-          expectWhole(await view(page), 'after a drag to the top', ROW_DP[density] - 0.1);
-          await drag(page, -400);
-          await expect.poll(async () => (await view(page)).top).toBe((await view(page)).max);
-          await expect
-            .poll(async () => {
-              const w = await view(page);
-              return w.cut.length === 0 && w.top % w.rows[0]! < 0.5;
-            })
-            .toBe(true);
-          await expectClean(page);
-        }
+        if (v.scrolls) expect({ up: v.up, down: v.down }).toEqual({ up: true, down: false });
       });
     }
   }
+}
+
+// A drag is a round trip to the page for each move, which is slow while the page draws under software
+// GL, so the drags are their own tests and run for one density (the snapping does not depend on it).
+for (const [label, width, height] of SIZES) {
+  test(`Saves with long, wrapping slots at ${label} (one column, Cozy): a drag up and down comes to rest on a whole row`, async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'touch-844', 'sizes are set here');
+    await page.setViewportSize({ width, height });
+    await bootSaves(page, '', 1);
+    const min = ROW_DP[1] - 0.1;
+    // A drag down comes to rest at the top on a whole row ...
+    await drag(page, 400);
+    await expect.poll(async () => (await view(page)).top).toBe(0);
+    expectWhole(await view(page), 'after a drag to the top', min);
+    // ... and a drag up ends at the bottom the same way.
+    await drag(page, -400);
+    await expect.poll(async () => (await view(page)).top).toBe((await view(page)).max);
+    await expect
+      .poll(async () => {
+        const w = await view(page);
+        return w.cut.length === 0 && w.top % w.rows[0]! < 0.5;
+      })
+      .toBe(true);
+    await expectClean(page);
+  });
 }
 
 /** The title menu with a saved game, so Continue and Load game show: five rows. */
