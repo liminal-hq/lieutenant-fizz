@@ -4,7 +4,15 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { FIELD, PANNED_MAKEUP, panGains, placeSound } from './sound-field';
+import {
+  AUDIO_DEFAULT,
+  FIELD,
+  PANNED_MAKEUP,
+  panGains,
+  parseAudioParam,
+  placeSound,
+  resolveAudioMode,
+} from './sound-field';
 
 const CAM = { x: 50, y: 10 };
 const HALF = { w: 10, h: 6.5 };
@@ -94,6 +102,25 @@ describe('PANNED_MAKEUP', () => {
     for (const p of [-0.6, -0.2, 0, 0.3, 0.6]) {
       const g = panGains(p);
       expect((g.l * PANNED_MAKEUP) ** 2 + (g.r * PANNED_MAKEUP) ** 2).toBeCloseTo(2, 12);
+    }
+  });
+});
+
+describe('the default audio mode', () => {
+  it('is Enhanced', () => {
+    expect(AUDIO_DEFAULT).toBe('enhanced');
+    expect(resolveAudioMode(undefined)).toBe('enhanced');
+  });
+
+  it('lets an explicit choice win, so ?audio=classic forces Classic', () => {
+    expect(resolveAudioMode(parseAudioParam('classic'))).toBe('classic');
+    expect(resolveAudioMode(parseAudioParam('enhanced'))).toBe('enhanced');
+  });
+
+  it('treats a missing or unknown ?audio= value as no choice', () => {
+    for (const v of [null, undefined, '', 'Classic', 'loud', 'enhanced ']) {
+      expect(parseAudioParam(v)).toBeUndefined();
+      expect(resolveAudioMode(parseAudioParam(v))).toBe(AUDIO_DEFAULT);
     }
   });
 });
