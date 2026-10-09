@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { hintText } from '@lieutenant-fizz/engine/font/tokens';
 import { describe, expect, it } from 'vitest';
 import {
   backHint,
@@ -109,6 +110,28 @@ describe('touch hints', () => {
   it('leaves the keyboard and gamepad hints as they were', () => {
     expect(menuHints('pause', keen)).toEqual(['{[↑↓]} Choose', '{Enter} Select', '{Esc} Resume']);
     expect(menuHints('pause', pad)).toEqual(['{[↑↓]} Choose', '{A} Select', '{Start} Resume']);
+  });
+});
+
+describe('touch hints as drawn', () => {
+  it('draw as the controls own names, with no button glyph and no whole keyboard cap', () => {
+    const tokens = ['{[D-pad]}', '{[Select]}', '{[Back]}', '{[Pause]}'];
+    const drawn = [
+      ...tokens,
+      ...(['list', 'pause', 'options', 'saves', 'controls'] as const).flatMap((s) =>
+        menuHints(s, touch),
+      ),
+      ...controlsTable(touch, true).rows.flat(),
+    ].map(hintText);
+    for (const text of drawn) {
+      expect(text.length, text).toBeGreaterThan(0);
+      for (const ch of text) {
+        const cp = ch.codePointAt(0) ?? 0;
+        // Button glyphs (A, B, Start…) and whole keycaps (Esc, Enter, F5, F9…).
+        expect(cp >= 0xe000 && cp <= 0xe015, `${text} has a button glyph`).toBe(false);
+        expect(cp >= 0xe200 && cp <= 0xe2ff, `${text} has a keycap`).toBe(false);
+      }
+    }
   });
 });
 
