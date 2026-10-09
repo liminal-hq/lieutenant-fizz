@@ -170,6 +170,14 @@ export class SoundLab {
     window.removeEventListener('keydown', this.onEscape, true);
   }
 
+  /** Closes the lab, puts every tuned value back and takes its button and overlay out of the page. */
+  dispose(): void {
+    this.close();
+    this.reset();
+    this.button.remove();
+    this.root.remove();
+  }
+
   toggle(): void {
     if (this.isOpen) this.close();
     else this.open();

@@ -32,6 +32,8 @@ export interface Options {
   text: number;
   /** Motion: 0 follows the system setting, 1 is reduced, 2 is full. */
   motion: number;
+  /** Whether the sound lab is available without `?debug`. Off by default. */
+  lab: boolean;
 }
 
 /** The keys of {@link Options} the Options screen can change. */
@@ -46,6 +48,7 @@ export const DEFAULT_OPTIONS: Readonly<Options> = {
   layout: 0,
   text: 0,
   motion: 0,
+  lab: false,
 };
 
 const int = (v: unknown, lo: number, hi: number, fallback: number): number =>
@@ -65,6 +68,7 @@ export function parseOptions(json: string | null): Options {
       layout: int(raw['layout'], 0, LAYOUTS.length - 1, d.layout),
       text: int(raw['text'], 0, TEXT_SIZES.length - 1, d.text),
       motion: int(raw['motion'], 0, MOTIONS.length - 1, d.motion),
+      lab: typeof raw['lab'] === 'boolean' ? raw['lab'] : d.lab,
     };
   } catch {
     return { ...d };
@@ -112,6 +116,7 @@ export function reducedMotion(o: Pick<Options, 'motion'>, system: boolean): bool
 const CHOICES: Partial<Record<SettingKey, number>> = {
   audio: AUDIO_CHOICES.length,
   captions: 2,
+  lab: 2,
   layout: LAYOUTS.length,
   text: TEXT_SIZES.length,
   motion: MOTIONS.length,
@@ -130,5 +135,6 @@ export function stepOption(o: Options, key: SettingKey, delta: number, wrapMeter
   }
   const n = CHOICES[key] ?? 1;
   if (key === 'captions') return { ...o, captions: !o.captions };
+  if (key === 'lab') return { ...o, lab: !o.lab };
   return { ...o, [key]: mod(o[key] + delta, n) };
 }

@@ -12,9 +12,9 @@ import { audioChoice, DEFAULT_OPTIONS, stepOption, type Options } from './option
 import type { MenuItem } from './ui';
 
 /** The rows of the Sound screen, in order. */
-export type SoundRow = 'style' | 'music' | 'sfx' | 'reset' | 'back';
+export type SoundRow = 'style' | 'music' | 'sfx' | 'lab' | 'reset' | 'back';
 
-const ROWS: readonly SoundRow[] = ['style', 'music', 'sfx', 'reset', 'back'];
+const ROWS: readonly SoundRow[] = ['style', 'music', 'sfx', 'lab', 'reset', 'back'];
 
 /** The styles a Style row steps through, in order. */
 const STYLES: readonly AudioMode[] = ['classic', 'enhanced'];
@@ -69,6 +69,8 @@ export function soundItems(
         return { id, label: 'Music', kind: 'meter', meter: o.music };
       case 'sfx':
         return { id, label: 'Effects', kind: 'meter', meter: o.sfx };
+      case 'lab':
+        return { id, label: 'Sound lab', kind: 'choice', value: o.lab ? 'On' : 'Off' };
       case 'reset':
         return { id, label: 'Reset', ...(armed ? { value: 'Tap again' } : {}) };
       case 'back':
@@ -79,7 +81,7 @@ export function soundItems(
 
 /** Whether a row changes with Left and Right (the others are chosen). */
 export const isSoundStepRow = (row: SoundRow | null): boolean =>
-  row === 'style' || row === 'music' || row === 'sfx';
+  row === 'style' || row === 'music' || row === 'sfx' || row === 'lab';
 
 /**
  * One step on a row, `d` of -1 or +1. At the end of a list a step stops, and choosing the row (`wrap`)
@@ -99,15 +101,17 @@ export function stepSound(o: Options, row: SoundRow, d: number, wrap: boolean): 
       return stepOption(o, 'music', d, wrap);
     case 'sfx':
       return stepOption(o, 'sfx', d, wrap);
+    case 'lab':
+      return stepOption(o, 'lab', d, wrap);
     default:
       return o;
   }
 }
 
-/** The sound options back to their defaults (Auto, full volume); nothing else changes. */
+/** The sound options back to their defaults (Auto, full volume, no sound lab); nothing else changes. */
 export function resetSound(o: Options): Options {
   const d = DEFAULT_OPTIONS;
-  return { ...o, audio: d.audio, music: d.music, sfx: d.sfx };
+  return { ...o, audio: d.audio, music: d.music, sfx: d.sfx, lab: d.lab };
 }
 
 /** A sound to play as a preview: after `delayMs`, at `at` in the stereo field (Classic plays it centred). */
@@ -124,7 +128,7 @@ export const PREVIEW_DELAY_MS = 250;
  * The sounds to play after a step on a row, once the new options are in use. Style plays a boing on the
  * left, then a plink on the right: Enhanced puts them apart and Classic plays both centred, so one step
  * is the comparison. Effects play a crunch at the new level (silent at 0). Music changes the running
- * track, so it has no preview of its own.
+ * track and the Sound lab row only shows or hides a button, so neither has a preview.
  */
 export function soundPreview(row: SoundRow, o: Pick<Options, 'sfx'>): Preview[] {
   switch (row) {

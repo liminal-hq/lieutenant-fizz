@@ -37,7 +37,6 @@ import {
   type TouchSettings,
 } from '@lieutenant-fizz/engine/touch-settings';
 import simUrl from './wasm/sim.wasm?url';
-import { captureState, labItems } from './audio/lab';
 import { MIX, mixFor, mixNameFor, type MixName } from './audio/mix';
 import { MUSIC, PATTERNS, SFX } from './audio/patterns';
 import { ROOMS, roomFor, roomProfile, type RoomName } from './audio/rooms';
@@ -108,7 +107,7 @@ import {
   type SlotSummary,
 } from './slots';
 import { thumbDataUrl } from './thumb';
-import { SoundLab } from './ui/sound-lab';
+import type { SoundLab } from './ui/sound-lab';
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
@@ -246,6 +245,11 @@ export class Game {
   private labMix: MixName | null = null;
   private labMusic = false;
   private lab: SoundLab | null = null;
+  /** `?debug` was given, so the sound lab is there whatever the Sound lab option says. */
+  private labForced = false;
+  /** The lab modules are loading, and whether the lab should open when they arrive. */
+  private labLoading = false;
+  private labOpenWhenReady = false;
   private coarseSpeaker = false;
   private readonly haptics: GameHaptics;
   /** Whether pogo was on last frame, so a toggle can be felt (it raises no event). */
@@ -1008,6 +1012,7 @@ export class Game {
     this.ui.setToggle('captions', o.captions);
     this.syncHints();
     if (save) writeOptions(this.store, o);
+    void this.syncLab();
   }
 
   private syncHints(): void {
@@ -1384,11 +1389,17 @@ export class Game {
     if (!row || this.menuItems()[this.menuIdx]?.disabled) return;
     const o = this.settings;
     const next = stepSound(o, row, d, wrap);
-    if (next.audio === o.audio && next.music === o.music && next.sfx === o.sfx) return;
+    if (
+      next.audio === o.audio &&
+      next.music === o.music &&
+      next.sfx === o.sfx &&
+      next.lab === o.lab
+    )
+      return;
     this.disarmReset();
     this.settings = next;
-    // Style and Effects are heard in their previews; Music plays the menu blip as the other rows do.
-    if (row === 'music') this.audio.play('menu');
+    // Style and Effects are heard in their previews; Music and the Sound lab row play the menu blip.
+    if (row === 'music' || row === 'lab') this.audio.play('menu');
     this.applySettings();
     this.syncUi();
     this.schedulePreview(row);
@@ -1418,7 +1429,7 @@ export class Game {
     this.openSub('sound', this.audioUrl ? this.soundRowList.indexOf('music') : 0);
   }
 
-  /** Reset on the Sound screen asks twice, then puts Style, Music and Effects back and nothing else. */
+  /** Reset on the Sound screen asks twice, then puts Style, Music, Effects and the Sound lab back and nothing else. */
   private tapSoundReset(): void {
     if (resetArmed(this.resetAt, performance.now())) {
       this.disarmReset();
@@ -2191,12 +2202,39 @@ export class Game {
   }
 
   /**
-   * Test hook: adds the sound lab (a "Lab" button and its overlay) and opens it if asked, for
-   * `?debug` and `?debug&lab`. Auditioning never touches the saved options: it plays through the
-   * audio directly and holds a room, a mix state or a track only until "Follow" is chosen again.
+   * Test hook for `?debug` and `?debug&lab`: the sound lab is there whatever the Sound lab option says,
+   * and opens if asked. Resolves once the lab is built.
    */
-  debugLab(open = false): void {
-    if (!this.lab) {
+  async debugLab(open = false): Promise<void> {
+    this.labForced = true;
+    await this.syncLab(open);
+  }
+
+  /**
+   * Adds or removes the sound lab (a "Lab" button and its overlay) to match `?debug` and the Sound lab
+   * option. Off, nothing of it exists: the modules are not loaded and no node is in the page. Turning it
+   * off closes it and lets go of anything it held. Auditioning never touches the saved options: it plays
+   * through the audio directly and holds a room, a mix state or a track only until "Follow" is chosen.
+   */
+  private async syncLab(open = false): Promise<void> {
+    const want = (): boolean => this.labForced || this.settings.lab;
+    if (!want()) {
+      this.unmountLab();
+      return;
+    }
+    if (this.lab) {
+      if (open) this.lab.open();
+      return;
+    }
+    if (open) this.labOpenWhenReady = true;
+    if (this.labLoading) return;
+    this.labLoading = true;
+    try {
+      const [{ SoundLab }, { captureState, labItems }] = await Promise.all([
+        import('./ui/sound-lab'),
+        import('./audio/lab'),
+      ]);
+      if (!want() || this.lab) return;
       this.lab = new SoundLab({
         sfx: labItems(Object.keys(SFX)),
         music: labItems(Object.keys(MUSIC)),
@@ -2247,8 +2285,33 @@ export class Game {
         },
       });
       this.ui.mount(this.lab.button, this.lab.root);
+      if (this.labOpenWhenReady) this.lab.open();
+    } finally {
+      this.labLoading = false;
+      this.labOpenWhenReady = false;
     }
-    if (open) this.lab.open();
+  }
+
+  /** Closes the lab and takes it out of the page, putting back what it tuned or held. */
+  private unmountLab(): void {
+    this.labOpenWhenReady = false;
+    const lab = this.lab;
+    if (!lab) return;
+    this.lab = null;
+    lab.dispose();
+    this.audio.setMode(effectiveAudio(this.audioUrl, this.settings));
+    if (this.labMusic) {
+      this.labMusic = false;
+      this.updateMusic();
+    }
+    if (this.labRoom) {
+      this.labRoom = null;
+      this.updateRoom(true);
+    }
+    if (this.labMix) {
+      this.labMix = null;
+      this.syncMix();
+    }
   }
 
   /** Test hook: what haptics last played, what each compiled to, and what the backend can do. */
