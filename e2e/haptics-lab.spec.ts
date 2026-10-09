@@ -5,6 +5,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { audit } from './audit';
+import { pressUntil } from './keys';
 
 interface Win {
   __vib: unknown[];
@@ -102,7 +103,7 @@ test.describe('on a landscape phone window', () => {
       /^Copy as JSON$/,
     );
 
-    await page.keyboard.press('Escape', { delay: 300 });
+    await pressUntil(page, 'Escape', () => !document.querySelector('#lab'));
     await expect(page.locator('#lab')).toHaveCount(0);
     await expect(page.locator('#labBtn')).toBeVisible();
     expect(errors).toEqual([]);
@@ -122,7 +123,7 @@ test.describe('on a landscape phone window', () => {
     expect(await page.evaluate(() => (window as unknown as Win).__lf.debugState.screen)).toBe(
       'play',
     );
-    await page.keyboard.press('Escape', { delay: 300 });
+    await pressUntil(page, 'Escape', () => !document.querySelector('#lab'));
     await expect(page.locator('#lab')).toHaveCount(0);
     expect(await page.evaluate(() => (window as unknown as Win).__lf.debugState.screen)).toBe(
       'play',
