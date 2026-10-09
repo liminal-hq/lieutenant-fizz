@@ -8,10 +8,15 @@ import {
   AUDIO_DEFAULT,
   FIELD,
   PANNED_MAKEUP,
+  PART_PAN,
   panGains,
   parseAudioParam,
+  partMakeup,
+  partPanAt,
   placeSound,
   resolveAudioMode,
+  undertonePan,
+  type PartRole,
 } from './sound-field';
 
 const CAM = { x: 50, y: 10 };
@@ -122,5 +127,45 @@ describe('the default audio mode', () => {
       expect(parseAudioParam(v)).toBeUndefined();
       expect(resolveAudioMode(parseAudioParam(v))).toBe(AUDIO_DEFAULT);
     }
+  });
+});
+
+describe('music part pans', () => {
+  const roles = Object.keys(PART_PAN) as PartRole[];
+
+  it('keeps the low and central parts in the middle and the rest within 0.3', () => {
+    for (const r of ['bass', 'kick', 'snare', 'pad', 'drone'] as const) {
+      expect(PART_PAN[r], r).toBe(0);
+      expect(undertonePan(r), r).toBeUndefined();
+      expect(partMakeup(r), r).toBe(1);
+    }
+    for (const r of roles) {
+      const p = PART_PAN[r];
+      for (const v of typeof p === 'number' ? [p] : p)
+        expect(Math.abs(v), r).toBeLessThanOrEqual(0.3);
+    }
+    expect(PART_PAN.lead).toBe(-0.15);
+    expect(PART_PAN.counter).toBe(0.2);
+    expect(PART_PAN.bell).toBe(0.3);
+    expect(PART_PAN.hats).toBe(0.25);
+    expect(PART_PAN.perc).toBe(-0.3);
+  });
+
+  it('gives panned roles a number and the make-up gain, and the arpeggio a ping-pong pattern', () => {
+    for (const r of ['lead', 'counter', 'bell', 'hats', 'perc'] as const) {
+      expect(undertonePan(r), r).toBe(PART_PAN[r]);
+      expect(partMakeup(r), r).toBe(PANNED_MAKEUP);
+    }
+    expect(undertonePan('arp')).toBe('[-0.3 0.3]*4');
+    expect(partMakeup('arp')).toBe(PANNED_MAKEUP);
+    expect(undertonePan(undefined)).toBeUndefined();
+    expect(partMakeup(undefined)).toBe(1);
+  });
+
+  it('alternates the arpeggio on every eighth of the cycle', () => {
+    const seen = Array.from({ length: 8 }, (_, k) => partPanAt('arp', k / 8));
+    expect(seen).toEqual([-0.3, 0.3, -0.3, 0.3, -0.3, 0.3, -0.3, 0.3]);
+    expect(partPanAt('arp', 0.99)).toBe(0.3);
+    expect(partPanAt('lead', 0.5)).toBe(-0.15);
   });
 });

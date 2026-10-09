@@ -4,8 +4,16 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { ControlPatch, Pattern, SoundType } from '@liminal-hq/undertone';
-import { routedContext, createEmitter } from './sound-graph';
-import type { AudioMode, SoundAt } from './sound-field';
+import { routedContext, createEmitter, createMusicBus, type MusicBus } from './sound-graph';
+import {
+  isPanned,
+  partMakeup,
+  partPanAt,
+  undertonePan,
+  type AudioMode,
+  type PartRole,
+  type SoundAt,
+} from './sound-field';
 
 /** Where an unplaced sound sits in Enhanced: the centre, at full level. */
 const CENTRE: SoundAt = { pan: 0, gain: 1 };
@@ -48,6 +56,8 @@ export interface MusicPart {
   slide?: number;
   room?: number;
   delay?: number;
+  /** What the part does in the mix; Enhanced uses it to place the part in the stereo field. */
+  role?: PartRole;
 }
 
 export interface MusicTrack {
@@ -171,16 +181,25 @@ interface VoiceSpec {
   slide?: number;
   nudge?: number;
   delay?: number;
+  /** The part's role, set only when it is placed in the stereo field. */
+  role?: PartRole;
+  /** Where the voice sits in its cycle, 0 up to 1, for roles that alternate their pan. */
+  cyclePos?: number;
 }
 
-/** One Undertone voice. Music parts hold their envelope for the note length; effects are percussive. */
+/**
+ * One Undertone voice. Music parts hold their envelope for the note length; effects are percussive.
+ * With `placed` (Enhanced music) a part's role gives it a pan and, if panned, the make-up gain.
+ */
 export function buildVoice(
   U: UndertoneModule,
   v: SfxVoice | MusicPart,
   vol: number,
   gated: boolean,
+  placed = false,
 ): Voice {
   const text = 'notes' in v ? v.notes : v.n;
+  const role = placed && 'notes' in v ? v.role : undefined;
   const noisy = 'noise' in v ? !!v.noise : isNoise(text);
   let p: Voice = noisy
     ? U.sound(text as SoundType)
@@ -190,7 +209,11 @@ export function buildVoice(
     .decay(v.d ?? 0.1)
     .sustain(gated ? ('s' in v ? (v.s ?? 0.3) : 0.3) : 0)
     .release(v.r ?? 0.05)
-    .gain(v.g * vol);
+    .gain(v.g * vol * partMakeup(role));
+  if (role) {
+    const pan = undertonePan(role);
+    if (pan !== undefined) p = p.pan(pan);
+  }
   if (v.lpf) p = p.lpf(v.lpf);
   if (v.hpf) p = p.hpf(v.hpf);
   if (v.slide) p = p.slide(v.slide);
@@ -204,6 +227,8 @@ export function buildVoice(
 export class MiniSynth {
   private readonly noise: Partial<Record<string, AudioBuffer>> = {};
   private readonly delay: DelayNode;
+  /** Echo lines for outputs other than the synth's own, made when a part asks for one. */
+  private readonly echoes = new Map<AudioNode, DelayNode>();
 
   constructor(
     private readonly ctx: AudioContext,
@@ -216,6 +241,23 @@ export class MiniSynth {
     this.delay.connect(fb);
     fb.connect(this.delay);
     this.delay.connect(out);
+  }
+
+  /** The echo line that feeds `out`: the synth's own, or one made for that output. */
+  private echoInto(out: AudioNode): DelayNode {
+    if (out === this.out) return this.delay;
+    let line = this.echoes.get(out);
+    if (!line) {
+      line = this.ctx.createDelay(1);
+      line.delayTime.value = 0.33;
+      const fb = this.ctx.createGain();
+      fb.gain.value = 0.35;
+      line.connect(fb);
+      fb.connect(line);
+      line.connect(out);
+      this.echoes.set(out, line);
+    }
+    return line;
   }
 
   private noiseBuf(kind: string): AudioBuffer {
@@ -283,7 +325,7 @@ export class MiniSynth {
     const d = v.d || 0.1;
     const s = gated ? (v.s ?? 0) : 0;
     const r = v.r || 0.05;
-    const peak = v.g;
+    const peak = v.g * partMakeup(v.role);
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(peak, t + a);
     g.gain.linearRampToValueAtTime(peak * s, t + a + d);
@@ -291,12 +333,20 @@ export class MiniSynth {
     g.gain.setValueAtTime(peak * s, end);
     g.gain.linearRampToValueAtTime(0, end + r);
     node.connect(g);
-    g.connect(out);
+    // A panned part goes through a stereo panner, as Undertone's `.pan()` does; its echo follows it.
+    let tail: AudioNode = g;
+    if (v.role && isPanned(v.role)) {
+      const panner = ctx.createStereoPanner();
+      panner.pan.value = partPanAt(v.role, v.cyclePos ?? 0);
+      g.connect(panner);
+      tail = panner;
+    }
+    tail.connect(out);
     if (v.delay) {
       const sg = ctx.createGain();
       sg.gain.value = v.delay;
-      g.connect(sg);
-      sg.connect(this.delay);
+      tail.connect(sg);
+      sg.connect(this.echoInto(out));
     }
     src.start(t);
     src.stop(end + r + 0.05);
@@ -308,8 +358,11 @@ export class MiniSynth {
     for (const v of list) this.voice({ ...v, g: v.g * vol }, t, 0, false, out);
   }
 
-  /** Loops a track, scheduling voices ~300 ms ahead. Returns a stopper. */
-  loop(track: MusicTrack, vol: number): { stop(): void } {
+  /**
+   * Loops a track, scheduling voices ~300 ms ahead. Returns a stopper. With `out` the track plays
+   * into that node instead of the synth's own output, and each part is placed by its role.
+   */
+  loop(track: MusicTrack, vol: number, out?: AudioNode): { stop(): void } {
     const ctx = this.ctx;
     const cyc = 240 / track.bpm;
     const parsed = track.parts.map((p) => ({ p, tree: parseMini(p.notes) }));
@@ -324,10 +377,11 @@ export class MiniSynth {
           evalMini(tree, 0, 1, c, ev);
           for (const e of ev) {
             this.voice(
-              { ...p, n: e.v, g: p.g * vol },
+              { ...p, n: e.v, g: p.g * vol, role: out ? p.role : undefined, cyclePos: e.t0 },
               next + e.t0 * cyc,
               (e.t1 - e.t0) * cyc,
               true,
+              out,
             );
           }
         }
@@ -369,6 +423,8 @@ export class GameAudio {
   private track: string | null = null;
   private pending: string | null = null;
   private disposed = false;
+  /** The Enhanced music route, built the first time Enhanced music plays. */
+  private musicBus: MusicBus | null = null;
   private readonly cache = new Map<string, Voice>();
   private readonly unlock = (): void => {
     if (this.disposed) return;
@@ -441,7 +497,22 @@ export class GameAudio {
    * here, and Classic never touches the Enhanced path, so switching back restores it exactly.
    */
   setMode(mode: AudioMode): void {
+    if (mode === this.mode) return;
     this.mode = mode;
+    // The running loop is on the old route, so start it again on the new one.
+    if (this.handle && this.music && this.track) this.playMusic(this.track, true);
+  }
+
+  /** The music bus for Enhanced, or null (play the music as Classic) if the context cannot build one. */
+  private enhancedMusic(ctx: AudioContext): MusicBus | null {
+    if (this.musicBus) return this.musicBus;
+    try {
+      this.musicBus = createMusicBus(ctx, ctx.destination);
+      return this.musicBus;
+    } catch (err) {
+      console.warn('Music field unavailable, playing the music as Classic', err);
+      return null;
+    }
   }
 
   /** An emitter for one Enhanced sound, or null (play it as Classic) if the context cannot build one. */
@@ -504,19 +575,20 @@ export class GameAudio {
       this.pending = track;
       return;
     }
+    const field = this.mode === 'enhanced' ? this.enhancedMusic(this.ctx) : null;
     if (this.ut) {
       try {
         const U = this.ut;
-        this.handle = U.stack(...t.parts.map((p) => buildVoice(U, p, this.musicVol, true))).loop({
-          ctx: this.ctx,
-          bpm: t.bpm,
-        });
+        const voices = t.parts.map((p) => buildVoice(U, p, this.musicVol, true, !!field));
+        this.handle = U.stack(...voices).loop(
+          field ? { ctx: field.routed, bpm: t.bpm } : { ctx: this.ctx, bpm: t.bpm },
+        );
         return;
       } catch (e) {
         console.warn('Undertone music failed, using the built-in synth', track, e);
       }
     }
-    this.handle = this.mini.loop(t, this.musicVol);
+    this.handle = this.mini.loop(t, this.musicVol, field?.bus);
   }
 
   setMusic(on: boolean): void {

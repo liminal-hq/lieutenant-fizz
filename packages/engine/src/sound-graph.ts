@@ -51,3 +51,22 @@ export function createEmitter(ctx: BaseAudioContext, at: SoundAt, out: AudioNode
   panner.connect(out);
   return gain;
 }
+
+/** The music's way to the speakers in Enhanced: a bus, and a context that sends Undertone into it. */
+export interface MusicBus {
+  /** Every music voice, and the music's room and echo buses, end here. */
+  bus: GainNode;
+  /** The real context with `destination` replaced by `bus`: pass it to Undertone's `loop`. */
+  routed: AudioContextLike;
+}
+
+/**
+ * Builds the music bus into `out`. The routed context is one object for the life of the bus, so
+ * Undertone's room and echo buses (kept per context object) are made once and feed this bus; the
+ * real context's own buses, which Classic uses, are never touched.
+ */
+export function createMusicBus(ctx: BaseAudioContext, out: AudioNode): MusicBus {
+  const bus = ctx.createGain();
+  bus.connect(out);
+  return { bus, routed: routedContext(ctx as unknown as AudioContextLike, bus) };
+}
