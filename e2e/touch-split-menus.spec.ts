@@ -287,7 +287,7 @@ test('a raised D-pad: each menu is split while its heading fits above it, else o
   page,
 }) => {
   const height = page.viewportSize()!.height;
-  // The D-pad's top is 80 px down: the pause heading fits above it, Options (below Back) does not.
+  // The D-pad's top is 80 px down: the heading fits above it on neither Pause nor Options, since both sit under Back.
   await boot(page, { pos: { dpad: { side: 24, bottom: height - 230 } } });
   const modes: Record<string, string> = {};
   for (const screen of MENUS) {
@@ -304,10 +304,10 @@ test('a raised D-pad: each menu is split while its heading fits above it, else o
     modes[screen] = r.stage.menuFit ?? 'split';
     await expectClean(page, screen);
   }
-  // Options sits under the Back button, which pushes its heading down past the raised D-pad.
+  // These sit under the Back button, which pushes their heading down past the raised D-pad.
   expect(modes.options).toBe('column');
   expect(modes.sound).toBe('column');
-  expect(modes.pause).toBe('split');
+  expect(modes.pause).toBe('column');
 });
 
 test('a raised, Left-handed D-pad mirrors the fallback', async ({ page }) => {
