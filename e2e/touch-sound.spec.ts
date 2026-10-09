@@ -55,7 +55,7 @@ test('Options > Sound on touch: full-height rows, the Style stepper switches the
   expect(Math.min(...heights)).toBeGreaterThanOrEqual(
     page.viewportSize()!.height >= 390 ? 47.9 : 46.9,
   );
-  // The Sound lab row sits after Effects and starts Off.
+  // The Sound lab row sits after Effects. ?debug puts the lab on, so the row shows On (link), fixed.
   expect(await page.locator('#overlay .menu button .lbl').allInnerTexts()).toEqual([
     'Style',
     'Music',
@@ -64,7 +64,9 @@ test('Options > Sound on touch: full-height rows, the Style stepper switches the
     'Reset',
     'Back',
   ]);
-  await expect(row(page, 'Sound lab').locator('.val')).toHaveText('Off');
+  await expect(row(page, 'Sound lab').locator('.val')).toHaveText('On (link)');
+  await expect(row(page, 'Sound lab')).toHaveClass(/dis/);
+  await expect(row(page, 'Sound lab').locator('[data-step]')).toHaveCount(0);
   const { checked, ...problems } = await page.evaluate(audit, { roots: ['#ui', '#touch'] });
   expect(checked).toBeGreaterThan(3);
   expect(problems, JSON.stringify(problems, null, 2)).toMatchObject({

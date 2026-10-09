@@ -1,4 +1,4 @@
-// Browser checks that haptics reach `navigator.vibrate` or a pad's motors only with `?haptics`, and stop when the page hides.
+// Browser checks that haptics reach `navigator.vibrate` or a pad's motors by default, that Strength Off and `?haptics=off` silence them, and that they stop when the page hides.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -13,7 +13,15 @@ interface Win {
 }
 
 /** Boots the title with a `navigator.vibrate` that records what it is given. */
-async function open(page: Page, query: string, withPad = false): Promise<void> {
+async function open(
+  page: Page,
+  query: string,
+  withPad = false,
+  stored: Record<string, string> = {},
+): Promise<void> {
+  await page.addInitScript((items) => {
+    for (const [k, v] of Object.entries(items)) localStorage.setItem(k, v);
+  }, stored);
   if (withPad)
     await page.addInitScript(() => {
       // A standard pad whose motors record what they are asked to do.
@@ -65,9 +73,9 @@ const menu = (page: Page): Promise<number> =>
 const ONE = 'touch-844';
 
 test.describe('haptics', () => {
-  test('a menu move vibrates and hiding the page stops it', async ({ page }, info) => {
+  test('a menu move vibrates by default and hiding the page stops it', async ({ page }, info) => {
     test.skip(info.project.name !== ONE, 'one viewport');
-    await open(page, '&haptics');
+    await open(page, '');
     await page.keyboard.press('ArrowDown', { delay: 300 });
     await expect.poll(() => calls(page)).not.toEqual([]);
     expect((await calls(page))[0]).toEqual(expect.arrayContaining([expect.any(Number)]));
@@ -85,9 +93,9 @@ test.describe('haptics', () => {
     await expect.poll(async () => (await calls(page)).at(-1)).toBe(0);
   });
 
-  test('without the flag nothing vibrates', async ({ page }, info) => {
+  test('?haptics=off silences the menus', async ({ page }, info) => {
     test.skip(info.project.name !== ONE, 'one viewport');
-    await open(page, '');
+    await open(page, '&haptics=off');
     const before = await menu(page);
     await page.keyboard.press('ArrowDown', { delay: 300 });
     await expect.poll(() => menu(page)).not.toBe(before);
@@ -98,11 +106,36 @@ test.describe('haptics', () => {
     expect(await calls(page)).toEqual([]);
   });
 
+  test('a saved strength of Off silences the menus, and ?haptics turns them back on without saving', async ({
+    page,
+  }, info) => {
+    test.skip(info.project.name !== ONE, 'one viewport');
+    await open(page, '', false, { 'lf-touch-v1': JSON.stringify({ v: 1, hapticStrength: 0 }) });
+    const before = await menu(page);
+    await page.keyboard.press('ArrowDown', { delay: 300 });
+    await expect.poll(() => menu(page)).not.toBe(before);
+    await page.evaluate(
+      () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+    );
+    expect(await calls(page)).toEqual([]);
+  });
+
+  test('?haptics beats a saved Off, at the default strength, and leaves the saved Off alone', async ({
+    page,
+  }, info) => {
+    test.skip(info.project.name !== ONE, 'one viewport');
+    const saved = JSON.stringify({ v: 1, hapticStrength: 0 });
+    await open(page, '&haptics', false, { 'lf-touch-v1': saved });
+    await page.keyboard.press('ArrowDown', { delay: 300 });
+    await expect.poll(() => calls(page)).not.toEqual([]);
+    expect(await page.evaluate(() => localStorage.getItem('lf-touch-v1'))).toBe(saved);
+  });
+
   test('with a controller, gameplay rumbles the pad and not the phone, and hiding resets it', async ({
     page,
   }, info) => {
     test.skip(info.project.name !== ONE, 'one viewport');
-    await open(page, '&haptics&level=0', true);
+    await open(page, '&level=0', true);
     await page.evaluate(() => {
       (window as unknown as Win).__pad.buttons[0]!.pressed = true;
     });

@@ -47,11 +47,11 @@ const settings = (hand: 'right' | 'left', pos: Record<string, unknown> = {}): st
     size: 'M',
     opacity: 100,
     leftHanded: hand === 'left',
-    haptics: false,
+    hapticStrength: 0,
     pos,
   });
 
-type Screen = 'pause' | 'options' | 'sound' | 'touch' | 'saves' | 'card' | 'controls';
+type Screen = 'pause' | 'options' | 'sound' | 'haptics' | 'touch' | 'saves' | 'card' | 'controls';
 
 /**
  * The shortest row each screen gets by window height, measured in the split layout and in the one
@@ -63,14 +63,17 @@ const ROWS: Record<
 > = {
   title: { split: { 390: 48, 360: 48, 320: 48 }, column: { 390: 38, 360: 35, 320: 30 } },
   pause: { split: { 390: 48, 360: 47, 320: 35 }, column: { 390: 41, 360: 36, 320: 29 } },
-  options: { split: { 390: 45, 360: 40, 320: 35 }, column: { 390: 35, 360: 31, 320: 25 } },
+  // Options has eight rows on a touch device (Haptics and Touch controls), so they are shorter.
+  options: { split: { 390: 39, 360: 35, 320: 30 }, column: { 390: 30, 360: 27, 320: 22 } },
   sound: { split: { 390: 48, 360: 47, 320: 41 }, column: { 390: 41, 360: 36, 320: 29 } },
-  touch: { split: { 390: 45, 360: 40, 320: 35 }, column: { 390: 35, 360: 31, 320: 25 } },
+  // Touch controls lost its Haptics row, so it has six rows like Sound. Haptics has four (five with a pad).
+  haptics: { split: { 390: 48, 360: 48, 320: 48 }, column: { 390: 48, 360: 48, 320: 44 } },
+  touch: { split: { 390: 48, 360: 47, 320: 41 }, column: { 390: 41, 360: 36, 320: 29 } },
   saves: { split: { 390: 48, 360: 47, 320: 40 }, column: { 390: 41, 360: 36, 320: 29 } },
   card: { split: { 390: 48, 360: 48, 320: 48 }, column: { 390: 48, 360: 48, 320: 32 } },
   controls: { split: {}, column: {} },
 };
-const MENUS: Screen[] = ['pause', 'options', 'sound', 'touch', 'saves', 'card'];
+const MENUS: Screen[] = ['pause', 'options', 'sound', 'haptics', 'touch', 'saves', 'card'];
 
 /** Opens the game with the controls pinned on and the touch settings stored, then waits for it. */
 async function boot(
