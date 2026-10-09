@@ -37,6 +37,10 @@ async function openCine(page: Page): Promise<void> {
 
 test('Enter finishes the beat first, then moves to the next', async ({ page }) => {
   await openCine(page);
+  // Slowed to a crawl so the press, not the typewriter, finishes the beat however short it is.
+  await page.evaluate(() => {
+    (window as unknown as { __lf: { story: { cps: number } } }).__lf.story.cps = 0.5;
+  });
   const first = await story(page);
   expect([first.scene, first.beat]).toEqual([0, 0]);
   await pressUntil(page, 'Enter', () => {

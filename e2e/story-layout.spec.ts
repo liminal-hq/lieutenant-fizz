@@ -39,25 +39,39 @@ async function open(page: Page, screen: 'cine' | 'ending', touch: boolean): Prom
   await expect(page.locator('#letterbox')).toBeVisible();
 }
 
+/**
+ * Makes the letterbox draw `forced` over whatever the game asks for, for good, so a redraw the game
+ * does for its own reasons (a resize, the typewriter) cannot put the real beat back mid-check.
+ */
+async function force(page: Page, forced: Record<string, unknown>, twoLines = false): Promise<void> {
+  await page.evaluate(
+    ([over, two]) => {
+      const g = (window as unknown as { __lf: Lf }).__lf;
+      g.primary();
+      const orig = g.ui.showLetterbox.bind(g.ui);
+      g.ui.showLetterbox = (o: unknown): void =>
+        orig(o && { ...(o as object), ...(over as object), done: true, hidden: '' });
+      g.ui.showLetterbox({ place: '', shown: '', pips: '', last: false, skip: true, announce: '' });
+      const text = document.querySelector<HTMLElement>('#letterbox .text');
+      if (text && two) text.style.whiteSpace = 'pre-line';
+    },
+    [forced, twoLines] as const,
+  );
+}
+
 /** Types the beat out, then puts two explicit lines in the bar: the most a beat may take. */
-async function twoLineBeat(page: Page, skip: boolean): Promise<void> {
-  await page.evaluate((withSkip) => {
-    const g = (window as unknown as { __lf: Lf }).__lf;
-    g.primary();
-    g.ui.showLetterbox({
+const twoLineBeat = (page: Page, skip: boolean): Promise<void> =>
+  force(
+    page,
+    {
       place: 'Under the treehouse',
       shown: 'First line of a beat\nSecond line of a beat',
-      hidden: '',
       pips: '●●○○○○○○',
-      done: true,
-      last: false,
-      skip: withSkip,
+      skip,
       announce: 'Under the treehouse. First line of a beat. Second line of a beat',
-    });
-    const text = document.querySelector<HTMLElement>('#letterbox .text');
-    if (text) text.style.whiteSpace = 'pre-line';
-  }, skip);
-}
+    },
+    true,
+  );
 
 const box = (page: Page, selector: string): Promise<Box | null> =>
   page.evaluate((sel) => {
@@ -155,18 +169,12 @@ for (const p of PHONES) {
     test('the place, the dots, Skip, Lab and Pause do not crowd each other', async ({ page }) => {
       await open(page, 'cine', true);
       // The longest place name with the most dots is the widest the left side gets.
-      await page.evaluate(() => {
-        (window as unknown as { __lf: Lf }).__lf.primary();
-        (window as unknown as { __lf: Lf }).__lf.ui.showLetterbox({
-          place: 'Under the treehouse',
-          shown: 'x',
-          hidden: '',
-          pips: '●●●●●●●●',
-          done: true,
-          last: false,
-          skip: true,
-          announce: 'x',
-        });
+      await force(page, {
+        place: 'Under the treehouse',
+        shown: 'x',
+        pips: '●●●●●●●●',
+        skip: true,
+        announce: 'x',
       });
       const parts: Record<string, Box | null> = {
         place: await box(page, '#letterbox .place'),
@@ -227,19 +235,13 @@ for (const p of PHONES) {
 
     test('the last button of the intro keeps its word', async ({ page }) => {
       await open(page, 'cine', true);
-      await page.evaluate(() => {
-        const g = (window as unknown as { __lf: Lf }).__lf;
-        g.primary();
-        g.ui.showLetterbox({
-          place: 'The crystal forest',
-          shown: 'x',
-          hidden: '',
-          pips: '●●●●●●●●',
-          done: true,
-          last: true,
-          skip: true,
-          announce: 'x',
-        });
+      await force(page, {
+        place: 'The crystal forest',
+        shown: 'x',
+        pips: '●●●●●●●●',
+        last: true,
+        skip: true,
+        announce: 'x',
       });
       await expect(page.locator('#letterbox .next .lbl')).toBeVisible();
       await expect(page.locator('#letterbox .next .lbl')).toHaveText('Step out');
@@ -273,12 +275,16 @@ for (const p of PHONES) {
       page,
     }) => {
       await open(page, 'cine', true);
+      // A short beat can finish typing before a slow machine's first tap lands, so slow the typewriter
+      // to a crawl and let the tap be what finishes it.
+      await page.evaluate(() => {
+        const g = (window as unknown as { __lf: { story: { cps: number } } }).__lf;
+        g.story.cps = 0.5;
+      });
       const before = await story(page);
       expect(before.done).toBe(false);
-      const tapNext = async (): Promise<void> => {
-        const n = (await box(page, '#letterbox .next'))!;
-        await page.touchscreen.tap(n.x + n.w / 2, n.y + n.h / 2);
-      };
+      // Playwright waits for the button to stop moving before it taps, as a finger would.
+      const tapNext = (): Promise<void> => page.locator('#letterbox .next').tap();
       await tapNext();
       await expect.poll(async () => (await story(page)).done).toBe(true);
       const typed = await story(page);

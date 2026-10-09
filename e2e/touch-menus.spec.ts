@@ -276,10 +276,10 @@ test('a tap on the cinematic text finishes the line, then moves on', async ({ pa
   const at = { x: text.x + 40, y: text.y + 10 };
   await page.touchscreen.tap(at.x, at.y);
   await expect(page.locator('#letterbox .hidden-text')).toHaveText('');
-  const pips = await page.locator('#letterbox .pips').innerText();
+  const beat = await page.locator('#letterbox .shown').innerText();
   await page.waitForTimeout(150);
   await page.touchscreen.tap(at.x, at.y);
-  await expect(page.locator('#letterbox .pips')).not.toHaveText(pips);
+  await expect(page.locator('#letterbox .shown')).not.toHaveText(beat);
 });
 
 test('a tap on the dialogue moves to the next line', async ({ page }) => {
