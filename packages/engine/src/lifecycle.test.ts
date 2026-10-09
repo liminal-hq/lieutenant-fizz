@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   enterFullscreen,
+  exitFullscreen,
   noKeepAwake,
   webWakeLock,
   type DocLike,
@@ -344,5 +345,53 @@ describe('webWakeLock', () => {
       noKeepAwake.set(true);
       noKeepAwake.dispose();
     }).not.toThrow();
+  });
+});
+
+describe('exitFullscreen', () => {
+  it('calls exitFullscreen at once when an element is fullscreen', async () => {
+    const log: string[] = [];
+    const doc = {
+      fullscreenElement: {} as Element,
+      exitFullscreen: (): Promise<void> => {
+        log.push('exit');
+        return Promise.resolve();
+      },
+    };
+    const done = exitFullscreen(doc);
+    expect(log).toEqual(['exit']);
+    expect(await done).toBe('ok');
+  });
+
+  it('does nothing when the page is not fullscreen', async () => {
+    let called = false;
+    const doc = {
+      fullscreenElement: null,
+      exitFullscreen: (): Promise<void> => {
+        called = true;
+        return Promise.resolve();
+      },
+    };
+    expect(await exitFullscreen(doc)).toBe('skipped');
+    expect(called).toBe(false);
+  });
+
+  it('reports a missing, throwing or rejecting exit without throwing', async () => {
+    const el = {} as Element;
+    expect(await exitFullscreen({ fullscreenElement: el })).toBe('unsupported');
+    expect(
+      await exitFullscreen({
+        fullscreenElement: el,
+        exitFullscreen: () => {
+          throw new Error('no');
+        },
+      }),
+    ).toBe('denied');
+    expect(
+      await exitFullscreen({
+        fullscreenElement: el,
+        exitFullscreen: () => Promise.reject(new Error('no')),
+      }),
+    ).toBe('denied');
   });
 });

@@ -163,6 +163,50 @@ export function pauseFor(e: LifeEvent, s: Pick<LifeState, 'playing'>): boolean {
   return e !== 'visible' && s.playing;
 }
 
+/** The screens the fullscreen button cares about: the title, the pause menu, a level card, play, and everything else (scenes, the editor, loading). */
+export type FullscreenScreen = 'title' | 'pause' | 'card' | 'play' | 'other';
+
+/** The glyph the button draws: Expand to enter fullscreen, Collapse to leave it. */
+export type FullscreenGlyph = 'expand' | 'collapse';
+
+/** What the fullscreen button needs to decide. */
+export interface FullscreenButtonInput {
+  screen: FullscreenScreen;
+  /** The on-screen touch controls are in use. */
+  touch: boolean;
+  caps: Pick<Caps, 'fullscreen' | 'host'>;
+  /** An element is fullscreen right now. */
+  fullscreen: boolean;
+}
+
+/** Whether the button shows, and what it says. */
+export interface FullscreenButton {
+  show: boolean;
+  glyph: FullscreenGlyph;
+  label: 'Fullscreen' | 'Exit fullscreen';
+}
+
+/**
+ * The explicit fullscreen button and the `F` shortcut. They exist only where element fullscreen can work
+ * in a browser page (the same rule as the Display screen: not an iPhone, not the app). On a touch screen
+ * they show on the title and the pause menu, where the corner is free, and never in play, which already
+ * goes fullscreen on its gesture and gives the corner to Pause. On a desktop they also show on level
+ * cards and in play. The glyph and label follow whether the page is fullscreen. The Fullscreen setting
+ * and `?fullscreen` govern only the automatic requests, so they do not appear here.
+ */
+export function fullscreenButton(i: FullscreenButtonInput): FullscreenButton {
+  const can = i.caps.fullscreen && i.caps.host === 'web';
+  const where =
+    i.screen === 'title' ||
+    i.screen === 'pause' ||
+    (!i.touch && (i.screen === 'card' || i.screen === 'play'));
+  return {
+    show: can && where,
+    glyph: i.fullscreen ? 'collapse' : 'expand',
+    label: i.fullscreen ? 'Exit fullscreen' : 'Fullscreen',
+  };
+}
+
 /** The web Back guard stays out of the app, where the native Back is the game's. */
 export function backGuardAllowed(c: Caps): boolean {
   return c.host !== 'app';

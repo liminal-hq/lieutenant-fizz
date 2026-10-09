@@ -83,6 +83,37 @@ export async function enterFullscreen(
   return result;
 }
 
+/** The part of `document` that leaving fullscreen needs. */
+export interface ExitDocLike {
+  fullscreenElement: Element | null;
+  exitFullscreen?: () => Promise<void>;
+}
+
+/**
+ * Leaves fullscreen when the page is in it. The call is made before any `await`, so it can be used
+ * inside a gesture. Reports `skipped` when nothing is fullscreen, `unsupported` when the browser has no
+ * `exitFullscreen`, and `denied` when it throws or rejects; it never throws.
+ */
+export async function exitFullscreen(
+  doc: ExitDocLike,
+): Promise<'ok' | 'denied' | 'unsupported' | 'skipped'> {
+  if (doc.fullscreenElement === null) return 'skipped';
+  const exit = doc.exitFullscreen;
+  if (typeof exit !== 'function') return 'unsupported';
+  let pending: Promise<void>;
+  try {
+    pending = Promise.resolve(exit.call(doc));
+  } catch {
+    return 'denied';
+  }
+  try {
+    await pending;
+    return 'ok';
+  } catch {
+    return 'denied';
+  }
+}
+
 /** What the screen wake lock has done, for trying it on a phone (`debugState.lifecycle.wake`). */
 export interface WakeReport {
   /** A sentinel is held right now. */
