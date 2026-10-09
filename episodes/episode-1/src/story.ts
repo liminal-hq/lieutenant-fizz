@@ -14,52 +14,87 @@ export const CINE: BeatScene[] = [
   {
     place: 'The backyard',
     beats: [
-      "One night, Ben Blaze's cousin Billy didn't come home. Ben checked the treehouse where they always played. Billy wasn't there — but a hatch between the roots was hanging open, and warm light was spilling out.",
+      "One night, Ben Blaze's cousin Billy didn't come home.",
+      'Ben checked the treehouse where they always played.',
+      "Billy wasn't there — but a hatch between the roots was hanging open.",
+      'Warm light was spilling out.',
     ],
   },
   {
     place: 'Under the treehouse',
     beats: [
-      "A ladder led down to a secret lab: blinking consoles, blueprints pinned to the walls, and a prototype spaghetti with meatballs flying saucer on a launch pad. On the workbench lay Billy's note — a map, with an X and a planet name beside it. “That must be where he's gone.”",
+      'A ladder led down to a secret lab.',
+      'Blinking consoles. Blueprints pinned to the walls.',
+      'And a prototype spaghetti with meatballs flying saucer on a launch pad.',
+      "On the workbench lay Billy's note — a map, with an X and a planet name beside it.",
+      "“That must be where he's gone.”",
     ],
   },
   {
     place: 'Liftoff',
     beats: [
-      'Ben put on his bicycle helmet, climbed aboard and hit the big Engage button. A hatch in the lawn slid open, and the saucer rose past the treehouse into the night.',
+      'Ben put on his bicycle helmet, climbed aboard and hit the big Engage button.',
+      'A hatch in the lawn slid open.',
+      'The saucer rose past the treehouse into the night.',
     ],
   },
   {
     place: 'The stratosphere',
     beats: [
-      "The G-force pressed Ben deep into the oversized, noodle-upholstered captain's chair as the saucer tore through the stratosphere. Marinara-scented exhaust plumed behind him, painting a crimson streak across the night sky. He gripped the steering yoke — which felt suspiciously like a giant, hardened breadstick — and steadied his breathing.",
+      "The G-force pressed Ben deep into the noodle-upholstered captain's chair.",
+      'The saucer tore through the stratosphere.',
+      'Marinara-scented exhaust plumed behind him,',
+      'painting a crimson streak across the night sky.',
+      'He gripped the steering yoke —',
+      'which felt suspiciously like a giant, hardened breadstick —',
+      'and steadied his breathing.',
     ],
   },
   {
     place: 'Past the Moon',
     beats: [
-      "On the dashboard, pinned beneath a blinking, meatball-shaped radar dial, was Billy's note. Ben tapped the X on the crinkled parchment. The destination was boldly scribbled: Planet Zargoth, a remote outpost on the outer galactic rim — exactly the kind of dangerous, alien world Billy would wander off to.",
+      'On the dashboard, pinned beneath a blinking, meatball-shaped radar dial,',
+      "was Billy's note.",
+      'Ben tapped the X on the crinkled parchment.',
+      'The destination was boldly scribbled: Planet Zargoth.',
+      'A remote outpost on the outer galactic rim.',
+      'Exactly the kind of dangerous, alien world Billy would wander off to.',
     ],
   },
   {
     place: 'Deep space',
     beats: [
-      'Ben engaged the autopilot and popped open the glovebox: a crinkled bag of Cheezies and a cold can of Canadian cream soda. The loud, satisfying crunch of the bright orange snacks echoed in the quiet cabin as the stars stretched into streaks of blinding white light outside the viewport.',
+      'Ben engaged the autopilot and popped open the glovebox:',
+      'a crinkled bag of Cheezies and a cold can of Canadian cream soda.',
+      'The loud, satisfying crunch of the bright orange snacks echoed in the quiet cabin.',
+      'The stars stretched into streaks of blinding white light outside the viewport.',
     ],
   },
   {
     place: 'Planet Zargoth',
     beats: [
-      'Hours later, the navigation console chimed a whimsical, retro 8-bit melody. Planet Zargoth loomed through the windshield, a swirling marble of neon green and deep purple clouds. Ben wiped his cheesy fingers on his jeans, grabbed the yoke, and manoeuvred the pasta-themed vessel down through the upper atmosphere.',
+      'Hours later, the navigation console chimed a whimsical, retro 8-bit melody.',
+      'Planet Zargoth loomed through the windshield —',
+      'a swirling marble of neon green and deep purple clouds.',
+      'Ben wiped his cheesy fingers on his jeans, grabbed the yoke,',
+      'and manoeuvred the pasta-themed vessel down through the upper atmosphere.',
     ],
   },
   {
     place: 'The crystal forest',
     beats: [
-      'He touched down with a heavy, saucy thud in the centre of a glowing, crystalline forest. The ramp extended with a hiss of steam. Ben adjusted the chin strap of his bicycle helmet, tucked his trusty, modified pogo stick under one arm, and stepped out into the alien unknown, determined to track down his missing cousin.',
+      'He touched down with a heavy, saucy thud in the centre of a glowing, crystalline forest.',
+      'The ramp extended with a hiss of steam.',
+      'Ben adjusted the chin strap of his bicycle helmet,',
+      'tucked his trusty, modified pogo stick under one arm,',
+      'and stepped out into the alien unknown,',
+      'determined to track down his missing cousin.',
     ],
   },
 ];
+
+/** The beat of the Liftoff scene that opens the hatch, where the launch begins (see `Cinematic.launch`). */
+export const LIFTOFF_BEAT = 1;
 
 /** Music track per cinematic scene. */
 export const CINE_TRACK = ['yard', 'lab', 'launch', 'launch', 'cine', 'cine', 'cine', 'cine'];

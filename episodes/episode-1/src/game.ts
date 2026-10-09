@@ -172,7 +172,17 @@ import type { SoundLab } from './ui/sound-lab';
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
-import { CINE, CINE_TRACK, DIALOGUE, END, LEVELS, SAUCER_ID, SIGNS, type Line } from './story';
+import {
+  CINE,
+  CINE_TRACK,
+  DIALOGUE,
+  END,
+  LEVELS,
+  LIFTOFF_BEAT,
+  SAUCER_ID,
+  SIGNS,
+  type Line,
+} from './story';
 import { MORTIMER_STINGER } from './stinger';
 import { BEN_LOOK, BEN_WAVE, benFrame, benScale, type BenPose } from './titleBen';
 import {
@@ -2347,7 +2357,11 @@ export class Game {
     const scene = this.story.scene;
     const r = this.story.press();
     if (r === 'end') return leave();
-    if (this.screen === 'cine' && this.story.scene !== scene) this.cine.start(this.story.scene);
+    if (this.screen === 'cine') {
+      if (this.story.scene !== scene) this.cine.start(this.story.scene);
+      // The launch waits for the beat that opens the hatch.
+      if (this.story.scene === 2 && this.story.beat >= LIFTOFF_BEAT) this.cine.launch();
+    }
     this.syncUi();
   }
 

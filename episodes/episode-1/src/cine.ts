@@ -41,6 +41,8 @@ export class Cinematic {
   t = 0;
   stage = 0;
   private stT = 0;
+  /** The Liftoff scene waits for `launch()`, so the hatch and the climb follow the text that describes them. */
+  private held = false;
   private readonly stars: Star[] = [];
   private fx: Puff[] = [];
   private sx = 0;
@@ -62,6 +64,7 @@ export class Cinematic {
   start(stage: number): void {
     this.stage = stage;
     this.stT = 0;
+    this.held = stage === 2;
     this.ly = -4.4;
     this.scroll = 0;
     if (stage === 3) {
@@ -71,9 +74,19 @@ export class Cinematic {
     }
   }
 
+  /** Lets the Liftoff scene's hatch open and the saucer rise (the scene's clock starts here). */
+  launch(): void {
+    this.held = false;
+  }
+
+  /** True while the Liftoff scene is waiting for `launch()`. */
+  get waiting(): boolean {
+    return this.held;
+  }
+
   tick(dt: number): void {
     this.t += dt;
-    this.stT += dt;
+    if (!this.held) this.stT += dt;
     for (const f of this.fx) {
       f.t += dt;
       f.x += f.vx * dt;
