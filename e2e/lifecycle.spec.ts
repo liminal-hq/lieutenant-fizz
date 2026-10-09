@@ -1,5 +1,4 @@
-// Browser checks of the lifecycle state: it is exposed, the screen is wanted on while playing and let go on pause,
-// and a window blur pauses a level. Headless fullscreen and wake lock are unreliable, so only what is wanted is asserted.
+// Browser checks of the lifecycle state: exposed, the screen wanted on while playing, and a blur pausing a level.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
