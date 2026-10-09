@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
+import { BeatCursor } from '@lieutenant-fizz/engine/story-beats';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { FrameStats } from '@lieutenant-fizz/engine/frame-stats';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
@@ -416,8 +417,8 @@ export class Game {
   /** Frame-time statistics, kept only under `?debug` (null otherwise, so a normal run does nothing). */
   private perf: FrameStats | null = null;
   private lastBits = 0;
-  private cineIdx = 0;
-  private endIdx = 0;
+  /** The scene and beat of the opening cinematic or the ending, whichever is showing. */
+  private readonly story = new BeatCursor(CINE);
   private dlg: Line[] | null = null;
   private dlgId: 'bossIntro' | 'bossDefeated' | null = null;
   private dlgI = 0;
@@ -931,8 +932,7 @@ export class Game {
         break;
       case Ev.ENDING:
         this.screen = 'ending';
-        this.endIdx = 0;
-        this.typed = 0;
+        this.story.start(END);
         this.bossHp = null;
         this.syncUi();
         break;
@@ -1235,6 +1235,7 @@ export class Game {
       this.reducedForced ??
       reducedMotion(o, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     this.ui.setReducedMotion(this.reducedMotion);
+    this.story.setReduced(this.reducedMotion);
     this.haptics.setCalm(this.reducedMotion);
     this.applyHaptics();
     if (before !== this.reducedMotion && this.screen === 'title') this.loadAttract(this.attractIdx);
@@ -2331,9 +2332,9 @@ export class Game {
   /** Enter / jump / fire: finish the typewriter, then advance whatever is on screen. */
   primary(): void {
     const s = this.screen;
-    if (s === 'cine') this.typeOrNext(() => this.nextCine());
+    if (s === 'cine') this.pressStory(() => this.skipCine());
     else if (s === 'dialogue') this.typeOrNext(() => this.nextLine());
-    else if (s === 'ending') this.typeOrNext(() => this.nextEnd());
+    else if (s === 'ending') this.pressStory(() => this.startCredits());
     else if (s === 'credits') this.pressCredits();
     else if (s === 'stinger') this.pressStinger();
     else if (s === 'title' || s === 'pause' || s === 'card') {
@@ -2341,9 +2342,16 @@ export class Game {
     }
   }
 
+  /** A press on the cinematic or the ending: completes the beat, else moves on; `leave` runs after the last. */
+  private pressStory(leave: () => void): void {
+    const scene = this.story.scene;
+    const r = this.story.press();
+    if (r === 'end') return leave();
+    if (this.screen === 'cine' && this.story.scene !== scene) this.cine.start(this.story.scene);
+    this.syncUi();
+  }
+
   private curText(): string {
-    if (this.screen === 'cine') return CINE[this.cineIdx]?.text ?? '';
-    if (this.screen === 'ending') return END[this.endIdx]?.text ?? '';
     if (this.screen === 'dialogue' && this.dlg) return this.dlg[this.dlgI]?.[1] ?? '';
     return '';
   }
@@ -2359,6 +2367,10 @@ export class Game {
   }
 
   private tickTypewriter(dt: number): void {
+    if (this.screen === 'cine' || this.screen === 'ending') {
+      if (this.story.tick(dt)) this.syncUi();
+      return;
+    }
     const len = this.curText().length;
     if (!len || this.typed >= len) return;
     const before = Math.floor(this.typed);
@@ -2373,18 +2385,8 @@ export class Game {
     this.sim.x.enter_none();
     this.played = 0;
     this.screen = 'cine';
-    this.cineIdx = 0;
-    this.typed = 0;
+    this.story.start(CINE);
     this.cine.start(0);
-    this.syncUi();
-  }
-
-  private nextCine(): void {
-    const n = this.cineIdx + 1;
-    if (n >= CINE.length) return this.skipCine();
-    this.cineIdx = n;
-    this.typed = 0;
-    this.cine.start(n);
     this.syncUi();
   }
 
@@ -2448,17 +2450,6 @@ export class Game {
       this.typed = 0;
     }
     this.syncUi();
-  }
-
-  private nextEnd(): void {
-    const n = this.endIdx + 1;
-    if (n < END.length) {
-      this.endIdx = n;
-      this.typed = 0;
-      this.syncUi();
-      return;
-    }
-    this.startCredits();
   }
 
   // ---------- Credits and stinger ----------
@@ -2720,16 +2711,16 @@ export class Game {
     const text = this.curText();
     const typed = Math.min(text.length, Math.floor(this.typed));
     if (s === 'cine' || s === 'ending') {
-      const panels = s === 'cine' ? CINE : END;
-      const i = s === 'cine' ? this.cineIdx : this.endIdx;
+      const v = this.story.view();
       ui.showLetterbox({
-        place: panels[i]?.place ?? '',
-        shown: text.slice(0, typed),
-        hidden: text.slice(typed),
-        pips: '●'.repeat(i + 1) + '○'.repeat(panels.length - i - 1),
-        done: typed >= text.length,
-        last: i === panels.length - 1,
+        place: v.place,
+        shown: v.shown,
+        hidden: v.hidden,
+        pips: v.pips,
+        done: v.done,
+        last: v.last,
         skip: s === 'cine',
+        announce: v.announcement,
       });
     } else ui.showLetterbox(null);
     const line = this.dlg?.[this.dlgI];
@@ -2771,7 +2762,7 @@ export class Game {
   private musicFor(): string | null {
     const s = this.screen;
     if (s === 'title' || s === 'loading') return 'title';
-    if (s === 'cine') return CINE_TRACK[this.cineIdx] ?? 'cine';
+    if (s === 'cine') return CINE_TRACK[this.story.scene] ?? 'cine';
     if (s === 'ending' || s === 'credits') return 'ending';
     if (s === 'stinger') return null;
     if (s === 'card' && this.card?.title.startsWith('The end of Episode')) return 'ending';
@@ -3242,6 +3233,7 @@ export class Game {
       bits: this.lastBits,
       touch: this.touchMode,
       ben: this.benAnchor(this.camDrawn.x, this.camDrawn.y),
+      story: this.story.view(),
       custom: this.touchUi.placed?.custom ?? false,
       back: { enabled: this.backOn(), armed: this.backGuard.armed },
       lifecycle: {

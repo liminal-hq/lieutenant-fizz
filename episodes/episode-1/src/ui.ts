@@ -313,10 +313,19 @@ export class Ui {
       if (this.overlayKind === 'list') h.advance();
     });
 
-    this.letterbox = el('div', { id: 'letterbox', class: 'lf', hidden: '' });
+    this.letterbox = el('div', {
+      id: 'letterbox',
+      class: 'lf',
+      role: 'region',
+      'aria-label': 'Story',
+      hidden: '',
+    });
+    // The typed text changes every few milliseconds, so it is hidden from a screen reader; the `sr`
+    // line gets each whole beat once, when it starts.
     this.letterbox.innerHTML = `<div class="bar"><span class="place"></span><button class="btn ghost skip">Skip</button></div>
-      <div class="bar bottom"><div class="text"><span class="shown"></span><span class="hidden-text"></span></div>
-      <div class="foot"><span class="pips"></span><button class="btn next">Continue</button></div></div>`;
+      <div class="bar bottom"><div class="text" aria-hidden="true"><span class="shown"></span><span class="hidden-text"></span></div>
+      <div class="foot"><span class="pips" aria-hidden="true"></span><button class="btn next">Continue</button></div></div>
+      <div class="sr" aria-live="polite" aria-atomic="true"></div>`;
     this.letterbox.querySelector('.skip')?.addEventListener('click', () => h.skipCine());
     this.letterbox.querySelector('.next')?.addEventListener('click', () => h.advance());
     this.onTap(this.letterbox, () => h.advance());
@@ -1307,11 +1316,18 @@ export class Ui {
       done: boolean;
       last: boolean;
       skip: boolean;
+      /** What a screen reader reads for this beat. */
+      announce: string;
     } | null,
   ): void {
     this.letterbox.hidden = !o;
-    if (!o) return;
     const q = (s: string): HTMLElement => need(this.letterbox, s);
+    if (!o) {
+      // Cleared so the same beat is read again the next time the story opens.
+      q('.sr').textContent = '';
+      return;
+    }
+    if (q('.sr').textContent !== o.announce) q('.sr').textContent = o.announce;
     q('.place').textContent = o.place;
     q('.shown').textContent = o.shown;
     q('.hidden-text').textContent = o.hidden;

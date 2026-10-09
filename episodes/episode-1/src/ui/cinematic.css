@@ -37,6 +37,15 @@
   width: 100%;
   min-height: calc(var(--lf-line) * var(--n) * 3);
 }
+/* Read by a screen reader and never drawn. */
+#letterbox .sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 #letterbox .hidden-text,
 #dialogue .hidden-text,
 #stinger .hidden-text {
