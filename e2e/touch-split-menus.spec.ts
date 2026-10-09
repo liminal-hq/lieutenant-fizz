@@ -194,6 +194,7 @@ async function expectClean(page: Page, screen: string): Promise<void> {
     shortRows: [],
     selectedHidden: [],
     menuCrowds: [],
+    cueCrowds: [],
   });
 }
 

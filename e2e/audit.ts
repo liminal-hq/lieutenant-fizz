@@ -15,6 +15,8 @@ export interface Report {
   selectedHidden: string[];
   /** A scrolling menu that overlaps the head, the Back button, the hint bar or a touch control. */
   menuCrowds: string[];
+  /** A visible "more rows" chevron that is not centred in a clear strip beside its menu, or that touches a row's gutter or cursor. */
+  cueCrowds: string[];
   /** How many text elements were inspected, so an empty page cannot pass by accident. */
   checked: number;
 }
@@ -48,6 +50,7 @@ export function audit(options: AuditOptions = {}): Report {
     shortRows: [],
     selectedHidden: [],
     menuCrowds: [],
+    cueCrowds: [],
     checked: 0,
   };
   const w = window.innerWidth;
@@ -158,6 +161,38 @@ export function audit(options: AuditOptions = {}): Report {
         report.selectedHidden.push(name(sel));
     }
     if (!('scroll' in menu.dataset)) continue;
+    // The strips reserved for the chevrons belong to the menu: they too stay clear of the head, Back, the
+    // hint bar and the controls, and a shown chevron sits centred in its strip, off every row.
+    const strip = Number(menu.dataset.strip ?? 0);
+    const padded = new DOMRect(mr.x, mr.y - strip, mr.width, mr.height + 2 * strip);
+    const scr = menu.closest('.screen');
+    for (const dir of ['up', 'down']) {
+      const cue = scr?.querySelector<HTMLElement>(`.more.${dir}`);
+      if (!cue || cue.hidden || getComputedStyle(cue).display === 'none') continue;
+      const img = cue.querySelector('img')!.getBoundingClientRect();
+      const stripTop = dir === 'up' ? mr.top - strip : mr.bottom;
+      if (img.top < stripTop - 0.5 || img.bottom > stripTop + strip + 0.5)
+        report.cueCrowds.push(`${dir} chevron is not inside its strip`);
+      if (Math.abs(img.left + img.width / 2 - (mr.left + mr.width / 2)) > 1.5)
+        report.cueCrowds.push(`${dir} chevron is not centred on the menu`);
+      for (const b of rows) {
+        // A row scrolled partly out of view is clipped by the menu, so only the part inside the menu
+        // shows; the chevron stands outside the menu, so any overlap with a shown part is a clash.
+        const clip = (r: DOMRect): DOMRect =>
+          new DOMRect(
+            r.x,
+            Math.max(r.top, mr.top),
+            r.width,
+            Math.max(0, Math.min(r.bottom, mr.bottom) - Math.max(r.top, mr.top)),
+          );
+        if (hit(img, clip(b.getBoundingClientRect())))
+          report.cueCrowds.push(`${dir} chevron overlaps ${name(b)}`);
+        for (const part of b.querySelectorAll('.gut, .bullet')) {
+          if (hit(img, clip(part.getBoundingClientRect())))
+            report.cueCrowds.push(`${dir} chevron overlaps the cursor of ${name(b)}`);
+        }
+      }
+    }
     const others: [string, DOMRect | null | undefined][] = [
       ['Back button', backRect],
       ['hint bar', keysRect],
@@ -170,7 +205,8 @@ export function audit(options: AuditOptions = {}): Report {
       ...faces.map((f): [string, DOMRect] => ['touch control', f]),
     ];
     for (const [what, o] of others) {
-      if (o && o.width > 0 && hit(mr, o)) report.menuCrowds.push(`menu overlaps the ${what}`);
+      if (o && o.width > 0 && hit(padded, o))
+        report.menuCrowds.push(`menu or its cue strip overlaps the ${what}`);
     }
   }
   for (const id of ['title', 'overlay']) {

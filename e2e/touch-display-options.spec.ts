@@ -50,6 +50,7 @@ test('Options > Display on touch: a tap steps Fullscreen and is saved, nothing c
     shortRows: [],
     selectedHidden: [],
     menuCrowds: [],
+    cueCrowds: [],
   });
   // The right stepper moves Auto to On; the saved choice follows.
   await tapAt(row(page, 'Fullscreen').locator('[data-step="1"]'), page);

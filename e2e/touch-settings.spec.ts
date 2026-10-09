@@ -340,6 +340,7 @@ const auditScreen = async (page: Page): Promise<void> => {
     shortRows: [],
     selectedHidden: [],
     menuCrowds: [],
+    cueCrowds: [],
   });
 };
 

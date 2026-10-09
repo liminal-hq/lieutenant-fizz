@@ -47,9 +47,10 @@ interface View {
   down: boolean;
 }
 
-const view = (page: Page): Promise<View> =>
-  page.evaluate(() => {
-    const m = document.querySelector<HTMLElement>('#overlay .menu')!;
+/** Reads the scrolling menu of `root` (the overlay by default, or `#title` for the title menu). */
+const view = (page: Page, root = '#overlay'): Promise<View> =>
+  page.evaluate((root) => {
+    const m = document.querySelector<HTMLElement>(`${root} .menu`)!;
     const sel = m.querySelector<HTMLElement>('button.sel');
     const mr = m.getBoundingClientRect();
     const sr = sel?.getBoundingClientRect();
@@ -60,7 +61,7 @@ const view = (page: Page): Promise<View> =>
       scrolls: 'scroll' in m.dataset,
       top: m.scrollTop,
       max: m.scrollHeight - m.clientHeight,
-      sel: sel?.querySelector('.lbl')?.textContent ?? '',
+      sel: (sel?.querySelector('.lbl') ?? sel?.querySelector('.l1'))?.textContent ?? '',
       selVisible: !!sr && sr.top >= mr.top - 0.5 && sr.bottom <= mr.bottom + 0.5,
       cut: [...m.querySelectorAll('button')]
         .filter((b) => {
@@ -68,12 +69,12 @@ const view = (page: Page): Promise<View> =>
           const inside = Math.min(r.bottom, mr.bottom) - Math.max(r.top, mr.top);
           return inside > 0.5 && inside < r.height - 0.5;
         })
-        .map((b) => b.querySelector('.lbl')?.textContent ?? ''),
+        .map((b) => (b.querySelector('.lbl') ?? b.querySelector('.l1'))?.textContent ?? ''),
       view: mr.height,
-      up: shown(document.querySelector('#overlay .more.up')),
-      down: shown(document.querySelector('#overlay .more.down')),
+      up: shown(document.querySelector(`${root} .more.up`)),
+      down: shown(document.querySelector(`${root} .more.down`)),
     };
-  });
+  }, root);
 
 /** For `pressUntil`: the selected row's label is `label` (runs in the page, so it takes it as the argument). */
 const selIs = (label: string): boolean =>
@@ -288,3 +289,216 @@ test('Row spacing on Display resizes the open screen, is saved, and holds after 
   expect((await heights()).every((h) => Math.abs(h - 36) < 0.5)).toBe(true);
   expect(await stored()).toBe(0);
 });
+
+/** A finger dragged `dy` px (negative is up) over the middle of the menu of `root`, in small moves. */
+async function drag(page: Page, dy: number, root = '#overlay'): Promise<void> {
+  const menu = (await page.locator(`${root} .menu`).first().boundingBox())!;
+  const cdp = await page.context().newCDPSession(page);
+  const x = menu.x + menu.width / 2;
+  const y = menu.y + menu.height / 2;
+  const steps = Math.ceil(Math.abs(dy) / 20);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  for (let i = 1; i <= steps; i++) {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x, y: y + (dy * i) / steps }],
+    });
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+}
+
+/** For `pressUntil`: the selection on the screen of `root` is no longer the row whose text follows the bar. */
+const selMoved = (arg: string): boolean => {
+  const [root, was] = arg.split('|') as [string, string];
+  const sel = document.querySelector(`${root} .menu button.sel`);
+  return (sel?.querySelector('.lbl') ?? sel?.querySelector('.l1'))?.textContent !== was;
+};
+
+/** Saves that fill every slot with a long place name (Marshmallow Meadows), the Large text size and the density, set before the page loads. */
+async function bootSaves(page: Page, layout: string, density = 1): Promise<void> {
+  const save = JSON.stringify({
+    v: 3,
+    at: Date.UTC(2026, 9, 7, 16),
+    progress: {
+      lives: 3,
+      score: 12340,
+      nextLife: 12400,
+      ammo: 5,
+      doneMask: 0b10111,
+      played: 5400,
+      map: { x: 0, y: 24 },
+    },
+  });
+  await page.addInitScript(
+    ([opts, s]) => {
+      localStorage.setItem('lf-ep1-options-v1', opts!);
+      localStorage.setItem('lf-ep1-save-v1', s!);
+      for (const k of ['1', '2', '3', '4']) localStorage.setItem(`lf-ep1-slot-${k}`, s!);
+    },
+    [JSON.stringify({ v: 1, density, text: 1 }), save],
+  );
+  await page.goto(`/?debug&touch&haptics${layout}`);
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+    timeout: 20_000,
+  });
+  await page.evaluate(() => {
+    const lf = (window as unknown as { __lf: Lf }).__lf;
+    lf.debugShow('title');
+    lf.debugShow('saves');
+  });
+  await expect(page.locator('#overlay .menu button')).toHaveCount(6);
+  await settle(page);
+}
+
+/** Every row of a scrolling list is the same height and the window is on whole rows, with no sliver at either edge. */
+function expectWhole(v: View, what: string, min = ROW_MIN): void {
+  if (!v.scrolls) return;
+  const unit = v.rows[0]!;
+  expect(
+    v.rows.every((h) => Math.abs(h - unit) < 0.5),
+    `${what}: rows ${v.rows.join(',')}`,
+  ).toBe(true);
+  expect(unit, what).toBeGreaterThanOrEqual(min);
+  expect(v.cut, what).toEqual([]);
+  expect(v.top % unit, what).toBeLessThan(0.5);
+  expect(v.view % unit, what).toBeLessThan(0.5);
+}
+
+for (const [label, width, height] of SIZES) {
+  for (const [layoutName, layout] of [
+    ['one column', ''],
+    ['split', '&title=split'],
+  ] as const) {
+    for (const [density, densityName] of [
+      [1, 'Cozy'],
+      [0, 'Compact'],
+    ] as const) {
+      test(`Saves with long, wrapping slots at ${label} (${layoutName}, ${densityName}): one row unit, no sliver after keys, a drag or the bottom`, async ({
+        page,
+      }, testInfo) => {
+        test.skip(testInfo.project.name !== 'touch-844', 'sizes are set here');
+        await page.setViewportSize({ width, height });
+        await bootSaves(page, layout, density);
+        let v = await view(page);
+        // Where a slot's text wraps, every row (the one-line Back too) takes the tallest row's height.
+        if (width === 640) expect(Math.max(...v.rows)).toBeGreaterThan(ROW_DP[density] + 0.5);
+        expectWhole(v, 'first open', ROW_DP[density] - 0.1);
+        await expectClean(page);
+
+        // Down through every row, and the selected one is whole in view with no sliver beside it.
+        for (let i = 0; i < 8 && v.sel !== 'Back'; i++) {
+          const was = v.sel;
+          await pressUntil(page, 'ArrowDown', selMoved, `#overlay|${was}`);
+          await expect.poll(async () => (await view(page)).selVisible).toBe(true);
+          v = await view(page);
+          expectWhole(v, `after Down to ${v.sel}`, ROW_DP[density] - 0.1);
+          await expectClean(page);
+        }
+        expect(v.sel).toBe('Back');
+        // At the bottom, nothing is hidden below.
+        if (v.scrolls) {
+          expect({ up: v.up, down: v.down }).toEqual({ up: true, down: false });
+          // A drag back up comes to rest on a whole row, and a drag down ends at the bottom the same way.
+          await drag(page, 400);
+          await expect.poll(async () => (await view(page)).top).toBe(0);
+          expectWhole(await view(page), 'after a drag to the top', ROW_DP[density] - 0.1);
+          await drag(page, -400);
+          await expect.poll(async () => (await view(page)).top).toBe((await view(page)).max);
+          await expect
+            .poll(async () => {
+              const w = await view(page);
+              return w.cut.length === 0 && w.top % w.rows[0]! < 0.5;
+            })
+            .toBe(true);
+          await expectClean(page);
+        }
+      });
+    }
+  }
+}
+
+/** The title menu with a saved game, so Continue and Load game show: five rows. */
+async function bootTitle(page: Page, layout: string, density = 1): Promise<void> {
+  await page.addInitScript(
+    ([opts, s]) => {
+      localStorage.setItem('lf-ep1-options-v1', opts!);
+      localStorage.setItem('lf-ep1-save-v1', s!);
+    },
+    [
+      JSON.stringify({ v: 1, density }),
+      JSON.stringify({
+        v: 3,
+        at: Date.UTC(2026, 9, 7, 16),
+        progress: {
+          lives: 3,
+          score: 12340,
+          nextLife: 12400,
+          ammo: 5,
+          doneMask: 0b10111,
+          played: 5400,
+          map: { x: 0, y: 24 },
+        },
+      }),
+    ],
+  );
+  await page.goto(`/?debug&touch&haptics${layout}`);
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+    timeout: 20_000,
+  });
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('title'));
+  await expect(page.locator('#title > .menu button')).toHaveCount(5);
+  await settle(page);
+}
+
+for (const [label, width, height] of SIZES) {
+  for (const density of [1, 2, 0] as const) {
+    test(`title menu at ${label} (one column, ${['Compact', 'Cozy', 'Comfy'][density]}): the chevrons never touch a cursor, the wordmark or the hint line`, async ({
+      page,
+    }, testInfo) => {
+      test.skip(testInfo.project.name !== 'touch-844', 'sizes are set here');
+      await page.setViewportSize({ width, height });
+      await bootTitle(page, '', density);
+      let v = await view(page, '#title');
+      test.skip(!v.scrolls, 'this size shows the whole title menu');
+      expectWhole(v, 'first open', ROW_DP[density] - 0.1);
+      // The strips stay below the wordmark and above the hint line.
+      const clear = async (): Promise<void> => {
+        const g = await page.evaluate(() => {
+          const m = document.querySelector<HTMLElement>('#title > .menu')!;
+          const r = m.getBoundingClientRect();
+          const strip = Number(m.dataset.strip ?? 0);
+          return {
+            top: r.top - strip,
+            bottom: r.bottom + strip,
+            head: document.querySelector('#title .head')!.getBoundingClientRect().bottom,
+            keys: document.querySelector('#title .keys')!.getBoundingClientRect().top,
+          };
+        });
+        expect(g.top).toBeGreaterThanOrEqual(g.head - 0.5);
+        expect(g.bottom).toBeLessThanOrEqual(g.keys + 0.5);
+        await expectClean(page);
+      };
+      await clear();
+      // Down through every row and back up: with the first, the last and each middle row selected, and
+      // rows hidden above or below, the chevron stays clear of every row and its cursor.
+      const seen = new Set<string>();
+      for (let i = 0; i < 5; i++) {
+        v = await view(page, '#title');
+        seen.add(`${v.up ? 'up' : ''}${v.down ? 'down' : ''}`);
+        await clear();
+        await pressUntil(page, 'ArrowDown', selMoved, `#title|${v.sel}`);
+        await expect.poll(async () => (await view(page, '#title')).selVisible).toBe(true);
+      }
+      for (let i = 0; i < 5; i++) {
+        v = await view(page, '#title');
+        seen.add(`${v.up ? 'up' : ''}${v.down ? 'down' : ''}`);
+        await clear();
+        await pressUntil(page, 'ArrowUp', selMoved, `#title|${v.sel}`);
+        await expect.poll(async () => (await view(page, '#title')).selVisible).toBe(true);
+      }
+      // Both ends were seen with rows hidden past them (the last visible row selected with rows below,
+      // and the first with rows above).
+      expect([...seen]).toEqual(expect.arrayContaining(['down', 'up']));
+    });
+  }
+}

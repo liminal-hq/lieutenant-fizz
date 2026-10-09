@@ -77,6 +77,7 @@ test('Options > Sound on touch: full-height rows, the Style stepper switches the
     shortRows: [],
     selectedHidden: [],
     menuCrowds: [],
+    cueCrowds: [],
   });
   // The Style stepper steps to Classic, switches the mode and saves the choice.
   await tapAt(row(page, 'Style').locator('[data-step="-1"]'), page);

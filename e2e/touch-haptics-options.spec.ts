@@ -81,6 +81,7 @@ test('Options > Haptics on touch: full-height rows, Strength steps with a previe
     shortRows: [],
     selectedHidden: [],
     menuCrowds: [],
+    cueCrowds: [],
   });
   // One step down: Medium (0.75), saved, and a jump plays at that strength as the preview.
   await tapAt(row(page, 'Strength').locator('[data-step="-1"]'), page);

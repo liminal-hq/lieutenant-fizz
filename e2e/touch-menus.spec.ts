@@ -206,6 +206,7 @@ for (const screen of ['pause', 'card', 'title', 'options', 'sound', 'touch', 'sa
       shortRows: [],
       selectedHidden: [],
       menuCrowds: [],
+      cueCrowds: [],
     });
   });
 }
@@ -441,6 +442,7 @@ for (const mode of ['column', 'split'] as const) {
         shortRows: [],
         selectedHidden: [],
         menuCrowds: [],
+        cueCrowds: [],
       });
     });
   }
@@ -525,6 +527,7 @@ for (const [label, size] of TITLE_SIZES) {
       shortRows: [],
       selectedHidden: [],
       menuCrowds: [],
+      cueCrowds: [],
     });
   });
 }
@@ -635,7 +638,10 @@ test('a tap on Back on the pause menu resumes the game', async ({ page }) => {
 
 /** Taps the row of the menu showing whose label has `text`. */
 async function tapRow(page: Page, text: string): Promise<void> {
-  const r = (await page.locator('#ui .menu:visible button', { hasText: text }).boundingBox())!;
+  const row = page.locator('#ui .menu:visible button', { hasText: text });
+  // A row of a scrolling menu may be out of view; bring it in as a finger would.
+  await row.evaluate((e) => e.scrollIntoView({ block: 'nearest' }));
+  const r = (await row.boundingBox())!;
   await page.touchscreen.tap(r.x + r.width / 2, r.y + r.height / 2);
 }
 
