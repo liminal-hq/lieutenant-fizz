@@ -57,6 +57,24 @@ export function benBox(cx: number, cy: number, ppu: number): Box {
   return { x: cx - s / 2, y: cy - s / 2, w: s, h: s };
 }
 
+/**
+ * Where a world point lands on screen, in CSS pixels from the top left of the page. The camera looks at the
+ * middle of the canvas, so `canvasW` and `canvasH` are the canvas's CSS size, not the host's: under Fast the
+ * canvas overhangs the host's right and bottom edges, and its middle (and so Ben) sits that much further
+ * right and down. `ppu` is CSS pixels per world unit, taken from the same canvas height.
+ */
+export function viewPoint(
+  wx: number,
+  wy: number,
+  camX: number,
+  camY: number,
+  ppu: number,
+  canvasW: number,
+  canvasH: number,
+): { x: number; y: number } {
+  return { x: (wx - camX) * ppu + canvasW / 2, y: canvasH / 2 - (wy - camY) * ppu };
+}
+
 /** The widest the panel gets on a screen this wide. */
 export function maxPanelWidth(viewW: number): number {
   return Math.min(MAX_WIDTH, Math.round(viewW * MAX_WIDTH_FRACTION));

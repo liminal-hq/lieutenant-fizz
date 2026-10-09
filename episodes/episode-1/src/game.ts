@@ -72,6 +72,7 @@ import { backAction, backEnabled, escAction, pauseAction } from './back';
 import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
 import { gestureFor, isLive } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
+import { viewPoint } from './map-panel';
 import { isPortrait, watchResize, type TouchGutters } from './layout';
 import { FullscreenControl, glyphGrid, type FullscreenPlace } from './fullscreen-button';
 import { touchFaces, type ShellScreen, type SubScreen, type TouchFaces } from './touch-menus';
@@ -834,8 +835,16 @@ export class Game {
     if (this.sim.x.mode() !== Mode.MAP) return null;
     const r = this.renderer;
     const ppu = r.pixelsPerUnit(this.halfH);
-    const x = (this.sim.get(State.PLAYER_X) + BEN_BODY / 2 - camX) * ppu + r.width / 2;
-    const y = r.height / 2 - (this.sim.get(State.PLAYER_Y) + BEN_BODY / 2 - camY) * ppu;
+    // The canvas holds the camera's view, and under Fast it overhangs the host, so measure from its box.
+    const { x, y } = viewPoint(
+      this.sim.get(State.PLAYER_X) + BEN_BODY / 2,
+      this.sim.get(State.PLAYER_Y) + BEN_BODY / 2,
+      camX,
+      camY,
+      ppu,
+      r.canvasCssW,
+      r.canvasCssH,
+    );
     return { x, y, ppu };
   }
 
