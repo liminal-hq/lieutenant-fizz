@@ -7,7 +7,7 @@ import * as Undertone from '@liminal-hq/undertone';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeAudioContext, type FakeNode } from './fake-audio-context';
 import { GameAudio, buildVoice, type AudioPatterns, type UndertoneModule } from './audio';
-import { MASTER, MASTER_DEFAULTS } from './master';
+import { MASTER, MASTER_DEFAULTS, type RoomProfile } from './master';
 import { PART_PAN } from './sound-field';
 
 const panDefaults = structuredClone(PART_PAN);
@@ -680,6 +680,76 @@ describe('GameAudio master chain', () => {
     // A change that does not touch the pans leaves the music alone.
     audio.tune({ master: { trim: 0.6 } });
     expect(loop).toHaveBeenCalledTimes(2);
+  });
+
+  describe('rooms', () => {
+    const room: RoomProfile = {
+      seconds: 1.8,
+      coarseSeconds: 1.2,
+      sfxSend: 0.22,
+      musicSend: 0.08,
+      hpf: 300,
+      lpf: 6500,
+      predelay: 0.028,
+      damping: 0.25,
+      seed: 3,
+    };
+    const lengthOf = (c: { buffer: unknown }): number =>
+      (c.buffer as { getChannelData(i: number): Float32Array }).getChannelData(0).length;
+
+    it('keeps a room set before the chain exists and builds the chain in it', async () => {
+      const audio = new GameAudio(roled, async () => Undertone);
+      await flush();
+      const ctx = await unlockAudio();
+      audio.setMode('enhanced');
+      audio.setRoom(room);
+      expect(compressors(ctx)).toHaveLength(0);
+      audio.play('jump');
+      const [a, b] = ctx.all('convolver');
+      expect(lengthOf(a!)).toBe(Math.round(ctx.sampleRate * 1.8));
+      expect(b!.buffer).toBeNull();
+      expect(a!.out[0]!.gain.calls).toEqual([]);
+    });
+
+    it('crossfades a room set while the chain is running', async () => {
+      const audio = new GameAudio(roled, async () => Undertone);
+      await flush();
+      const ctx = await unlockAudio();
+      audio.setMode('enhanced');
+      audio.play('jump');
+      audio.setRoom(room);
+      const [a, b] = ctx.all('convolver');
+      expect(lengthOf(b!)).toBe(Math.round(ctx.sampleRate * 1.8));
+      expect(a!.out[0]!.gain.curves).toHaveLength(1);
+      expect(b!.out[0]!.gain.curves).toHaveLength(1);
+    });
+
+    it('builds nothing in Classic, remembers the room, and applies it when Enhanced returns', async () => {
+      vi.useFakeTimers();
+      const audio = new GameAudio(roled, async () => Undertone);
+      await vi.advanceTimersByTimeAsync(0);
+      listeners.get('pointerdown')!();
+      await vi.advanceTimersByTimeAsync(0);
+      const ctx = FakeContext.instances[0]!;
+      audio.setRoom(room);
+      audio.play('jump');
+      audio.playMusic('title');
+      expect(ctx.extras()).toEqual([]);
+      expect(audio.masterBuilt).toBe(false);
+
+      // Enhanced builds the chain in the remembered room.
+      audio.setMode('enhanced');
+      audio.play('jump');
+      expect(lengthOf(ctx.all('convolver')[0]!)).toBe(Math.round(ctx.sampleRate * 1.8));
+
+      // Back to Classic keeps the chain for a moment; a room set then is stored, not heard, and the
+      // chain moves to it when Enhanced returns.
+      audio.setMode('classic');
+      audio.setRoom({ ...room, seed: 9 });
+      expect(ctx.all('convolver')[0]!.out[0]!.gain.curves).toHaveLength(0);
+      audio.setMode('enhanced');
+      expect(ctx.all('convolver')[1]!.out[0]!.gain.curves).toHaveLength(1);
+    });
   });
 });
 
