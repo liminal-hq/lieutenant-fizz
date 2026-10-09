@@ -313,12 +313,14 @@ pub extern "C" fn state_set(i: u32, v: f64) {
         PLAYER_X => {
             s.p.b.x = v;
             s.p.b.px = v;
+            s.p.mantle = None;
             s.cam_x = v + 6.0;
             s.pcx = s.cam_x;
         }
         PLAYER_Y => {
             s.p.b.y = v;
             s.p.b.py = v;
+            s.p.mantle = None;
             s.cam_y = v + 3.0;
             s.pcy = s.cam_y;
         }
