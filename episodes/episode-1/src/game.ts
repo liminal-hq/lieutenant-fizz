@@ -7,11 +7,7 @@ import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
-import {
-  gamepadBackend,
-  noneBackend,
-  vibrateBackend,
-} from '@lieutenant-fizz/engine/haptic-backends';
+import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import { placeSound, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
@@ -63,6 +59,20 @@ import {
   type SettingKey,
 } from './options';
 import {
+  effectiveScale,
+  hapticsFeel,
+  hapticsItems,
+  hapticsLinkValue,
+  hapticsRowOf,
+  hapticsRows,
+  hapticsSettings,
+  isHapticsStepRow,
+  resetHaptics,
+  stepHaptics,
+  type HapticsRow,
+  type HapticsSettings,
+} from './haptics-options';
+import {
   isStepRow,
   resetTouch,
   stepTouch,
@@ -85,6 +95,7 @@ import {
   type SoundRow,
 } from './sound-options';
 import { RESET_ARM_MS, resetArmed } from './two-tap';
+import { firstEnabled, type HapticsUrl, type UrlLocks } from './url-lock';
 import {
   applyProgress,
   captureProgress,
@@ -148,8 +159,11 @@ export interface GameOptions {
   title?: TitleLayout;
   /** Takes the browser's Back button in an ordinary tab too (`?back`), to try it without fullscreen. */
   back?: boolean;
-  /** Turns on haptics (`?haptics`), which are still being tried: the phone's vibrator, in Chrome for Android. */
-  haptics?: boolean;
+  /**
+   * `on` (`?haptics`, bare or `=on`) forces haptics on at the saved strength, `off` (`?haptics=off`)
+   * forces them off. Left out, the Haptics screen decides. Either way the link is never saved.
+   */
+  haptics?: HapticsUrl;
 }
 
 /** The `display-mode` values an installed app runs in. */
@@ -197,10 +211,15 @@ export class Game {
    * only ever turns on, so the Options rows never shift while the screen is open.
    */
   private touchCapable = false;
-  /** The Touch controls rows; Haptics is there only when the device can vibrate. */
-  private readonly touchRowList: TouchRow[] = touchRows({
-    haptics: typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function',
-  });
+  /** The Touch controls rows. */
+  private readonly touchRowList: TouchRow[] = touchRows();
+  /** What `?haptics` asked for, which wins over the saved strength and is never saved. */
+  private readonly hapticsUrl: HapticsUrl | undefined;
+  /**
+   * Whether a pad with a vibration actuator has been seen this session. It only ever turns on, so the
+   * Rumble row never shifts the Haptics screen while it is open.
+   */
+  private padSeen = false;
   /** When Reset had its first tap (in `performance.now()` milliseconds), or null. */
   private resetAt: number | null = null;
   /** What the editor reports as controls are moved: every drop is saved. */
@@ -353,15 +372,12 @@ export class Game {
     this.audioForced = options.audio !== undefined;
     this.audioUrl = options.audio;
     this.coarseSpeaker = !!window.matchMedia?.('(pointer: coarse)').matches;
+    this.hapticsUrl = options.haptics;
     this.haptics = new GameHaptics(FIZZ_HAPTICS, performance);
-    this.haptics.setBackends(
-      options.haptics
-        ? {
-            device: vibrateBackend(navigator),
-            controller: gamepadBackend(() => this.input.activePad()),
-          }
-        : { device: noneBackend, controller: noneBackend },
-    );
+    this.haptics.setBackends({
+      device: vibrateBackend(navigator),
+      controller: gamepadBackend(() => this.input.activePad()),
+    });
     this.haptics.setRoute(routeFor(this.input.device));
     this.input.onDevice((d) => this.haptics.setRoute(routeFor(d)));
     this.settings = readOptions(this.store);
@@ -375,6 +391,7 @@ export class Game {
     this.unwatchViewport = watchResize(() => this.onViewport());
     this.touchCapable = this.forcedTouch || !!window.matchMedia?.('(pointer: coarse)').matches;
     if (this.touchCapable) this.input.noteTouch();
+    this.applyHaptics();
     if (this.forcedTouch) this.setTouchMode(true);
     this.writer = new InstanceWriter(sim.instanceBuffer, atlas.rects);
     this.captionNames = sim.names(Table.CAPTIONS);
@@ -523,6 +540,7 @@ export class Game {
     }
     sim.x.set_view(this.halfW, this.halfH);
 
+    this.watchPad();
     const bits = this.input.peek();
     this.menuInput(bits);
     this.lastBits = bits;
@@ -914,7 +932,12 @@ export class Game {
         if (move & Bits.UP) this.nav(-1);
         if (move & Bits.DOWN) this.nav(1);
       }
-      if (this.sub === 'options' || this.sub === 'sound' || this.sub === 'touch') {
+      if (
+        this.sub === 'options' ||
+        this.sub === 'sound' ||
+        this.sub === 'haptics' ||
+        this.sub === 'touch'
+      ) {
         if (move & Bits.LEFT) this.adjust(-1);
         if (move & Bits.RIGHT) this.adjust(1);
       }
@@ -1024,6 +1047,7 @@ export class Game {
       reducedMotion(o, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     this.ui.setReducedMotion(this.reducedMotion);
     this.haptics.setCalm(this.reducedMotion);
+    this.applyHaptics();
     if (before !== this.reducedMotion && this.screen === 'title') this.loadAttract(this.attractIdx);
     this.ui.setTextLarge(o.text === 1);
     this.ui.setToggle('music', o.music > 0);
@@ -1032,6 +1056,68 @@ export class Game {
     this.syncHints();
     if (save) writeOptions(this.store, o);
     void this.syncLab();
+  }
+
+  /**
+   * Puts the haptic strengths to use. The phone's strength is a touch setting and the controller's is an
+   * option; `?haptics` overrides both without saving. The phone is left silent where nothing can vibrate
+   * (a desktop without a touch screen), unless the link asked for haptics.
+   */
+  private applyHaptics(): void {
+    const url = this.hapticsUrl;
+    const phone = this.touchCapable || url === 'on';
+    this.haptics.setScale(
+      phone ? effectiveScale(url, this.touchSettings.hapticStrength) : 0,
+      effectiveScale(url, this.settings.rumble),
+    );
+  }
+
+  /** The haptics settings, wherever each one is kept. */
+  private hapticsNow(): HapticsSettings {
+    return hapticsSettings(this.touchSettings, this.settings);
+  }
+
+  /** What the address fixes this session. */
+  private urlLocks(): UrlLocks {
+    return { audio: this.audioUrl, haptics: this.hapticsUrl, debug: this.labForced };
+  }
+
+  /** Whether the phone can probably vibrate: the browser has the call and the device has a touch screen. */
+  private vibratorLikely(): boolean {
+    return (
+      this.touchCapable &&
+      typeof navigator !== 'undefined' &&
+      typeof navigator.vibrate === 'function'
+    );
+  }
+
+  /** Whether the Haptics screen has anything to offer: a vibrator, a pad that rumbles, or a link asking for it. */
+  private hapticsShown(): boolean {
+    return this.vibratorLikely() || this.padSeen || this.hapticsUrl !== undefined;
+  }
+
+  /** The rows of the Haptics screen. */
+  private hapticsRowList(): HapticsRow[] {
+    return hapticsRows({ pad: this.padSeen });
+  }
+
+  /**
+   * Notes a pad that can rumble the first time one is seen. The Options rows and the Haptics screen gain
+   * a row at that moment, so the selection follows the row it was on.
+   */
+  private watchPad(): void {
+    if (this.padSeen || !this.input.activePad()?.vibrationActuator) return;
+    this.keepRow(() => (this.padSeen = true));
+  }
+
+  /** Runs a change that adds menu rows and keeps the selection on the row it was on. */
+  private keepRow(change: () => void): void {
+    const id = this.menuItems()[this.menuIdx]?.id;
+    change();
+    const items = this.menuItems();
+    const at = id === undefined ? -1 : items.findIndex((i) => i.id === id);
+    if (at >= 0) this.menuIdx = at;
+    if (this.sub === 'options' || this.sub === 'haptics') this.syncUi();
   }
 
   private syncHints(): void {
@@ -1061,10 +1147,9 @@ export class Game {
     if (e.pointerType !== 'touch') return;
     this.input.noteTouch();
     if (!this.touchCapable) {
-      this.touchCapable = true;
-      // The Touch controls row appears before Back, so a selection on Back moves down with it.
-      if (this.sub === 'options' && this.menuIdx >= Game.OPTION_ROWS.length) this.menuIdx++;
-      if (this.sub === 'options') this.syncUi();
+      // The Touch controls and Haptics rows appear, so a selection moves down with its row.
+      this.keepRow(() => (this.touchCapable = true));
+      this.applyHaptics();
     }
   };
 
@@ -1176,16 +1261,30 @@ export class Game {
   // ---------- Menus ----------
 
   /**
-   * The Options rows, in order, and the setting each one changes. Sound opens its own screen (the
-   * `audio` row is a link; Music and Effects live there).
+   * The Options rows, in order. A row with a `link` opens its own screen (Sound, Haptics); the others
+   * change the setting `key` names. Haptics appears only where there is something to feel, and Touch
+   * controls only on a touch device; neither goes away once shown.
    */
-  private static readonly OPTION_ROWS: { label: string; key: SettingKey }[] = [
-    { label: 'Sound', key: 'audio' },
-    { label: 'Captions', key: 'captions' },
-    { label: 'Controls', key: 'layout' },
-    { label: 'Text size', key: 'text' },
-    { label: 'Motion', key: 'motion' },
-  ];
+  private optionRows(): { id: string; label: string; key?: SettingKey }[] {
+    const row = (
+      label: string,
+      key: SettingKey,
+    ): { id: string; label: string; key: SettingKey } => ({
+      id: `opt:${key}`,
+      label,
+      key,
+    });
+    return [
+      { id: 'sound', label: 'Sound' },
+      ...(this.hapticsShown() ? [{ id: 'haptics', label: 'Haptics' }] : []),
+      row('Captions', 'captions'),
+      row('Controls', 'layout'),
+      row('Text size', 'text'),
+      row('Motion', 'motion'),
+      ...(this.touchCapable ? [{ id: 'touch', label: 'Touch controls' }] : []),
+      { id: 'back', label: 'Back' },
+    ];
+  }
 
   private optionItems(): MenuItem[] {
     const o = this.settings;
@@ -1199,13 +1298,16 @@ export class Game {
           : key === 'text'
             ? (TEXT_SIZES[o.text] ?? '')
             : (MOTIONS[o.motion] ?? '');
-    const rows: MenuItem[] = Game.OPTION_ROWS.map(({ label, key }) =>
-      key === 'audio'
-        ? { id: 'sound', label, value: styleName(effectiveAudio(this.audioUrl, o)) }
-        : { id: `opt:${key}`, label, kind: 'choice', value: text(key) },
-    );
-    if (this.touchCapable) rows.push({ id: 'touch', label: 'Touch controls' });
-    return [...rows, { id: 'back', label: 'Back' }];
+    return this.optionRows().map(({ id, label, key }): MenuItem => {
+      if (id === 'sound') return { id, label, value: styleName(effectiveAudio(this.audioUrl, o)) };
+      if (id === 'haptics')
+        return {
+          id,
+          label,
+          value: hapticsLinkValue(this.urlLocks(), this.touchSettings.hapticStrength),
+        };
+      return key ? { id, label, kind: 'choice', value: text(key) } : { id, label };
+    });
   }
 
   /** One row per save slot, then Back. In save mode the autosave cannot be chosen. */
@@ -1237,8 +1339,15 @@ export class Game {
     if (this.sub === 'sound')
       return soundItems(
         this.settings,
-        this.audioUrl,
+        this.urlLocks(),
         this.soundRowList,
+        resetArmed(this.resetAt, performance.now()),
+      );
+    if (this.sub === 'haptics')
+      return hapticsItems(
+        this.hapticsNow(),
+        this.urlLocks(),
+        this.hapticsRowList(),
         resetArmed(this.resetAt, performance.now()),
       );
     if (this.sub === 'touch')
@@ -1381,10 +1490,13 @@ export class Game {
       this.stepSoundRow(this.soundRowList[this.menuIdx] ?? null, d, false);
       return;
     }
+    if (this.sub === 'haptics') {
+      this.stepHapticsRow(this.hapticsRowList()[this.menuIdx] ?? null, d, false);
+      return;
+    }
     if (this.sub !== 'options') return;
-    const row = Game.OPTION_ROWS[this.menuIdx];
-    if (!row || row.key === 'audio') return;
-    this.step(row.key, d, false);
+    const key = this.optionRows()[this.menuIdx]?.key;
+    if (key) this.step(key, d, false);
   }
 
   private step(key: SettingKey, d: number, wrapMeter: boolean): void {
@@ -1404,12 +1516,10 @@ export class Game {
       if (!isStepRow(this.touchRowList[i] ?? null)) return;
     } else if (this.sub === 'sound') {
       if (!isSoundStepRow(this.soundRowList[i] ?? null) || this.menuItems()[i]?.disabled) return;
-    } else if (
-      this.sub !== 'options' ||
-      !Game.OPTION_ROWS[i] ||
-      Game.OPTION_ROWS[i]?.key === 'audio'
-    )
-      return;
+    } else if (this.sub === 'haptics') {
+      if (!isHapticsStepRow(this.hapticsRowList()[i] ?? null) || this.menuItems()[i]?.disabled)
+        return;
+    } else if (this.sub !== 'options' || !this.optionRows()[i]?.key) return;
     if (this.menuIdx !== i) {
       this.menuIdx = i;
       this.syncUi();
@@ -1460,9 +1570,60 @@ export class Game {
     this.previewTimers = [];
   }
 
-  /** Opens the Sound screen, on Music when Style is fixed by the link. */
+  /** Opens the Sound screen, on the first row the address has not fixed (Music when `?audio=` fixes Style). */
   private openSound(): void {
-    this.openSub('sound', this.audioUrl ? this.soundRowList.indexOf('music') : 0);
+    this.openSub(
+      'sound',
+      firstEnabled(soundItems(this.settings, this.urlLocks(), this.soundRowList, false)),
+    );
+  }
+
+  /** Opens the Haptics screen, on the first row the address has not fixed. */
+  private openHaptics(): void {
+    this.openSub(
+      'haptics',
+      firstEnabled(hapticsItems(this.hapticsNow(), this.urlLocks(), this.hapticsRowList(), false)),
+    );
+  }
+
+  /**
+   * Steps a Haptics setting. Strength buzzes the phone with a jump at the new level and Rumble rumbles the
+   * pad with a bonk, so the change is felt; the lab row toggles. A row the address fixes does not step.
+   */
+  private stepHapticsRow(row: HapticsRow | null, d: number, wrap: boolean): void {
+    if (!row || this.menuItems()[this.menuIdx]?.disabled) return;
+    const before = this.hapticsNow();
+    const next = stepHaptics(before, row, d, wrap, this.urlLocks());
+    const feel = hapticsFeel(before, next, row);
+    if (!feel) return;
+    this.disarmReset();
+    this.audio.play('menu');
+    this.setHaptics(next);
+    if (feel.kind === 'phone') this.haptics.preview('jump', 'device');
+    else if (feel.kind === 'pad') this.haptics.preview('bonk', 'controller');
+    else this.haptics.ui(feel.on ? 'toggleOn' : 'toggleOff');
+    this.syncUi();
+  }
+
+  /** Saves new haptics settings (the phone's strength with the touch settings, the rest with the options) and puts them to use. */
+  private setHaptics(h: HapticsSettings): void {
+    if (h.strength !== this.touchSettings.hapticStrength) {
+      this.touchSettings = { ...this.touchSettings, hapticStrength: h.strength };
+      writeTouchSettings(this.store, this.touchSettings);
+    }
+    this.settings = { ...this.settings, rumble: h.rumble, hapticsLab: h.lab };
+    this.applySettings();
+  }
+
+  /** Reset on the Haptics screen asks twice, then puts Strength, Rumble and the haptics lab back and nothing else. */
+  private tapHapticsReset(): void {
+    if (resetArmed(this.resetAt, performance.now())) {
+      this.disarmReset();
+      this.setHaptics(resetHaptics());
+      this.syncUi();
+      return;
+    }
+    this.armReset();
   }
 
   /** Reset on the Sound screen asks twice, then puts Style, Music, Effects and the Sound lab back and nothing else. */
@@ -1483,23 +1644,12 @@ export class Game {
     const s = this.touchSettings;
     const next = stepTouch(s, row, d, wrap);
     const changed =
-      next.size !== s.size ||
-      next.opacity !== s.opacity ||
-      next.leftHanded !== s.leftHanded ||
-      next.haptics !== s.haptics;
+      next.size !== s.size || next.opacity !== s.opacity || next.leftHanded !== s.leftHanded;
     if (!changed) return;
     this.disarmReset();
     this.audio.play('menu');
     this.haptics.ui(
-      next.haptics !== s.haptics
-        ? next.haptics
-          ? 'toggleOn'
-          : 'toggleOff'
-        : next.leftHanded !== s.leftHanded
-          ? next.leftHanded
-            ? 'toggleOn'
-            : 'toggleOff'
-          : 'move',
+      next.leftHanded === s.leftHanded ? 'move' : next.leftHanded ? 'toggleOn' : 'toggleOff',
     );
     this.applyTouchSettings(next);
     this.syncUi();
@@ -1518,7 +1668,7 @@ export class Game {
   private tapReset(): void {
     if (resetArmed(this.resetAt, performance.now())) {
       this.disarmReset();
-      this.applyTouchSettings(resetTouch());
+      this.applyTouchSettings(resetTouch(this.touchSettings));
       this.syncUi();
       return;
     }
@@ -1538,7 +1688,13 @@ export class Game {
     window.clearTimeout(this.resetTimer);
     if (this.resetAt === null) return;
     this.resetAt = null;
-    if (this.sub === 'touch' || this.sub === 'touchEdit' || this.sub === 'sound') this.syncUi();
+    if (
+      this.sub === 'touch' ||
+      this.sub === 'touchEdit' ||
+      this.sub === 'sound' ||
+      this.sub === 'haptics'
+    )
+      this.syncUi();
   }
 
   /** Reset in the editor puts the controls back where they start (the other settings stay), after two taps. */
@@ -1600,9 +1756,17 @@ export class Game {
       else this.stepSoundRow(row, 1, true);
       return;
     }
+    if (this.sub === 'haptics') {
+      const row = hapticsRowOf(id);
+      if (row === 'back') this.closeSub();
+      else if (row === 'reset') this.tapHapticsReset();
+      else this.stepHapticsRow(row, 1, true);
+      return;
+    }
     if (this.sub === 'options') {
       if (id === 'back') this.closeSub();
       else if (id === 'sound') this.openSound();
+      else if (id === 'haptics') this.openHaptics();
       else if (id === 'touch') this.openSub('touch');
       else if (id.startsWith('opt:')) {
         const key = id.slice(4) as SettingKey;
@@ -2073,6 +2237,7 @@ export class Game {
       this.sub === 'options' ||
       this.sub === 'saves' ||
       this.sub === 'sound' ||
+      this.sub === 'haptics' ||
       this.sub === 'touch';
     ui.showTitle(onTitle && !this.sub ? items : null, sel, onTitle && this.sub === 'controls');
     const editing = this.sub === 'touchEdit' && (onTitle || s === 'pause');
@@ -2093,7 +2258,9 @@ export class Game {
             ? 'Touch controls'
             : this.sub === 'sound'
               ? 'Sound'
-              : 'Options',
+              : this.sub === 'haptics'
+                ? 'Haptics'
+                : 'Options',
         text: '',
         items,
         sel,
@@ -2378,6 +2545,7 @@ export class Game {
       | 'controls'
       | 'options'
       | 'sound'
+      | 'haptics'
       | 'touch'
       | 'touchEdit'
       | 'saves'
@@ -2430,7 +2598,10 @@ export class Game {
       // Title, then Options on its Touch controls row, then the screen, as a player gets there.
       this.touchCapable = true;
       this.openSub('options');
-      this.menuIdx = Game.OPTION_ROWS.length;
+      this.menuIdx = Math.max(
+        0,
+        this.optionRows().findIndex((r) => r.id === 'touch'),
+      );
       this.openSub('touch');
       if (what === 'touchEdit') {
         this.menuIdx = Math.max(0, this.touchRowList.indexOf('move'));
@@ -2443,6 +2614,17 @@ export class Game {
       this.openSub('options');
       this.menuIdx = 0;
       return this.openSound();
+    }
+    if (what === 'haptics') {
+      // Title, then Options on its Haptics row, then the screen, as a player gets there. The row exists
+      // only where there is something to feel, so a desktop test gets it (and a Rumble row) by asking.
+      if (!this.hapticsShown()) this.padSeen = true;
+      this.openSub('options');
+      this.menuIdx = Math.max(
+        0,
+        this.optionRows().findIndex((r) => r.id === 'haptics'),
+      );
+      return this.openHaptics();
     }
     if (what === 'saves') return this.openSaves('load');
     this.sub = what === 'title' ? null : what;

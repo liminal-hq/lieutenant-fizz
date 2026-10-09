@@ -28,6 +28,8 @@ describe('options storage', () => {
       text: 1,
       motion: 2,
       lab: true,
+      rumble: 1,
+      hapticsLab: true,
     };
     expect(parseOptions(serialiseOptions(o))).toEqual(o);
   });
@@ -57,6 +59,8 @@ describe('options storage', () => {
       text: 1,
       motion: 2,
       lab: false,
+      rumble: 3,
+      hapticsLab: false,
     });
   });
 
@@ -65,6 +69,18 @@ describe('options storage', () => {
     expect(parseOptions('{"v":1,"lab":true}').lab).toBe(true);
     for (const bad of ['"on"', '1', 'null', '[]'])
       expect(parseOptions(`{"v":1,"lab":${bad}}`).lab).toBe(false);
+  });
+
+  it('defaults Rumble to Strong and the haptics lab to Off, and rejects anything else', () => {
+    expect(DEFAULT_OPTIONS.rumble).toBe(3);
+    expect(DEFAULT_OPTIONS.hapticsLab).toBe(false);
+    for (const good of [0, 1, 2, 3])
+      expect(parseOptions(`{"v":1,"rumble":${good}}`).rumble).toBe(good);
+    for (const bad of ['4', '-1', '1.5', '"2"', 'null', 'true'])
+      expect(parseOptions(`{"v":1,"rumble":${bad}}`).rumble, bad).toBe(3);
+    expect(parseOptions('{"v":1,"hapticsLab":true}').hapticsLab).toBe(true);
+    for (const bad of ['"on"', '1', 'null', '[]'])
+      expect(parseOptions(`{"v":1,"hapticsLab":${bad}}`).hapticsLab).toBe(false);
   });
 
   it('rejects a Style outside Auto, Classic and Enhanced', () => {
@@ -147,6 +163,15 @@ describe('stepOption', () => {
     expect(stepOption({ ...DEFAULT_OPTIONS, lab: true }, 'lab', -1).lab).toBe(false);
   });
 
+  it('toggles the haptics lab and wraps Rumble through its four levels', () => {
+    expect(stepOption(DEFAULT_OPTIONS, 'hapticsLab', 1).hapticsLab).toBe(true);
+    expect(stepOption({ ...DEFAULT_OPTIONS, hapticsLab: true }, 'hapticsLab', -1).hapticsLab).toBe(
+      false,
+    );
+    expect(stepOption(DEFAULT_OPTIONS, 'rumble', 1).rumble).toBe(0);
+    expect(stepOption(DEFAULT_OPTIONS, 'rumble', -1).rumble).toBe(2);
+  });
+
   it('does not change the other options', () => {
     const o = {
       music: 2,
@@ -157,6 +182,8 @@ describe('stepOption', () => {
       text: 1,
       motion: 2,
       lab: true,
+      rumble: 1,
+      hapticsLab: true,
     };
     expect(stepOption(o, 'music', 1)).toEqual({ ...o, music: 3 });
   });

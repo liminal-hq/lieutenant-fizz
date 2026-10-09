@@ -3,6 +3,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import {
+  DEFAULT_STRENGTH,
+  isStrength,
+  MAX_STRENGTH,
+} from '@lieutenant-fizz/engine/haptic-strength';
 import type { AudioMode } from '@lieutenant-fizz/engine/sound-field';
 
 /** Storage key for the options; the version lives inside the saved JSON. */
@@ -34,6 +39,10 @@ export interface Options {
   motion: number;
   /** Whether the sound lab is available without `?debug`. Off by default. */
   lab: boolean;
+  /** Controller rumble strength: 0 Off, 1 Light, 2 Medium, 3 Strong (the phone's strength is in the touch settings). */
+  rumble: number;
+  /** Whether the haptics lab is available without `?debug`. Off by default. */
+  hapticsLab: boolean;
 }
 
 /** The keys of {@link Options} the Options screen can change. */
@@ -49,6 +58,8 @@ export const DEFAULT_OPTIONS: Readonly<Options> = {
   text: 0,
   motion: 0,
   lab: false,
+  rumble: DEFAULT_STRENGTH,
+  hapticsLab: false,
 };
 
 const int = (v: unknown, lo: number, hi: number, fallback: number): number =>
@@ -69,6 +80,8 @@ export function parseOptions(json: string | null): Options {
       text: int(raw['text'], 0, TEXT_SIZES.length - 1, d.text),
       motion: int(raw['motion'], 0, MOTIONS.length - 1, d.motion),
       lab: typeof raw['lab'] === 'boolean' ? raw['lab'] : d.lab,
+      rumble: isStrength(raw['rumble']) ? raw['rumble'] : d.rumble,
+      hapticsLab: typeof raw['hapticsLab'] === 'boolean' ? raw['hapticsLab'] : d.hapticsLab,
     };
   } catch {
     return { ...d };
@@ -117,6 +130,8 @@ const CHOICES: Partial<Record<SettingKey, number>> = {
   audio: AUDIO_CHOICES.length,
   captions: 2,
   lab: 2,
+  hapticsLab: 2,
+  rumble: MAX_STRENGTH + 1,
   layout: LAYOUTS.length,
   text: TEXT_SIZES.length,
   motion: MOTIONS.length,
@@ -136,5 +151,6 @@ export function stepOption(o: Options, key: SettingKey, delta: number, wrapMeter
   const n = CHOICES[key] ?? 1;
   if (key === 'captions') return { ...o, captions: !o.captions };
   if (key === 'lab') return { ...o, lab: !o.lab };
+  if (key === 'hapticsLab') return { ...o, hapticsLab: !o.hapticsLab };
   return { ...o, [key]: mod(o[key] + delta, n) };
 }

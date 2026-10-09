@@ -17,32 +17,13 @@ import {
 const base = (): TouchSettings => ({ ...DEFAULT_TOUCH_SETTINGS, pos: {} });
 
 describe('touchRows', () => {
-  it('lists seven rows when the device can vibrate', () => {
-    expect(touchRows({ haptics: true })).toEqual([
-      'size',
-      'opacity',
-      'hand',
-      'haptics',
-      'move',
-      'reset',
-      'back',
-    ]);
-  });
-
-  it('leaves Haptics out when it cannot', () => {
-    expect(touchRows({ haptics: false })).toEqual([
-      'size',
-      'opacity',
-      'hand',
-      'move',
-      'reset',
-      'back',
-    ]);
+  it('lists six rows: Haptics has its own screen under Options', () => {
+    expect(touchRows()).toEqual(['size', 'opacity', 'hand', 'move', 'reset', 'back']);
   });
 });
 
 describe('touchItems', () => {
-  const rows = touchRows({ haptics: true });
+  const rows = touchRows();
 
   it('shows the default values', () => {
     const items = touchItems(base(), rows, false);
@@ -50,14 +31,12 @@ describe('touchItems', () => {
       ['Size', 'Medium'],
       ['Opacity', '85%'],
       ['Left-handed', 'Off'],
-      ['Haptics', 'On'],
       ['Move controls', undefined],
       ['Reset', undefined],
       ['Back', undefined],
     ]);
     // The four settings step on touch (◄ and ►); the links do not.
     expect(items.map((i) => i.kind)).toEqual([
-      'choice',
       'choice',
       'choice',
       'choice',
@@ -68,9 +47,9 @@ describe('touchItems', () => {
   });
 
   it('names each size and opacity and the hand', () => {
-    const s = { ...base(), size: 'L' as const, opacity: 40, leftHanded: true, haptics: false };
+    const s = { ...base(), size: 'L' as const, opacity: 40, leftHanded: true };
     const v = touchItems(s, rows, false).map((i) => i.value);
-    expect(v.slice(0, 4)).toEqual(['Large', '40%', 'On', 'Off']);
+    expect(v.slice(0, 3)).toEqual(['Large', '40%', 'On']);
     expect(touchItems({ ...base(), size: 'S' }, rows, false)[0]?.value).toBe('Small');
   });
 
@@ -112,10 +91,9 @@ describe('stepTouch', () => {
     expect(stepTouch({ ...base(), opacity: 100 }, 'opacity', 1, false).opacity).toBe(100);
   });
 
-  it('flips the hand and haptics either way', () => {
+  it('flips the hand either way', () => {
     expect(stepTouch(base(), 'hand', 1, false).leftHanded).toBe(true);
     expect(stepTouch(base(), 'hand', -1, false).leftHanded).toBe(true);
-    expect(stepTouch(base(), 'haptics', 1, false).haptics).toBe(false);
   });
 
   it('leaves the other rows and the moved controls alone', () => {
@@ -129,8 +107,13 @@ describe('stepTouch', () => {
 
 describe('resetTouch', () => {
   it('gives fresh defaults, with positions cleared', () => {
-    const r = resetTouch();
+    const r = resetTouch(base());
     expect(r).toEqual(DEFAULT_TOUCH_SETTINGS);
     expect(r.pos).not.toBe(DEFAULT_TOUCH_SETTINGS.pos);
+  });
+
+  it('leaves the haptic strength alone, since it is set on the Haptics screen', () => {
+    const s = { ...base(), size: 'L' as const, hapticStrength: 1 };
+    expect(resetTouch(s)).toEqual({ ...DEFAULT_TOUCH_SETTINGS, hapticStrength: 1, pos: {} });
   });
 });

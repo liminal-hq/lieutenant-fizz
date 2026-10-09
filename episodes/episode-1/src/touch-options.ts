@@ -12,13 +12,9 @@ import {
 import type { MenuItem } from './ui';
 
 /** The rows of the Touch controls screen, in order. */
-export type TouchRow = 'size' | 'opacity' | 'hand' | 'haptics' | 'move' | 'reset' | 'back';
+export type TouchRow = 'size' | 'opacity' | 'hand' | 'move' | 'reset' | 'back';
 
-/** What the device offers, which decides which rows exist. */
-export interface TouchCaps {
-  /** `navigator.vibrate` is a function; without it a Haptics row would do nothing. */
-  haptics: boolean;
-}
+const ROWS: readonly TouchRow[] = ['size', 'opacity', 'hand', 'move', 'reset', 'back'];
 
 const SIZE_NAMES: Record<(typeof SIZES)[number], string> = {
   S: 'Small',
@@ -26,13 +22,8 @@ const SIZE_NAMES: Record<(typeof SIZES)[number], string> = {
   L: 'Large',
 };
 
-/** The rows to show: Haptics only where the device can vibrate. */
-export function touchRows(caps: TouchCaps): TouchRow[] {
-  const rows: TouchRow[] = ['size', 'opacity', 'hand'];
-  if (caps.haptics) rows.push('haptics');
-  rows.push('move', 'reset', 'back');
-  return rows;
-}
+/** The rows to show. Haptics has its own screen under Options. */
+export const touchRows = (): TouchRow[] => [...ROWS];
 
 /** The menu id of a row, which the game acts on. */
 export const touchRowId = (row: TouchRow): string => `touch:${row}`;
@@ -41,9 +32,7 @@ export const touchRowId = (row: TouchRow): string => `touch:${row}`;
 export function touchRowOf(id: string | undefined): TouchRow | null {
   if (!id?.startsWith('touch:')) return null;
   const row = id.slice(6);
-  return ['size', 'opacity', 'hand', 'haptics', 'move', 'reset', 'back'].includes(row)
-    ? (row as TouchRow)
-    : null;
+  return (ROWS as readonly string[]).includes(row) ? (row as TouchRow) : null;
 }
 
 /** The menu rows for these settings. `armed` is whether Reset has had its first tap. */
@@ -58,8 +47,6 @@ export function touchItems(s: TouchSettings, rows: TouchRow[], armed: boolean): 
         return { id, label: 'Opacity', kind: 'choice', value: `${s.opacity}%` };
       case 'hand':
         return { id, label: 'Left-handed', kind: 'choice', value: on(s.leftHanded) };
-      case 'haptics':
-        return { id, label: 'Haptics', kind: 'choice', value: on(s.haptics) };
       case 'move':
         return {
           id,
@@ -76,7 +63,7 @@ export function touchItems(s: TouchSettings, rows: TouchRow[], armed: boolean): 
 
 /** Whether a row changes with Left and Right (the others are chosen). */
 export const isStepRow = (row: TouchRow | null): boolean =>
-  row === 'size' || row === 'opacity' || row === 'hand' || row === 'haptics';
+  row === 'size' || row === 'opacity' || row === 'hand';
 
 /**
  * One step on a row, `d` of -1 or +1. At the end of a list a step stops, and choosing the row (`wrap`)
@@ -103,14 +90,12 @@ export function stepTouch(
       };
     case 'hand':
       return { ...s, leftHanded: !s.leftHanded };
-    case 'haptics':
-      return { ...s, haptics: !s.haptics };
     default:
       return s;
   }
 }
 
-/** Every setting back to its default, including the moved controls. */
-export function resetTouch(): TouchSettings {
-  return { ...DEFAULT_TOUCH_SETTINGS, pos: {} };
+/** Size, opacity, hand and the moved controls back to their defaults; the haptic strength has its own screen and stays. */
+export function resetTouch(s: Pick<TouchSettings, 'hapticStrength'>): TouchSettings {
+  return { ...DEFAULT_TOUCH_SETTINGS, hapticStrength: s.hapticStrength, pos: {} };
 }

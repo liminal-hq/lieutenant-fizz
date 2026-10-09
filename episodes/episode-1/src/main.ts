@@ -5,6 +5,7 @@
 
 import { parseAudioParam } from '@lieutenant-fizz/engine/sound-field';
 import { Game } from './game';
+import { parseHapticsParam } from './url-lock';
 
 const stage = document.getElementById('stage');
 if (!stage) throw new Error('missing #stage');
@@ -23,7 +24,9 @@ const audio = parseAudioParam(query.get('audio'));
 // `?title=split` tries the phone title with the logo and the menu on opposite sides.
 const title = query.get('title') === 'split' ? 'split' : undefined;
 
-// `?haptics` turns on the phone's vibration (and, later, controller rumble), which are still being tried.
+// Haptics (the phone's vibration and a controller's rumble) are on where the device has them. `?haptics`
+// (or `?haptics=on`) forces them on and `?haptics=off` forces them off, for this visit only.
+const haptics = parseHapticsParam(query.get('haptics'));
 
 // `?back` makes the browser's Back button the game's in an ordinary tab, to try it without fullscreen.
 
@@ -31,7 +34,7 @@ Game.start(stage, {
   previewStinger: query.has('previewStinger'),
   touch: query.has('touch'),
   back: query.has('back'),
-  haptics: query.has('haptics'),
+  ...(haptics ? { haptics } : {}),
   ...(pixels ? { pixels } : {}),
   ...(audio ? { audio } : {}),
   ...(title ? { title } : {}),

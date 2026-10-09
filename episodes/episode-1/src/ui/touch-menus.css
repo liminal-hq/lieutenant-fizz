@@ -75,6 +75,10 @@
 .menu button.sel .step {
   color: var(--lf-ink);
 }
+/* A row the address fixes keeps the room of its steppers but shows and offers none. */
+.menu .step.off {
+  visibility: hidden;
+}
 
 /* Buttons a finger presses are at least 48 dp. */
 #stage[data-touch] .btn,

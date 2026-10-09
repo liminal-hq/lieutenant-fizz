@@ -10,6 +10,7 @@ import {
 } from '@lieutenant-fizz/engine/sound-field';
 import { audioChoice, DEFAULT_OPTIONS, stepOption, type Options } from './options';
 import type { MenuItem } from './ui';
+import { NO_LOCKS, lockedItem, type UrlLocks } from './url-lock';
 
 /** The rows of the Sound screen, in order. */
 export type SoundRow = 'style' | 'music' | 'sfx' | 'lab' | 'reset' | 'back';
@@ -48,13 +49,18 @@ export function effectiveAudio(
   return resolveAudioMode(forced ?? audioChoice(o));
 }
 
+/** Whether the address fixes a row: `?audio=` fixes Style, and `?debug` puts the Sound lab on. */
+export const soundLocked = (row: SoundRow, locks: UrlLocks): boolean =>
+  (row === 'style' && locks.audio !== undefined) || (row === 'lab' && locks.debug);
+
 /**
- * The menu rows for these options. Style shows what Auto resolves to; while `?audio=` forces a mode
- * it shows that mode and cannot be stepped. `armed` is whether Reset has had its first tap.
+ * The menu rows for these options. Style shows what Auto resolves to; a row the address fixes shows its
+ * value with "(link)" and cannot be stepped (`?audio=` fixes Style, `?debug` the Sound lab). `armed` is
+ * whether Reset has had its first tap.
  */
 export function soundItems(
   o: Options,
-  forced: AudioMode | undefined,
+  locks: UrlLocks,
   rows: readonly SoundRow[],
   armed: boolean,
 ): MenuItem[] {
@@ -62,15 +68,17 @@ export function soundItems(
     const id = soundRowId(row);
     switch (row) {
       case 'style':
-        return forced
-          ? { id, label: 'Style', kind: 'choice', value: `${NAMES[forced]} (link)`, disabled: true }
+        return locks.audio
+          ? lockedItem({ id, label: 'Style' }, NAMES[locks.audio])
           : { id, label: 'Style', kind: 'choice', value: NAMES[effectiveAudio(undefined, o)] };
       case 'music':
         return { id, label: 'Music', kind: 'meter', meter: o.music };
       case 'sfx':
         return { id, label: 'Effects', kind: 'meter', meter: o.sfx };
       case 'lab':
-        return { id, label: 'Sound lab', kind: 'choice', value: o.lab ? 'On' : 'Off' };
+        return locks.debug
+          ? lockedItem({ id, label: 'Sound lab' }, 'On')
+          : { id, label: 'Sound lab', kind: 'choice', value: o.lab ? 'On' : 'Off' };
       case 'reset':
         return { id, label: 'Reset', ...(armed ? { value: 'Tap again' } : {}) };
       case 'back':
@@ -86,9 +94,16 @@ export const isSoundStepRow = (row: SoundRow | null): boolean =>
 /**
  * One step on a row, `d` of -1 or +1. At the end of a list a step stops, and choosing the row (`wrap`)
  * goes round to the other end. Stepping Style saves an explicit choice; a step that cannot move leaves
- * Auto alone. A row that does not step returns the same options.
+ * Auto alone. A row that does not step, or that the address fixes, returns the same options.
  */
-export function stepSound(o: Options, row: SoundRow, d: number, wrap: boolean): Options {
+export function stepSound(
+  o: Options,
+  row: SoundRow,
+  d: number,
+  wrap: boolean,
+  locks: UrlLocks = NO_LOCKS,
+): Options {
+  if (soundLocked(row, locks)) return o;
   switch (row) {
     case 'style': {
       const n = STYLES.length;

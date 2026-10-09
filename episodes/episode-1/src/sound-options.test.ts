@@ -5,11 +5,13 @@
 
 import { describe, expect, it } from 'vitest';
 import { AUDIO_DEFAULT } from '@lieutenant-fizz/engine/sound-field';
+import { NO_LOCKS } from './url-lock';
 import { DEFAULT_OPTIONS, parseOptions, type Options } from './options';
 import {
   effectiveAudio,
   isSoundStepRow,
   resetSound,
+  soundLocked,
   soundItems,
   soundPreview,
   soundRowId,
@@ -38,7 +40,7 @@ describe('soundRows', () => {
 
 describe('soundItems', () => {
   it('shows what Auto resolves to, and the meters', () => {
-    const items = soundItems(base(), undefined, rows, false);
+    const items = soundItems(base(), NO_LOCKS, rows, false);
     expect(items.map((i) => [i.label, i.value, i.meter])).toEqual([
       ['Style', styleName(AUDIO_DEFAULT), undefined],
       ['Music', undefined, 8],
@@ -52,24 +54,29 @@ describe('soundItems', () => {
   });
 
   it('shows the Sound lab row as an Off or On choice', () => {
-    const lab = (on: boolean) => soundItems({ ...base(), lab: on }, undefined, rows, false)[3];
+    const lab = (on: boolean) => soundItems({ ...base(), lab: on }, NO_LOCKS, rows, false)[3];
     expect(lab(false)).toMatchObject({ label: 'Sound lab', kind: 'choice', value: 'Off' });
     expect(lab(true)?.value).toBe('On');
   });
 
   it('shows the saved choice', () => {
-    expect(soundItems({ ...base(), audio: 1 }, undefined, rows, false)[0]?.value).toBe('Classic');
-    expect(soundItems({ ...base(), audio: 2 }, undefined, rows, false)[0]?.value).toBe('Enhanced');
+    expect(soundItems({ ...base(), audio: 1 }, NO_LOCKS, rows, false)[0]?.value).toBe('Classic');
+    expect(soundItems({ ...base(), audio: 2 }, NO_LOCKS, rows, false)[0]?.value).toBe('Enhanced');
   });
 
   it('shows a mode the link forces, and cannot step it', () => {
-    const style = soundItems({ ...base(), audio: 2 }, 'classic', rows, false)[0];
+    const style = soundItems(
+      { ...base(), audio: 2 },
+      { ...NO_LOCKS, audio: 'classic' },
+      rows,
+      false,
+    )[0];
     expect(style?.value).toBe('Classic (link)');
     expect(style?.disabled).toBe(true);
   });
 
   it('asks for a second tap once Reset is armed', () => {
-    const reset = (armed: boolean) => soundItems(base(), undefined, rows, armed)[4];
+    const reset = (armed: boolean) => soundItems(base(), NO_LOCKS, rows, armed)[4];
     expect(reset(false)?.value).toBeUndefined();
     expect(reset(true)?.value).toBe('Tap again');
   });
@@ -163,6 +170,8 @@ describe('resetSound', () => {
       text: 1,
       motion: 2,
       lab: true,
+      rumble: 1,
+      hapticsLab: true,
     };
     expect(resetSound(o)).toEqual({ ...o, audio: 0, music: 8, sfx: 8, lab: false });
   });
@@ -200,5 +209,31 @@ describe('soundPreview', () => {
     for (const r of rows) {
       for (const s of soundPreview(r, base())) expect(PATTERNS.sfx[s.name]).toBeDefined();
     }
+  });
+});
+
+describe('the address', () => {
+  it('shows the Sound lab as On (link), disabled, under ?debug', () => {
+    const lab = soundItems(base(), { ...NO_LOCKS, debug: true }, rows, false)[3];
+    expect(lab).toMatchObject({ label: 'Sound lab', value: 'On (link)', disabled: true });
+  });
+
+  it('shows ?audio= on Style and ?debug on the Sound lab as (link), disabled, and writes nothing', () => {
+    const url = { ...NO_LOCKS, audio: 'classic' as const, debug: true };
+    const items = soundItems(base(), url, rows, false);
+    expect(items.filter((i) => i.disabled).map((i) => [i.label, i.value])).toEqual([
+      ['Style', 'Classic (link)'],
+      ['Sound lab', 'On (link)'],
+    ]);
+    const o = { ...base(), audio: 2 };
+    for (const row of ['style', 'lab'] as const) {
+      expect(soundLocked(row, url)).toBe(true);
+      for (const d of [-1, 1])
+        for (const wrap of [false, true]) expect(stepSound(o, row, d, wrap, url)).toBe(o);
+    }
+    // Music, Effects, Reset and Back are still the player's.
+    for (const row of ['music', 'sfx', 'reset', 'back'] as const)
+      expect(soundLocked(row, url)).toBe(false);
+    expect(stepSound(o, 'music', -1, false, url).music).toBe(7);
   });
 });

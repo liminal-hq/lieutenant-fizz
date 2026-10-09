@@ -19,8 +19,9 @@ export type ShellScreen =
   | 'credits'
   | 'stinger';
 
-/** A screen opened over the title or pause menu, or over another such screen (Sound or Touch controls over Options, then the editor). */
-export type SubScreen = 'controls' | 'options' | 'saves' | 'sound' | 'touch' | 'touchEdit' | null;
+/** A screen opened over the title or pause menu, or over another such screen (Sound, Haptics or Touch controls over Options, then the editor). */
+export type SubScreen =
+  'controls' | 'options' | 'saves' | 'sound' | 'haptics' | 'touch' | 'touchEdit' | null;
 
 export interface TouchFaces {
   /** The controls to show, in a fixed order. */
@@ -39,7 +40,7 @@ export interface TouchFaces {
  * Pogo (Back) shows only on a screen it goes back from. Fizz is hidden outside play, since it would
  * only repeat Select. Pause shows where it does something: it resumes from the pause menu, leaves the
  * menu entirely from a screen opened over it, and skips the cinematic, the credits and the stinger. A
- * screen opened over a menu (Controls, Options, Saves, Sound, Touch controls) also shows Back, which
+ * screen opened over a menu (Controls, Options, Saves, Sound, Haptics, Touch controls) also shows Back, which
  * closes it one level, as do Select and the Back button. The text screens
  * (cinematic, dialogue, ending, credits, stinger) have nothing to move, so they show no D-pad.
  */
