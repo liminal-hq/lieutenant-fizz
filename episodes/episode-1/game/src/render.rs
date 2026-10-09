@@ -9,7 +9,7 @@
 use crate::ents::*;
 use crate::sprites::*;
 use crate::tiles::*;
-use crate::world::{Mode, Player, World};
+use crate::world::{Mode, Player, World, MANTLE_RISE_SHARE};
 use lf_sim::{hashf, PushOpts};
 
 pub mod flags {
@@ -1213,6 +1213,16 @@ impl World {
 pub(crate) fn ben_sprite(p: &Player) -> Spr {
     if p.dead > 0.0 {
         Spr::BenJump
+    } else if let Some(m) = &p.mantle {
+        // Grip the ledge, then pull up with the arms over the lip, then push up onto the top.
+        let u = m.progress();
+        if u < MANTLE_RISE_SHARE / 2.0 {
+            Spr::BenMantle1
+        } else if u < MANTLE_RISE_SHARE {
+            Spr::BenMantle2
+        } else {
+            Spr::BenMantle3
+        }
     } else if p.pogo {
         if p.squash > 0.0 {
             Spr::BenPogo2

@@ -49,6 +49,24 @@ describe('Episode 1 sprites', () => {
     expect(defs.find((d) => d.name === 'ben_pogo')?.grid.h).toBe(32);
   });
 
+  it('draws three distinct 16x24 mantle frames for Ben', () => {
+    const frames = ['ben_mantle1', 'ben_mantle2', 'ben_mantle3'].map((n) => {
+      const g = defs.find((d) => d.name === n)?.grid;
+      expect(g, n).toBeDefined();
+      if (!g) throw new Error(n);
+      expect([g.w, g.h]).toEqual([16, 24]);
+      let cells = '';
+      for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) cells += g.at(x, y) ?? '.';
+      return cells;
+    });
+    expect(new Set(frames).size).toBe(3);
+    // The head and shirt are Ben's, so a frame that lost them would show up as missing red or green.
+    for (const f of frames) {
+      expect(f).toContain('r');
+      expect(f).toContain('g');
+    }
+  });
+
   it('packs into one 2048 atlas with room to spare', () => {
     const atlas = buildAtlas(defs);
     expect(Object.keys(atlas.rects)).toHaveLength(defs.length);
