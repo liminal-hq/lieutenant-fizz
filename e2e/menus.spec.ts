@@ -68,3 +68,10 @@ test('Escape goes back from the Options screen', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.locator('#overlay')).toBeHidden();
 });
+
+test('a desktop Options screen has no Touch controls row', async ({ page }) => {
+  await open(page, 'options');
+  const labels = await page.locator('#overlay .menu button .lbl').allInnerTexts();
+  expect(labels).not.toContain('Touch controls');
+  expect(labels.at(-1)).toBe('Back');
+});

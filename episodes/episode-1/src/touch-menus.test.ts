@@ -38,13 +38,26 @@ describe('touchFaces', () => {
   });
 
   it('adds Back, and drops Pause, on a screen opened over a menu', () => {
-    for (const sub of ['options', 'saves', 'controls'] as const) {
+    for (const sub of ['options', 'saves', 'controls', 'touch'] as const) {
       for (const screen of ['title', 'pause'] as const) {
         const f = touchFaces(screen, sub);
         expect(f.shown).toEqual(['dpad', 'jump', 'pogo']);
         expect(f.pogo).toBe('Back');
       }
     }
+  });
+
+  it('shows the four movable controls, and not Pause, in the editor', () => {
+    for (const screen of ['title', 'pause'] as const) {
+      expect(touchFaces(screen, 'touchEdit')).toEqual({
+        shown: ['dpad', 'jump', 'pogo', 'fire'],
+        jump: 'Jump',
+        pogo: 'Pogo',
+        play: true,
+        edit: true,
+      });
+    }
+    expect(touchFaces('play', null).edit).toBeUndefined();
   });
 
   it('keeps the D-pad off the text screens, and Pause where it skips', () => {

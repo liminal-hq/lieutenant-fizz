@@ -45,9 +45,16 @@
 #stage[data-touch] #toast {
   top: calc(var(--lf-safe-top) + 14px + var(--lf-pill-h) + 8px);
 }
+/* A control raised above the prompt's line pushes its side in (`--lf-prompt-left/right`, 0 otherwise). */
 #stage[data-touch] #prompt {
   bottom: calc(var(--lf-safe-bottom) + 200px);
-  max-width: min(60vw, 480px);
+  left: var(--lf-prompt-left, 0px);
+  right: var(--lf-prompt-right, 0px);
+  max-width: min(
+    60vw,
+    480px,
+    calc(100% - var(--lf-prompt-left, 0px) - var(--lf-prompt-right, 0px))
+  );
 }
 
 /* Shown over everything while a touch device is held upright. */

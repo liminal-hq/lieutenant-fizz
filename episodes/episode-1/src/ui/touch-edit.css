@@ -1,0 +1,71 @@
+/* ── The touch controls editor ──
+   `#touchEdit` (built by `Ui.showTouchEditor`) dims the game and holds a bar at the top: Done where Back
+   sits, the heading, and Reset where Pause sits. The controls themselves are `#touch`, which is above
+   this layer so they take the drags. Everything in the bar stays inside the top 96 px, which no control
+   may be moved into. All text is Fizz, sized by `--n` (11 px × n per glyph row). */
+#touchEdit {
+  inset: 0;
+  --n: var(--lf-n);
+  background: rgba(5, 5, 7, 0.55);
+  pointer-events: none;
+}
+#touchEdit .bar {
+  position: absolute;
+  top: calc(var(--lf-safe-top) + 8px);
+  left: calc(var(--lf-safe-left) + 16px);
+  right: calc(var(--lf-safe-right) + 8px);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--n) * 4px);
+}
+#touchEdit .btn {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 48px;
+  min-width: 48px;
+  flex: none;
+  white-space: nowrap;
+}
+#touchEdit h2 {
+  --n: var(--lf-n);
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+  font-weight: 700;
+  color: var(--lf-text);
+  white-space: nowrap;
+}
+#touchEdit .hint {
+  --n: var(--lf-n-hint);
+  position: absolute;
+  top: calc(var(--lf-safe-top) + 8px + 48px + 6px);
+  left: calc(var(--lf-safe-left) + 16px);
+  right: calc(var(--lf-safe-right) + 16px);
+  margin: 0;
+  text-align: center;
+  color: var(--lf-muted);
+}
+
+/* The controls look like the ones in play (at the player's opacity), with a dashed edge that says they
+   can be moved, and the accent while one is held. */
+#touch[data-mode='edit'] {
+  opacity: var(--lf-touch-opacity);
+}
+#touch[data-mode='edit'] [data-control] {
+  cursor: grab;
+}
+#touch[data-mode='edit'] .face {
+  border: 2px dashed rgba(255, 170, 64, 0.7);
+}
+#touch[data-mode='edit'] .drag {
+  cursor: grabbing;
+}
+#touch[data-mode='edit'] .drag .face {
+  background: rgba(255, 170, 64, 0.2);
+  border-style: solid;
+  border-color: var(--lf-accent);
+}

@@ -53,8 +53,7 @@
 }
 
 /* Left-handed: the D-pad is on the right, so the head goes right and the menu left. */
-#stage[data-hand='left']
-  #stage[data-touch][data-title='split']:not([data-title-fit='column'])
+#stage[data-hand='left'][data-touch][data-title='split']:not([data-title-fit='column'])
   #title:not(:has(> #controls:not([hidden]))) {
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-areas: 'menu head';
@@ -67,14 +66,12 @@
     rgba(5, 5, 7, 0) 72%
   );
 }
-#stage[data-hand='left']
-  #stage[data-touch][data-title='split']:not([data-title-fit='column'])
+#stage[data-hand='left'][data-touch][data-title='split']:not([data-title-fit='column'])
   #title:not(:has(> #controls:not([hidden])))
   > .head {
   justify-self: end;
 }
-#stage[data-hand='left']
-  #stage[data-touch][data-title='split']:not([data-title-fit='column'])
+#stage[data-hand='left'][data-touch][data-title='split']:not([data-title-fit='column'])
   #title:not(:has(> #controls:not([hidden])))
   > .menu {
   justify-self: start;

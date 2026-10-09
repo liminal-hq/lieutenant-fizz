@@ -254,6 +254,11 @@
   gap: calc(var(--n) * 8px);
   max-width: 100%;
 }
+/* The text, the menu and the note take part in the box as if they were its own children (the split
+   menus on a phone give them a column, `phone-menus.css`). */
+#overlay .body {
+  display: contents;
+}
 #overlay h2 {
   --n: var(--lf-n-head);
   margin: 0;

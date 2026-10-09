@@ -12,13 +12,16 @@ import type { InputManager } from './input';
 import { contains, hitTest, type ControlId, type TouchLayout } from './touch';
 import {
   DEFAULT_TOUCH_SPEC,
+  dragOffset,
   placeControls,
   controlSide,
   sideGutters,
   sideTops,
   type SideTops,
+  type EdgeOffset,
   type Gutters,
   type Insets,
+  type MovableId,
   type PlacedControls,
   type TouchSpec,
 } from './touch-layout';
@@ -35,7 +38,27 @@ const BUTTONS: readonly Exclude<ControlId, 'dpad'>[] = ['jump', 'pogo', 'fire', 
 export interface TouchControlsOptions {
   /** The accessible name of each control. */
   labels: Record<ControlId, string>;
+  /** The accessible name of a movable control in the editor; without one it is "Move" and the control's name. */
+  editLabels?: Partial<Record<MovableId, string>>;
   spec?: TouchSpec;
+}
+
+/** What the editor hears while the player moves controls (haptics, saving). */
+export interface EditHooks {
+  /** A finger picked up a control. */
+  pick?(id: MovableId): void;
+  /** The finger lifted (or the drag was cut short): the control now sits at this offset. */
+  drop(id: MovableId, off: EdgeOffset): void;
+}
+
+/** A control under a finger in edit mode, and how far its centre is from where the finger landed. */
+interface Drag {
+  pointerId: number;
+  id: MovableId;
+  dx: number;
+  dy: number;
+  /** The offset of its latest valid place, or null while it has not moved. */
+  off: EdgeOffset | null;
 }
 
 const div = (cls: string): HTMLElement => {
@@ -65,6 +88,11 @@ export class TouchControls {
   private heldKey = '';
   private lit = false;
   private shown: readonly ControlId[] = ALL;
+  private editing = false;
+  private hooks: EditHooks | null = null;
+  private drag: Drag | null = null;
+  /** The accessible name each control has outside the editor. */
+  private readonly names: Record<ControlId, string>;
 
   constructor(
     private readonly layer: HTMLElement,
@@ -72,6 +100,7 @@ export class TouchControls {
     private readonly opts: TouchControlsOptions,
   ) {
     this.spec = opts.spec ?? DEFAULT_TOUCH_SPEC;
+    this.names = { ...opts.labels };
 
     this.dpad.setAttribute('role', 'group');
     this.dpad.setAttribute('aria-label', opts.labels.dpad);
@@ -136,6 +165,7 @@ export class TouchControls {
     if (on) {
       this.relayout();
     } else {
+      this.endDrag(true);
       this.input.releaseTouch();
       this.clearPending();
       this.pausePointer = null;
@@ -156,6 +186,22 @@ export class TouchControls {
     if (this.count.textContent !== text) this.count.textContent = text;
   }
 
+  /** The spec the controls are placed with now. */
+  get currentSpec(): TouchSpec {
+    return this.spec;
+  }
+
+  /**
+   * Changes the size, hand or moved controls. When the controls are showing they are placed again at
+   * once, and a changed placement drops every held finger (see `relayout`); when hidden, the next
+   * `setVisible(true)` places them. A button held through a step of the Size setting is released by the
+   * change, so holding the arrow on a menu steps once.
+   */
+  setSpec(spec: TouchSpec): void {
+    this.spec = spec;
+    this.relayout();
+  }
+
   /** Reads the window size and the safe-area insets and places every control. */
   relayout(): void {
     if (!this.visible) return;
@@ -164,6 +210,8 @@ export class TouchControls {
     const placed = placeControls(w, h, this.readInsets(), this.spec);
     const key = JSON.stringify(placed);
     if (key !== this.placementKey) {
+      // A window that changed under a drag would leave the finger on the wrong place, so the drag ends.
+      this.endDrag(true);
       // A moved control would turn a held finger into a phantom direction, so start clean.
       if (this.placementKey) this.input.releaseTouch();
       this.clearPending();
@@ -172,7 +220,7 @@ export class TouchControls {
       this.apply(placed);
     }
     this.placed = placed;
-    this.input.touch.layout = this.liveHits();
+    this.input.touch.layout = this.editing ? null : this.liveHits();
   }
 
   /**
@@ -186,13 +234,49 @@ export class TouchControls {
       const el = id === 'dpad' ? this.dpad : this.buttons[id];
       el.hidden = !this.shown.includes(id);
     }
-    if (this.visible && this.placed) this.input.touch.layout = this.liveHits();
+    if (this.drag && !this.shown.includes(this.drag.id)) this.endDrag(true);
+    if (this.visible && this.placed)
+      this.input.touch.layout = this.editing ? null : this.liveHits();
   }
 
   /** Changes a control's accessible name (Jump reads "Select" in a menu). */
   setName(id: ControlId, name: string): void {
+    this.names[id] = name;
+    this.label(id);
+  }
+
+  /** Writes a control's accessible name: "Move Jump" in the editor, else its own name. */
+  private label(id: ControlId): void {
     const el = id === 'dpad' ? this.dpad : this.buttons[id];
+    const name =
+      this.editing && id !== 'pause'
+        ? (this.opts.editLabels?.[id] ?? `Move ${this.names[id]}`)
+        : this.names[id];
     if (el.getAttribute('aria-label') !== name) el.setAttribute('aria-label', name);
+  }
+
+  /**
+   * Turns the editor on or off. While it is on, a finger drags a control (the four movable ones) to a
+   * new place instead of pressing it: the controls take no game or menu input, and each drop is passed
+   * to `hooks.drop` as the offset to save. Entering drops every held finger.
+   */
+  setEditing(on: boolean, hooks?: EditHooks): void {
+    if (on === this.editing) {
+      if (on) this.hooks = hooks ?? null;
+      return;
+    }
+    this.endDrag(true);
+    this.hooks = on ? (hooks ?? null) : null;
+    this.editing = on;
+    if (on) {
+      this.input.releaseTouch();
+      this.clearPending();
+      this.pausePointer = null;
+      this.input.touch.layout = null;
+    } else if (this.visible && this.placed) {
+      this.input.touch.layout = this.liveHits();
+    }
+    for (const id of ALL) this.label(id);
   }
 
   /** The room menu content should leave on each side for the controls showing now (0 when hidden). */
@@ -206,8 +290,7 @@ export class TouchControls {
   tops(margin = 16): SideTops {
     if (!this.visible || !this.placed) return { left: 0, right: 0 };
     const w = this.layer.clientWidth || window.innerWidth;
-    const h = this.layer.clientHeight || window.innerHeight;
-    return sideTops(this.placed, w, h, this.shown, margin);
+    return sideTops(this.placed, w, this.shown, margin);
   }
 
   /** The hand the layout is for: `right` has the D-pad on the left, `left` has it on the right. */
@@ -323,6 +406,10 @@ export class TouchControls {
     // Never stopPropagation: the page's audio unlock listens for this same event.
     e.preventDefault();
     if (e.pointerType === 'touch') this.input.noteTouch();
+    if (this.editing) {
+      this.editDown(e);
+      return;
+    }
     const { x, y } = this.local(e);
     const layout = this.input.touch.layout;
     const target = layout ? hitTest(layout, x, y) : null;
@@ -341,11 +428,19 @@ export class TouchControls {
 
   private readonly onMove = (e: PointerEvent): void => {
     if (!this.visible) return;
+    if (this.editing) {
+      this.editMove(e);
+      return;
+    }
     const { x, y } = this.local(e);
     this.input.touch.move(e.pointerId, x, y);
   };
 
   private readonly onUp = (e: PointerEvent): void => {
+    if (this.editing) {
+      this.editEnd(e);
+      return;
+    }
     this.input.touch.up(e.pointerId);
     const pressed = this.pending.get(e.pointerId);
     if (pressed) {
@@ -366,14 +461,88 @@ export class TouchControls {
   };
 
   private readonly onCancel = (e: PointerEvent): void => {
+    if (this.editing) {
+      this.editEnd(e);
+      return;
+    }
     this.input.touch.up(e.pointerId);
     this.dropPending(e.pointerId);
     if (e.pointerId === this.pausePointer) this.pausePointer = null;
   };
 
+  /** The movable controls showing now, as hit areas a new finger can land on. */
+  private editHits(): TouchLayout | null {
+    if (!this.placed) return null;
+    const hit = { ...this.placed.hit };
+    for (const id of ALL) if (id === 'pause' || !this.shown.includes(id)) hit[id] = NOWHERE;
+    return hit;
+  }
+
+  /** A finger lands on a control: it is picked up with the finger where it is, so nothing jumps. */
+  private editDown(e: PointerEvent): void {
+    if (this.drag || !this.placed) return;
+    const hits = this.editHits();
+    const { x, y } = this.local(e);
+    const id = hits ? hitTest(hits, x, y) : null;
+    if (!id || id === 'pause') return;
+    const face = this.placed.face[id];
+    this.drag = { pointerId: e.pointerId, id, dx: face.cx - x, dy: face.cy - y, off: null };
+    this.capture(e);
+    const el = id === 'dpad' ? this.dpad : this.buttons[id];
+    el.classList.add('drag');
+    this.hooks?.pick?.(id);
+  }
+
+  /** The finger moves: the control follows it, kept in its zone and off the other controls. */
+  private editMove(e: PointerEvent): void {
+    const d = this.drag;
+    if (!d || d.pointerId !== e.pointerId || !this.placed) return;
+    const { x, y } = this.local(e);
+    const { w, h } = this.size();
+    const insets = this.readInsets();
+    const off = dragOffset(
+      this.placed,
+      d.id,
+      { cx: x + d.dx, cy: y + d.dy },
+      w,
+      h,
+      insets,
+      this.spec,
+    );
+    if (!off) return;
+    d.off = off;
+    this.spec = { ...this.spec, moved: { ...this.spec.moved, [d.id]: off } };
+    const placed = placeControls(w, h, insets, this.spec);
+    this.placementKey = JSON.stringify(placed);
+    this.placed = placed;
+    this.apply(placed);
+  }
+
+  /** The finger lifts or the system takes it: the control stays where it is and is reported. */
+  private editEnd(e: PointerEvent): void {
+    if (this.drag && this.drag.pointerId === e.pointerId) this.endDrag(true);
+  }
+
+  /** Ends a drag. A control that moved is reported to `drop`; one that never moved is not. */
+  private endDrag(report: boolean): void {
+    const d = this.drag;
+    if (!d) return;
+    this.drag = null;
+    const el = d.id === 'dpad' ? this.dpad : this.buttons[d.id];
+    el.classList.remove('drag');
+    if (report && d.off) this.hooks?.drop(d.id, d.off);
+  }
+
+  private size(): { w: number; h: number } {
+    return {
+      w: this.layer.clientWidth || window.innerWidth,
+      h: this.layer.clientHeight || window.innerHeight,
+    };
+  }
+
   /** A click with no pointer (`detail` 0) is an assistive technology activating the button. */
   private readonly onClick = (e: MouseEvent): void => {
-    if (e.detail !== 0 || !this.visible) return;
+    if (e.detail !== 0 || !this.visible || this.editing) return;
     const el = (e.target as Element).closest<HTMLElement>('[data-control]');
     const id = el?.dataset.control as ControlId | undefined;
     if (!id || id === 'dpad' || !this.placed || !this.shown.includes(id)) return;

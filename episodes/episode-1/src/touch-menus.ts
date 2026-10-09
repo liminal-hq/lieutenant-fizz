@@ -19,8 +19,8 @@ export type ShellScreen =
   | 'credits'
   | 'stinger';
 
-/** A screen opened over the title or pause menu. */
-export type SubScreen = 'controls' | 'options' | 'saves' | null;
+/** A screen opened over the title or pause menu, or over another such screen (Touch controls, then its editor). */
+export type SubScreen = 'controls' | 'options' | 'saves' | 'touch' | 'touchEdit' | null;
 
 export interface TouchFaces {
   /** The controls to show, in a fixed order. */
@@ -30,6 +30,8 @@ export interface TouchFaces {
   pogo: string;
   /** Whether the controls are the game's (play) or a gamepad for the menus. */
   play: boolean;
+  /** The controls are being moved (the editor): they take drags, not presses. */
+  edit?: boolean;
 }
 
 /**
@@ -57,6 +59,16 @@ export function touchFaces(screen: ShellScreen, sub: SubScreen): TouchFaces {
       };
     case 'title':
     case 'pause':
+      // The editor shows the four movable controls as they look in play, and Pause is out of the way.
+      if (sub === 'touchEdit') {
+        return {
+          shown: ['dpad', 'jump', 'pogo', 'fire'],
+          jump: 'Jump',
+          pogo: 'Pogo',
+          play: true,
+          edit: true,
+        };
+      }
       if (sub) return menu(['dpad', 'jump', 'pogo']);
       return menu(screen === 'pause' ? ['dpad', 'jump', 'pause'] : ['dpad', 'jump']);
     case 'card':

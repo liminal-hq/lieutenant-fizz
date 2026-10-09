@@ -37,6 +37,27 @@ export const NO_GUTTERS: TouchGutters = {
   hand: 'right',
 };
 
+/** How far from the bottom of the screen the touch prompt's lower edge is (`phone.css`), in CSS pixels. */
+export const PROMPT_BOTTOM = 200;
+
+/**
+ * The room the prompt leaves on each side so it stays clear of a raised control. A side counts only
+ * when its highest control rises above the line the prompt sits on (`bottom` up from the bottom of a
+ * window `height` px tall); otherwise the prompt passes below it and the side is 0. With the controls in
+ * their default places nothing rises that high, so the prompt is where it always was.
+ */
+export function promptClear(
+  g: TouchGutters,
+  height: number,
+  bottom = PROMPT_BOTTOM,
+): { left: number; right: number } {
+  const line = height - bottom;
+  return {
+    left: g.leftTop > 0 && g.leftTop < line ? g.left : 0,
+    right: g.rightTop > 0 && g.rightTop < line ? g.right : 0,
+  };
+}
+
 /**
  * The CSS custom properties that size the overlay, for a window of this size. With touch gutters the
  * menus start right of the D-pad and end left of the buttons, so the wordmark and text columns are
@@ -58,6 +79,7 @@ export function layoutVars(
     steps.item + 3,
     MAX_SCALE,
   );
+  const prompt = promptClear(gutters, height);
   const logo = touch
     ? Math.max(MIN_SCALE, height < SHORT_PHONE ? fitted - 1 : fitted)
     : wordmarkScale(width, padX, steps.item);
@@ -75,6 +97,8 @@ export function layoutVars(
     '--lf-cols': String(wrapColumns(content, steps.small)),
     '--lf-touch-left': `${gutters.left}px`,
     '--lf-touch-right': `${gutters.right}px`,
+    '--lf-prompt-left': `${prompt.left}px`,
+    '--lf-prompt-right': `${prompt.right}px`,
   };
 }
 
@@ -94,6 +118,17 @@ export function titleCandidates(steps: ScaleSteps): TitleCandidate[] {
   for (let logo = Math.min(steps.item + 3, MAX_SCALE); logo >= MIN_SCALE; logo--) {
     out.push({ logo, lines: 1 }, { logo, lines: 2 });
   }
+  return out;
+}
+
+/**
+ * The heading scales the split menus try, largest first: from the heading scale down to 2. The heading
+ * wraps inside its column, so a smaller scale is the only other way to make it shorter. The first that
+ * fits above the D-pad is used.
+ */
+export function headCandidates(steps: ScaleSteps): number[] {
+  const out: number[] = [];
+  for (let n = steps.head; n >= MIN_SCALE; n--) out.push(n);
   return out;
 }
 

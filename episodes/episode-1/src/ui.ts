@@ -23,6 +23,7 @@ import {
   captionPosition,
   creditsTransform,
   NO_GUTTERS,
+  headCandidates,
   rowHeight,
   titleCandidates,
   TOUCH_ROW,
@@ -127,6 +128,8 @@ export interface UiHandlers {
   zoom(f: number | 'reset'): void;
   /** Closes the screen opened over the title or the pause menu (Controls, Options, Saves). */
   back(): void;
+  /** A tap on Reset in the touch controls editor. */
+  editReset(): void;
   creditsPress(): void;
   creditsSkip(): void;
   stingerPress(): void;
@@ -179,6 +182,8 @@ export class Ui {
   private readonly panel: HTMLElement;
   private readonly panelBtn: HTMLElement;
   private readonly backBtn: HTMLButtonElement;
+  private readonly touchEdit: HTMLElement;
+  private readonly editReset: HTMLButtonElement;
   private readonly credits: HTMLElement;
   private readonly stinger: HTMLElement;
   private creditsFor: CreditsContent | null = null;
@@ -256,11 +261,13 @@ export class Ui {
 
     this.overlay = el('div', { id: 'overlay', class: 'lf screen', hidden: '' });
     const box = el('div', { class: 'box' });
-    box.innerHTML = '<h2></h2><p class="text"></p>';
+    // The text, the menu and the note sit in `.body`, which has no box of its own in the column layout
+    // and is the thumb-side column of the split one.
+    box.innerHTML = '<h2></h2><div class="body"><p class="text"></p></div>';
     this.overlayMenu = el('div', { class: 'menu' });
     this.bindTaps(this.overlayMenu);
     this.overlayNote = el('p', { class: 'note' });
-    box.append(this.overlayMenu, this.overlayNote);
+    need(box, '.body').append(this.overlayMenu, this.overlayNote);
     this.overlayKeys = el('div', { class: 'keys' });
     this.overlay.append(box, this.overlayKeys);
     // A card's text chooses its highlighted row on a tap, as Select does.
@@ -317,6 +324,17 @@ export class Ui {
 
     this.backBtn = el('button', { id: 'backBtn', class: 'lf btn ghost', hidden: '' }, '← Back');
     this.backBtn.addEventListener('click', () => h.back());
+    // The touch controls editor: a scrim, and a bar with Done, the heading and Reset. The controls
+    // themselves are in `#touch`, which sits above this layer so they take the drags.
+    this.touchEdit = el(
+      'div',
+      { id: 'touchEdit', class: 'lf', hidden: '' },
+      `<div class="bar"><button type="button" class="btn done">Done</button><h2>Move controls</h2><button type="button" class="btn ghost reset">Reset</button></div>
+      <p class="hint">Drag a control to move it</p>`,
+    );
+    this.editReset = need(this.touchEdit, '.reset') as HTMLButtonElement;
+    need(this.touchEdit, '.done').addEventListener('click', () => h.back());
+    this.editReset.addEventListener('click', () => h.editReset());
     this.attractFade = el('div', { id: 'attractFade', hidden: '' });
     this.attractTag = el('div', { id: 'attractTag', class: 'lf', hidden: '' });
     this.root.append(
@@ -328,6 +346,7 @@ export class Ui {
       this.toastEl,
       this.title,
       this.overlay,
+      this.touchEdit,
       this.letterbox,
       this.dialogue,
       this.credits,
@@ -360,6 +379,7 @@ export class Ui {
     if (ctx.device === this.ctx.device && ctx.layout === this.ctx.layout) return;
     this.ctx = ctx;
     this.refreshHints();
+    if (this.touchMode) this.relayout();
   }
 
   private setKeys(into: HTMLElement, hints: string[]): void {
@@ -411,6 +431,7 @@ export class Ui {
     if (this.touchMode) this.stage.dataset.hand = this.gutters.hand;
     else delete this.stage.dataset.hand;
     this.fitTitle();
+    this.fitOverlay();
     this.fitRows();
   }
 
@@ -442,20 +463,71 @@ export class Ui {
     const vv = window.visualViewport;
     const height = Math.round(vv?.height ?? window.innerHeight);
     const head = need(t, '.head');
-    const g = this.gutters;
-    const dpadOnLeft = g.hand === 'right';
-    const limit = dpadOnLeft ? g.leftTop : g.rightTop;
     for (const c of titleCandidates(scaleSteps(pixelScale(height, this.large)))) {
       t.style.setProperty('--lf-n-logo', String(c.logo));
       t.dataset.lines = String(c.lines);
-      const h = head.getBoundingClientRect();
-      const m = this.menuEl.getBoundingClientRect();
-      const beside = dpadOnLeft ? h.right <= m.left - 24 : h.left >= m.right + 24;
-      if (beside && (limit === 0 || h.bottom <= limit)) return;
+      if (this.headFits(head, this.menuEl)) return;
     }
     t.style.removeProperty('--lf-n-logo');
     delete t.dataset.lines;
     this.stage.dataset.titleFit = 'column';
+  }
+
+  /**
+   * The split screens' fit test: the head is at least 24 px from the menu on the side away from the D-pad
+   * and ends above the D-pad (which is where the controls on the head's side begin, 0 when none shows).
+   */
+  private headFits(head: HTMLElement, menu: HTMLElement): boolean {
+    const g = this.gutters;
+    const dpadOnLeft = g.hand === 'right';
+    const limit = dpadOnLeft ? g.leftTop : g.rightTop;
+    const h = head.getBoundingClientRect();
+    const m = menu.getBoundingClientRect();
+    const beside = dpadOnLeft ? h.right <= m.left - 24 : h.left >= m.right + 24;
+    return beside && (limit === 0 || h.bottom <= limit);
+  }
+
+  /**
+   * Lays out the other menus (pause, Options, Touch controls, saves, the cards) in the split layout:
+   * the heading on the D-pad side, the text and rows on the thumb side. Tries the heading scales
+   * largest first (`headCandidates`) with the same test as the title; when none fits (Large text on a
+   * short phone, a raised D-pad) the screen falls back to the column (`data-menu-fit="column"`).
+   * It also tells the CSS what to keep clear of: the Back button's right edge (a Left-handed menu starts
+   * after it), the bottom of the corner control above the heading (Back at the top left, or Pause at
+   * the top right for a Left-handed heading), and the height of the hint bar, which wraps to a second line
+   * on a narrow screen.
+   */
+  private fitOverlay(): void {
+    const o = this.overlay;
+    o.style.removeProperty('--lf-n-head');
+    delete this.stage.dataset.menuFit;
+    const rect = (e: Element | null): DOMRect | null => {
+      const r = e?.getBoundingClientRect();
+      return r && r.width > 0 ? r : null;
+    };
+    const back = this.backBtn.hidden ? null : rect(this.backBtn);
+    const pause = rect(this.touchLayer.querySelector('[data-control="pause"] .face'));
+    const corner = this.gutters.hand === 'right' ? back : pause;
+    const px = (v: number): string => `${Math.ceil(v)}px`;
+    o.style.setProperty('--lf-back-right', px(back?.right ?? 0));
+    o.style.setProperty('--lf-head-clear', px(corner?.bottom ?? 0));
+    o.style.setProperty('--lf-keys-h', px(rect(need(o, '.keys'))?.height ?? 0));
+    if (!this.touchMode || this.titleLayout !== 'split' || o.hidden) return;
+    const vv = window.visualViewport;
+    const height = Math.round(vv?.height ?? window.innerHeight);
+    const head = need(o, 'h2');
+    const body = need(o, '.body');
+    for (const n of headCandidates(scaleSteps(pixelScale(height, this.large)))) {
+      o.style.setProperty('--lf-n-head', String(n));
+      if (this.headFits(head, body) && head.scrollWidth <= head.clientWidth + 1) return;
+    }
+    o.style.removeProperty('--lf-n-head');
+    this.stage.dataset.menuFit = 'column';
+  }
+
+  /** Sets how opaque the on-screen controls are in play, in percent (menus keep them solid). */
+  setTouchOpacity(percent: number): void {
+    this.touchLayer.style.setProperty('--lf-touch-opacity', String(percent / 100));
   }
 
   /** Sets the room the touch controls take on each side, so menus start right of the D-pad. */
@@ -491,8 +563,17 @@ export class Ui {
       for (const m of menus) m.style.setProperty('--lf-row-h', `${TOUCH_ROW}px`);
       const overflow = screen.scrollHeight - screen.clientHeight;
       const glyph = Math.round(Number.parseFloat(getComputedStyle(first).fontSize));
-      const h = rowHeight(overflow, rows.length, glyph);
+      let h = rowHeight(overflow, rows.length, glyph);
       for (const m of menus) m.style.setProperty('--lf-row-h', `${h}px`);
+      // A save slot that wraps stays taller than its share, so the split menus take what is still over
+      // from the other rows (the column keeps its measure).
+      if (screen === this.overlay && this.stage.dataset.title === 'split') {
+        const over = screen.scrollHeight - screen.clientHeight;
+        if (over > 0 && h > glyph) {
+          h = rowHeight(overflow + over, rows.length, glyph);
+          for (const m of menus) m.style.setProperty('--lf-row-h', `${h}px`);
+        }
+      }
     }
   }
 
@@ -706,6 +787,17 @@ export class Ui {
     this.backBtn.hidden = !(on && this.touchMode);
   }
 
+  /**
+   * Shows the touch controls editor (null hides it). `armed` is whether Reset has had its first tap.
+   * Done is the Back handler, so it closes the editor the way the Back button closes any screen.
+   */
+  showTouchEditor(v: { armed: boolean } | null): void {
+    this.touchEdit.hidden = !v || !this.touchMode;
+    if (!v) return;
+    const text = v.armed ? 'Tap again' : 'Reset';
+    if (this.editReset.textContent !== text) this.editReset.textContent = text;
+  }
+
   /** Shows or hides the "Rotate your phone" screen. */
   setRotate(on: boolean): void {
     this.rotate.hidden = !on;
@@ -915,7 +1007,10 @@ export class Ui {
     this.overlayNote.textContent = o.note ?? '';
     this.overlayNote.hidden = !o.note;
     this.renderMenu(this.overlayMenu, o.items, o.sel);
-    if (this.touchMode) this.fitRows();
+    if (this.touchMode) {
+      this.fitOverlay();
+      this.fitRows();
+    }
   }
 
   showLetterbox(
