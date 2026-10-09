@@ -9,6 +9,7 @@ import { hintText } from '@lieutenant-fizz/engine/font/tokens';
 import { EGA } from '@lieutenant-fizz/engine/palette';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import type { StingerContent, StingerPhase } from '@lieutenant-fizz/engine/stinger';
+import type { Rect, Shape } from '@lieutenant-fizz/engine/touch';
 import {
   controlsTable,
   creditsHints,
@@ -17,6 +18,7 @@ import {
   type HintContext,
   type HintScreen,
 } from './hints';
+import { benBox, dockBest, maxPanelWidth, shapeBox, type Obstacle, type Side } from './map-panel';
 import {
   applyLayout,
   captionAnimation,
@@ -83,6 +85,19 @@ export interface HudState {
   blue: boolean;
   green: boolean;
   usb: boolean;
+}
+
+/** Where Ben is on screen on the map, in CSS pixels, and how many pixels a world unit is. */
+export interface MapAnchor {
+  x: number;
+  y: number;
+  ppu: number;
+}
+
+/** The safe area and the controls on screen, for the map panel to keep clear of. */
+export interface ControlBoxes {
+  safe: Rect;
+  controls: { hit: Shape; face: Shape }[];
 }
 
 export interface Prompt {
@@ -237,6 +252,10 @@ export class Ui {
   private readonly choose = new WeakMap<HTMLElement, (i: number) => void>();
   /** A touch tap chose a row until this time, so the click the browser sends after it is ignored. */
   private tapUntil = 0;
+  /** The side the map panel docked on last, so Ben near the middle does not flip it. */
+  private dockSide: Side | null = null;
+  private dockKey = '';
+  private dockLast: { anchor: MapAnchor | null; boxes: ControlBoxes | null } | null = null;
 
   constructor(
     host: HTMLElement,
@@ -444,6 +463,7 @@ export class Ui {
 
   /** Sizes the overlay's pixel text from the window. Called on resize and when text size changes. */
   private relayout(): void {
+    this.dockKey = '';
     // The visual viewport shrinks and grows with a browser bar, so it is the height the player sees.
     const vv = window.visualViewport;
     applyLayout(
@@ -1013,6 +1033,7 @@ export class Ui {
 
   /** The phone HUD: an icon and a number per pill, then a chip for each key held. */
   private renderPills(s: HudState): void {
+    this.dockKey = '';
     const { pills, chips } = pillItems(s);
     const pillHtml = pills.map((p) => {
       const url = this.hudIcons[p.icon];
@@ -1034,7 +1055,12 @@ export class Ui {
 
   setPrompt(p: Prompt | null): void {
     this.prompt.hidden = !p;
-    if (!p) return;
+    this.dockKey = '';
+    if (!p) {
+      this.dockSide = null;
+      this.prompt.removeAttribute('data-dock');
+      return;
+    }
     this.prompt.innerHTML = '<div class="t"></div><div class="d"></div><div class="a"></div>';
     need(this.prompt, '.t').textContent = p.title;
     need(this.prompt, '.d').textContent = p.text;
@@ -1043,6 +1069,77 @@ export class Ui {
         ? `Tap Jump or Fizz to ${p.action.toLowerCase()}`
         : `Jump, fire or Enter to ${p.action.toLowerCase()}`
       : '';
+    // On a phone the card waits, unseen, for the dock to place it beside the controls.
+    if (this.touchMode) {
+      this.prompt.dataset['dock'] = 'pending';
+      if (this.dockLast) this.dockPrompt(this.dockLast.anchor, this.dockLast.boxes);
+    }
+  }
+
+  /** Whether the map panel is showing (the game only measures Ben for it then). */
+  get promptShown(): boolean {
+    return !this.prompt.hidden;
+  }
+
+  /**
+   * On a phone, docks the map panel against the edge of the screen away from Ben: where he is on screen
+   * (`anchor`, null when there is no map to follow) and the controls to keep clear of. A desktop window, and a
+   * phone with no anchor, keep the centred panel.
+   */
+  dockPrompt(anchor: MapAnchor | null, boxes: ControlBoxes | null): void {
+    this.dockLast = { anchor, boxes };
+    const p = this.prompt;
+    if (!this.touchMode || p.hidden) return;
+    if (!anchor || !boxes) {
+      p.removeAttribute('data-dock');
+      return;
+    }
+    const w = this.root.clientWidth;
+    const key = JSON.stringify([
+      Math.round(anchor.x),
+      Math.round(anchor.y),
+      Math.round(anchor.ppu * 10),
+      boxes,
+      w,
+      this.root.clientHeight,
+    ]);
+    if (key === this.dockKey && p.dataset['dock'] !== 'pending') return;
+    const obstacles: Obstacle[] = boxes.controls.map((c) => ({
+      hit: shapeBox(c.hit),
+      face: shapeBox(c.face),
+    }));
+    for (const e of [this.hud, this.backBtn]) {
+      const r = e.hidden ? null : e.getBoundingClientRect();
+      if (r && r.width > 0) {
+        const b = { x: r.x, y: r.y, w: r.width, h: r.height };
+        obstacles.push({ hit: b, face: b });
+      }
+    }
+    // Measured at each candidate width with the card docked, so the CSS decides how it wraps.
+    p.dataset['dock'] = this.dockSide ?? 'right';
+    const measure = (width: number): number => {
+      p.style.setProperty('--lf-dock-w', `${width}px`);
+      return p.offsetHeight;
+    };
+    const dock = dockBest(
+      {
+        safe: boxes.safe,
+        ben: benBox(anchor.x, anchor.y, anchor.ppu),
+        obstacles,
+        maxWidth: maxPanelWidth(w),
+        measure,
+      },
+      anchor.x,
+      w,
+      this.dockSide,
+    );
+    p.dataset['dock'] = dock.side;
+    this.dockSide = dock.side;
+    p.style.setProperty('--lf-dock-x', `${dock.box.x}px`);
+    p.style.setProperty('--lf-dock-y', `${dock.box.y}px`);
+    p.style.setProperty('--lf-dock-w', `${dock.box.w}px`);
+    p.dataset['dockTier'] = String(dock.tier);
+    this.dockKey = key;
   }
 
   toast(text: string): void {
