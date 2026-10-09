@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { expect, test, type Page } from '@playwright/test';
+import { pressUntil } from './keys';
 
 interface Win {
   __vib: unknown[];
@@ -76,7 +77,13 @@ test.describe('haptics', () => {
   test('a menu move vibrates by default and hiding the page stops it', async ({ page }, info) => {
     test.skip(info.project.name !== ONE, 'one viewport');
     await open(page, '');
-    await page.keyboard.press('ArrowDown', { delay: 300 });
+    const before = await menu(page);
+    await pressUntil(
+      page,
+      'ArrowDown',
+      (b) => (window as unknown as Win).__lf.debugState.menu !== Number(b),
+      String(before),
+    );
     await expect.poll(() => calls(page)).not.toEqual([]);
     expect((await calls(page))[0]).toEqual(expect.arrayContaining([expect.any(Number)]));
     // The title's attract loop raises captions too; none of them may reach the vibrator.
@@ -97,8 +104,12 @@ test.describe('haptics', () => {
     test.skip(info.project.name !== ONE, 'one viewport');
     await open(page, '&haptics=off');
     const before = await menu(page);
-    await page.keyboard.press('ArrowDown', { delay: 300 });
-    await expect.poll(() => menu(page)).not.toBe(before);
+    await pressUntil(
+      page,
+      'ArrowDown',
+      (b) => (window as unknown as Win).__lf.debugState.menu !== Number(b),
+      String(before),
+    );
     // Two frames after the move: a haptic cue would have played by then.
     await page.evaluate(
       () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
@@ -112,8 +123,12 @@ test.describe('haptics', () => {
     test.skip(info.project.name !== ONE, 'one viewport');
     await open(page, '', false, { 'lf-touch-v1': JSON.stringify({ v: 1, hapticStrength: 0 }) });
     const before = await menu(page);
-    await page.keyboard.press('ArrowDown', { delay: 300 });
-    await expect.poll(() => menu(page)).not.toBe(before);
+    await pressUntil(
+      page,
+      'ArrowDown',
+      (b) => (window as unknown as Win).__lf.debugState.menu !== Number(b),
+      String(before),
+    );
     await page.evaluate(
       () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
     );
@@ -126,7 +141,13 @@ test.describe('haptics', () => {
     test.skip(info.project.name !== ONE, 'one viewport');
     const saved = JSON.stringify({ v: 1, hapticStrength: 0 });
     await open(page, '&haptics', false, { 'lf-touch-v1': saved });
-    await page.keyboard.press('ArrowDown', { delay: 300 });
+    const before = await menu(page);
+    await pressUntil(
+      page,
+      'ArrowDown',
+      (b) => (window as unknown as Win).__lf.debugState.menu !== Number(b),
+      String(before),
+    );
     await expect.poll(() => calls(page)).not.toEqual([]);
     expect(await page.evaluate(() => localStorage.getItem('lf-touch-v1'))).toBe(saved);
   });

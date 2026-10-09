@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { expect, test, type Page } from '@playwright/test';
+import { pressUntil } from './keys';
 
 const OPTIONS = 'lf-ep1-options-v1';
 
@@ -11,26 +12,12 @@ interface Win {
   __rumble: { effects: { strongMagnitude: number }[]; resets: number };
 }
 
+/** Whether the row with the selection is called `label`; runs in the page. */
+const selected = (label: string): boolean =>
+  document.querySelector('#overlay .menu button.sel .lbl')?.textContent === label;
+
 const labels = (page: Page): Promise<string[]> =>
   page.locator('#overlay .menu button .lbl').allInnerTexts();
-
-const hold = async (page: Page, key: string): Promise<void> => {
-  await page.keyboard.down(key);
-  await page.waitForTimeout(300);
-  await page.keyboard.up(key);
-};
-
-/** Lets the game run a few frames, so it has seen a screen open before a key is held on it. */
-const frames = (page: Page, n = 4): Promise<void> =>
-  page.evaluate(
-    (count) =>
-      new Promise<void>((done) => {
-        const tick = (left: number): void =>
-          left <= 0 ? done() : void requestAnimationFrame(() => tick(left - 1));
-        tick(count);
-      }),
-    n,
-  );
 
 async function boot(page: Page, withPad: boolean): Promise<string[]> {
   const errors: string[] = [];
@@ -93,22 +80,29 @@ test('a pad that can rumble adds the Haptics row, whose Rumble row steps and rum
   await expect(
     page.locator('#overlay .menu button', { hasText: 'Haptics' }).locator('.val'),
   ).toHaveText('Strong');
-  await frames(page);
   // Down to Haptics, Enter opens the screen: Strength, Rumble, Haptics lab (fixed by ?debug), Reset, Back.
-  await hold(page, 'ArrowDown');
+  await pressUntil(page, 'ArrowDown', selected, 'Haptics');
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Haptics');
-  await page.keyboard.press('Enter', { delay: 300 });
+  await pressUntil(
+    page,
+    'Enter',
+    () => document.querySelector('#overlay h2')?.textContent === 'Haptics',
+  );
   await expect(page.locator('#overlay h2')).toHaveText('Haptics');
   expect(await labels(page)).toEqual(['Strength', 'Rumble', 'Haptics lab', 'Reset', 'Back']);
   // ?debug puts the haptics lab on, so that row is fixed and Down skips it.
   await expect(
     page.locator('#overlay .menu button', { hasText: 'Haptics lab' }).locator('.val'),
   ).toHaveText('On (link)');
-  await frames(page);
   // Rumble: one step down is Medium, saved, and the pad rumbles with a bonk at 0.75.
-  await hold(page, 'ArrowDown');
+  await pressUntil(page, 'ArrowDown', selected, 'Rumble');
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Rumble');
-  await hold(page, 'ArrowLeft');
+  await pressUntil(
+    page,
+    'ArrowLeft',
+    (k) => JSON.parse(localStorage.getItem(k) ?? '{}').rumble === 2,
+    OPTIONS,
+  );
   await expect(
     page.locator('#overlay .menu button', { hasText: 'Rumble' }).locator('.val'),
   ).toContainText('Medium');
@@ -121,9 +115,13 @@ test('a pad that can rumble adds the Haptics row, whose Rumble row steps and rum
     .poll(() => page.evaluate(() => (window as unknown as Win).__rumble.effects.length))
     .toBeGreaterThan(0);
   // Down skips the fixed Haptics lab row and lands on Reset; Escape returns to Haptics on Options.
-  await hold(page, 'ArrowDown');
+  await pressUntil(page, 'ArrowDown', selected, 'Reset');
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Reset');
-  await page.keyboard.press('Escape', { delay: 300 });
+  await pressUntil(
+    page,
+    'Escape',
+    () => document.querySelector('#overlay h2')?.textContent === 'Options',
+  );
   await expect(page.locator('#overlay h2')).toHaveText('Options');
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Haptics');
   expect(errors).toEqual([]);
