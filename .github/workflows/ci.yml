@@ -55,10 +55,17 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
 
-  e2e:
-    name: Overlay layout in Chromium
+  # The browser checks, split into shards that run in parallel. Software GL makes them CPU-bound, so one
+  # runner took 17 to 25 minutes. Playwright splits by test (`fullyParallel`) in order, so the count of shards,
+  # the matrix and `--shard=i/5` below, must agree.
+  e2e-shard:
+    name: Chromium shard ${{ matrix.shard }} of 5
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
@@ -68,8 +75,50 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
+        with:
+          # One shard saves the cache; the others only restore it.
+          shared-key: e2e
+          save-if: ${{ matrix.shard == 1 }}
       - run: bun install --frozen-lockfile
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache the Playwright browser
+        id: browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
       # The locally installed CLI, so nothing is resolved from the network first.
-      - run: ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Install Chromium and its system libraries
+        if: steps.browsers.outputs.cache-hit != 'true'
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+      # A cached browser still needs the system libraries, which are not part of the cache.
+      - name: Install the system libraries for Chromium
+        if: steps.browsers.outputs.cache-hit == 'true'
+        run: ./node_modules/.bin/playwright install-deps chromium
       # Builds the WASM, starts the Vite dev server and checks each screen at four window sizes.
-      - run: bun run test:e2e
+      - run: bun run test:e2e -- --shard=${{ matrix.shard }}/5
+      # Each test's duration, for finding the slow ones.
+      - name: Upload the timing report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-timing-${{ matrix.shard }}
+          path: test-results/timing.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # The one check to require. It keeps the name the single job had, and passes only when every shard did.
+  e2e:
+    name: Overlay layout in Chromium
+    runs-on: ubuntu-latest
+    needs: [e2e-shard]
+    if: always()
+    steps:
+      - name: Check the shards
+        env:
+          RESULT: ${{ needs.e2e-shard.result }}
+        run: |
+          echo "Shards: $RESULT"
+          [ "$RESULT" = success ]
