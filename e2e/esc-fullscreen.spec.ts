@@ -3,9 +3,14 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect as baseExpect, test, type Page } from '@playwright/test';
 import { audit } from './audit';
 import { pressUntil, settle } from './keys';
+
+// Going fullscreen resizes the page to the whole screen, and redrawing that under software GL leaves the page too busy to
+// answer a poll for seconds on a shared CI runner (the request resolves in under 100 ms, the next evaluate comes back 3 to
+// 7 s later with more workers than CPUs), so the default 5 s is too short here, and each test that goes fullscreen is slow.
+const expect = baseExpect.configure({ timeout: 20_000 });
 
 interface Lf {
   debugShow(s: string): void;
@@ -87,6 +92,7 @@ const held = (page: Page): Promise<boolean> =>
 
 /** Enters fullscreen with the button and waits for the lock to be believed (when one is granted). */
 async function goFullscreen(page: Page, lock: boolean): Promise<void> {
+  test.slow();
   await page.locator('#fsBtn').click();
   await expect.poll(() => isFullscreen(page)).toBe(true);
   if (lock) await expect.poll(() => held(page)).toBe(true);
@@ -113,6 +119,7 @@ test('Esc is locked when fullscreen starts and unlocked when it ends', async ({ 
 });
 
 test('F also takes and releases the lock', async ({ page }) => {
+  test.slow();
   await boot(page, 'grant', 'title');
   await pressUntil(page, 'f', () => document.fullscreenElement !== null);
   await expect.poll(() => held(page)).toBe(true);
@@ -218,6 +225,7 @@ test('the Pause key is ignored while typing in a field', async ({ page }) => {
 });
 
 test('the Pause key does not take over another binding', async ({ page }) => {
+  test.slow();
   await boot(page, 'grant', 'play');
   await pressUntil(page, 'Pause', atScreen, 'pause');
   // Enter, Space and F still do their own jobs on the menu: F toggles fullscreen.

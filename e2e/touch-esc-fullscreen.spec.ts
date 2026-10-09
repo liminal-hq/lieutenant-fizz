@@ -3,9 +3,14 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { expect, test } from '@playwright/test';
+import { expect as baseExpect, test } from '@playwright/test';
+
+// Going fullscreen leaves the page drawing at the full screen size under software GL, so a poll can take seconds on a
+// shared CI runner; the default 5 s expect timeout is too short, and the test is slow.
+const expect = baseExpect.configure({ timeout: 20_000 });
 
 test('entering fullscreen on a phone does not ask for the keyboard lock', async ({ page }) => {
+  test.slow();
   await page.addInitScript(() => {
     const calls = { lock: 0, unlock: 0 };
     (window as unknown as { __kb: typeof calls }).__kb = calls;
@@ -21,8 +26,7 @@ test('entering fullscreen on a phone does not ask for the keyboard lock', async 
   await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
     timeout: 20_000,
   });
-  const b = (await page.locator('#fsBtn').boundingBox())!;
-  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+  await page.locator('#fsBtn').tap();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
   await page.evaluate(
     () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
