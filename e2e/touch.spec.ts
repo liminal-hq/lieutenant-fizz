@@ -100,17 +100,6 @@ test('turns on from a first touch, with no flag', async ({ page }) => {
   await expect(page.locator('#panelBtn')).toBeHidden();
 });
 
-test('every control is at least 48 dp', async ({ page }) => {
-  await play(page);
-  for (const r of await box(page, '#touch [data-control]')) {
-    expect(Math.min(r.width, r.height)).toBeGreaterThanOrEqual(47.9);
-  }
-  const p = await placed(page);
-  for (const id of ['jump', 'pogo', 'fire'] as const) {
-    expect(p.face[id].r * 2, id).toBeGreaterThanOrEqual(47.9);
-  }
-});
-
 test('controls and pills stay inside the safe area while the game fills the screen', async ({
   page,
 }) => {
@@ -136,11 +125,15 @@ test('controls and pills stay inside the safe area while the game fills the scre
   expect([gl.width, gl.height]).toEqual([w, h]);
 });
 
-test('controls, pills and Pause do not overlap, and the faces keep 8 px apart', async ({
+test('controls, pills and Pause do not overlap, and each control is at least 48 dp', async ({
   page,
 }) => {
+  // Where the controls go, at each size, is proved by the unit tests in touch-layout.test.ts; this checks
+  // that the page draws them there.
   await play(page);
-  const rects = [...(await box(page, '#touch [data-control]')), ...(await box(page, '#hud .pill'))];
+  const controls = await box(page, '#touch [data-control]');
+  for (const r of controls) expect(Math.min(r.width, r.height)).toBeGreaterThanOrEqual(47.9);
+  const rects = [...controls, ...(await box(page, '#hud .pill'))];
   for (let i = 0; i < rects.length; i++) {
     for (let j = i + 1; j < rects.length; j++) {
       const a = rects[i]!;
@@ -149,21 +142,6 @@ test('controls, pills and Pause do not overlap, and the faces keep 8 px apart', 
         Math.min(a.right, b.right) > Math.max(a.left, b.left) + 1 &&
         Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top) + 1;
       expect(overlap, `${i} and ${j}`).toBe(false);
-    }
-  }
-  const faces = await box(page, '#touch .face');
-  for (let i = 0; i < faces.length; i++) {
-    for (let j = i + 1; j < faces.length; j++) {
-      const a = faces[i]!;
-      const b = faces[j]!;
-      const gap =
-        Math.hypot(
-          a.x + a.width / 2 - (b.x + b.width / 2),
-          a.y + a.height / 2 - (b.y + b.height / 2),
-        ) -
-        a.width / 2 -
-        b.width / 2;
-      expect(gap, `${i} and ${j}`).toBeGreaterThanOrEqual(7.5);
     }
   }
 });
