@@ -11,6 +11,12 @@ export interface HintContext {
   layout: number;
   /** The page can go fullscreen on request, so the `F` shortcut and the Fullscreen button exist. */
   fullscreen?: boolean;
+  /**
+   * The page is fullscreen with Esc locked, on a screen whose top level Esc then leaves fullscreen from
+   * (the title and the pause menu): the Esc hint reads "Exit fullscreen" and replaces the `F` hint, and
+   * the pause menu is resumed with P or Pause.
+   */
+  escExitsFullscreen?: boolean;
 }
 
 /** The screens that show a hint bar. */
@@ -45,9 +51,13 @@ export const selectHint = (c: HintContext): string =>
 export const backHint = (c: HintContext): string =>
   touch(c) ? touchCap(TOUCH_LABELS.back) : pad(c) ? '{B}' : '{Esc}';
 
-/** The menu control that skips or resumes: Esc, Start on a gamepad, the Pause button on touch. */
+/** The menu control that skips or resumes: Esc and the Pause key, Start on a gamepad, the Pause button on touch. */
 export const menuHint = (c: HintContext): string =>
-  touch(c) ? touchCap(TOUCH_LABELS.pause) : pad(c) ? '{Start}' : '{Esc}';
+  touch(c) ? touchCap(TOUCH_LABELS.pause) : pad(c) ? '{Start}' : '{Esc} {[Pause]}';
+
+/** The pause menu's Resume control. With Esc leaving fullscreen it is P and the Pause key instead. */
+export const resumeHint = (c: HintContext): string =>
+  c.escExitsFullscreen && c.device === 'keyboard' ? '{[P]} {[Pause]}' : menuHint(c);
 
 /**
  * The touch hints: the controls' own names, which read the same as their faces, and no keys. Where
@@ -78,9 +88,12 @@ function touchMenuHints(screen: HintScreen): string[] {
  */
 export function menuHints(screen: HintScreen, c: HintContext): string[] {
   const hints = baseMenuHints(screen, c);
-  return c.fullscreen && c.device === 'keyboard' && screen !== 'controls'
-    ? [...hints, '{[F]} Fullscreen']
-    : hints;
+  if (c.device !== 'keyboard' || !c.fullscreen || screen === 'controls') return hints;
+  // With Esc locked in fullscreen, Esc leaves it from the top of the title and the pause menu, which
+  // says so in the place the `F` hint would take.
+  if (c.escExitsFullscreen && (screen === 'list' || screen === 'pause'))
+    return [...hints, '{Esc} Exit fullscreen'];
+  return [...hints, '{[F]} Fullscreen'];
 }
 
 function baseMenuHints(screen: HintScreen, c: HintContext): string[] {
@@ -95,7 +108,7 @@ function baseMenuHints(screen: HintScreen, c: HintContext): string[] {
     case 'controls':
       return [`${selectHint(c)} Back`, `${backHint(c)} Back`];
     case 'pause':
-      return [choose, select, `${menuHint(c)} Resume`];
+      return [choose, select, `${resumeHint(c)} Resume`];
     default:
       return [choose, select];
   }
@@ -161,7 +174,7 @@ export function controlsTable(c: HintContext, onTouch: boolean): ControlsTable {
       ['Jump', '{Ctrl}', '{[Z]}', '{A}'],
       ['Pogo (toggle)', '{Alt}', '{[X]}', '{B} {Y}'],
       ['Fizz', '{Space}', '{[C]}', '{X} {RT}'],
-      ['Menu', '{Esc}', '{Esc} {[P]}', '{Start}'],
+      ['Menu', '{Esc} {[Pause]}', '{Esc} {[P]} {[Pause]}', '{Start}'],
       ['Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu'],
       ...(c.fullscreen ? [['Fullscreen', '{[F]}', '{[F]}', '—']] : []),
     ],

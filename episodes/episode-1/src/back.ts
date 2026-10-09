@@ -68,3 +68,19 @@ export function pauseAction(screen: ShellScreen, sub: SubScreen, leave: boolean)
   if (screen === 'credits' || screen === 'stinger') return 'skipEnding';
   return null;
 }
+
+/** What Esc does: what a `pause` command does, or leave fullscreen (from the top of a menu, with Esc locked). */
+export type EscAction = PauseAction | 'exitFullscreen';
+
+/**
+ * What the Esc key does. Esc is a `pause` command (`pauseAction` with no `leave`) except where the page
+ * is fullscreen with Esc locked, so the key reaches it and the browser does not spend it on leaving:
+ * there the top of the pause menu and the top of the title have nothing left to close, and Esc leaves
+ * fullscreen (the pause menu stays open, so a second Esc is not needed to find it again). The pause menu
+ * is then resumed with its Resume row, P or the Pause key. `fullscreen` must mean the lock is held: without
+ * it the browser takes the key and the page never sees it, so a key that does arrive is an ordinary one.
+ */
+export function escAction(screen: ShellScreen, sub: SubScreen, fullscreen: boolean): EscAction {
+  if (fullscreen && !sub && (screen === 'pause' || screen === 'title')) return 'exitFullscreen';
+  return pauseAction(screen, sub, false);
+}

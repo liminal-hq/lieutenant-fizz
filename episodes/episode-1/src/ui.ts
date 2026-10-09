@@ -398,7 +398,8 @@ export class Ui {
     if (
       ctx.device === this.ctx.device &&
       ctx.layout === this.ctx.layout &&
-      ctx.fullscreen === this.ctx.fullscreen
+      ctx.fullscreen === this.ctx.fullscreen &&
+      ctx.escExitsFullscreen === this.ctx.escExitsFullscreen
     )
       return;
     this.ctx = ctx;

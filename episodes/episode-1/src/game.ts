@@ -11,6 +11,11 @@ import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-b
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import {
+  createEscLock,
+  type EscLock,
+  type KeyboardLockLike,
+} from '@lieutenant-fizz/engine/keyboard-lock';
+import {
   enterFullscreen,
   exitFullscreen,
   noKeepAwake,
@@ -62,7 +67,7 @@ import { MUSIC, PATTERNS, SFX } from './audio/patterns';
 import { ROOMS, roomFor, roomProfile, type RoomName } from './audio/rooms';
 import { FIZZ_HAPTICS } from './haptics/fizz-haptics';
 import { attractFade, attractLabel, nextAttract } from './attract';
-import { backAction, backEnabled, pauseAction } from './back';
+import { backAction, backEnabled, escAction, pauseAction } from './back';
 import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
 import { gestureFor, isLive } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
@@ -292,6 +297,11 @@ export class Game {
   private readonly fsControl: FullscreenControl;
   private scaleBefore: number | null = null;
   private scaleAfter: number | null = null;
+  /** The Keyboard Lock on Esc, held while the page is fullscreen where the browser offers one. */
+  private readonly escLock: EscLock = createEscLock({
+    keyboard: (navigator as Navigator & { keyboard?: KeyboardLockLike }).keyboard,
+    secure: window.isSecureContext,
+  });
   /** The Touch controls rows. */
   private readonly touchRowList: TouchRow[] = touchRows();
   /** What `?haptics` asked for, which wins over the saved strength and is never saved. */
@@ -1087,7 +1097,14 @@ export class Game {
         this.primary();
         break;
       case 'pause':
-        switch (pauseAction(this.screen, this.sub, !!c.leave)) {
+        switch (
+          c.esc
+            ? escAction(this.screen, this.sub, this.escLeavesFullscreen())
+            : pauseAction(this.screen, this.sub, !!c.leave)
+        ) {
+          case 'exitFullscreen':
+            void exitFullscreen(document);
+            break;
           case 'pause':
             this.screen = 'pause';
             this.menuIdx = 0;
@@ -1272,7 +1289,18 @@ export class Game {
       device,
       layout: this.settings.layout,
       fullscreen: this.caps.fullscreen && this.caps.host === 'web',
+      escExitsFullscreen:
+        this.escLeavesFullscreen() && (this.screen === 'title' || this.screen === 'pause'),
     });
+  }
+
+  /**
+   * Whether Esc reaches the page in fullscreen, so it can leave fullscreen itself: the lock is held and
+   * the page is fullscreen. Without the lock the browser takes the key and the page never sees it, so this
+   * stays false and Esc keeps its ordinary meaning.
+   */
+  private escLeavesFullscreen(): boolean {
+    return this.escLock.held && document.fullscreenElement !== null;
   }
 
   private readonly onVisibility = (): void => {
@@ -2177,12 +2205,26 @@ export class Game {
    * leaves fullscreen without a history entry, ends up on the pause menu. Never asks for fullscreen.
    */
   private onFullscreenChange(): void {
+    this.syncEscLock();
     if (
       document.fullscreenElement === null &&
       pauseFor('fullscreenExit', { playing: this.screen === 'play' })
     ) {
       this.autoPause();
     }
+  }
+
+  /**
+   * Holds Esc while the page is fullscreen on a desktop and lets it go when fullscreen ends. The answer
+   * comes later, so the hints are redrawn once it is in.
+   */
+  private syncEscLock(): void {
+    if (document.fullscreenElement === null) {
+      this.escLock.release();
+      this.syncHints();
+      return;
+    }
+    void this.escLock.engage(this.touchCapable).then(() => this.syncHints());
   }
 
   /** Whether the game is in fullscreen or an installed app, where it takes the browser's Back button. */
@@ -3143,6 +3185,7 @@ export class Game {
         wake: this.keepAwake.debug,
         keepAwake: this.keepAwake.kind,
         lastFs: this.lastFs,
+        escLock: this.escLock.held,
         scaleBefore: this.scaleBefore,
         scaleAfter: this.scaleAfter,
       },
