@@ -7,7 +7,10 @@ import * as Undertone from '@liminal-hq/undertone';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeAudioContext, type FakeNode } from './fake-audio-context';
 import { GameAudio, buildVoice, type AudioPatterns, type UndertoneModule } from './audio';
+import { MASTER, MASTER_DEFAULTS } from './master';
 import { PART_PAN } from './sound-field';
+
+const panDefaults = structuredClone(PART_PAN);
 
 const patterns: AudioPatterns = {
   sfx: {
@@ -319,6 +322,17 @@ describe('GameAudio Classic path', () => {
 });
 
 describe('GameAudio Enhanced path', () => {
+  /**
+   * The master's gains, found by following the chain: the buses are the gains that feed the sum
+   * (the node before the first filter), in the order the master made them, and the trim is what
+   * the limiter feeds.
+   */
+  const buses = (ctx: FakeContext) => {
+    const sum = ctx.nodes.find((n) => n.out.includes(ctx.all('biquad')[0]!))!;
+    const [sfx, music] = ctx.all('gain').filter((g) => g.out.includes(sum));
+    return { sfx: sfx!, music: music!, trim: ctx.all('compressor')[1]!.out[0]! };
+  };
+
   /** The voice gains an effect left on `to`: every gain that connects straight to that node. */
   const voicesInto = (ctx: FakeContext, to: unknown) =>
     ctx.all('gain').filter((g) => g.out.includes(to as never));
@@ -347,12 +361,12 @@ describe('GameAudio Enhanced path', () => {
     const [emitter] = voicesInto(ctx, panner);
     expect(panner!.pan.value).toBe(0.42);
     expect(emitter!.gain.value).toBeCloseTo(0.5 * Math.SQRT2, 12);
-    expect(panner!.out).toEqual([ctx.destination]);
-    // zap has two voices and both end on the emitter. Nothing reaches the destination but the panner.
+    expect(panner!.out).toEqual([buses(ctx).sfx]);
+    // zap has two voices and both end on the emitter. Only the master's trim reaches the destination.
     const voices = voicesInto(ctx, emitter);
     expect(voices).toHaveLength(2);
     for (const v of voices) expect(v.out).toEqual([emitter]);
-    expect(voicesInto(ctx, ctx.destination)).toHaveLength(0);
+    expect(voicesInto(ctx, ctx.destination)).toEqual([buses(ctx).trim]);
     // Undertone was handed a routed context whose destination is the emitter, not the real context.
     const arg = play.mock.calls[0]![0]!;
     expect(arg.ctx).not.toBe(ctx);
@@ -403,9 +417,10 @@ describe('GameAudio Enhanced path', () => {
     expect(Object.keys(play.mock.calls[2]![0]!)).toEqual(['ctx']);
     expect(play.mock.calls[2]![0]!.ctx).toBe(ctx);
     expect(play.mock.calls[2]![0]).toEqual(play.mock.calls[0]![0]);
-    // Only the one panner from the Enhanced call exists; both Classic voices end on the destination.
+    // Only the one panner from the Enhanced call exists; both Classic voices end on the destination,
+    // beside the master's trim, which stays for a moment after the switch.
     expect(ctx.all('panner')).toHaveLength(1);
-    const direct = voicesInto(ctx, ctx.destination);
+    const direct = voicesInto(ctx, ctx.destination).filter((g) => g !== buses(ctx).trim);
     expect(direct).toHaveLength(2);
     expect(audio.emitters).toBe(1);
   });
@@ -422,11 +437,11 @@ describe('GameAudio Enhanced path', () => {
     expect(arg.bpm).toBe(120);
     expect(arg.ctx).not.toBe(ctx);
     const bus = arg.ctx!.destination as unknown as FakeNode;
-    expect(bus.out).toEqual([ctx.destination]);
+    expect(bus.out).toEqual([buses(ctx).music]);
     // The music bus is built once, and the next loop reuses it.
     audio.playMusic('title', true);
     expect(loop.mock.calls[1]![0]!.ctx).toBe(arg.ctx);
-    expect(ctx.all('gain').filter((g) => g.out.includes(ctx.destination as never))).toEqual([bus]);
+    expect(voicesInto(ctx, ctx.destination)).toEqual([buses(ctx).trim]);
   });
 
   it('pans only the panned parts, with the make-up gain on those and not on the centred ones', async () => {
@@ -493,13 +508,10 @@ describe('GameAudio Enhanced path', () => {
       for (const p of panners) {
         expect(p.pan.value).toBe(PART_PAN.lead);
         expect(p.out).toHaveLength(1);
-        expect(p.out[0]!.out).toEqual([ctx.destination]);
+        expect(p.out[0]!.out).toEqual([buses(ctx).music]);
       }
       // The centred bass goes straight to the bus, and nothing but the bus reaches the destination.
-      const bus = panners[0]!.out[0]!;
-      expect(ctx.all('gain').filter((g) => g.out.includes(ctx.destination as never))).toEqual([
-        bus,
-      ]);
+      expect(voicesInto(ctx, ctx.destination)).toEqual([buses(ctx).trim]);
       audio.dispose();
     } finally {
       vi.useRealTimers();
@@ -532,7 +544,7 @@ describe('GameAudio Enhanced path', () => {
     const [panner] = ctx.all('panner');
     const [emitter] = voicesInto(ctx, panner);
     expect(voicesInto(ctx, emitter)).toHaveLength(2);
-    expect(voicesInto(ctx, ctx.destination)).toHaveLength(0);
+    expect(voicesInto(ctx, ctx.destination)).toEqual([buses(ctx).trim]);
     audio.dispose();
   });
 
@@ -549,6 +561,115 @@ describe('GameAudio Enhanced path', () => {
     audio.play('jump', { pan: 0.3, gain: 1 });
     expect(warn).toHaveBeenCalled();
     expect(play.mock.calls[0]![0]).toEqual({ ctx });
-    expect(voicesInto(ctx, ctx.destination)).toHaveLength(1);
+    // The one voice, and the trim of the master that was built before the panner failed.
+    expect(voicesInto(ctx, ctx.destination)).toHaveLength(2);
+  });
+});
+
+describe('GameAudio master chain', () => {
+  const compressors = (ctx: FakeContext) => ctx.all('compressor');
+
+  afterEach(() => {
+    vi.useRealTimers();
+    Object.assign(MASTER, structuredClone(MASTER_DEFAULTS));
+    Object.assign(PART_PAN, structuredClone(panDefaults));
+  });
+
+  it('is not built by unlocking, by Classic sound or by Classic music', async () => {
+    vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(roled, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.play('jump');
+    audio.playMusic('title');
+    expect(compressors(ctx)).toHaveLength(0);
+    expect(audio.masterBuilt).toBe(false);
+  });
+
+  it('is built on the first Enhanced sound or music, once, and shared by both', async () => {
+    vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(roled, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.setMode('enhanced');
+    expect(compressors(ctx)).toHaveLength(0);
+    audio.play('jump');
+    expect(compressors(ctx)).toHaveLength(2);
+    audio.play('zap');
+    audio.playMusic('title');
+    expect(compressors(ctx)).toHaveLength(2);
+    expect(ctx.all('convolver').filter((c) => c.out.includes(compressors(ctx)[0]!))).toHaveLength(
+      1,
+    );
+    expect(audio.masterBuilt).toBe(true);
+  });
+
+  it('is detached two seconds after switching to Classic, and kept if Enhanced returns first', async () => {
+    vi.useFakeTimers();
+    const audio = new GameAudio(roled, async () => Undertone);
+    await vi.advanceTimersByTimeAsync(0);
+    listeners.get('pointerdown')!();
+    await vi.advanceTimersByTimeAsync(0);
+    const ctx = FakeContext.instances[0]!;
+    audio.setMode('enhanced');
+    audio.play('jump');
+    const trim = compressors(ctx)[1]!.out[0]!;
+    expect(trim.out).toEqual([ctx.destination]);
+
+    audio.setMode('classic');
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(audio.masterBuilt).toBe(true);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(audio.masterBuilt).toBe(false);
+    for (const n of ctx.nodes.filter((n) => n.out.includes(ctx.destination as never))) {
+      expect(n.kind).not.toBe('gain');
+    }
+    expect(trim.out).toEqual([]);
+
+    // Coming back builds a fresh chain; leaving and returning inside two seconds keeps it.
+    audio.setMode('enhanced');
+    audio.play('jump');
+    expect(compressors(ctx)).toHaveLength(4);
+    audio.setMode('classic');
+    await vi.advanceTimersByTimeAsync(1500);
+    audio.setMode('enhanced');
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(audio.masterBuilt).toBe(true);
+    audio.play('jump');
+    expect(compressors(ctx)).toHaveLength(4);
+    audio.dispose();
+    expect(audio.masterBuilt).toBe(false);
+  });
+
+  it('plays Enhanced sound unmastered if the context cannot build the chain', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    ctx.createDynamicsCompressor = () => {
+      throw new Error('unsupported');
+    };
+    audio.setMode('enhanced');
+    audio.play('jump', { pan: 0.3, gain: 1 });
+    expect(ctx.all('panner')[0]!.out).toEqual([ctx.destination]);
+    expect(audio.masterBuilt).toBe(false);
+  });
+
+  it('applies a live tune to the running chain and restarts the music for a new pan', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(roled, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.setMode('enhanced');
+    audio.playMusic('title');
+    expect(loop).toHaveBeenCalledTimes(1);
+    const trim = compressors(ctx)[1]!.out[0]!;
+    const report = audio.tune({ master: { trim: 0.65 }, partPan: { lead: -0.25 } });
+    expect(report.applied).toEqual(['master.trim', 'partPan.lead']);
+    expect(trim.gain.calls.at(-1)).toEqual({ method: 'setTargetAtTime', args: [0.65, 0, 0.05] });
+    expect(loop).toHaveBeenCalledTimes(2);
+    // A change that does not touch the pans leaves the music alone.
+    audio.tune({ master: { trim: 0.6 } });
+    expect(loop).toHaveBeenCalledTimes(2);
   });
 });
