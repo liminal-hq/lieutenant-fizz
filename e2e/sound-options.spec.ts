@@ -161,11 +161,7 @@ test('Options > Sound: the Sound lab row is Off by default, and On it shows the 
   // Open the lab, then switch the row Off from the keyboard: the lab closes and leaves the page.
   await page.locator('#labBtn').click();
   await expect(page.locator('#lab')).toBeVisible();
-  await pressUntil(
-    page,
-    'Escape',
-    () => document.querySelector<HTMLElement>('#lab')?.hidden === true,
-  );
+  await pressUntil(page, 'Escape', () => !document.querySelector('#lab:not([hidden])'));
   await expect(page.locator('#lab')).toBeHidden();
   await pressUntil(page, 'ArrowLeft', () => !document.querySelector('#labBtn, #lab'));
   await expect(page.locator('#labBtn, #lab')).toHaveCount(0);
