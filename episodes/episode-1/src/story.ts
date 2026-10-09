@@ -103,25 +103,33 @@ export const END: BeatScene[] = [
   {
     place: 'The security terminal',
     beats: [
-      "The gold USB drive slid into the security terminal with a satisfying click. Lines of green text raced up the screen. Mildred's security system blinked, sputtered, and gave up.",
+      'The gold USB drive slid into the security terminal with a satisfying click.',
+      'Lines of green text raced up the screen.',
+      "Mildred's security system blinked, sputtered, and gave up.",
     ],
   },
   {
     place: "Billy's cage",
     beats: [
-      'The cage door swung open. Billy stepped out, straightened his football helmet and grinned. “Took you long enough, Lieutenant Fizz.”',
+      'The cage door swung open.',
+      'Billy stepped out, straightened his football helmet and grinned.',
+      '“Took you long enough, Lieutenant Fizz.”',
     ],
   },
   {
     place: 'Somewhere above',
     beats: [
-      "Somewhere above, a hatch slammed. Mildred McMire's voice echoed down the chocolate halls: “This isn't over, Ben Blaze! Mortimer and I have plenty more castles to build!”",
+      'Somewhere above, a hatch slammed.',
+      "Mildred McMire's voice echoed down the chocolate halls:",
+      "“This isn't over, Ben Blaze! Mortimer and I have plenty more castles to build!”",
     ],
   },
   {
     place: 'Homeward',
     beats: [
-      "The cousins raced back to the spaghetti with meatballs flying saucer, its hold stuffed with every cocoa bean the Zargs had taken. Earth's chocolate was safe — for now.",
+      'The cousins raced back to the spaghetti with meatballs flying saucer,',
+      'its hold stuffed with every cocoa bean the Zargs had taken.',
+      "Earth's chocolate was safe — for now.",
     ],
   },
 ];
