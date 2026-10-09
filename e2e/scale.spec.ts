@@ -42,7 +42,8 @@ test('?pixels=fast on desktop backs one canvas pixel per sprite pixel and follow
   await expect.poll(async () => (await view(page)).canvasW).toBe(456);
   const w = await view(page);
   expect([w.canvasH, w.k, w.overscanW, w.overscanH]).toEqual([256, 3, 2, 0]);
-  expect(w.tiles).toBe(16);
+  // The canvas re-backs on the resize, the view on the next frame, so wait for the frame as well.
+  await expect.poll(async () => (await view(page)).tiles).toBe(16);
   await expectCovers(page, 3);
 });
 
