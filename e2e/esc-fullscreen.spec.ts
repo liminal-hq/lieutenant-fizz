@@ -301,6 +301,10 @@ test.describe('the hint bar on a narrow window', () => {
           badSize: [],
           clipped: [],
           crowdsHints: [],
+          shortRows: [],
+          selectedHidden: [],
+          menuCrowds: [],
+          cueCrowds: [],
         });
       };
       await check();
