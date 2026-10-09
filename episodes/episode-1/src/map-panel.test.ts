@@ -23,6 +23,7 @@ import {
   type Box,
   type DockInput,
   type Obstacle,
+  viewPoint,
 } from './map-panel';
 
 const NONE: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -230,5 +231,25 @@ describe('benBox', () => {
     expect(b.x + b.w / 2).toBe(100);
     expect(b.y + b.h / 2).toBe(50);
     expect(b.w).toBeGreaterThan(20);
+  });
+});
+
+describe('viewPoint', () => {
+  it('puts the camera at the middle of the canvas and counts y upward', () => {
+    expect(viewPoint(10, 5, 10, 5, 30, 800, 400)).toEqual({ x: 400, y: 200 });
+    const p = viewPoint(11, 6, 10, 5, 30, 800, 400);
+    expect(p).toEqual({ x: 430, y: 170 });
+  });
+
+  it('follows the canvas box, which under Fast is larger than the host', () => {
+    // A 844x390 host at 2.625 dpr with a whole scale of 5 backs 444x205 pixels: the canvas is 845.7x390.4 CSS.
+    const host = { w: 844, h: 390 };
+    const canvas = { w: (444 * 5) / 2.625, h: (205 * 5) / 2.625 };
+    const ppu = canvas.h / 13;
+    const fast = viewPoint(3, 2, 3, 2, ppu, canvas.w, canvas.h);
+    const sharp = viewPoint(3, 2, 3, 2, ppu, host.w, host.h);
+    expect(fast.x - sharp.x).toBeCloseTo((canvas.w - host.w) / 2, 6);
+    expect(fast.y - sharp.y).toBeCloseTo((canvas.h - host.h) / 2, 6);
+    expect(fast.x - sharp.x).toBeGreaterThan(0);
   });
 });

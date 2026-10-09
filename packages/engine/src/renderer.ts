@@ -22,7 +22,7 @@ import {
   WebGLRenderer,
 } from 'three';
 import type { Atlas } from './atlas';
-import { sharpDivisor, softRatio } from './view-scale';
+import { backing, type PixelMode } from './view-scale';
 
 /** Floats per instance (ENGINE_SPEC §3.3). */
 export const STRIDE = 20;
@@ -111,7 +111,8 @@ export class InstancedRenderer {
   private readonly textures: DataTexture[];
   private readonly resizer: ResizeObserver;
   private readonly host: HTMLElement;
-  private sharp: boolean;
+  private mode: PixelMode;
+  private target = 13;
   private seen: { w: number; h: number; dpr: number } | null = null;
   private dprQuery: MediaQueryList | null = null;
   private readonly onDpr = (): void => {
@@ -124,24 +125,34 @@ export class InstancedRenderer {
   /** The size of the host in device pixels. */
   deviceWidth = 1;
   deviceHeight = 1;
-  /** The size of the canvas backing store in pixels (the device size divided by `divisor` when Sharp). */
+  /** The size of the canvas backing store in pixels (the device size divided by `divisor` when Sharp, `ceil(device / divisor)` when Fast). */
   canvasWidth = 1;
   canvasHeight = 1;
-  /** The whole factor the browser upscales the canvas by (1 unless the pixel budget or ratio cap bites). */
+  /** The whole factor the browser upscales the canvas by (1 unless the pixel budget or ratio cap bites, or Fast). */
   divisor = 1;
   /** True when the canvas maps onto device pixels by a whole factor, so whole scales stay sharp. */
   pixelGrid = false;
   /** True when the pixel budget made the canvas smaller than the device ratio would have. */
   budgeted = false;
+  /** True under Fast when Sharp's whole scale applies: one canvas pixel per sprite pixel. */
+  fast = false;
+  /** Device pixels the canvas extends past the host's right and bottom edges (Fast only; cropped). */
+  overscanW = 0;
+  overscanH = 0;
+  /** The canvas's CSS size: the host's, or larger by the overscan under Fast. */
+  canvasCssW = 1;
+  canvasCssH = 1;
   /** The device pixel ratio the canvas was last sized for. */
   dpr = 1;
 
-  constructor(host: HTMLElement, atlas: Atlas, sharp = false) {
+  constructor(host: HTMLElement, atlas: Atlas, mode: PixelMode = 'soft') {
     this.host = host;
-    this.sharp = sharp;
+    this.mode = mode;
     const r = new WebGLRenderer({
       antialias: false,
       alpha: true,
+      // The material neither tests nor writes depth, so the drawing buffer needs no depth buffer.
+      depth: false,
       powerPreference: 'high-performance',
     });
     r.setPixelRatio(1);
@@ -208,11 +219,30 @@ export class InstancedRenderer {
     this.watchDpr();
   }
 
-  /** Switches the whole-pixel canvas on or off and resizes the backing store to match. */
-  setSharp(on: boolean): void {
-    if (on === this.sharp) return;
-    this.sharp = on;
+  /** Switches between Sharp, Soft and Fast and resizes the backing store to match. */
+  setPixels(mode: PixelMode): void {
+    if (mode === this.mode) return;
+    this.mode = mode;
     this.resize();
+  }
+
+  /**
+   * Tells the renderer how many tiles the screen being drawn aims to show. Fast chooses its whole
+   * scale from it, so the backing is re-sized when the scale changes; other modes ignore it.
+   */
+  setTarget(target: number): void {
+    if (target === this.target) return;
+    this.target = target;
+    if (this.mode === 'fast') this.resize();
+  }
+
+  /** Sizes the canvas's CSS box: the whole host, or the larger box of a Fast canvas that overhangs it. */
+  private sizeCanvasBox(): void {
+    const css = this.fast ? `${this.canvasCssW}px` : '100%';
+    const cssH = this.fast ? `${this.canvasCssH}px` : '100%';
+    const style = this.canvas.style;
+    if (style.width !== css) style.width = css;
+    if (style.height !== cssH) style.height = cssH;
   }
 
   /** The device ratio changes with browser zoom and when the window moves screens. */
@@ -239,23 +269,26 @@ export class InstancedRenderer {
         : null;
     this.deviceWidth = Math.max(1, seen ? seen.w : Math.round(this.width * dpr));
     this.deviceHeight = Math.max(1, seen ? seen.h : Math.round(this.height * dpr));
-    const k = this.sharp ? sharpDivisor(this.deviceWidth, this.deviceHeight, dpr) : null;
-    let cw: number;
-    let ch: number;
-    if (k !== null) {
-      this.pixelGrid = true;
-      this.divisor = k;
-      this.budgeted = k > Math.max(1, Math.ceil(dpr / 3 - 1e-6));
-      cw = this.deviceWidth / k;
-      ch = this.deviceHeight / k;
-    } else {
-      const ratio = softRatio(dpr, this.width, this.height);
-      this.pixelGrid = false;
-      this.divisor = 1;
-      this.budgeted = ratio < Math.min(dpr, 2) - 1e-9;
-      cw = Math.max(1, Math.floor(this.width * ratio));
-      ch = Math.max(1, Math.floor(this.height * ratio));
-    }
+    const b = backing({
+      devW: this.deviceWidth,
+      devH: this.deviceHeight,
+      cssW: this.width,
+      cssH: this.height,
+      dpr,
+      mode: this.mode,
+      target: this.target,
+    });
+    this.pixelGrid = b.pixelGrid;
+    this.divisor = b.k;
+    this.budgeted = b.budgeted;
+    this.fast = b.fastScale > 0;
+    this.overscanW = b.overscanW;
+    this.overscanH = b.overscanH;
+    this.canvasCssW = b.cssW;
+    this.canvasCssH = b.cssH;
+    this.sizeCanvasBox();
+    const cw = b.canvasW;
+    const ch = b.canvasH;
     if (cw !== this.canvasWidth || ch !== this.canvasHeight || this.canvas.width !== cw) {
       this.canvasWidth = cw;
       this.canvasHeight = ch;
@@ -265,7 +298,7 @@ export class InstancedRenderer {
 
   /** CSS pixels per world unit for a given visible half height (captions are placed in CSS pixels). */
   pixelsPerUnit(halfH: number): number {
-    return this.height / (halfH * 2);
+    return this.canvasCssH / (halfH * 2);
   }
 
   /** (Re)binds the instance attributes when the backing array changes (e.g. memory growth). */

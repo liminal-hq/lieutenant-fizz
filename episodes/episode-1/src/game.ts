@@ -5,6 +5,7 @@
 
 import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
+import { FrameStats } from '@lieutenant-fizz/engine/frame-stats';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
@@ -50,7 +51,7 @@ import {
 import { FixedStepper, InstanceWriter } from '@lieutenant-fizz/engine/instances';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
-import { frameView, type FrameView } from '@lieutenant-fizz/engine/view-scale';
+import { frameView, type FrameView, type PixelMode } from '@lieutenant-fizz/engine/view-scale';
 import { HeldRepeat } from '@lieutenant-fizz/engine/repeat';
 import { TouchControls, type EditHooks } from '@lieutenant-fizz/engine/touch-ui';
 import {
@@ -71,6 +72,7 @@ import { backAction, backEnabled, escAction, pauseAction } from './back';
 import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
 import { gestureFor, isLive } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
+import { viewPoint } from './map-panel';
 import { isPortrait, watchResize, type TouchGutters } from './layout';
 import { FullscreenControl, glyphGrid, type FullscreenPlace } from './fullscreen-button';
 import { touchFaces, type ShellScreen, type SubScreen, type TouchFaces } from './touch-menus';
@@ -194,10 +196,11 @@ export interface GameOptions {
   /** Pins touch mode on (the on-screen controls and the phone HUD), for development on a desktop. */
   touch?: boolean;
   /**
-   * `sharp` draws at a whole pixel scale and `soft` keeps the fractional scale. Left out, touch
+   * `sharp` draws at a whole pixel scale and `soft` keeps the fractional scale. `fast` shows the
+   * Sharp view with one canvas pixel per sprite pixel, which the browser scales up. Left out, touch
    * devices (and `touch`) are Sharp and everything else is Soft.
    */
-  pixels?: 'sharp' | 'soft';
+  pixels?: PixelMode;
   /**
    * `classic` is the sound as it has always been; `enhanced` places sound effects in the stereo
    * field by where they happen on screen. Left out, the game plays `AUDIO_DEFAULT` (Enhanced).
@@ -230,14 +233,14 @@ export interface GameOptions {
 /** The `display-mode` values an installed app runs in. */
 const INSTALLED_MODES = ['standalone', 'fullscreen', 'minimal-ui'];
 
-/** Whether the canvas should be whole-pixel: decided once at boot and kept for the session. */
-function wantsSharp(options: GameOptions): boolean {
-  if (options.pixels) return options.pixels === 'sharp';
-  if (options.touch) return true;
+/** How the canvas is drawn: decided once at boot and kept for the session. */
+function pixelMode(options: GameOptions): PixelMode {
+  if (options.pixels) return options.pixels;
+  if (options.touch) return 'sharp';
   try {
-    return window.matchMedia('(pointer: coarse)').matches;
+    return window.matchMedia('(pointer: coarse)').matches ? 'sharp' : 'soft';
   } catch {
-    return false;
+    return 'soft';
   }
 }
 
@@ -410,6 +413,8 @@ export class Game {
   private viewKey = [0, 0, 0, 0, 0, 0, 0];
   private statT = 0;
   private fpsE = 60;
+  /** Frame-time statistics, kept only under `?debug` (null otherwise, so a normal run does nothing). */
+  private perf: FrameStats | null = null;
   private lastBits = 0;
   private cineIdx = 0;
   private endIdx = 0;
@@ -569,7 +574,7 @@ export class Game {
       if (lives && snacks && fizz) ui.setHudIcons({ lives, snacks, fizz });
       const atlas = buildAtlas(sprites);
       sim.setSprites(atlas.rects);
-      const renderer = new InstancedRenderer(ui.gl, atlas, wantsSharp(options));
+      const renderer = new InstancedRenderer(ui.gl, atlas, pixelMode(options));
       game = new Game(sim, atlas, ui, renderer, options);
       if (options.title) ui.setTitleLayout(options.title);
       game.initTouchFaces(grid('ben_pogo'), grid('soda'));
@@ -632,6 +637,7 @@ export class Game {
   // ---------- Frame ----------
 
   private frame(t: number): void {
+    this.perf?.frame(t);
     const dt = Math.max(0, (t - this.last) / 1000);
     this.last = t;
     const sim = this.sim;
@@ -647,32 +653,35 @@ export class Game {
     const mode = sim.x.mode();
     const tall = screen === 'cine' ? TALL.cine : mode === Mode.MAP ? TALL.map : TALL.level;
     const r = this.renderer;
+    // Fast picks its backing from the screen's target, so tell the renderer before the view is read.
+    r.setTarget(tall);
     const k = this.viewKey;
-    const sharp = r.pixelGrid ? 1 : 0;
+    const sharp = (r.pixelGrid ? 1 : 0) + (r.fast ? 2 : 0);
     if (
       k[0] !== r.canvasWidth ||
       k[1] !== r.canvasHeight ||
-      k[2] !== r.width ||
-      k[3] !== r.height ||
+      k[2] !== r.canvasCssW ||
+      k[3] !== r.canvasCssH ||
       k[4] !== tall ||
       k[5] !== this.zoom ||
       k[6] !== sharp
     ) {
       k[0] = r.canvasWidth;
       k[1] = r.canvasHeight;
-      k[2] = r.width;
-      k[3] = r.height;
+      k[2] = r.canvasCssW;
+      k[3] = r.canvasCssH;
       k[4] = tall;
       k[5] = this.zoom;
       k[6] = sharp;
       frameView(this.view, {
-        cssW: r.width,
-        cssH: r.height,
+        cssW: r.canvasCssW,
+        cssH: r.canvasCssH,
         devW: r.canvasWidth,
         devH: r.canvasHeight,
         target: tall,
         zoom: this.zoom,
         sharp: r.pixelGrid,
+        minScale: r.fast ? 1 : 2,
       });
       this.halfW = this.view.halfW;
       this.halfH = this.view.halfH;
@@ -826,8 +835,16 @@ export class Game {
     if (this.sim.x.mode() !== Mode.MAP) return null;
     const r = this.renderer;
     const ppu = r.pixelsPerUnit(this.halfH);
-    const x = (this.sim.get(State.PLAYER_X) + BEN_BODY / 2 - camX) * ppu + r.width / 2;
-    const y = r.height / 2 - (this.sim.get(State.PLAYER_Y) + BEN_BODY / 2 - camY) * ppu;
+    // The canvas holds the camera's view, and under Fast it overhangs the host, so measure from its box.
+    const { x, y } = viewPoint(
+      this.sim.get(State.PLAYER_X) + BEN_BODY / 2,
+      this.sim.get(State.PLAYER_Y) + BEN_BODY / 2,
+      camX,
+      camY,
+      ppu,
+      r.canvasCssW,
+      r.canvasCssH,
+    );
     return { x, y, ppu };
   }
 
@@ -999,10 +1016,11 @@ export class Game {
     this.capSeen.set(id, now);
     const cam = this.sim.camera;
     const ppu = this.renderer.pixelsPerUnit(this.halfH);
-    const sx = (x - cam.x) * ppu + this.renderer.width / 2;
-    const sy = this.renderer.height / 2 - (y - cam.y) * ppu;
-    const w = this.renderer.width;
-    const h = this.renderer.height;
+    // The canvas, not the host, holds the camera's view: under Fast it overhangs the host a little.
+    const w = this.renderer.canvasCssW;
+    const h = this.renderer.canvasCssH;
+    const sx = (x - cam.x) * ppu + w / 2;
+    const sy = h / 2 - (y - cam.y) * ppu;
     if (sx < -50 || sy < -50 || sx > w + 50 || sy > h + 50) return;
     this.ui.caption(sx, sy, text, `#${colour.toString(16).padStart(6, '0')}`);
   }
@@ -3027,6 +3045,16 @@ export class Game {
     this.labShell = null;
   }
 
+  /** Debug hook: starts recording frame times (`?debug` does this at boot); `debugState.perf` reports them. */
+  debugPerf(): void {
+    this.perf ??= new FrameStats();
+  }
+
+  /** Debug hook: starts a fresh frame-time window, for comparing two settings in one session. */
+  debugPerfReset(): void {
+    this.perf?.reset();
+  }
+
   /** Test hook: what haptics last played, what each compiled to, and what the backend can do. */
   debugHaptics(): ReturnType<GameHaptics['report']> {
     return this.haptics.report();
@@ -3162,6 +3190,12 @@ export class Game {
       canvasH: r.canvasHeight,
       cssW: r.width,
       cssH: r.height,
+      fast: r.fast,
+      deviceScale: this.pixelScale * r.divisor,
+      overscanW: r.overscanW,
+      overscanH: r.overscanH,
+      cssCanvasW: r.canvasCssW,
+      cssCanvasH: r.canvasCssH,
     };
   }
 
@@ -3225,6 +3259,7 @@ export class Game {
       },
       instances: this.lastCount,
       atlas: this.atlas.size,
+      perf: this.perf?.report() ?? null,
     };
   }
 }

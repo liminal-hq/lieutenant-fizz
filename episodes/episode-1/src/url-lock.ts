@@ -23,6 +23,19 @@ export function parseHapticsParam(value: string | null | undefined): HapticsUrl 
   return v === '' || v === 'on' ? 'on' : v === 'off' ? 'off' : undefined;
 }
 
+/** What `?pixels` asks for: `auto` leaves the choice to the device, the others fix the pixel mode. */
+export type PixelsUrl = 'auto' | 'sharp' | 'soft' | 'fast';
+
+/**
+ * A `?pixels` value (`auto`, `sharp`, `soft` or `fast`, in any case). Anything else, and a missing flag
+ * (`null`), chooses nothing.
+ */
+export function parsePixelsParam(value: string | null | undefined): PixelsUrl | undefined {
+  if (value === null || value === undefined) return undefined;
+  const v = value.trim().toLowerCase();
+  return v === 'auto' || v === 'sharp' || v === 'soft' || v === 'fast' ? v : undefined;
+}
+
 /**
  * What the address fixes for this session. A row it fixes shows the fixed value and cannot be stepped,
  * and the fixed value is never saved: the player's own choice stays in storage for when the link is gone.

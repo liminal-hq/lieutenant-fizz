@@ -84,6 +84,8 @@ body {
 #gl {
   position: absolute;
   inset: 0;
+  /* Under Fast the canvas can overhang the right and bottom edges by a few device pixels; crop it. */
+  overflow: hidden;
 }
 
 #fx {

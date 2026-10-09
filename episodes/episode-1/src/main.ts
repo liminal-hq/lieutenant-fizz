@@ -10,17 +10,18 @@ import {
 } from '@lieutenant-fizz/engine/lifecycle-policy';
 import { parseAudioParam } from '@lieutenant-fizz/engine/sound-field';
 import { Game } from './game';
-import { parseHapticsParam } from './url-lock';
+import { parseHapticsParam, parsePixelsParam } from './url-lock';
 
 const stage = document.getElementById('stage');
 if (!stage) throw new Error('missing #stage');
 
 const query = new URLSearchParams(location.search);
 
-// `?pixels=sharp` draws at a whole pixel scale and `?pixels=soft` keeps the fractional one. Anything
-// else leaves the choice to the device (touch is Sharp, desktop is Soft).
-const pixelsParam = query.get('pixels');
-const pixels = pixelsParam === 'sharp' || pixelsParam === 'soft' ? pixelsParam : undefined;
+// `?pixels=sharp` draws at a whole pixel scale, `?pixels=soft` keeps the fractional one and `?pixels=fast`
+// draws the Sharp view with one canvas pixel per sprite pixel. `auto` and anything else leave the choice
+// to the device (touch is Sharp, desktop is Soft).
+const pixelsParam = parsePixelsParam(query.get('pixels'));
+const pixels = pixelsParam && pixelsParam !== 'auto' ? pixelsParam : undefined;
 
 // Sound effects are placed in the stereo field (Enhanced) unless `?audio=classic` keeps the sound as
 // it has always been. `?audio=enhanced` is the default spelled out. Anything else leaves the default.
@@ -57,6 +58,7 @@ Game.start(stage, {
   .then((game) => {
     if (query.has('debug')) {
       (window as unknown as { __lf: Game }).__lf = game;
+      game.debugPerf();
       // The labs: a Lab button for auditioning and tuning the sound and the haptics. `?debug&lab` opens
       // the sound lab and `?debug&lab=haptics` the haptics lab.
       void game.debugLab(query.get('lab') === 'haptics' ? 'haptics' : query.has('lab'));

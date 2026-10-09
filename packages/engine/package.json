@@ -28,6 +28,7 @@
     "./palette": "./src/palette.ts",
     "./pen": "./src/pen.ts",
     "./renderer": "./src/renderer.ts",
+    "./frame-stats": "./src/frame-stats.ts",
     "./repeat": "./src/repeat.ts",
     "./sound-field": "./src/sound-field.ts",
     "./stinger": "./src/stinger.ts",
