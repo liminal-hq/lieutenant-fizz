@@ -121,6 +121,17 @@ export function titleCandidates(steps: ScaleSteps): TitleCandidate[] {
   return out;
 }
 
+/**
+ * The heading scales the split menus try, largest first: from the heading scale down to 2. The heading
+ * wraps inside its column, so a smaller scale is the only other way to make it shorter. The first that
+ * fits above the D-pad is used.
+ */
+export function headCandidates(steps: ScaleSteps): number[] {
+  const out: number[] = [];
+  for (let n = steps.head; n >= MIN_SCALE; n--) out.push(n);
+  return out;
+}
+
 /** Writes the layout variables onto an element (the document root, so floating captions see them). */
 export function applyLayout(
   el: HTMLElement,

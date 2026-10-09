@@ -23,6 +23,7 @@ import {
   captionPosition,
   creditsTransform,
   NO_GUTTERS,
+  headCandidates,
   rowHeight,
   titleCandidates,
   TOUCH_ROW,
@@ -260,11 +261,13 @@ export class Ui {
 
     this.overlay = el('div', { id: 'overlay', class: 'lf screen', hidden: '' });
     const box = el('div', { class: 'box' });
-    box.innerHTML = '<h2></h2><p class="text"></p>';
+    // The text, the menu and the note sit in `.body`, which has no box of its own in the column layout
+    // and is the thumb-side column of the split one.
+    box.innerHTML = '<h2></h2><div class="body"><p class="text"></p></div>';
     this.overlayMenu = el('div', { class: 'menu' });
     this.bindTaps(this.overlayMenu);
     this.overlayNote = el('p', { class: 'note' });
-    box.append(this.overlayMenu, this.overlayNote);
+    need(box, '.body').append(this.overlayMenu, this.overlayNote);
     this.overlayKeys = el('div', { class: 'keys' });
     this.overlay.append(box, this.overlayKeys);
     // A card's text chooses its highlighted row on a tap, as Select does.
@@ -427,6 +430,7 @@ export class Ui {
     if (this.touchMode) this.stage.dataset.hand = this.gutters.hand;
     else delete this.stage.dataset.hand;
     this.fitTitle();
+    this.fitOverlay();
     this.fitRows();
   }
 
@@ -458,20 +462,55 @@ export class Ui {
     const vv = window.visualViewport;
     const height = Math.round(vv?.height ?? window.innerHeight);
     const head = need(t, '.head');
-    const g = this.gutters;
-    const dpadOnLeft = g.hand === 'right';
-    const limit = dpadOnLeft ? g.leftTop : g.rightTop;
     for (const c of titleCandidates(scaleSteps(pixelScale(height, this.large)))) {
       t.style.setProperty('--lf-n-logo', String(c.logo));
       t.dataset.lines = String(c.lines);
-      const h = head.getBoundingClientRect();
-      const m = this.menuEl.getBoundingClientRect();
-      const beside = dpadOnLeft ? h.right <= m.left - 24 : h.left >= m.right + 24;
-      if (beside && (limit === 0 || h.bottom <= limit)) return;
+      if (this.headFits(head, this.menuEl)) return;
     }
     t.style.removeProperty('--lf-n-logo');
     delete t.dataset.lines;
     this.stage.dataset.titleFit = 'column';
+  }
+
+  /**
+   * The split screens' fit test: the head is at least 24 px from the menu on the side away from the D-pad
+   * and ends above the D-pad (which is where the controls on the head's side begin, 0 when none shows).
+   */
+  private headFits(head: HTMLElement, menu: HTMLElement): boolean {
+    const g = this.gutters;
+    const dpadOnLeft = g.hand === 'right';
+    const limit = dpadOnLeft ? g.leftTop : g.rightTop;
+    const h = head.getBoundingClientRect();
+    const m = menu.getBoundingClientRect();
+    const beside = dpadOnLeft ? h.right <= m.left - 24 : h.left >= m.right + 24;
+    return beside && (limit === 0 || h.bottom <= limit);
+  }
+
+  /**
+   * Lays out the other menus (pause, Options, Touch controls, saves, the cards) in the split layout:
+   * the heading on the D-pad side, the text and rows on the thumb side. Tries the heading scales
+   * largest first (`headCandidates`) with the same test as the title; when none fits (Large text on a
+   * short phone, a raised D-pad) the screen falls back to the column (`data-menu-fit="column"`).
+   * It also tells the CSS where the Back button ends, so the heading or the menu steps clear of it.
+   */
+  private fitOverlay(): void {
+    const o = this.overlay;
+    o.style.removeProperty('--lf-n-head');
+    delete this.stage.dataset.menuFit;
+    const back = this.backBtn.hidden ? null : this.backBtn.getBoundingClientRect();
+    o.style.setProperty('--lf-back-right', `${back ? Math.ceil(back.right) : 0}px`);
+    o.style.setProperty('--lf-back-bottom', `${back ? Math.ceil(back.bottom) : 0}px`);
+    if (!this.touchMode || this.titleLayout !== 'split' || o.hidden) return;
+    const vv = window.visualViewport;
+    const height = Math.round(vv?.height ?? window.innerHeight);
+    const head = need(o, 'h2');
+    const body = need(o, '.body');
+    for (const n of headCandidates(scaleSteps(pixelScale(height, this.large)))) {
+      o.style.setProperty('--lf-n-head', String(n));
+      if (this.headFits(head, body) && head.scrollWidth <= head.clientWidth + 1) return;
+    }
+    o.style.removeProperty('--lf-n-head');
+    this.stage.dataset.menuFit = 'column';
   }
 
   /** Sets how opaque the on-screen controls are in play, in percent (menus keep them solid). */
@@ -947,7 +986,10 @@ export class Ui {
     this.overlayNote.textContent = o.note ?? '';
     this.overlayNote.hidden = !o.note;
     this.renderMenu(this.overlayMenu, o.items, o.sel);
-    if (this.touchMode) this.fitRows();
+    if (this.touchMode) {
+      this.fitOverlay();
+      this.fitRows();
+    }
   }
 
   showLetterbox(

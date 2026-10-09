@@ -1,0 +1,99 @@
+/* ── The other menus in the split layout (opt-in, `?title=split`, with the split title) ──
+   On a phone the pause menu, Options, Touch controls, the save slots and the cards put their heading
+   on the D-pad side at the top and their text and rows on the Jump side, like the split title, so the
+   rows have the whole height. `#stage[data-hand]` says which side the D-pad is on (`right`: D-pad on
+   the left, the default; `left` mirrors the grid). The heading's side keeps 24 px from the edge, the
+   same as the D-pad's face, so it lines up with it and leaves the rows the most room. The shell
+   (`fitOverlay`) picks the heading scale that fits above the D-pad, or falls back to the column
+   (`data-menu-fit`) when none does, and writes where the Back button ends (`--lf-back-right`,
+   `--lf-back-bottom`, 0 without it) so neither the heading nor the menu sits under it. The Controls table is wide and keeps the room between the controls, on
+   the Jump side. */
+#stage[data-touch][data-title='split']:not([data-menu-fit='column']) #overlay {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'head menu';
+  align-items: center;
+  column-gap: 24px;
+  padding-left: calc(24px + var(--lf-safe-left));
+  padding-right: max(calc(var(--lf-pad-x) + var(--lf-safe-right)), var(--lf-touch-right));
+  padding-bottom: calc(
+    var(--lf-keys-bottom) + var(--lf-n-hint) * var(--lf-line) + 8px + var(--lf-safe-bottom)
+  );
+}
+#stage[data-touch][data-title='split']:not([data-menu-fit='column']) #overlay .box {
+  display: contents;
+}
+/* The heading goes below the Back button when one shows (it is at the top left). */
+#stage[data-touch][data-title='split']:not([data-menu-fit='column']) #overlay h2 {
+  grid-area: head;
+  align-self: start;
+  justify-self: start;
+  max-width: 100%;
+  margin-top: max(
+    0px,
+    calc(var(--lf-back-bottom, 0px) + 8px - var(--lf-pad-y) - var(--lf-safe-top))
+  );
+}
+#stage[data-touch][data-title='split']:not([data-menu-fit='column']) #overlay .body {
+  grid-area: menu;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--n) * 8px);
+  align-self: center;
+  justify-self: end;
+  max-width: 100%;
+}
+/* A card's text beside its button is a short column, not the wide measure of the one-column card. */
+#stage[data-touch][data-title='split']:not([data-menu-fit='column']) #overlay .text {
+  max-width: calc(26 * 6px * var(--n));
+}
+/* The side scrim darkens the thumb side, where the rows are. */
+#stage[data-touch][data-title='split']:not([data-menu-fit='column']) #overlay[data-side] {
+  background: linear-gradient(
+    270deg,
+    rgba(5, 5, 7, 0.92) 0%,
+    rgba(5, 5, 7, 0.78) 60%,
+    rgba(5, 5, 7, 0.5) 100%
+  );
+}
+
+/* Left-handed: the D-pad is on the right, so the heading goes right and the rows left (clear of Back). */
+#stage[data-hand='left'][data-touch][data-title='split']:not([data-menu-fit='column']) #overlay {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: 'menu head';
+  padding-left: max(
+    calc(var(--lf-pad-x) + var(--lf-safe-left)),
+    var(--lf-touch-left),
+    calc(var(--lf-back-right, 0px) + 8px)
+  );
+  padding-right: calc(24px + var(--lf-safe-right));
+}
+#stage[data-hand='left'][data-touch][data-title='split']:not([data-menu-fit='column']) #overlay h2 {
+  justify-self: end;
+  margin-top: 0;
+}
+#stage[data-hand='left'][data-touch][data-title='split']:not([data-menu-fit='column'])
+  #overlay
+  .body {
+  justify-self: start;
+}
+#stage[data-hand='left'][data-touch][data-title='split']:not([data-menu-fit='column'])
+  #overlay[data-side] {
+  background: linear-gradient(
+    90deg,
+    rgba(5, 5, 7, 0.92) 0%,
+    rgba(5, 5, 7, 0.78) 60%,
+    rgba(5, 5, 7, 0.5) 100%
+  );
+}
+
+/* The Controls table: it keeps the room between the controls, on the Jump side. */
+#stage[data-touch][data-title='split'] #title:has(> #controls:not([hidden])) > #controls {
+  align-self: flex-end;
+}
+#stage[data-hand='left'][data-touch][data-title='split']
+  #title:has(> #controls:not([hidden]))
+  > #controls {
+  align-self: flex-start;
+}

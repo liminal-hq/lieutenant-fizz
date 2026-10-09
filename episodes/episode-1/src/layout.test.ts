@@ -9,6 +9,7 @@ import {
   captionAnimation,
   captionPosition,
   creditsTransform,
+  headCandidates,
   isPortrait,
   layoutVars,
   NO_GUTTERS,
@@ -76,6 +77,18 @@ describe('titleCandidates', () => {
     expect(list[0]).toEqual({ logo: 6, lines: 1 });
     expect(list.at(-1)).toEqual({ logo: 2, lines: 2 });
     expect(list).toHaveLength(10);
+  });
+});
+
+describe('headCandidates', () => {
+  it('tries the heading scale first and steps down to 2', () => {
+    expect(headCandidates(scaleSteps(3))).toEqual([4, 3, 2]);
+    expect(headCandidates(scaleSteps(2))).toEqual([3, 2]);
+  });
+
+  it('never goes above 6, and is never empty', () => {
+    expect(headCandidates(scaleSteps(6))[0]).toBe(6);
+    expect(headCandidates(scaleSteps(1))).toEqual([2]);
   });
 });
 
