@@ -7,7 +7,7 @@ import * as Undertone from '@liminal-hq/undertone';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeAudioContext, type FakeNode } from './fake-audio-context';
 import { GameAudio, buildVoice, type AudioPatterns, type UndertoneModule } from './audio';
-import { MASTER, MASTER_DEFAULTS, type RoomProfile } from './master';
+import { MASTER, MASTER_DEFAULTS, ROOM_SEND_SCALE, type RoomProfile } from './master';
 import { PART_PAN } from './sound-field';
 
 const panDefaults = structuredClone(PART_PAN);
@@ -722,6 +722,32 @@ describe('GameAudio master chain', () => {
       expect(lengthOf(b!)).toBe(Math.round(ctx.sampleRate * 1.8));
       expect(a!.out[0]!.gain.curves).toHaveLength(1);
       expect(b!.out[0]!.gain.curves).toHaveLength(1);
+    });
+
+    it('reaches the live sends and builds the tuned response when a room is tuned and set again', async () => {
+      const audio = new GameAudio(roled, async () => Undertone);
+      await flush();
+      const ctx = await unlockAudio();
+      audio.setMode('enhanced');
+      audio.play('jump');
+      const table = { cave: { ...room } };
+      const isSend = (g: FakeNode) =>
+        g.out.some(
+          (n) => n.kind === 'biquad' && n.type === 'highpass' && n.frequency.value === 300,
+        );
+      const sends = ctx.all('gain').filter(isSend);
+      expect(sends).toHaveLength(2);
+      const report = audio.tune(
+        { rooms: { cave: { sfxSend: 0.4, musicSend: 0.14, seconds: 2.6, damping: 0.35 } } },
+        table,
+      );
+      expect(report.applied).toHaveLength(4);
+      const create = vi.spyOn(ctx, 'createBuffer');
+      audio.setRoom({ ...table.cave });
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(sends[0]!.gain.calls.at(-1)!.args[0]).toBeCloseTo(0.4 * ROOM_SEND_SCALE, 12);
+      expect(sends[1]!.gain.calls.at(-1)!.args[0]).toBeCloseTo(0.14 * ROOM_SEND_SCALE, 12);
+      expect(lengthOf(ctx.all('convolver')[1]!)).toBe(Math.round(ctx.sampleRate * 2.6));
     });
 
     it('builds nothing in Classic, remembers the room, and applies it when Enhanced returns', async () => {

@@ -89,7 +89,7 @@ const S = (
 export const MASTER_SLIDERS: readonly SliderSpec[] = [
   S('Master', 'Trim', ['master', 'trim'], 0, 1.2, 0.01),
   S('Master', 'Comp threshold', ['master', 'comp', 'threshold'], -60, 0, 1, 'dB'),
-  S('Master', 'Comp ratio', ['master', 'comp', 'ratio'], 1, 20, 0.5, 'x'),
+  S('Master', 'Comp ratio', ['master', 'comp', 'ratio'], 1, 20, 0.1, 'x'),
   S('Master', 'Comp knee', ['master', 'comp', 'knee'], 0, 40, 1, 'dB'),
   S('Master', 'Limiter threshold', ['master', 'limiter', 'threshold'], -12, 0, 0.5, 'dB'),
   S('Master', 'Low shelf', ['master', 'lowShelf', 'gain'], -12, 12, 0.5, 'dB'),
@@ -129,8 +129,8 @@ export const roomSliders = (room: string): SliderSpec[] => {
   ): SliderSpec =>
     S(g, label, ['rooms', room, key], min, max, step, unit, { onRelease: true, ...extra });
   return [
-    r('Effects send', 'sfxSend', 0, 0.6, 0.01),
-    r('Music send', 'musicSend', 0, 0.4, 0.01),
+    r('Effects send', 'sfxSend', 0, 1, 0.01),
+    r('Music send', 'musicSend', 0, 1, 0.01),
     r('Length', 'seconds', 0.1, 4, 0.1, 's'),
     r('Damping', 'damping', 0, 1, 0.05),
     r('Send low-pass', 'lpf', 1000, 16000, 100, 'Hz', { scale: 'log' }),

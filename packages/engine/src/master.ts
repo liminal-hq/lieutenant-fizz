@@ -29,9 +29,10 @@ export interface MasterTuning {
   comp: DynamicsTuning;
   limiter: DynamicsTuning;
   /**
-   * Output level (linear). The compressor and limiter add about 5 dB of make-up gain of their own
-   * (see `makeupDb`; measured in Chromium at 5.1 dB on quiet material), so without this Enhanced
-   * would be louder than Classic, and the louder one always sounds better in an A/B.
+   * Output level (linear). The compressor and limiter add about 1.9 dB of make-up gain of their own
+   * with the default settings (see `makeupDb`), so without this Enhanced would be louder than
+   * Classic, and the louder one always sounds better in an A/B. Rendered in Chromium, 0.8 puts the
+   * game's effects and music within 0.1 dB of Classic on average.
    */
   trim: number;
   reverb: {
@@ -51,18 +52,21 @@ export interface MasterTuning {
 }
 
 /**
- * The starting values, chosen to be gentle: a dry-heavy room, an EQ of a decibel or so and a
- * compressor that only holds down the loudest moments. They are meant to be tuned by ear (see
+ * The starting values, chosen to be transparent: the three EQ bands at 0 dB, a compressor that only
+ * holds down the loudest moments and a limiter just under full scale, measured within 0.03 dB of a
+ * straight pass from 1 to 20 kHz. The first values (shelves of +1.5 and +1 dB, a -1 dB dip at 3.2 kHz,
+ * a 2.5:1 compressor at -16 dB) took 1.5 to 5 dB off the 2 to 8 kHz band of the music and of loud
+ * effects relative to Classic, and left Enhanced up to 3 dB quieter. They are meant to be tuned by ear (see
  * `audio-tune.ts` and the docs), so they are mutable and every use reads them when it is applied.
  */
 export const MASTER: MasterTuning = {
   hpf: { freq: 22, q: Math.SQRT1_2 },
-  lowShelf: { freq: 150, gain: 1.5, q: Math.SQRT1_2 },
-  presence: { freq: 3200, gain: -1, q: 1 },
-  highShelf: { freq: 9000, gain: 1, q: Math.SQRT1_2 },
-  comp: { threshold: -16, knee: 10, ratio: 2.5, attack: 0.006, release: 0.18 },
-  limiter: { threshold: -2, knee: 0, ratio: 20, attack: 0.001, release: 0.08 },
-  trim: 0.55,
+  lowShelf: { freq: 150, gain: 0, q: Math.SQRT1_2 },
+  presence: { freq: 3200, gain: 0, q: 1 },
+  highShelf: { freq: 9000, gain: 0, q: Math.SQRT1_2 },
+  comp: { threshold: -8, knee: 6, ratio: 1.8, attack: 0.006, release: 0.18 },
+  limiter: { threshold: -1, knee: 0, ratio: 20, attack: 0.001, release: 0.08 },
+  trim: 0.8,
   reverb: {
     seconds: 0.8,
     coarseSeconds: 0.6,
@@ -184,6 +188,16 @@ export interface RoomProfile {
 function reverbProfile(r: MasterTuning['reverb']): RoomProfile {
   return { ...r, damping: 0, seed: 0 };
 }
+
+/**
+ * What a send of 1 means. A `ConvolverNode` normalises its impulse response (to a fixed power, divided
+ * by its length), which leaves a send of 1 about 13 dB under the dry sound: measured in Chromium, the
+ * 1.8 s cave at a send of 0.22 put its reverb 26 dB under the dry energy, and its tail 38 dB under,
+ * which cannot be heard. The gain of a send node is therefore the room's `sfxSend` or `musicSend`
+ * times this, so the sends in `ROOMS` and the lab read as an amount on a scale where 1 is a very wet
+ * room (the reverb about 5 dB over the dry sound), not as a gain 18 dB short of audible.
+ */
+export const ROOM_SEND_SCALE = 8;
 
 /** The length of a room crossfade, in seconds. */
 export const ROOM_FADE = 0.8;
@@ -471,8 +485,8 @@ export class Master {
       if (live) param.setTargetAtTime(v, now, tau);
       else param.value = v;
     };
-    to(this.sfxSend.gain, p.sfxSend);
-    to(this.musicSend.gain, p.musicSend);
+    to(this.sfxSend.gain, p.sfxSend * ROOM_SEND_SCALE);
+    to(this.musicSend.gain, p.musicSend * ROOM_SEND_SCALE);
     to(this.sendHpf.frequency, p.hpf);
     to(this.sendLpf.frequency, p.lpf);
 

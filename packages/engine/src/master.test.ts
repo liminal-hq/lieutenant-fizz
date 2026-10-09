@@ -15,6 +15,7 @@ import {
   makeupDb,
   roomImpulse,
   ROOM_SEEDS,
+  ROOM_SEND_SCALE,
   roomSeeds,
   type RoomProfile,
   trimToCancelMakeup,
@@ -82,11 +83,11 @@ describe('Master chain', () => {
 
   it('sends a little of each bus through a filtered, delayed room back into the compressor', () => {
     const g = build();
-    const [sfxSend, ...rest] = g.sfx.out.filter((n) => n.kind === 'gain' && n.gain.value < 1);
-    const musicSend = g.music.out.find((n) => n.kind === 'gain' && n.gain.value < 1)!;
+    const [sfxSend, ...rest] = g.sfx.out.filter((n) => n.out.includes(g.sendHpf));
+    const musicSend = g.music.out.find((n) => n.out.includes(g.sendHpf))!;
     expect(rest).toHaveLength(0);
-    expect(sfxSend!.gain.value).toBeCloseTo(0.1, 12);
-    expect(musicSend.gain.value).toBeCloseTo(0.06, 12);
+    expect(sfxSend!.gain.value).toBeCloseTo(0.1 * ROOM_SEND_SCALE, 12);
+    expect(musicSend.gain.value).toBeCloseTo(0.06 * ROOM_SEND_SCALE, 12);
     expect(sfxSend!.out).toEqual([g.sendHpf]);
     expect(musicSend.out).toEqual([g.sendHpf]);
     expect(g.sendHpf.out).toEqual([g.sendLpf]);
@@ -114,17 +115,17 @@ describe('Master chain', () => {
       22,
       Math.SQRT1_2,
     ]);
-    expect([g.low.type, g.low.frequency.value, g.low.gain.value]).toEqual(['lowshelf', 150, 1.5]);
+    expect([g.low.type, g.low.frequency.value, g.low.gain.value]).toEqual(['lowshelf', 150, 0]);
     expect([
       g.presence.type,
       g.presence.frequency.value,
       g.presence.gain.value,
       g.presence.Q.value,
-    ]).toEqual(['peaking', 3200, -1, 1]);
+    ]).toEqual(['peaking', 3200, 0, 1]);
     expect([g.high.type, g.high.frequency.value, g.high.gain.value]).toEqual([
       'highshelf',
       9000,
-      1,
+      0,
     ]);
     const dyn = (n: FakeNode) => [
       n.threshold.value,
@@ -133,9 +134,9 @@ describe('Master chain', () => {
       n.attack.value,
       n.release.value,
     ];
-    expect(dyn(g.comp)).toEqual([-16, 10, 2.5, 0.006, 0.18]);
-    expect(dyn(g.limiter)).toEqual([-2, 0, 20, 0.001, 0.08]);
-    expect(g.trim.gain.value).toBe(0.55);
+    expect(dyn(g.comp)).toEqual([-8, 6, 1.8, 0.006, 0.18]);
+    expect(dyn(g.limiter)).toEqual([-1, 0, 20, 0.001, 0.08]);
+    expect(g.trim.gain.value).toBe(0.8);
   });
 
   it('sets values directly while building and glides to them afterwards', () => {
@@ -346,7 +347,7 @@ const TOWER: RoomProfile = {
 
 describe('Master.setRoom', () => {
   const sendOf = (g: ReturnType<typeof build>, bus: FakeNode) =>
-    bus.out.find((n) => n.kind === 'gain' && n !== bus && n.gain.value < 1)!;
+    bus.out.find((n) => n.kind === 'gain' && n.out.includes(g.sendHpf))!;
 
   it('builds the new room into the idle slot and crossfades with equal-power curves', () => {
     vi.useFakeTimers();
@@ -388,10 +389,10 @@ describe('Master.setRoom', () => {
     g.m.setRoom(CAVE);
     const tau = 0.8 / 3;
     expect(sendOf(g, g.sfx).gain.calls).toEqual([
-      { method: 'setTargetAtTime', args: [0.22, 2, tau] },
+      { method: 'setTargetAtTime', args: [0.22 * ROOM_SEND_SCALE, 2, tau] },
     ]);
     expect(sendOf(g, g.music).gain.calls).toEqual([
-      { method: 'setTargetAtTime', args: [0.08, 2, tau] },
+      { method: 'setTargetAtTime', args: [0.08 * ROOM_SEND_SCALE, 2, tau] },
     ]);
     expect(g.sendLpf.frequency.calls).toEqual([
       { method: 'setTargetAtTime', args: [6500, 2, tau] },
@@ -505,15 +506,151 @@ describe('Master.setRoom', () => {
   });
 });
 
+describe('retuning a room that is already playing', () => {
+  const sendOf = (g: ReturnType<typeof build>, bus: FakeNode) =>
+    bus.out.find((n) => n.kind === 'gain' && n.out.includes(g.sendHpf))!;
+  const lastTarget = (n: FakeNode['gain']) => n.calls[n.calls.length - 1]!.args[0]!;
+
+  it('scales a send by ROOM_SEND_SCALE, so a change of send is the same change in decibels', () => {
+    const g = build();
+    g.m.setRoom(CAVE);
+    const before = lastTarget(sendOf(g, g.sfx).gain);
+    g.m.setRoom({ ...CAVE, sfxSend: 0.4 });
+    const after = lastTarget(sendOf(g, g.sfx).gain);
+    expect(after).toBeCloseTo(0.4 * ROOM_SEND_SCALE, 12);
+    // 0.22 to 0.4 is +5.19 dB in the wet signal: the send path is linear (measured in Chromium).
+    expect(20 * Math.log10(after / before)).toBeCloseTo(20 * Math.log10(0.4 / 0.22), 10);
+  });
+
+  it('retargets the sends of the same room without building or swapping a response', () => {
+    vi.useFakeTimers();
+    const g = build();
+    g.m.setRoom(CAVE);
+    vi.advanceTimersByTime(900);
+    const create = vi.spyOn(g.ctx, 'createBuffer');
+    const curves = g.fadeA.gain.curves.length + g.fadeB.gain.curves.length;
+    g.m.setRoom({ ...CAVE, sfxSend: 0.4, musicSend: 0.14, lpf: 9000, hpf: 200, predelay: 0.04 });
+    expect(create).not.toHaveBeenCalled();
+    expect(g.fadeA.gain.curves.length + g.fadeB.gain.curves.length).toBe(curves);
+    expect(lastTarget(sendOf(g, g.sfx).gain)).toBeCloseTo(0.4 * ROOM_SEND_SCALE, 12);
+    expect(lastTarget(sendOf(g, g.music).gain)).toBeCloseTo(0.14 * ROOM_SEND_SCALE, 12);
+    expect(lastTarget(g.sendLpf.frequency)).toBe(9000);
+    expect(lastTarget(g.sendHpf.frequency)).toBe(200);
+    expect(g.convolverB.buffer).not.toBeNull();
+    expect(g.predelayB.delayTime.calls[g.predelayB.delayTime.calls.length - 1]).toEqual({
+      method: 'setTargetAtTime',
+      args: [0.04, expect.any(Number), expect.any(Number)],
+    });
+  });
+
+  it('builds a new response when the length, damping or ring changes, and keeps one it has for a send', () => {
+    vi.useFakeTimers();
+    const g = build();
+    const create = vi.spyOn(g.ctx, 'createBuffer');
+    g.m.setRoom(CAVE);
+    expect(create).toHaveBeenCalledTimes(1);
+    for (const change of [
+      { seconds: 2.6 },
+      { damping: 0.35 },
+      { ring: { hz: 300, amount: 0.1 } },
+    ]) {
+      vi.advanceTimersByTime(900);
+      create.mockClear();
+      g.m.setRoom({ ...CAVE, ...change });
+      expect(create, JSON.stringify(change)).toHaveBeenCalledTimes(1);
+    }
+    vi.advanceTimersByTime(900);
+    create.mockClear();
+    g.m.setRoom({ ...CAVE, sfxSend: 0.5, lpf: 3000, hpf: 400, predelay: 0.01 });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('uses the coarse length on a coarse pointer and rebuilds when only that changes', () => {
+    vi.useFakeTimers();
+    const g = build(true);
+    const create = vi.spyOn(g.ctx, 'createBuffer');
+    g.m.setRoom(CAVE);
+    const buf = g.convolverB.buffer as { getChannelData(c: number): Float32Array };
+    expect(buf.getChannelData(0)).toHaveLength(Math.round(44100 * 1.2));
+    vi.advanceTimersByTime(900);
+    create.mockClear();
+    g.m.setRoom({ ...CAVE, seconds: 3 });
+    expect(create).not.toHaveBeenCalled();
+    g.m.setRoom({ ...CAVE, coarseSeconds: 2 });
+    vi.advanceTimersByTime(900);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves the sends at once even when a crossfade is running, and finishes in the last room asked for', () => {
+    vi.useFakeTimers();
+    const g = build();
+    g.m.setRoom(CAVE);
+    g.m.setRoom({ ...CAVE, seconds: 2.6, sfxSend: 0.4 });
+    // The new length waits for the running fade, but the send does not.
+    expect(lastTarget(sendOf(g, g.sfx).gain)).toBeCloseTo(0.4 * ROOM_SEND_SCALE, 12);
+    vi.advanceTimersByTime(2000);
+    const buf = g.convolver.buffer ?? g.convolverB.buffer;
+    expect((buf as { getChannelData(c: number): Float32Array }).getChannelData(0)).toHaveLength(
+      Math.round(44100 * 2.6),
+    );
+  });
+
+  it('follows a tune of the rooms table that is handed back as a new profile', () => {
+    vi.useFakeTimers();
+    const g = build();
+    const rooms = { cave: { ...CAVE } };
+    g.m.setRoom({ ...rooms.cave });
+    vi.advanceTimersByTime(900);
+    const report = applyAudioTune(
+      {
+        rooms: {
+          cave: { sfxSend: 0.4, musicSend: 0.14, seconds: 2.6, coarseSeconds: 2, damping: 0.35 },
+        },
+      },
+      { rooms },
+    );
+    expect(report.ignored).toEqual([]);
+    const create = vi.spyOn(g.ctx, 'createBuffer');
+    g.m.setRoom({ ...rooms.cave });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(lastTarget(sendOf(g, g.sfx).gain)).toBeCloseTo(0.4 * ROOM_SEND_SCALE, 12);
+    expect(lastTarget(sendOf(g, g.music).gain)).toBeCloseTo(0.14 * ROOM_SEND_SCALE, 12);
+  });
+});
+
+describe('a transparent chain', () => {
+  it('has no gain in any EQ band by default, so the mastering stages colour nothing', () => {
+    // Measured in Chromium on white noise: with these defaults the chain is within 0.03 dB of a
+    // straight pass from 1 to 20 kHz at 24, 32, 44.1 and 48 kHz. The earlier +1.5 dB low shelf,
+    // -1 dB presence dip and +1 dB high shelf, with a 2.5:1 compressor at -16 dB, left the 3 to
+    // 8 kHz band 1.5 to 2 dB under the rest of the music and up to 5 dB under on loud effects.
+    for (const band of [
+      MASTER_DEFAULTS.lowShelf,
+      MASTER_DEFAULTS.presence,
+      MASTER_DEFAULTS.highShelf,
+    ]) {
+      expect(band.gain).toBe(0);
+    }
+    expect(MASTER_DEFAULTS.hpf.freq).toBeLessThanOrEqual(30);
+  });
+
+  it('keeps the compressor to the loudest moments and the limiter just under full scale', () => {
+    expect(MASTER_DEFAULTS.comp.threshold).toBeGreaterThanOrEqual(-10);
+    expect(MASTER_DEFAULTS.comp.ratio).toBeLessThanOrEqual(2);
+    expect(MASTER_DEFAULTS.limiter.threshold).toBeGreaterThanOrEqual(-1);
+  });
+});
+
 describe('make-up gain', () => {
   it('estimates what the browser compressor adds on its own', () => {
-    // (1 / curve(1.0)) ^ 0.6 on Chromium's static curve. Rendering a chord through the same
-    // compressor, limiter and a 0.8 trim in an OfflineAudioContext in Chromium measured the chain
-    // 3.2 dB louder than the dry signal, which is these 5.13 dB less the 1.94 dB of the 0.8 trim.
-    expect(makeupDb(MASTER.comp)).toBeCloseTo(3.99, 2);
-    expect(makeupDb(MASTER.limiter)).toBeCloseTo(1.14, 2);
-    expect(chainMakeupDb()).toBeCloseTo(5.13, 2);
-    expect(20 * Math.log10(trimToCancelMakeup())).toBeCloseTo(-5.13, 2);
+    // (1 / curve(1.0)) ^ 0.6 on Chromium's static curve. The values are those of the transparent
+    // defaults (comp at -8 dB, 1.8:1; limiter at -1 dB): rendering 28 effects and 11 tracks through
+    // the chain with a trim of 0.8 (-1.94 dB, cancelling these 1.93 dB) measured the output within
+    // 0.1 dB of the same material played straight (Classic).
+    expect(makeupDb(MASTER.comp)).toBeCloseTo(1.36, 2);
+    expect(makeupDb(MASTER.limiter)).toBeCloseTo(0.57, 2);
+    expect(chainMakeupDb()).toBeCloseTo(1.93, 2);
+    expect(20 * Math.log10(trimToCancelMakeup())).toBeCloseTo(-1.93, 2);
   });
 
   it('starts the trim within half a decibel of cancelling it', () => {
