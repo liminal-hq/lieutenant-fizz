@@ -15,7 +15,7 @@ Billy, 14, has vanished. His cousin Ben, 10, finds a secret lab under their tree
 See `STORY.md` for the full opening cinematic and ending text.
 
 ## Structure
-1. Title screen (with a looping attract backdrop over Crater Fields, Crystal Caves and Mildred's Citadel, and Ben on the wordmark), then the opening cinematic (8 panels, skippable).
+1. Title screen (with a looping attract backdrop over Crater Fields, Crystal Caves and Mildred's Citadel, and Ben on the wordmark), then the opening cinematic (8 scenes, skippable).
 2. **Overworld:** a top-down map (north is up) cut into four regions by chocolate rivers, each with its own ground, trees and levels. In Crater Fields the three levels open in order, tutorial first, and a small town, Crater Corners (houses, shops, a fountain and three signposts that say a line when Ben walks up to them), lines the street east of the first level. Teleporter pairs link the regions and power up once the levels in front of them are cleared; the Citadel stays locked until the two Frosting Frontier levels before it are done. Autosaves on every visit. A lake at the centre holds an island that cannot be walked to (see **The secret**).
 3. **Areas and levels** (15 levels; the `Type` says how a level plays, not where it is):
 
@@ -39,7 +39,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 
 3c. **The Saucer** (Crater Fields, walk-through): Ben's own flying saucer, parked at the map's starting point. Press Confirm at it to step inside: a short walk to the hatch, then a galley, bunks, a star chart, a souvenir shelf and a bridge up a ladder, with a painting at each that says something about the crew. No enemies, no snacks and no cleared bit; the exit at the far left goes straight back to the map. It has the id after the last cleared-level id, so it is in the level table but never in the progress mask.
 4. **The secret.** The island in the lake, its teleporter pad and its level are visible from the start but cannot be walked to. One hidden room in the Sugar Glass Gallery holds a mural of the crystal forest with a ring of trees glowing in the far north-east. Stepping into it sets the secret-found flag, which makes a hidden teleporter pad appear inside a ring of trees in that corner of the map (the ring has one gap). It pairs with the island pad.
-5. Ending (4 panels), then the credits (skippable), then a score card. Episode 1 has no post-credits stinger; it belongs to Episode 3.
+5. Ending (4 scenes), then the credits (skippable), then a score card. Episode 1 has no post-credits stinger; it belongs to Episode 3.
 
 ## Mechanics
 - **Run & jump:** variable-height jump (release early to cut it short), 7 tiles/s top speed, momentum on the ground and in the air.
