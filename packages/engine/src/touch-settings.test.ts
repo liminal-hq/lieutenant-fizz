@@ -16,7 +16,7 @@ import {
   writeTouchSettings,
   type TouchSettings,
 } from './touch-settings';
-import { DEFAULT_TOUCH_SPEC } from './touch-layout';
+import { CHROMELESS_LIFT, DEFAULT_TOUCH_SPEC, placeControls } from './touch-layout';
 
 const v1 = (o: Record<string, unknown>): string => JSON.stringify({ v: 1, ...o });
 
@@ -238,5 +238,35 @@ describe('withPosition and resetPositions', () => {
       size: 'L' as const,
     };
     expect(resetPositions(s)).toEqual({ ...DEFAULT_TOUCH_SETTINGS, size: 'L' });
+  });
+});
+
+describe('touchSpec and the lift', () => {
+  const none = { top: 0, right: 0, bottom: 0, left: 0 };
+
+  it('lifts the defaults only when the browser bars are gone', () => {
+    expect(touchSpec(DEFAULT_TOUCH_SETTINGS).lift).toBe(0);
+    expect(touchSpec(DEFAULT_TOUCH_SETTINGS, undefined, false).lift).toBe(0);
+    expect(touchSpec(DEFAULT_TOUCH_SETTINGS, undefined, true).lift).toBe(CHROMELESS_LIFT);
+  });
+
+  it('keeps a saved layout exactly where it was, with the bars or without', () => {
+    // A layout saved before the lift existed: the same stored offsets, and the same `lf-touch-v1` shape.
+    const saved = parseTouchSettings(
+      v1({
+        size: 'M',
+        pos: {
+          dpad: { side: 40, bottom: 20 },
+          jump: { side: 20, bottom: 24 },
+          pogo: { side: 30, bottom: 120 },
+          fire: { side: 110, bottom: 28 },
+        },
+      }),
+    );
+    const bars = placeControls(844, 390, none, touchSpec(saved, undefined, false));
+    const full = placeControls(844, 390, none, touchSpec(saved, undefined, true));
+    expect(bars.custom).toBe(true);
+    expect(full).toEqual(bars);
+    expect(serialiseTouchSettings(saved)).not.toContain('lift');
   });
 });

@@ -8,6 +8,8 @@ import {
   fullscreenButton,
   IDLE_RELEASE_MS,
   backGuardAllowed,
+  chromeHidden,
+  isInstalled,
   detectCaps,
   isAppHost,
   isIdle,
@@ -313,5 +315,36 @@ describe('fullscreenButton', () => {
       glyph: 'collapse',
       label: 'Exit fullscreen',
     });
+  });
+});
+
+describe('isInstalled and chromeHidden', () => {
+  const mq = (on: string[]) => (q: string) => ({ matches: on.some((m) => q.includes(m)) });
+
+  it('sees an installed display mode or navigator.standalone', () => {
+    expect(isInstalled({ matchMedia: mq(['standalone']) })).toBe(true);
+    expect(isInstalled({ matchMedia: mq(['fullscreen']) })).toBe(true);
+    expect(isInstalled({ matchMedia: mq(['minimal-ui']) })).toBe(true);
+    expect(isInstalled({ matchMedia: mq(['browser']) })).toBe(false);
+    expect(isInstalled({ nav: { standalone: true } })).toBe(true);
+    expect(isInstalled({})).toBe(false);
+  });
+
+  it('survives a matchMedia that throws', () => {
+    const matchMedia = (): never => {
+      throw new Error('no');
+    };
+    expect(isInstalled({ matchMedia })).toBe(false);
+  });
+
+  it('agrees with detectCaps', () => {
+    expect(detectCaps({ host: 'web', matchMedia: mq(['standalone']) }).installed).toBe(true);
+    expect(detectCaps({ host: 'web' }).installed).toBe(false);
+  });
+
+  it('hides the browser bars in fullscreen or when installed, and not otherwise', () => {
+    expect(chromeHidden({ fullscreen: true, installed: false })).toBe(true);
+    expect(chromeHidden({ fullscreen: false, installed: true })).toBe(true);
+    expect(chromeHidden({ fullscreen: false, installed: false })).toBe(false);
   });
 });
