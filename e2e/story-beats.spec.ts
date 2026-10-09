@@ -46,7 +46,7 @@ test('Enter finishes the beat first, then moves to the next', async ({ page }) =
   const typed = await story(page);
   expect([typed.scene, typed.beat, typed.done]).toEqual([0, 0, true]);
   await expect(page.locator('#letterbox .hidden-text')).toHaveText('');
-  await expect(page.locator('#letterbox .next')).toHaveText('Continue');
+  await expect(page.locator('#letterbox .next .lbl')).toHaveText('Continue');
   await pressUntil(page, 'Enter', () => {
     const s = (window as unknown as { __lf: Lf }).__lf.debugState.story;
     return s.scene !== 0 || s.beat !== 0;
