@@ -124,7 +124,14 @@ for (const [label, width, height] of SIZES) {
 
       // Wrapping up from the first row lands on Back, scrolled into view, with the cue flipped.
       await pressUntil(page, 'ArrowUp', selIs, 'Back');
-      await expect.poll(async () => (await view(page)).top).toBe(v.max);
+      // The first key press brings the keyboard's hints, which can wrap the hint bar and shorten the list,
+      // so the end of the scroll is read again rather than carried over from the touch hints.
+      await expect
+        .poll(async () => {
+          const now = await view(page);
+          return now.top === now.max;
+        })
+        .toBe(true);
       v = await view(page);
       expect(v.selVisible).toBe(true);
       expect(v.cut).toEqual([]);
