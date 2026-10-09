@@ -53,26 +53,8 @@ const settings = (hand: 'right' | 'left', pos: Record<string, unknown> = {}): st
 
 type Screen = 'pause' | 'options' | 'sound' | 'haptics' | 'touch' | 'saves' | 'card' | 'controls';
 
-/**
- * The shortest row each screen gets by window height, measured in the split layout and in the one
- * column (what a phone of that height can give), minus nothing: the layout is exact at these sizes.
- */
-const ROWS: Record<
-  Screen | 'title',
-  { split: Record<number, number>; column: Record<number, number> }
-> = {
-  title: { split: { 390: 48, 360: 48, 320: 48 }, column: { 390: 38, 360: 35, 320: 30 } },
-  pause: { split: { 390: 48, 360: 47, 320: 35 }, column: { 390: 41, 360: 36, 320: 29 } },
-  // Options has eight rows on a touch device (Haptics and Touch controls), so they are shorter.
-  options: { split: { 390: 39, 360: 35, 320: 30 }, column: { 390: 30, 360: 27, 320: 22 } },
-  sound: { split: { 390: 48, 360: 47, 320: 41 }, column: { 390: 41, 360: 36, 320: 29 } },
-  // Touch controls lost its Haptics row, so it has six rows like Sound. Haptics has four (five with a pad).
-  haptics: { split: { 390: 48, 360: 48, 320: 48 }, column: { 390: 48, 360: 48, 320: 44 } },
-  touch: { split: { 390: 48, 360: 47, 320: 41 }, column: { 390: 41, 360: 36, 320: 29 } },
-  saves: { split: { 390: 48, 360: 47, 320: 40 }, column: { 390: 41, 360: 36, 320: 29 } },
-  card: { split: { 390: 48, 360: 48, 320: 48 }, column: { 390: 48, 360: 48, 320: 32 } },
-  controls: { split: {}, column: {} },
-};
+/** Rows keep the full touch height (`--lf-menu-row`, 48 dp) on every screen and window; a menu that does not fit scrolls. */
+const ROW_MIN = 47.9;
 const MENUS: Screen[] = ['pause', 'options', 'sound', 'haptics', 'touch', 'saves', 'card'];
 
 /** Opens the game with the controls pinned on and the touch settings stored, then waits for it. */
@@ -209,21 +191,18 @@ async function expectClean(page: Page, screen: string): Promise<void> {
     badSize: [],
     clipped: [],
     crowdsHints: [],
+    shortRows: [],
+    selectedHidden: [],
+    menuCrowds: [],
   });
 }
 
 /** The room the split layout needs, checked for one screen with the D-pad on `hand`'s opposite side. */
-function expectSplit(
-  r: Read,
-  screen: Screen | 'title',
-  hand: 'right' | 'left',
-  height: number,
-): void {
+function expectSplit(r: Read, screen: Screen | 'title', hand: 'right' | 'left'): void {
   expect(r.stage).toMatchObject({ title: 'split', hand });
   expect(r.stage.menuFit, 'split, not the column').toBeUndefined();
   expect(r.under).toEqual([]);
-  const rows = ROWS[screen].split[height];
-  if (rows) expect(Math.min(...r.rows)).toBeGreaterThanOrEqual(rows - 0.5);
+  if (r.rows.length) expect(Math.min(...r.rows)).toBeGreaterThanOrEqual(ROW_MIN);
   if (r.back) {
     if (r.head) expect(overlaps(r.back, r.head), 'the heading is clear of Back').toBe(false);
     expect(overlaps(r.back, r.body), 'the rows are clear of Back').toBe(false);
@@ -260,14 +239,13 @@ for (const hand of ['right', 'left'] as const) {
     }) => {
       if (size) await page.setViewportSize(size);
       await boot(page, { hand });
-      const height = page.viewportSize()!.height;
       for (const screen of ['title', ...MENUS] as const) {
         await show(page, screen);
         await expect
           .poll(async () => (await read(page, screen)).stage.menuFit, { message: screen })
           .toBeUndefined();
         const r = await read(page, screen);
-        expectSplit(r, screen, hand, height);
+        expectSplit(r, screen, hand);
         await expectClean(page, screen);
       }
       // The Controls table keeps the room between the controls, on the Jump side.
@@ -300,7 +278,7 @@ test('a raised D-pad: each menu is split while its heading fits above it, else o
     if (r.stage.menuFit === 'column') {
       // The fallback is the one-column layout: the text starts right of the D-pad.
       expect(r.head!.left, screen).toBeGreaterThanOrEqual(r.touchLeft - 0.5);
-      expect(Math.min(...r.rows), screen).toBeGreaterThanOrEqual(ROWS[screen].column[height]! - 3);
+      expect(Math.min(...r.rows), screen).toBeGreaterThanOrEqual(ROW_MIN);
     } else {
       expect(r.head!.bottom, screen).toBeLessThanOrEqual(r.dpad.top + 0.5);
     }
@@ -335,7 +313,6 @@ test('a raised, Left-handed D-pad mirrors the fallback', async ({ page }) => {
 
 test('without the flag the other menus keep the one column', async ({ page }) => {
   await boot(page, { query: '' });
-  const height = page.viewportSize()!.height;
   for (const screen of MENUS) {
     await show(page, screen);
     const r = await read(page, screen);
@@ -345,7 +322,7 @@ test('without the flag the other menus keep the one column', async ({ page }) =>
     expect(r.head!.left, screen).toBeGreaterThanOrEqual(r.touchLeft - 0.5);
     expect(r.body.left, screen).toBeGreaterThanOrEqual(r.touchLeft - 0.5);
     expect(Math.abs(r.head!.left - r.body.left), screen).toBeLessThan(40);
-    expect(Math.min(...r.rows), screen).toBeGreaterThanOrEqual(ROWS[screen].column[height]! - 0.5);
+    expect(Math.min(...r.rows), screen).toBeGreaterThanOrEqual(ROW_MIN);
     await expectClean(page, screen);
   }
 });
@@ -359,7 +336,7 @@ test('debugTitle moves an open menu between the split and the column', async ({ 
   await expect
     .poll(async () => (await read(page, 'options')).head!.left)
     .toBeLessThan(before.touchLeft);
-  expectSplit(await read(page, 'options'), 'options', 'right', page.viewportSize()!.height);
+  expectSplit(await read(page, 'options'), 'options', 'right');
   await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugTitle('column'));
   await expect
     .poll(async () => (await read(page, 'options')).head!.left)

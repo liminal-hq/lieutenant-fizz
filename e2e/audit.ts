@@ -9,6 +9,12 @@ export interface Report {
   badSize: string[];
   clipped: string[];
   crowdsHints: string[];
+  /** Menu rows shorter than the touch row height (`--lf-menu-row`), which they keep however many there are. */
+  shortRows: string[];
+  /** The selected row, when it is not wholly inside its menu's view. */
+  selectedHidden: string[];
+  /** A scrolling menu that overlaps the head, the Back button, the hint bar or a touch control. */
+  menuCrowds: string[];
   /** How many text elements were inspected, so an empty page cannot pass by accident. */
   checked: number;
 }
@@ -39,6 +45,9 @@ export function audit(options: AuditOptions = {}): Report {
     badSize: [],
     clipped: [],
     crowdsHints: [],
+    shortRows: [],
+    selectedHidden: [],
+    menuCrowds: [],
     checked: 0,
   };
   const w = window.innerWidth;
@@ -64,14 +73,35 @@ export function audit(options: AuditOptions = {}): Report {
     `${e.tagName.toLowerCase()}${e.id ? `#${e.id}` : ''}${typeof e.className === 'string' && e.className ? `.${e.className.split(' ').join('.')}` : ''} “${(e.textContent ?? '').trim().slice(0, 24)}”`;
   const hasText = (e: Element): boolean =>
     [...e.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim());
+  // A menu that does not fit scrolls (`data-scroll`): a row scrolled out of its view is not on screen, so
+  // it is neither outside the window nor crowding the hints. Rows cut at an edge count by what shows.
+  const view = (e: Element): DOMRect | null => {
+    const m = e.closest('[data-scroll]');
+    return m ? m.getBoundingClientRect() : null;
+  };
+  const shown = (e: Element, r: DOMRect): boolean => {
+    const v = view(e);
+    return !v || (r.bottom > v.top + 0.5 && r.top < v.bottom - 0.5);
+  };
   const texts = roots
     .flatMap((root) => [...document.querySelectorAll(`${root} *`)])
-    .filter((e) => visible(e) && hasText(e));
+    .filter((e) => visible(e) && hasText(e))
+    .filter((e) => shown(e, e.getBoundingClientRect()));
   report.checked = texts.length;
   const keys = [...document.querySelectorAll('#ui .keys')].find(visible);
   const keysRect = keys?.getBoundingClientRect();
   for (const e of texts) {
-    const r = e.getBoundingClientRect();
+    const full = e.getBoundingClientRect();
+    const v = view(e);
+    // What shows of a row cut by its menu's edge: the part inside the view.
+    const r = v
+      ? new DOMRect(
+          full.x,
+          Math.max(full.top, v.top),
+          full.width,
+          Math.min(full.bottom, v.bottom) - Math.max(full.top, v.top),
+        )
+      : full;
     const cs = getComputedStyle(e);
     if (
       r.left < inset.left - 0.5 ||
@@ -100,6 +130,47 @@ export function audit(options: AuditOptions = {}): Report {
         Math.min(r.right, keysRect.right) > Math.max(r.left, keysRect.left) + 1 &&
         Math.min(r.bottom, keysRect.bottom) > Math.max(r.top, keysRect.top) + 1;
       if (overlap) report.crowdsHints.push(name(e));
+    }
+  }
+  const touch = !!document.querySelector('#stage[data-touch]');
+  const rowMin = parseFloat(getComputedStyle(de).getPropertyValue('--lf-menu-row'));
+  const faces = [...document.querySelectorAll('#touch [data-control] .face')]
+    .filter(visible)
+    .map((f) => f.getBoundingClientRect());
+  const back = document.getElementById('backBtn');
+  const backRect = back && visible(back) ? back.getBoundingClientRect() : null;
+  const hit = (a: DOMRect, b: DOMRect): boolean =>
+    Math.min(a.right, b.right) > Math.max(a.left, b.left) + 1 &&
+    Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top) + 1;
+  for (const menu of document.querySelectorAll<HTMLElement>('.menu')) {
+    if (!visible(menu)) continue;
+    const mr = menu.getBoundingClientRect();
+    const rows = [...menu.querySelectorAll<HTMLElement>(':scope > button')];
+    if (touch && rowMin > 0) {
+      for (const b of rows) {
+        if (b.getBoundingClientRect().height < rowMin - 0.5) report.shortRows.push(name(b));
+      }
+    }
+    const sel = menu.querySelector<HTMLElement>(':scope > button.sel');
+    if (sel && 'scroll' in menu.dataset) {
+      const sr = sel.getBoundingClientRect();
+      if (sr.top < mr.top - 0.5 || sr.bottom > mr.bottom + 0.5)
+        report.selectedHidden.push(name(sel));
+    }
+    if (!('scroll' in menu.dataset)) continue;
+    const others: [string, DOMRect | null | undefined][] = [
+      ['Back button', backRect],
+      ['hint bar', keysRect],
+      [
+        'heading',
+        (
+          menu.closest('.screen')?.querySelector('h2, .head') as HTMLElement | null
+        )?.getBoundingClientRect(),
+      ],
+      ...faces.map((f): [string, DOMRect] => ['touch control', f]),
+    ];
+    for (const [what, o] of others) {
+      if (o && o.width > 0 && hit(mr, o)) report.menuCrowds.push(`menu overlaps the ${what}`);
     }
   }
   for (const id of ['title', 'overlay']) {

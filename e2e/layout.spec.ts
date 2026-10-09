@@ -86,6 +86,9 @@ for (const [w, h] of SIZES) {
           badSize: [],
           clipped: [],
           crowdsHints: [],
+          shortRows: [],
+          selectedHidden: [],
+          menuCrowds: [],
         });
       });
     }

@@ -202,6 +202,9 @@ for (const screen of ['pause', 'card', 'title', 'options', 'sound', 'touch', 'sa
       badSize: [],
       clipped: [],
       crowdsHints: [],
+      shortRows: [],
+      selectedHidden: [],
+      menuCrowds: [],
     });
   });
 }
@@ -368,8 +371,8 @@ test('sliding off Select before lifting cancels it', async ({ page }) => {
   await expect.poll(() => state(page).then((s) => s.screen)).toBe('play');
 });
 
-/** Rows of a one-column title, by window height: what a phone of that height can give them. */
-const COLUMN_ROWS: Record<number, number> = { 390: 38, 360: 35, 320: 30 };
+/** Rows keep the full touch height (`--lf-menu-row`, 48 dp) in the column too; a title that does not fit scrolls its menu. */
+const ROW_MIN = 47.9;
 
 interface TitleBoxes {
   rows: number[];
@@ -411,14 +414,13 @@ for (const mode of ['column', 'split'] as const) {
     }) => {
       if (size) await page.setViewportSize(size);
       await open(page, 'title', mode === 'split' ? '&title=split' : '');
-      const height = page.viewportSize()!.height;
       const b = await titleBoxes(page);
       expect(b.rows).toHaveLength(5);
       const min = Math.min(...b.rows);
       if (mode === 'column') {
-        // No flag leaves the layout unset, and the rows keep the height the head leaves them.
+        // No flag leaves the layout unset, and the rows keep their full height.
         expect(b.data.title).toBeUndefined();
-        expect(min).toBeGreaterThanOrEqual(COLUMN_ROWS[height]!);
+        expect(min).toBeGreaterThanOrEqual(ROW_MIN);
         expect(b.head.bottom).toBeLessThanOrEqual(b.menu.top);
       } else {
         expect(b.data).toEqual({ title: 'split', fit: undefined });
@@ -436,6 +438,9 @@ for (const mode of ['column', 'split'] as const) {
         badSize: [],
         clipped: [],
         crowdsHints: [],
+        shortRows: [],
+        selectedHidden: [],
+        menuCrowds: [],
       });
     });
   }
@@ -517,6 +522,9 @@ for (const [label, size] of TITLE_SIZES) {
       badSize: [],
       clipped: [],
       crowdsHints: [],
+      shortRows: [],
+      selectedHidden: [],
+      menuCrowds: [],
     });
   });
 }

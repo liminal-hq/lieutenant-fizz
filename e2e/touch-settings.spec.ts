@@ -337,6 +337,9 @@ const auditScreen = async (page: Page): Promise<void> => {
     badSize: [],
     clipped: [],
     crowdsHints: [],
+    shortRows: [],
+    selectedHidden: [],
+    menuCrowds: [],
   });
 };
 
