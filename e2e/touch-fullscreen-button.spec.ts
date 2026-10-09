@@ -3,8 +3,13 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect as baseExpect, test, type Page } from '@playwright/test';
 import { audit } from './audit';
+
+// Going fullscreen resizes the page to the whole screen, and redrawing that under software GL leaves the page too busy to
+// answer a poll for seconds on a shared CI runner (measured: the request resolves in under 100 ms, the next evaluate comes
+// back 3 to 7 s later on two pinned CPUs), so the default 5 s is too short for the fullscreen checks.
+const expect = baseExpect.configure({ timeout: 20_000 });
 
 interface Lf {
   debugShow(s: string): void;
@@ -47,10 +52,9 @@ async function open(page: Page, screen: string, query = ''): Promise<string[]> {
   return errors;
 }
 
-const tap = async (page: Page, selector: string): Promise<void> => {
-  const b = (await page.locator(selector).boundingBox())!;
-  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
-};
+// A locator tap waits for the element to hold still, so it lands where the button is once the resize that
+// follows entering or leaving fullscreen has laid it out; a tap at coordinates read earlier can miss it.
+const tap = (page: Page, selector: string): Promise<void> => page.locator(selector).tap();
 
 const box = (page: Page, selector: string): Promise<Box | null> =>
   page.evaluate((sel) => {
@@ -169,6 +173,8 @@ test('the fullscreen button is absent in play, on the cards and on the scenes, a
 test('a tap enters and leaves fullscreen, flips the glyph and the name, and starts nothing', async ({
   page,
 }) => {
+  // Slow once fullscreen: the page redraws at the full screen size (see `expect` above).
+  test.slow();
   const errors = await open(page, 'title');
   const fs = page.locator('#fsBtn');
   await expect(fs).toHaveAttribute('data-glyph', 'expand');
@@ -192,6 +198,8 @@ test('a tap enters and leaves fullscreen, flips the glyph and the name, and star
 test('the button works with the Fullscreen setting Off and with ?fullscreen=off', async ({
   page,
 }) => {
+  // Slow once fullscreen: the page redraws at the full screen size (see `expect` above).
+  test.slow();
   await page.addInitScript(() =>
     localStorage.setItem('lf-ep1-options-v1', JSON.stringify({ v: 1, fullscreen: 2 })),
   );
@@ -203,6 +211,8 @@ test('the button works with the Fullscreen setting Off and with ?fullscreen=off'
 test('leaving fullscreen from the pause menu keeps the menu; the corner stays Pause and the button', async ({
   page,
 }) => {
+  // Slow once fullscreen: the page redraws at the full screen size (see `expect` above).
+  test.slow();
   await open(page, 'pause', '&title=split');
   await tap(page, '#fsBtn');
   await expect.poll(() => isFullscreen(page)).toBe(true);

@@ -3,8 +3,13 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect as baseExpect, test, type Page } from '@playwright/test';
 import { pressUntil, settle } from './keys';
+
+// Going fullscreen resizes the page to the whole screen, and redrawing that under software GL leaves the page too busy to
+// answer a poll for seconds on a shared CI runner (measured: the request resolves in under 100 ms, the next evaluate comes
+// back 3 to 7 s later on two pinned CPUs), so the default 5 s is too short for the fullscreen checks.
+const expect = baseExpect.configure({ timeout: 20_000 });
 
 interface Lf {
   debugShow(s: string): void;
@@ -53,6 +58,8 @@ test('the title shows a small fullscreen button at the top right, named for a sc
 test('a click enters fullscreen and flips the glyph and name, and another leaves it', async ({
   page,
 }) => {
+  // Slow once fullscreen: the page redraws at the full screen size (see `expect` above).
+  test.slow();
   const errors = await boot(page);
   const fs = page.locator(FS);
   await expect(fs).toHaveAttribute('data-glyph', 'expand');
@@ -71,6 +78,8 @@ test('a click enters fullscreen and flips the glyph and name, and another leaves
 test('the request is one call to requestFullscreen per press, and the click keeps no focus on the button', async ({
   page,
 }) => {
+  // Slow once fullscreen: the page redraws at the full screen size (see `expect` above).
+  test.slow();
   await page.addInitScript(() => {
     const w = window as unknown as { __fsCalls: number };
     w.__fsCalls = 0;
@@ -91,6 +100,8 @@ test('the request is one call to requestFullscreen per press, and the click keep
 test('F toggles fullscreen on the title and the menus, and a held key does not toggle again', async ({
   page,
 }) => {
+  // Slow once fullscreen: the page redraws at the full screen size (see `expect` above).
+  test.slow();
   const errors = await boot(page);
   await pressUntil(page, 'f', () => document.fullscreenElement !== null);
   await expect(page.locator(FS)).toHaveAttribute('data-glyph', 'collapse');
@@ -132,6 +143,8 @@ test('Ctrl+F, Alt+F and typing into a field do nothing', async ({ page }) => {
 test('the Fullscreen setting and ?fullscreen=off govern the automatic requests only; the button and F still work', async ({
   page,
 }) => {
+  // Slow once fullscreen: the page redraws at the full screen size (see `expect` above).
+  test.slow();
   await page.addInitScript(() =>
     localStorage.setItem('lf-ep1-options-v1', JSON.stringify({ v: 1, fullscreen: 2 })),
   );
@@ -152,6 +165,8 @@ test('on a desktop nothing goes fullscreen by itself, including when a run start
 test('in play the button is there; it enters fullscreen, and leaving fullscreen pauses the level', async ({
   page,
 }) => {
+  // Slow once fullscreen: the page redraws at the full screen size (see `expect` above).
+  test.slow();
   const errors = await boot(page, '', 'play');
   const fs = page.locator(FS);
   await expect(fs).toBeVisible();
@@ -245,6 +260,8 @@ test('the button does not sit on the engine panel or Lab buttons of ?debug', asy
 });
 
 test('entering and leaving fullscreen re-syncs the Back guard', async ({ page }) => {
+  // Slow once fullscreen: the page redraws at the full screen size (see `expect` above).
+  test.slow();
   await boot(page, '', 'options');
   // Over Options there is an answer to Back, but a plain tab does not take Back.
   expect(await lf(page, (g) => g.debugState.back)).toMatchObject({ armed: false });
