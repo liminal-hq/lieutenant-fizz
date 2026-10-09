@@ -7,10 +7,13 @@ import { describe, expect, it } from 'vitest';
 import {
   Input,
   inputBits,
+  isFieldTarget,
+  isFullscreenKey,
   keysToBits,
   nextDevice,
   padLostInUse,
   padToBits,
+  pauseKeyKind,
   pickPad,
   touchToBits,
 } from './input';
@@ -137,5 +140,85 @@ describe('pickPad', () => {
   it('returns null with no pad', () => {
     expect(pickPad([], -1)).toBeNull();
     expect(pickPad([null, null], 0)).toBeNull();
+  });
+});
+
+describe('the fullscreen key', () => {
+  const press = (over: Partial<Parameters<typeof isFullscreenKey>[0]> = {}) =>
+    isFullscreenKey({
+      code: 'KeyF',
+      repeat: false,
+      ctrlKey: false,
+      altKey: false,
+      metaKey: false,
+      ...over,
+    });
+
+  it('is F on its own, on the first press only', () => {
+    expect(press()).toBe(true);
+    expect(press({ repeat: true })).toBe(false);
+  });
+
+  it('leaves Ctrl+F, Alt+F (Alt is Pogo) and Meta+F alone', () => {
+    expect(press({ ctrlKey: true })).toBe(false);
+    expect(press({ altKey: true })).toBe(false);
+    expect(press({ metaKey: true })).toBe(false);
+  });
+
+  it('is not any other key, and F holds no game bit in either layout', () => {
+    for (const code of ['KeyD', 'KeyG', 'F5', 'F9', 'Enter', 'Space', 'KeyC', 'KeyZ', 'KeyX']) {
+      expect(press({ code })).toBe(false);
+    }
+    expect(keysToBits(new Set(['KeyF']))).toBe(0);
+  });
+});
+
+describe('pauseKeyKind', () => {
+  const press = (code: string, key = '', repeat = false) => ({ code, key, repeat });
+
+  it('tells Esc from the other pause keys', () => {
+    expect(pauseKeyKind(press('Escape', 'Escape'))).toBe('esc');
+    expect(pauseKeyKind(press('KeyP', 'p'))).toBe('key');
+  });
+
+  it('takes the Pause/Break key by code or by key, in either layout', () => {
+    expect(pauseKeyKind(press('Pause', 'Pause'))).toBe('key');
+    expect(pauseKeyKind(press('Pause'))).toBe('key');
+    // A layout that reports another code for the key still names it.
+    expect(pauseKeyKind(press('', 'Pause'))).toBe('key');
+  });
+
+  it('ignores a held key that repeats', () => {
+    for (const code of ['Escape', 'KeyP', 'Pause'])
+      expect(pauseKeyKind(press(code, '', true))).toBeNull();
+  });
+
+  it('ignores every other key, including the ones the game maps', () => {
+    for (const code of [
+      'Enter',
+      'Space',
+      'KeyF',
+      'KeyZ',
+      'ControlLeft',
+      'AltLeft',
+      'F5',
+      'Tab',
+      'ScrollLock',
+    ])
+      expect(pauseKeyKind(press(code))).toBeNull();
+  });
+
+  it('does not map the Pause key to any held input bit', () => {
+    expect(keysToBits(new Set(['Pause']))).toBe(0);
+  });
+});
+
+describe('isFieldTarget', () => {
+  it('is true for a text field, a text area and a select, and false elsewhere', () => {
+    for (const tagName of ['INPUT', 'TEXTAREA', 'SELECT'])
+      expect(isFieldTarget({ tagName })).toBe(true);
+    for (const tagName of ['BODY', 'BUTTON', 'CANVAS', 'DIV'])
+      expect(isFieldTarget({ tagName })).toBe(false);
+    expect(isFieldTarget(null)).toBe(false);
   });
 });

@@ -9,6 +9,14 @@ import type { InputDevice } from '@lieutenant-fizz/engine/input';
 export interface HintContext {
   device: InputDevice;
   layout: number;
+  /** The page can go fullscreen on request, so the `F` shortcut and the Fullscreen button exist. */
+  fullscreen?: boolean;
+  /**
+   * The page is fullscreen with Esc locked, on a screen whose top level Esc then leaves fullscreen from
+   * (the title and the pause menu): the Esc hint reads "Exit fullscreen" and replaces the `F` hint, and
+   * the pause menu is resumed with P or Pause.
+   */
+  escExitsFullscreen?: boolean;
 }
 
 /** The screens that show a hint bar. */
@@ -43,9 +51,13 @@ export const selectHint = (c: HintContext): string =>
 export const backHint = (c: HintContext): string =>
   touch(c) ? touchCap(TOUCH_LABELS.back) : pad(c) ? '{B}' : '{Esc}';
 
-/** The menu control that skips or resumes: Esc, Start on a gamepad, the Pause button on touch. */
+/** The menu control that skips or resumes: Esc and the Pause key, Start on a gamepad, the Pause button on touch. */
 export const menuHint = (c: HintContext): string =>
-  touch(c) ? touchCap(TOUCH_LABELS.pause) : pad(c) ? '{Start}' : '{Esc}';
+  touch(c) ? touchCap(TOUCH_LABELS.pause) : pad(c) ? '{Start}' : '{Esc} {[Pause]}';
+
+/** The pause menu's Resume control. With Esc leaving fullscreen it is P and the Pause key instead. */
+export const resumeHint = (c: HintContext): string =>
+  c.escExitsFullscreen && c.device === 'keyboard' ? '{[P]} {[Pause]}' : menuHint(c);
 
 /**
  * The touch hints: the controls' own names, which read the same as their faces, and no keys. Where
@@ -69,8 +81,22 @@ function touchMenuHints(screen: HintScreen): string[] {
   }
 }
 
-/** The hints along the bottom of a menu screen, one entry per hint. */
+/**
+ * The hints along the bottom of a menu screen, one entry per hint. A keyboard also gets the fullscreen
+ * shortcut where the page has one, except on the Controls screen, whose table already lists it and which
+ * has no room for a third hint on a narrow window.
+ */
 export function menuHints(screen: HintScreen, c: HintContext): string[] {
+  const hints = baseMenuHints(screen, c);
+  if (c.device !== 'keyboard' || !c.fullscreen || screen === 'controls') return hints;
+  // With Esc locked in fullscreen, Esc leaves it from the top of the title and the pause menu, which
+  // says so in the place the `F` hint would take.
+  if (c.escExitsFullscreen && (screen === 'list' || screen === 'pause'))
+    return [...hints, '{Esc} Exit fullscreen'];
+  return [...hints, '{[F]} Fullscreen'];
+}
+
+function baseMenuHints(screen: HintScreen, c: HintContext): string[] {
   if (touch(c)) return touchMenuHints(screen);
   const choose = '{[↑↓]} Choose';
   const select = `${selectHint(c)} Select`;
@@ -82,7 +108,7 @@ export function menuHints(screen: HintScreen, c: HintContext): string[] {
     case 'controls':
       return [`${selectHint(c)} Back`, `${backHint(c)} Back`];
     case 'pause':
-      return [choose, select, `${menuHint(c)} Resume`];
+      return [choose, select, `${resumeHint(c)} Resume`];
     default:
       return [choose, select];
   }
@@ -119,7 +145,8 @@ export interface ControlsTable {
 /**
  * The Controls table. The desktop table has a column per scheme (Keen-style, Modern, Gamepad) with the
  * device in use picked out. The touch table has one column, the on-screen controls' own names, and
- * uses only `TOUCH_LABELS`: no key or gamepad glyph.
+ * uses only `TOUCH_LABELS`: no key or gamepad glyph. Where the page can go fullscreen both tables gain a
+ * Fullscreen row (`F` on a keyboard, the button on touch).
  */
 export function controlsTable(c: HintContext, onTouch: boolean): ControlsTable {
   if (onTouch) {
@@ -134,6 +161,7 @@ export function controlsTable(c: HintContext, onTouch: boolean): ControlsTable {
         ['Pause', touchCap(TOUCH_LABELS.pause)],
         ['Menus', `${dpad} ${touchCap(TOUCH_LABELS.select)} ${touchCap(TOUCH_LABELS.back)}`],
         ['Save / Load', 'Pause menu'],
+        ...(c.fullscreen ? [['Fullscreen', 'Fullscreen button']] : []),
       ],
       on: 1,
       note: `Hold Jump while pogoing for a high bounce. Aim Fizz up or down with the ${dpad}.`,
@@ -146,8 +174,9 @@ export function controlsTable(c: HintContext, onTouch: boolean): ControlsTable {
       ['Jump', '{Ctrl}', '{[Z]}', '{A}'],
       ['Pogo (toggle)', '{Alt}', '{[X]}', '{B} {Y}'],
       ['Fizz', '{Space}', '{[C]}', '{X} {RT}'],
-      ['Menu', '{Esc}', '{Esc} {[P]}', '{Start}'],
+      ['Menu', '{Esc} {[Pause]}', '{Esc} {[P]} {[Pause]}', '{Start}'],
       ['Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu'],
+      ...(c.fullscreen ? [['Fullscreen', '{[F]}', '{[F]}', '—']] : []),
     ],
     on: controlsColumn(c),
     note: 'Hold jump while pogoing for a high bounce. Aim fizz up with {[↑]}, or down with {[↓]} in the air.',

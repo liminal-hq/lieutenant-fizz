@@ -11,7 +11,11 @@ import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-b
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import {
-  enterFullscreen,
+  webFullscreenBackend,
+  type FullscreenBackend,
+} from '@lieutenant-fizz/engine/fullscreen-backend';
+import type { KeyboardLockLike } from '@lieutenant-fizz/engine/keyboard-lock';
+import {
   noKeepAwake,
   webWakeLock,
   type FullscreenResult,
@@ -20,13 +24,16 @@ import {
 import {
   backGuardAllowed,
   detectCaps,
+  fullscreenButton,
   isAppHost,
   isIdle,
   lifecyclePolicy,
   onGesture,
   pauseFor,
   type Caps,
+  type FullscreenScreen,
   type Gesture,
+  type GesturePlan,
   type Host,
   type Want,
 } from '@lieutenant-fizz/engine/lifecycle-policy';
@@ -58,11 +65,12 @@ import { MUSIC, PATTERNS, SFX } from './audio/patterns';
 import { ROOMS, roomFor, roomProfile, type RoomName } from './audio/rooms';
 import { FIZZ_HAPTICS } from './haptics/fizz-haptics';
 import { attractFade, attractLabel, nextAttract } from './attract';
-import { backAction, backEnabled, pauseAction } from './back';
+import { backAction, backEnabled, escAction, pauseAction } from './back';
 import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
 import { gestureFor, isLive } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
 import { isPortrait, watchResize, type TouchGutters } from './layout';
+import { FullscreenControl, glyphGrid, type FullscreenPlace } from './fullscreen-button';
 import { touchFaces, type ShellScreen, type SubScreen, type TouchFaces } from './touch-menus';
 import { EPISODE } from './episode';
 import {
@@ -212,6 +220,8 @@ export interface GameOptions {
   wake?: 'on' | 'off';
   /** What keeps the screen on in the app, given by the app; the web build uses the browser's wake lock. */
   keepAwake?: KeepAwakeBackend;
+  /** What enters and leaves fullscreen and says whether Esc reaches the page; the web build uses the browser's. */
+  fullscreenBackend?: FullscreenBackend;
 }
 
 /** The `display-mode` values an installed app runs in. */
@@ -283,8 +293,12 @@ export class Game {
   private idle = false;
   /** How the last fullscreen request went, and the pixel scale around it (for trying it on a phone). */
   private lastFs: FullscreenResult | null = null;
+  /** The Fullscreen button: a pill in the top-right corner, and the `F` key does the same. */
+  private readonly fsControl: FullscreenControl;
   private scaleBefore: number | null = null;
   private scaleAfter: number | null = null;
+  /** Fullscreen as the shell sees it: the browser's, with Esc held by the Keyboard Lock; the app can inject its own. */
+  private readonly fs: FullscreenBackend;
   /** The Touch controls rows. */
   private readonly touchRowList: TouchRow[] = touchRows();
   /** What `?haptics` asked for, which wins over the saved strength and is never saved. */
@@ -447,6 +461,20 @@ export class Game {
       matchMedia: window.matchMedia?.bind(window),
       host: options.host ?? (isAppHost(window) ? 'app' : 'web'),
     });
+    this.fsControl = new FullscreenControl({
+      press: () => this.toggleFullscreen(),
+      glyphUrl: (g) => ui.spriteUrl(glyphGrid(g)),
+    });
+    ui.mount(this.fsControl.el);
+    this.fs =
+      options.fullscreenBackend ??
+      webFullscreenBackend({
+        doc: document,
+        orientation: screen.orientation,
+        keyboard: (navigator as Navigator & { keyboard?: KeyboardLockLike }).keyboard,
+        secure: window.isSecureContext,
+        touch: () => this.touchCapable,
+      });
     this.wakeUrl = options.wake;
     this.keepAwake =
       this.caps.host === 'app'
@@ -577,11 +605,13 @@ export class Game {
       window.removeEventListener(t, this.onInputEvent, { capture: true });
     }
     this.keepAwake.dispose();
+    this.fsControl.dispose();
     window.removeEventListener('pointerdown', this.onTouchPointer, { capture: true });
     this.ui.stage.removeEventListener('contextmenu', this.onContextMenu);
     window.removeEventListener('pointermove', this.onMouseMove);
     this.unwatchViewport();
     this.unwatchBack();
+    this.fs.dispose();
     this.backGuard.dispose();
     this.touchUi.dispose();
     window.clearTimeout(this.titleAction);
@@ -1074,7 +1104,14 @@ export class Game {
         this.primary();
         break;
       case 'pause':
-        switch (pauseAction(this.screen, this.sub, !!c.leave)) {
+        switch (
+          c.esc
+            ? escAction(this.screen, this.sub, this.fs)
+            : pauseAction(this.screen, this.sub, !!c.leave)
+        ) {
+          case 'exitFullscreen':
+            void this.fs.exit();
+            break;
           case 'pause':
             this.screen = 'pause';
             this.menuIdx = 0;
@@ -1102,6 +1139,9 @@ export class Game {
           case null:
             break;
         }
+        break;
+      case 'fullscreen':
+        this.toggleFullscreen();
         break;
       case 'quickSave':
         this.quickSave();
@@ -1252,7 +1292,22 @@ export class Game {
 
   private syncHints(): void {
     const device: InputDevice = this.input.device;
-    this.ui.setHintContext({ device, layout: this.settings.layout });
+    this.ui.setHintContext({
+      device,
+      layout: this.settings.layout,
+      fullscreen: this.caps.fullscreen && this.caps.host === 'web',
+      escExitsFullscreen:
+        this.escLeavesFullscreen() && (this.screen === 'title' || this.screen === 'pause'),
+    });
+  }
+
+  /**
+   * Whether Esc reaches the page in fullscreen, so it can leave fullscreen itself: the lock is held and
+   * the page is fullscreen. Without the lock the browser takes the key and the page never sees it, so this
+   * stays false and Esc keeps its ordinary meaning.
+   */
+  private escLeavesFullscreen(): boolean {
+    return this.fs.isFullscreen() && this.fs.escapeCaptured;
   }
 
   private readonly onVisibility = (): void => {
@@ -1289,7 +1344,7 @@ export class Game {
         playing: this.screen === 'play',
         visible: this.visible,
         rotated: this.rotated,
-        fullscreen: document.fullscreenElement !== null,
+        fullscreen: this.fs.isFullscreen(),
         idleMs: now - this.idleAt,
         touchCapable: this.touchCapable,
         fullscreenWant: this.fullscreenWant,
@@ -1398,7 +1453,7 @@ export class Game {
     this.touchUi.relayout();
     this.ui.setTouchGutters(this.touchGutters());
     // The canvas re-places itself when fullscreen comes or goes; the last scale seen after a request is kept.
-    if (this.scaleBefore !== null && document.fullscreenElement !== null) {
+    if (this.scaleBefore !== null && this.fs.isFullscreen()) {
       this.scaleAfter = this.pixelScale;
     }
   }
@@ -2083,16 +2138,72 @@ export class Game {
       {
         fullscreenWant: this.fullscreenWant,
         touchCapable: this.touchCapable,
-        fullscreen: document.fullscreenElement !== null,
+        fullscreen: this.fs.isFullscreen(),
       },
       this.caps,
     );
     if (!plan.fullscreen && !plan.lock) return;
+    this.requestFullscreen(plan);
+  }
+
+  /** Makes the request and keeps how it went and the pixel scale around it (for trying it on a phone). */
+  private requestFullscreen(plan: GesturePlan): void {
     this.scaleBefore = this.pixelScale;
     this.scaleAfter = null;
-    void enterFullscreen(document, screen.orientation, plan).then((r) => {
+    void this.fs.enter(plan).then((r) => {
       this.lastFs = r;
-      if (document.fullscreenElement !== null) this.scaleAfter = this.pixelScale;
+      if (this.fs.isFullscreen()) this.scaleAfter = this.pixelScale;
+    });
+  }
+
+  /** The screen as the Fullscreen button sees it. */
+  private fullscreenScreen(): FullscreenScreen {
+    if (this.rotated || this.sub === 'touchEdit') return 'other';
+    switch (this.screen) {
+      case 'title':
+      case 'pause':
+      case 'card':
+      case 'play':
+        return this.screen;
+      default:
+        return 'other';
+    }
+  }
+
+  /** Whether the Fullscreen button (and so `F`) is on offer, and what it shows. */
+  private fullscreenState(): ReturnType<typeof fullscreenButton> {
+    return fullscreenButton({
+      screen: this.fullscreenScreen(),
+      touch: this.touchMode,
+      caps: this.caps,
+      fullscreen: this.fs.isFullscreen(),
+    });
+  }
+
+  /** Shows, hides and relabels the Fullscreen button. Called from `syncUi()` and when fullscreen comes or goes. */
+  private syncFullscreenButton(): void {
+    const place: FullscreenPlace = touchFaces(this.screen, this.sub).shown.includes('pause')
+      ? 'beside-pause'
+      : 'corner';
+    this.fsControl.set(this.fullscreenState(), this.touchMode, place);
+  }
+
+  /**
+   * The Fullscreen button and `F`: enters fullscreen, or leaves it. An explicit request, so it works
+   * whatever Options > Display > Fullscreen says (that governs the automatic requests only). Called from
+   * the click or the keydown itself, so the request still has its gesture. On a touch device it also
+   * locks the landscape orientation, as the automatic request does. Leaving fullscreen during a level
+   * pauses it, as for any other way out.
+   */
+  private toggleFullscreen(): void {
+    if (!this.fullscreenState().show) return;
+    if (this.fs.isFullscreen()) {
+      void this.fs.exit();
+      return;
+    }
+    this.requestFullscreen({
+      fullscreen: true,
+      lock: this.touchCapable && this.caps.orientationLock,
     });
   }
 
@@ -2102,7 +2213,7 @@ export class Game {
    */
   private onFullscreenChange(): void {
     if (
-      document.fullscreenElement === null &&
+      !this.fs.isFullscreen() &&
       pauseFor('fullscreenExit', { playing: this.screen === 'play' })
     ) {
       this.autoPause();
@@ -2122,7 +2233,7 @@ export class Game {
       standalone:
         INSTALLED_MODES.some((m) => mq(`(display-mode: ${m})`)) ||
         (navigator as Navigator & { standalone?: boolean }).standalone === true,
-      fullscreen: document.fullscreenElement !== null,
+      fullscreen: this.fs.isFullscreen(),
       forced: this.forcedBack,
     });
   }
@@ -2140,8 +2251,10 @@ export class Game {
     const onFullscreen = (): void => {
       this.onFullscreenChange();
       this.syncBack();
+      this.syncFullscreenButton();
+      this.syncHints();
     };
-    document.addEventListener('fullscreenchange', onFullscreen);
+    const offFullscreen = this.fs.onChange(onFullscreen);
     const lists: MediaQueryList[] = [];
     for (const m of INSTALLED_MODES) {
       try {
@@ -2153,7 +2266,7 @@ export class Game {
       }
     }
     return () => {
-      document.removeEventListener('fullscreenchange', onFullscreen);
+      offFullscreen();
       for (const l of lists) l.removeEventListener('change', sync);
     };
   }
@@ -2577,6 +2690,7 @@ export class Game {
     this.updateMusic();
     this.syncBack();
     this.syncLifecycle();
+    this.syncFullscreenButton();
     this.updateRoom();
   }
 
@@ -3065,6 +3179,7 @@ export class Game {
         wake: this.keepAwake.debug,
         keepAwake: this.keepAwake.kind,
         lastFs: this.lastFs,
+        escLock: this.fs.escapeCaptured,
         scaleBefore: this.scaleBefore,
         scaleAfter: this.scaleAfter,
       },

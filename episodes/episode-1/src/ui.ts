@@ -395,7 +395,13 @@ export class Ui {
 
   /** Sets the device and keyboard layout the hints are written for. */
   setHintContext(ctx: HintContext): void {
-    if (ctx.device === this.ctx.device && ctx.layout === this.ctx.layout) return;
+    if (
+      ctx.device === this.ctx.device &&
+      ctx.layout === this.ctx.layout &&
+      ctx.fullscreen === this.ctx.fullscreen &&
+      ctx.escExitsFullscreen === this.ctx.escExitsFullscreen
+    )
+      return;
     this.ctx = ctx;
     this.refreshHints();
     if (this.touchMode) this.relayout();
@@ -477,6 +483,10 @@ export class Ui {
     t.style.removeProperty('--lf-n-logo');
     delete t.dataset.lines;
     delete this.stage.dataset.titleFit;
+    // The hint bar wraps to a second line once a keyboard's hints (with the fullscreen shortcut) replace
+    // the touch ones, so the one-column title keeps its menu above the bar as measured.
+    const keys = t.querySelector('.keys')?.getBoundingClientRect();
+    t.style.setProperty('--lf-keys-h', `${keys && keys.width > 0 ? Math.ceil(keys.height) : 0}px`);
     const split = this.touchMode && this.titleLayout === 'split';
     if (!split || t.hidden || !this.controls.hidden || this.menuEl.hidden) return;
     const vv = window.visualViewport;

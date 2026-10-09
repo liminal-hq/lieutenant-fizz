@@ -40,7 +40,7 @@ describe('hint labels', () => {
     expect(selectHint(pad)).toBe('{A}');
     expect(backHint(keen)).toBe('{Esc}');
     expect(backHint(pad)).toBe('{B}');
-    expect(menuHint(keen)).toBe('{Esc}');
+    expect(menuHint(keen)).toBe('{Esc} {[Pause]}');
     expect(menuHint(pad)).toBe('{Start}');
   });
 });
@@ -58,15 +58,59 @@ describe('menu hints', () => {
 
   it('shows back on the saves screen and resume on pause', () => {
     expect(menuHints('saves', keen).at(-1)).toBe('{Esc} Back');
-    expect(menuHints('pause', keen).at(-1)).toBe('{Esc} Resume');
+    expect(menuHints('pause', keen).at(-1)).toBe('{Esc} {[Pause]} Resume');
     expect(menuHints('pause', pad).at(-1)).toBe('{Start} Resume');
+  });
+});
+
+describe('hints while fullscreen with Esc locked', () => {
+  const fs: HintContext = { ...keen, fullscreen: true };
+  const locked: HintContext = { ...fs, escExitsFullscreen: true };
+
+  it('is as before with no lock, fullscreen or not', () => {
+    expect(menuHints('pause', fs).at(-1)).toBe('{[F]} Fullscreen');
+    expect(menuHints('pause', fs).at(-2)).toBe('{Esc} {[Pause]} Resume');
+    expect(menuHints('list', fs)).toEqual(['{[↑↓]} Choose', '{Enter} Select', '{[F]} Fullscreen']);
+  });
+
+  it('reads Exit fullscreen for Esc on the pause menu and the title, in place of the F hint', () => {
+    expect(menuHints('pause', locked)).toEqual([
+      '{[↑↓]} Choose',
+      '{Enter} Select',
+      '{[P]} {[Pause]} Resume',
+      '{Esc} Exit fullscreen',
+    ]);
+    expect(menuHints('list', locked)).toEqual([
+      '{[↑↓]} Choose',
+      '{Enter} Select',
+      '{Esc} Exit fullscreen',
+    ]);
+  });
+
+  it('keeps Esc as Back on the screens over a menu, and the Controls hints as they are', () => {
+    expect(menuHints('options', locked).at(-1)).toBe('{[F]} Fullscreen');
+    expect(menuHints('options', locked).at(-2)).toBe('{Esc} Back');
+    expect(menuHints('controls', locked)).toEqual(menuHints('controls', keen));
+  });
+
+  it('never changes a gamepad or touch hint', () => {
+    for (const c of [pad, touch])
+      expect(menuHints('pause', { ...c, fullscreen: true, escExitsFullscreen: true })).toEqual(
+        menuHints('pause', c),
+      );
   });
 });
 
 describe('credits and stinger hints', () => {
   it('maps {Jump} to the active device', () => {
-    expect(creditsHints(keen, 'Speed up')).toEqual(['{Esc} Skip credits', '{Ctrl} Speed up']);
-    expect(creditsHints(modern, 'Continue')).toEqual(['{Esc} Skip credits', '{[Z]} Continue']);
+    expect(creditsHints(keen, 'Speed up')).toEqual([
+      '{Esc} {[Pause]} Skip credits',
+      '{Ctrl} Speed up',
+    ]);
+    expect(creditsHints(modern, 'Continue')).toEqual([
+      '{Esc} {[Pause]} Skip credits',
+      '{[Z]} Continue',
+    ]);
     expect(creditsHints(pad, 'Speed up')).toEqual(['{Start} Skip credits', '{A} Speed up']);
     expect(stingerHints(pad)).toEqual(['{Start} Skip', '{A} Continue']);
   });
@@ -101,6 +145,9 @@ describe('touch hints', () => {
       ...stingerHints(touch),
     ];
     for (const h of all) expect(h).not.toMatch(KEYS);
+    // The Pause key and P are keyboard keys; the touch Pause control is a name, not a keycap for P.
+    for (const h of [...all, ...controlsTable(touch, true).rows.flat()])
+      expect(h).not.toMatch(/\{\[P\]\}/);
     expect(creditsHints(touch, 'Speed up')).toEqual([
       '{[Pause]} Skip credits',
       '{[Select]} Speed up',
@@ -108,7 +155,13 @@ describe('touch hints', () => {
   });
 
   it('leaves the keyboard and gamepad hints as they were', () => {
-    expect(menuHints('pause', keen)).toEqual(['{[↑↓]} Choose', '{Enter} Select', '{Esc} Resume']);
+    expect(menuHints('pause', keen)).toEqual([
+      '{[↑↓]} Choose',
+      '{Enter} Select',
+      '{Esc} {[Pause]} Resume',
+    ]);
+    expect(menuHints('list', keen)).toEqual(['{[↑↓]} Choose', '{Enter} Select']);
+    expect(menuHints('options', keen).at(-1)).toBe('{Esc} Back');
     expect(menuHints('pause', pad)).toEqual(['{[↑↓]} Choose', '{A} Select', '{Start} Resume']);
   });
 });
@@ -153,7 +206,7 @@ describe('controlsTable on a keyboard or gamepad', () => {
       ['Jump', '{Ctrl}', '{[Z]}', '{A}'],
       ['Pogo (toggle)', '{Alt}', '{[X]}', '{B} {Y}'],
       ['Fizz', '{Space}', '{[C]}', '{X} {RT}'],
-      ['Menu', '{Esc}', '{Esc} {[P]}', '{Start}'],
+      ['Menu', '{Esc} {[Pause]}', '{Esc} {[P]} {[Pause]}', '{Start}'],
       ['Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu'],
     ]);
     expect(t.note).toBe(
@@ -188,5 +241,52 @@ describe('controlsTable on touch', () => {
     for (const label of Object.values(TOUCH_LABELS)) expect(text).toContain(`{[${label}]}`);
     expect(t.rows.find((r) => r[0] === 'Menus')?.[1]).toBe('{[D-pad]} {[Select]} {[Back]}');
     expect(t.rows.at(-1)).toEqual(['Save / Load', 'Pause menu']);
+  });
+});
+
+describe('the fullscreen shortcut in the hints', () => {
+  const can = (c: HintContext): HintContext => ({ ...c, fullscreen: true });
+
+  it('adds F to a keyboard hint bar where the page can go fullscreen, and nothing else changes', () => {
+    for (const screen of ['list', 'pause', 'options', 'saves'] as const) {
+      expect(menuHints(screen, can(keen))).toEqual([
+        ...menuHints(screen, keen),
+        '{[F]} Fullscreen',
+      ]);
+      expect(menuHints(screen, can(modern))).toEqual([
+        ...menuHints(screen, modern),
+        '{[F]} Fullscreen',
+      ]);
+    }
+  });
+
+  it('leaves the Controls screen hint bar alone, since its table lists the key', () => {
+    expect(menuHints('controls', can(keen))).toEqual(menuHints('controls', keen));
+  });
+
+  it('leaves the gamepad and touch hints alone, since neither has the key', () => {
+    for (const screen of ['list', 'pause', 'options', 'saves', 'controls'] as const) {
+      expect(menuHints(screen, can(pad))).toEqual(menuHints(screen, pad));
+      expect(menuHints(screen, can(touch))).toEqual(menuHints(screen, touch));
+    }
+  });
+
+  it('adds a Fullscreen row to the keyboard Controls table only where it applies', () => {
+    expect(controlsTable(can(keen), false).rows.at(-1)).toEqual([
+      'Fullscreen',
+      '{[F]}',
+      '{[F]}',
+      '—',
+    ]);
+    expect(controlsTable(can(keen), false).rows.slice(0, -1)).toEqual(
+      controlsTable(keen, false).rows,
+    );
+  });
+
+  it('names the button on touch, with no key glyph', () => {
+    const t = controlsTable(can(touch), true);
+    expect(t.rows.at(-1)).toEqual(['Fullscreen', 'Fullscreen button']);
+    for (const c of [...t.head, ...t.rows.flat(), t.note]) expect(c, c).not.toMatch(KEYS);
+    expect(controlsTable(touch, true).rows.map((r) => r[0])).not.toContain('Fullscreen');
   });
 });

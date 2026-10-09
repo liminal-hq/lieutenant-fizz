@@ -43,6 +43,7 @@ The full opening cinematic, boss dialogue and ending are in [`docs/STORY.md`](do
 - **Snacks and lives.** Cheezies, chocolate bars and fudge cookies are worth points; every 100 earns an extra life.
 - **A rogues' gallery.** Eleven enemy types, from gloop slugs and crystal bats to Zarg phantoms and gravity drones, each built on a reusable behaviour template, ending with Mildred's Cocoa Colossus.
 - **Two control layouts.** Keen-style (Ctrl jump, Alt pogo, Space fire) or modern (Z, X, C), with arrows or WASD to move and standard gamepad support.
+- **Fullscreen.** F or the round button at the top right goes fullscreen and back (touch devices also go fullscreen when a run starts).
 - **Quick-save.** F5 saves progress and F9 loads it. Progress is saved at map granularity (lives, score, ammo, cleared levels and map position), not as a mid-level snapshot.
 
 The complete mechanics, collectibles, enemy roster and controls are in [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md).

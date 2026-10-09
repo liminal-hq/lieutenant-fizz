@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { backAction, backEnabled, pauseAction } from './back';
+import { backAction, backEnabled, escAction, pauseAction } from './back';
 import type { ShellScreen } from './touch-menus';
 
 describe('backAction', () => {
@@ -111,5 +111,93 @@ describe('pauseAction', () => {
     expect(pauseAction('stinger', null, false)).toBe('skipEnding');
     for (const s of ['loading', 'card', 'dialogue', 'ending'] as const)
       expect(pauseAction(s, null, true)).toBeNull();
+  });
+});
+
+/** A fake backend: the Esc rules need only what it says, not a browser. */
+const fake = (isFullscreen: boolean, escapeCaptured: boolean) => ({
+  isFullscreen: () => isFullscreen,
+  escapeCaptured,
+});
+const OUT = fake(false, false);
+const CAPTURED = fake(true, true);
+const UNCAPTURED = fake(true, false);
+
+describe('escAction', () => {
+  const SUBS = [
+    'controls',
+    'options',
+    'saves',
+    'sound',
+    'haptics',
+    'display',
+    'touch',
+    'touchEdit',
+  ] as const;
+  const SCREENS: ShellScreen[] = [
+    'title',
+    'pause',
+    'play',
+    'cine',
+    'credits',
+    'stinger',
+    'dialogue',
+    'ending',
+    'card',
+    'loading',
+  ];
+
+  it('is the pause command outside fullscreen, on every screen and screen over one', () => {
+    for (const screen of SCREENS) {
+      expect(escAction(screen, null, OUT)).toBe(pauseAction(screen, null, false));
+      for (const sub of SUBS)
+        expect(escAction(screen, sub, OUT)).toBe(pauseAction(screen, sub, false));
+    }
+  });
+
+  it('pauses in play, fullscreen or not', () => {
+    expect(escAction('play', null, OUT)).toBe('pause');
+    expect(escAction('play', null, CAPTURED)).toBe('pause');
+  });
+
+  it('resumes from the pause menu outside fullscreen, and does nothing on the title', () => {
+    expect(escAction('pause', null, OUT)).toBe('resume');
+    expect(escAction('title', null, OUT)).toBeNull();
+  });
+
+  it('leaves fullscreen from the top of the pause menu and the title, and keeps the menu open', () => {
+    expect(escAction('pause', null, CAPTURED)).toBe('exitFullscreen');
+    expect(escAction('title', null, CAPTURED)).toBe('exitFullscreen');
+  });
+
+  it('does not leave fullscreen when the page would not have seen the key', () => {
+    // Fullscreen but no capture (Firefox, Safari): an Esc that arrives is ordinary.
+    expect(escAction('pause', null, UNCAPTURED)).toBe('resume');
+    expect(escAction('title', null, UNCAPTURED)).toBeNull();
+    expect(escAction('play', null, UNCAPTURED)).toBe('pause');
+    // Captured without fullscreen is nothing to leave.
+    expect(escAction('pause', null, fake(false, true))).toBe('resume');
+  });
+
+  it('closes a screen over the pause menu or the title first, fullscreen or not', () => {
+    for (const screen of ['pause', 'title'] as const)
+      for (const sub of SUBS) {
+        expect(escAction(screen, sub, CAPTURED)).toBe('close');
+        expect(escAction(screen, sub, OUT)).toBe('close');
+        expect(escAction(screen, sub, UNCAPTURED)).toBe('close');
+      }
+  });
+
+  it('is unchanged in fullscreen on every other screen', () => {
+    for (const screen of SCREENS.filter((s) => s !== 'pause' && s !== 'title')) {
+      expect(escAction(screen, null, CAPTURED)).toBe(escAction(screen, null, OUT));
+    }
+    expect(escAction('cine', null, CAPTURED)).toBe('skipCine');
+    expect(escAction('credits', null, CAPTURED)).toBe('skipEnding');
+    expect(escAction('stinger', null, CAPTURED)).toBe('skipEnding');
+    expect(escAction('card', null, CAPTURED)).toBeNull();
+    expect(escAction('dialogue', null, CAPTURED)).toBeNull();
+    expect(escAction('ending', null, CAPTURED)).toBeNull();
+    expect(escAction('loading', null, CAPTURED)).toBeNull();
   });
 });

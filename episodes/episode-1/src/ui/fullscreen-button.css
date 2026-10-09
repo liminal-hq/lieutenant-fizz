@@ -1,0 +1,90 @@
+/* ── The fullscreen button ──
+   `#fsBtn` (built by `FullscreenControl`) is a glass pill like the Pause face, in the top-right corner.
+   On a touch screen it is a 48 dp hit area (a 36 px face) inside the safe area: in Pause's corner where
+   there is no Pause pill, and just left of the Pause hit area where there is. On a desktop it is a small
+   32 px pill; the engine panel and Lab buttons step left to make room. The glyph is pixel art drawn at a
+   whole-number size. */
+#fsBtn {
+  pointer-events: auto;
+  z-index: 5;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  top: calc(var(--lf-safe-top) + 16px);
+  right: calc(var(--lf-safe-right) + 16px);
+  width: 32px;
+  height: 32px;
+  --lf-fs-face: 32px;
+  --lf-fs-glyph: 18px;
+}
+#fsBtn .face {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: var(--lf-fs-face);
+  height: var(--lf-fs-face);
+  box-sizing: border-box;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 20, 25, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+#fsBtn img {
+  display: block;
+  width: var(--lf-fs-glyph);
+  height: var(--lf-fs-glyph);
+  image-rendering: pixelated;
+}
+#fsBtn:hover .face,
+#fsBtn:focus-visible .face {
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 2px var(--lf-accent);
+}
+#fsBtn:focus-visible {
+  outline: none;
+}
+
+/* Touch: the Pause pill's size and place (`touch-layout.ts`: a 48 dp hit area 8 dp in from the corner of the
+   safe area, a 36 dp face). */
+#stage[data-touch] #fsBtn {
+  top: calc(var(--lf-safe-top) + 8px);
+  right: calc(var(--lf-safe-right) + 8px);
+  width: 48px;
+  height: 48px;
+  --lf-fs-face: 36px;
+  --lf-fs-glyph: 27px;
+}
+/* It shows only on menus, where the controls are lighter glass with a firm outline (`touch-menus.css`). */
+#stage[data-touch] #fsBtn .face {
+  background: rgba(255, 255, 255, 0.16);
+  border: 2px solid rgba(255, 255, 255, 0.7);
+}
+#stage[data-touch] #fsBtn[data-place='beside-pause'] {
+  right: calc(var(--lf-safe-right) + 8px + 48px + 4px);
+}
+
+/* Desktop: the engine panel button and the Lab button move left of the fullscreen button while it shows. */
+#stage:has(#fsBtn[data-place='desktop']:not([hidden])) #panelBtn {
+  right: calc(var(--lf-safe-right) + 16px + 40px);
+}
+#stage:has(#fsBtn[data-place='desktop']:not([hidden])) #labBtn {
+  right: calc(var(--lf-safe-right) + 16px + 40px + var(--n) * 11px * 9);
+}
+
+/* The desktop Controls table with its Fullscreen row (eight lines with the header) is one row taller, which a
+   short window cannot spare: the rows close up by their 2 n px of padding, which the line height already
+   covers. */
+@media (max-height: 700px) {
+  #stage:not([data-touch]) #controls table:has(tr:nth-child(8)) :is(td, th) {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}

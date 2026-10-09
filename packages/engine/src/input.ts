@@ -21,15 +21,17 @@ export const Input = {
 export type Command =
   /**
    * Pause, or one step back out of a menu. `leave` is set by the on-screen Pause button: from a screen
-   * opened over a menu it leaves the whole menu instead of going back one level.
+   * opened over a menu it leaves the whole menu instead of going back one level. `esc` is set by the Esc
+   * key, which in fullscreen with Esc locked also leaves fullscreen from the top of a menu.
    */
-  | { type: 'pause'; leave?: boolean }
+  | { type: 'pause'; leave?: boolean; esc?: boolean }
   | { type: 'confirm' }
   | { type: 'quickSave' }
   | { type: 'quickLoad' }
   | { type: 'togglePanel' }
   | { type: 'zoom'; factor: number }
-  | { type: 'zoomReset' };
+  | { type: 'zoomReset' }
+  | { type: 'fullscreen' };
 
 /** Which kind of input the player last used, so hints can show the matching labels. */
 export type InputDevice = 'keyboard' | 'gamepad' | 'touch';
@@ -65,6 +67,42 @@ export function padLostInUse(device: InputDevice, lastPad: number, index: number
   return device === 'gamepad' && (lastPad < 0 || lastPad === index);
 }
 
+/**
+ * Whether a key press is the fullscreen shortcut: `F` on its own. `F` is free in both layouts (movement
+ * is the arrows and WASD, the actions Ctrl, Alt and Space or Z, X and C), so it needs no rebinding.
+ * Ctrl, Alt (Pogo) and Meta with `F` are left to the browser and the game, and a held key does not repeat.
+ */
+export function isFullscreenKey(e: {
+  code: string;
+  repeat: boolean;
+  ctrlKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+}): boolean {
+  return e.code === 'KeyF' && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey;
+}
+
+/**
+ * Whether a key press is a pause key, and which: Esc (`esc`), or `P` and the Pause/Break key (`key`).
+ * Null for anything else, and for a held key that repeats. The Pause key is matched by `code` or `key`,
+ * since layouts differ in which one carries it; it is free in both layouts, so it needs no rebinding.
+ */
+export function pauseKeyKind(e: {
+  code: string;
+  key?: string;
+  repeat: boolean;
+}): 'esc' | 'key' | null {
+  if (e.repeat) return null;
+  if (e.code === 'Escape') return 'esc';
+  if (e.code === 'KeyP' || e.code === 'Pause' || e.key === 'Pause') return 'key';
+  return null;
+}
+
+/** Whether a key press lands in a text field, where typing is the field's. */
+export function isFieldTarget(target: { tagName?: string } | null): boolean {
+  return !!target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName ?? '');
+}
+
 const MAPPED = new Set([
   'ArrowLeft',
   'ArrowRight',
@@ -80,6 +118,7 @@ const MAPPED = new Set([
   'KeyC',
   'Enter',
   'Escape',
+  'Pause',
   'F5',
   'F9',
   'Tab',
@@ -180,17 +219,16 @@ export class InputManager {
   private touchEnabled = false;
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
-    const t = e.target as HTMLElement | null;
-    if (t && /INPUT|TEXTAREA|SELECT/.test(t.tagName)) return;
-    if (MAPPED.has(e.code)) e.preventDefault();
+    if (isFieldTarget(e.target as HTMLElement | null)) return;
+    if (MAPPED.has(e.code) || e.key === 'Pause') e.preventDefault();
     this.setDevice('key');
     if (e.repeat) return;
     this.keys.add(e.code);
+    // Emitted inside the keydown handler, so a handler can ask for fullscreen while the press counts as a gesture.
+    if (isFullscreenKey(e)) this.emit({ type: 'fullscreen' });
+    const pause = pauseKeyKind(e);
+    if (pause) this.emit(pause === 'esc' ? { type: 'pause', esc: true } : { type: 'pause' });
     switch (e.code) {
-      case 'Escape':
-      case 'KeyP':
-        this.emit({ type: 'pause' });
-        break;
       case 'Enter':
         this.confirmPending = true;
         this.emit({ type: 'confirm' });

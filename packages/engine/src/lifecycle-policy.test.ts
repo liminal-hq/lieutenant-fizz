@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  fullscreenButton,
   IDLE_RELEASE_MS,
   backGuardAllowed,
   detectCaps,
@@ -267,5 +268,50 @@ describe('isIdle and parseWakeParam', () => {
     expect(parseWakeParam('on')).toBe('on');
     expect(parseWakeParam('off')).toBe('off');
     for (const v of [null, undefined, 'maybe', '1']) expect(parseWakeParam(v)).toBeUndefined();
+  });
+});
+
+describe('fullscreenButton', () => {
+  const web = { fullscreen: true, host: 'web' } as const;
+  const base = { screen: 'title', touch: false, caps: web, fullscreen: false } as const;
+  const shows = (i: Partial<Parameters<typeof fullscreenButton>[0]>): boolean =>
+    fullscreenButton({ ...base, ...i }).show;
+
+  it('shows on the title and the pause menu on touch and on a desktop', () => {
+    for (const touch of [true, false]) {
+      expect(shows({ screen: 'title', touch })).toBe(true);
+      expect(shows({ screen: 'pause', touch })).toBe(true);
+    }
+  });
+
+  it('shows on level cards and in play on a desktop only', () => {
+    expect(shows({ screen: 'card', touch: false })).toBe(true);
+    expect(shows({ screen: 'play', touch: false })).toBe(true);
+    expect(shows({ screen: 'card', touch: true })).toBe(false);
+    expect(shows({ screen: 'play', touch: true })).toBe(false);
+  });
+
+  it('stays off scenes, the editor and loading', () => {
+    expect(shows({ screen: 'other', touch: false })).toBe(false);
+    expect(shows({ screen: 'other', touch: true })).toBe(false);
+  });
+
+  it('needs element fullscreen in a browser page', () => {
+    expect(shows({ caps: { fullscreen: false, host: 'web' } })).toBe(false);
+    expect(shows({ caps: { fullscreen: true, host: 'app' } })).toBe(false);
+    expect(shows({ caps: { fullscreen: false, host: 'app' } })).toBe(false);
+  });
+
+  it('flips the glyph and the label while fullscreen', () => {
+    expect(fullscreenButton(base)).toEqual({
+      show: true,
+      glyph: 'expand',
+      label: 'Fullscreen',
+    });
+    expect(fullscreenButton({ ...base, fullscreen: true })).toEqual({
+      show: true,
+      glyph: 'collapse',
+      label: 'Exit fullscreen',
+    });
   });
 });
