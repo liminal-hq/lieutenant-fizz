@@ -1,13 +1,17 @@
-// Rows the address decides: a `?audio=`, `?haptics=` or `?debug` value shows on its row as "(link)" and cannot be changed.
+// Rows the address decides: a `?audio=`, `?haptics=`, `?fullscreen=`, `?wake=` or `?debug` value shows on its row as "(link)" and cannot be changed.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { Want } from '@lieutenant-fizz/engine/lifecycle-policy';
 import type { AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import type { MenuItem } from './ui';
 
 /** What `?haptics` asks for: `on` (bare or `=on`) forces haptics on, `off` forces them off. */
 export type HapticsUrl = 'on' | 'off';
+
+/** What `?wake` asks for: `on` keeps the screen on while playing, `off` never does. */
+export type WakeUrl = 'on' | 'off';
 
 /**
  * A `?haptics` value: nothing (the bare flag) or `on` forces haptics on and `off` forces them off, in any
@@ -28,6 +32,10 @@ export interface UrlLocks {
   audio?: AudioMode | undefined;
   /** `?haptics` (on) or `?haptics=off`. */
   haptics?: HapticsUrl | undefined;
+  /** `?fullscreen` (on) or `?fullscreen=off`. */
+  fullscreen?: Want | undefined;
+  /** `?wake` (on) or `?wake=off`. */
+  wake?: WakeUrl | undefined;
   /** `?debug`, which puts the Sound lab and the Haptics lab on the page whatever their options say. */
   debug: boolean;
 }

@@ -30,6 +30,8 @@ describe('options storage', () => {
       lab: true,
       rumble: 1,
       hapticsLab: true,
+      fullscreen: 2,
+      awake: false,
     };
     expect(parseOptions(serialiseOptions(o))).toEqual(o);
   });
@@ -61,6 +63,8 @@ describe('options storage', () => {
       lab: false,
       rumble: 3,
       hapticsLab: false,
+      fullscreen: 0,
+      awake: true,
     });
   });
 
@@ -69,6 +73,18 @@ describe('options storage', () => {
     expect(parseOptions('{"v":1,"lab":true}').lab).toBe(true);
     for (const bad of ['"on"', '1', 'null', '[]'])
       expect(parseOptions(`{"v":1,"lab":${bad}}`).lab).toBe(false);
+  });
+
+  it('defaults Fullscreen to Auto and Keep screen on to On, and rejects anything else', () => {
+    expect(DEFAULT_OPTIONS.fullscreen).toBe(0);
+    expect(DEFAULT_OPTIONS.awake).toBe(true);
+    for (const good of [0, 1, 2])
+      expect(parseOptions(`{"v":1,"fullscreen":${good}}`).fullscreen).toBe(good);
+    for (const bad of ['3', '-1', '1.5', '"on"', 'true', 'null'])
+      expect(parseOptions(`{"v":1,"fullscreen":${bad}}`).fullscreen).toBe(0);
+    expect(parseOptions('{"v":1,"awake":false}').awake).toBe(false);
+    for (const bad of ['0', '"off"', 'null'])
+      expect(parseOptions(`{"v":1,"awake":${bad}}`).awake).toBe(true);
   });
 
   it('defaults Rumble to Strong and the haptics lab to Off, and rejects anything else', () => {
@@ -184,8 +200,25 @@ describe('stepOption', () => {
       lab: true,
       rumble: 1,
       hapticsLab: true,
+      fullscreen: 1,
+      awake: false,
     };
     expect(stepOption(o, 'music', 1)).toEqual({ ...o, music: 3 });
+  });
+});
+
+describe('stepOption on the Display settings', () => {
+  it('cycles Fullscreen through Auto, On and Off in both directions', () => {
+    const at = (n: number) => ({ ...DEFAULT_OPTIONS, fullscreen: n });
+    expect(stepOption(at(0), 'fullscreen', 1).fullscreen).toBe(1);
+    expect(stepOption(at(1), 'fullscreen', 1).fullscreen).toBe(2);
+    expect(stepOption(at(2), 'fullscreen', 1).fullscreen).toBe(0);
+    expect(stepOption(at(0), 'fullscreen', -1).fullscreen).toBe(2);
+  });
+
+  it('toggles Keep screen on whichever way it is stepped', () => {
+    expect(stepOption(DEFAULT_OPTIONS, 'awake', 1).awake).toBe(false);
+    expect(stepOption({ ...DEFAULT_OPTIONS, awake: false }, 'awake', -1).awake).toBe(true);
   });
 });
 
