@@ -44,7 +44,7 @@ The derivations are pure functions in `packages/engine/src/font/derive.ts`, each
 - **Box drawing.** Single and double lines, corners, tees and crosses are generated to the whole 6×11 cell so lines join. Set `line-height` to eleven pixels times your scale (`var(--lf-type-line)`) or vertical lines will break between rows.
 - **Bold.** Each ink pixel also fills the pixel to its right, unless that would close a one-pixel gap between two strokes. A bold glyph is one pixel wider.
 - **Oblique.** One pixel of shear for every three rows above the baseline. The advance stays the unslanted width; the slant reaches into the neighbour's space, so the left bearing can be negative.
-- **Condensed.** Five-wide glyphs lose a column by merging the middle three (`[a, b|c, c|d, e]`). `M W m w 1 % # * × & + = / … « » — –`, the arrows and the pictures keep their width.
+- **Condensed.** Five-wide glyphs lose a column by merging the middle three (`[a, b|c, c|d, e]`). `M W m w 1 % # * × & + = / … « » — –`, the arrows, the triangles and the pictures keep their width.
 - **Mono.** The cell is the widest trimmed letter or digit (not M, W, m, w) in that cut: 5 for Regular, 6 for Bold. Each glyph is trimmed and centred in one cell. A glyph wider than a cell (a picture, an em dash) takes a whole number of cells, centred, so columns after it still line up. Keycap ends and whole keycaps are the exception: they are sized to their label.
 
 ## Characters
@@ -52,9 +52,11 @@ The derivations are pure functions in `packages/engine/src/font/derive.ts`, each
 - A–Z, a–z, 0–9, and the punctuation `. , : ; ! ? ' " - ( ) [ ] { } < > / \ & + = # % * @ $ ^ _ | ~ ``.
 - ‽, curly quotes ‘ ’ “ ”, em dash —, en dash –, middle dot ·, ellipsis …, guillemets « », ×.
 - Canadian French accents é è ê ë à â ç ô û ù î ï É È Ê À Ç Ô, and the dotless ı.
-- Arrows → ← ↑ ↓ ↙ ► ◄ ▸, the note ♪, the dots ● ○ and the block cursor ▌.
+- Arrows → ← ↑ ↓ ↙ ► ◄ ▸, the solid triangles ▼ (U+25BC) and ▲ (U+25B2), the note ♪, the dots ● ○ and the block cursor ▌.
 - Box drawing: ─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼ and the double set ═ ║ ╔ ╗ ╚ ╝ ╠ ╣ ╦ ╩ ╬.
 - The 24 pictures at their real code points: 🙂 😀 😉 😮 😢 😠 😎 ❤ ⭐ ✓ ✗ 👍 🍁 👽 🛸 🥤 ☕ 💾 🎮 🔊 🔇 🔒 ⚡ 🏆. They are plain single-colour outlines for now; a colour (COLR) version is a possible later addition.
+
+The triangles ▼ and ▲ are 7 pixels wide and 4 tall, solid, and rest on the baseline (cap rows 3 to 6, inside the x-height), so they sit beside lowercase text as a "more" or scroll cue without towering over it. Their advance is 800 units. ▲ is ▼ flipped top to bottom.
 
 ## Button and keycap glyphs
 

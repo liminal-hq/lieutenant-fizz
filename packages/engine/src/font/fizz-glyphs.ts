@@ -168,6 +168,9 @@ export const EXTRA: Record<string, string> = {
   '▌': '##/##/##/##/##/##/##',
   '↙': '....#/...#./..#../#.#../##.../###..',
   '♪': '..#../..##./..#.#/..#../..#../###../###..',
+  // Solid triangles, 7 wide and 4 tall, resting on the baseline (cap rows 3 to 6).
+  '▼': '......./......./......./#######/.#####./..###../...#...',
+  '▲': '......./......./......./...#.../..###../.#####./#######',
 };
 
 /** Characters drawn as single-colour pictures. They keep their shape under every style. */
@@ -203,4 +206,6 @@ export const WIDE = new Set([
   '►',
   '◄',
   '▸',
+  '▼',
+  '▲',
 ]);

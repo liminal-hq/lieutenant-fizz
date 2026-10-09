@@ -50,7 +50,8 @@ describe('master glyphs', () => {
   });
 
   it('has the glyphs the brief asks for beyond the basic letters', () => {
-    for (const ch of '‽“”‘’—–·…«»×→←↑↓↙►◄▸♪●○▌{}<>@$^_|~`\\') expect(master[ch], ch).toBeDefined();
+    for (const ch of '‽“”‘’—–·…«»×→←↑↓↙►◄▸▼▲♪●○▌{}<>@$^_|~`\\')
+      expect(master[ch], ch).toBeDefined();
     for (const ch of '🙂😀😉😮😢😠😎❤⭐✓✗👍🍁👽🛸🥤☕💾🎮🔊🔇🔒⚡🏆')
       expect(master[ch], ch).toBeDefined();
   });
@@ -149,6 +150,25 @@ describe('bold', () => {
   });
 });
 
+describe('triangles', () => {
+  const master = masterGlyphs();
+  const inkRows = (ch: string): number[] =>
+    (master[ch] as number[][]).flatMap((r, i) => (r.some(Boolean) ? [i] : []));
+
+  it('draws ▼ and ▲ solid, 7 wide, in the four rows above the baseline', () => {
+    for (const ch of '▼▲') {
+      const g = master[ch] as number[][];
+      expect(width(g), ch).toBe(7);
+      expect(inkRows(ch), ch).toEqual([5, 6, 7, 8]);
+    }
+  });
+
+  it('makes ▲ the vertical mirror of ▼', () => {
+    const ink = (ch: string): number[][] => (master[ch] as number[][]).slice(5, 9);
+    expect(ink('▲')).toEqual([...ink('▼')].reverse());
+  });
+});
+
 describe('condensed', () => {
   it('merges the middle three columns of a five-wide glyph', () => {
     expect(show(condense(parse('#...#/.###./#####'), 'E'))).toBe('#..#/.##./####');
@@ -156,14 +176,14 @@ describe('condensed', () => {
 
   it('leaves exempt glyphs at full width', () => {
     const master = masterGlyphs();
-    for (const ch of 'MWmw1%#*×&+=/…«»—–→←↑↓►◄▸') {
+    for (const ch of 'MWmw1%#*×&+=/…«»—–→←↑↓►◄▸▼▲') {
       const g = master[ch] as number[][];
       expect(width(condense(g, ch)), ch).toBe(width(g));
     }
   });
 
   it('leaves every arrow at its width, including the down-left arrow', () => {
-    for (const ch of '→←↑↓↙►◄▸') {
+    for (const ch of '→←↑↓↙►◄▸▼▲') {
       const g = masterGlyphs()[ch] as number[][];
       expect(width(condense(g, ch)), ch).toBe(width(g));
     }

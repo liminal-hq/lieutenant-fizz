@@ -1,14 +1,63 @@
 # Story Text
 
 ## Opening cinematic
-1. **The backyard.** One night, Ben Blaze's cousin Billy didn't come home. Ben checked the treehouse where they always played. Billy wasn't there — but a hatch between the roots was hanging open, and warm light was spilling out.
-2. **Under the treehouse.** A ladder led down to a secret lab: blinking consoles, blueprints pinned to the walls, and a prototype spaghetti with meatballs flying saucer on a launch pad. On the workbench lay Billy's note — a map, with an X and a planet name beside it. “That must be where he's gone.”
-3. **Liftoff.** Ben put on his bicycle helmet, climbed aboard and hit the big Engage button. A hatch in the lawn slid open, and the saucer rose past the treehouse into the night.
-4. **The stratosphere.** The G-force pressed Ben deep into the oversized, noodle-upholstered captain's chair as the saucer tore through the stratosphere. Marinara-scented exhaust plumed behind him, painting a crimson streak across the night sky. He gripped the steering yoke — which felt suspiciously like a giant, hardened breadstick — and steadied his breathing.
-5. **Past the Moon.** On the dashboard, pinned beneath a blinking, meatball-shaped radar dial, was Billy's note. Ben tapped the X on the crinkled parchment. The destination was boldly scribbled: Planet Zargoth, a remote outpost on the outer galactic rim — exactly the kind of dangerous, alien world Billy would wander off to.
-6. **Deep space.** Ben engaged the autopilot and popped open the glovebox: a crinkled bag of Cheezies and a cold can of Canadian cream soda. The loud, satisfying crunch of the bright orange snacks echoed in the quiet cabin as the stars stretched into streaks of blinding white light outside the viewport.
-7. **Planet Zargoth.** Hours later, the navigation console chimed a whimsical, retro 8-bit melody. Planet Zargoth loomed through the windshield, a swirling marble of neon green and deep purple clouds. Ben wiped his cheesy fingers on his jeans, grabbed the yoke, and manoeuvred the pasta-themed vessel down through the upper atmosphere.
-8. **The crystal forest.** He touched down with a heavy, saucy thud in the centre of a glowing, crystalline forest. The ramp extended with a hiss of steam. Ben adjusted the chin strap of his bicycle helmet, tucked his trusty, modified pogo stick under one arm, and stepped out into the alien unknown, determined to track down his missing cousin.
+Eight scenes, each with its own art and place name, whose text is cut into beats (40 in all), the author's break points, each short enough to fit two lines at the narrowest phone. The screen does not show a beat at a time: it packs consecutive beats of a scene into a page at runtime, as many as fit the lines the text box allows (three when the strip stays within about 30 % of the screen height, two otherwise, and three on a desktop window), joined with a single space. A page never crosses a scene, and the Liftoff beat ("A hatch in the lawn slid open.") always starts a page so the launch waits for that text. A tap finishes the page being typed, and the next tap shows the next page; the number of pages depends on the screen, so the beats below are not the number of taps. The dots count the scenes. The wording is the author's; the beats split the sentences, with these small edits. Scene 1: ", and warm light was spilling out" is its own sentence. Scene 2: the list becomes fragments ("Blinking consoles. Blueprints pinned to the walls." and "And a prototype…"). Scene 3: ", and the saucer rose" is "The saucer rose". Scene 4: "oversized," is dropped, and "as the saucer tore" is "The saucer tore". Scene 5: ", a remote outpost… — exactly the kind of…" is two sentences. Scene 6: "as the stars stretched" is "The stars stretched". Scene 7: the comma after "windshield" is a dash.
+
+### 1. The backyard
+1. One night, Ben Blaze's cousin Billy didn't come home.
+2. Ben checked the treehouse where they always played.
+3. Billy wasn't there — but a hatch between the roots was hanging open.
+4. Warm light was spilling out.
+
+### 2. Under the treehouse
+1. A ladder led down to a secret lab.
+2. Blinking consoles. Blueprints pinned to the walls.
+3. And a prototype spaghetti with meatballs flying saucer on a launch pad.
+4. On the workbench lay Billy's note — a map, with an X and a planet name beside it.
+5. “That must be where he's gone.”
+
+### 3. Liftoff
+1. Ben put on his bicycle helmet, climbed aboard and hit the big Engage button.
+2. A hatch in the lawn slid open.
+3. The saucer rose past the treehouse into the night.
+
+### 4. The stratosphere
+1. The G-force pressed Ben deep into the noodle-upholstered captain's chair.
+2. The saucer tore through the stratosphere.
+3. Marinara-scented exhaust plumed behind him,
+4. painting a crimson streak across the night sky.
+5. He gripped the steering yoke —
+6. which felt suspiciously like a giant, hardened breadstick —
+7. and steadied his breathing.
+
+### 5. Past the Moon
+1. On the dashboard, pinned beneath a blinking, meatball-shaped radar dial,
+2. was Billy's note.
+3. Ben tapped the X on the crinkled parchment.
+4. The destination was boldly scribbled: Planet Zargoth.
+5. A remote outpost on the outer galactic rim.
+6. Exactly the kind of dangerous, alien world Billy would wander off to.
+
+### 6. Deep space
+1. Ben engaged the autopilot and popped open the glovebox:
+2. a crinkled bag of Cheezies and a cold can of Canadian cream soda.
+3. The loud, satisfying crunch of the bright orange snacks echoed in the quiet cabin.
+4. The stars stretched into streaks of blinding white light outside the viewport.
+
+### 7. Planet Zargoth
+1. Hours later, the navigation console chimed a whimsical, retro 8-bit melody.
+2. Planet Zargoth loomed through the windshield —
+3. a swirling marble of neon green and deep purple clouds.
+4. Ben wiped his cheesy fingers on his jeans, grabbed the yoke,
+5. and manoeuvred the pasta-themed vessel down through the upper atmosphere.
+
+### 8. The crystal forest
+1. He touched down with a heavy, saucy thud in the centre of a glowing, crystalline forest.
+2. The ramp extended with a hiss of steam.
+3. Ben adjusted the chin strap of his bicycle helmet,
+4. tucked his trusty, modified pogo stick under one arm,
+5. and stepped out into the alien unknown,
+6. determined to track down his missing cousin.
 
 ## Boss intro
 - **Mildred:** Ben Blaze? Mortimer said Billy's little cousin might show up. Cute helmet.

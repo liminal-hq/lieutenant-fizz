@@ -35,7 +35,25 @@
   max-width: calc(var(--lf-cols) * 6px * var(--n));
   margin: 0 auto;
   width: 100%;
-  min-height: calc(var(--lf-line) * var(--n) * 3);
+  /* The lines a page may take; the story measures them (`story-measure.ts`) and sets this, three here. */
+  min-height: calc(var(--lf-line) * var(--n) * var(--lf-story-lines, 3));
+}
+/* The hidden copy of the text box that pages are measured in: the same type, set to the real box's width. */
+#letterbox .text.probe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+/* Read by a screen reader and never drawn. */
+#letterbox .sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 #letterbox .hidden-text,
 #dialogue .hidden-text,
@@ -79,6 +97,106 @@
 }
 .pips {
   color: var(--lf-accent);
+}
+
+/* The Continue button is its word on a desktop window; a phone shows an arrow (see below). The
+   dots are in the foot on a desktop window and in the top bar on a phone. */
+#letterbox .next {
+  position: relative;
+}
+#letterbox .arrow,
+#letterbox .dots {
+  display: none;
+}
+
+/* Phones (the touch mode, `#stage[data-touch]`, the same switch the other text screens use; a desktop
+   window keeps the opaque bars above, whatever its height). The top bar floats over the art as a
+   fading shade, the dots move into it, and the bottom bar is a strip: a page of two or three lines
+   with a 48 px arrow button beside them. Three lines when the strip stays within about 30 % of the
+   height, otherwise two (about 25 % or less); the top bar adds a shade, not a cover. */
+#stage[data-touch] #letterbox {
+  justify-content: flex-end;
+}
+#stage[data-touch] #letterbox .bar:not(.bottom) {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: calc(var(--n) * 6px);
+  background: linear-gradient(#000d, #0000);
+}
+/* The place and the dots stack at the left, so the dots never reach the Lab button, which sits left of
+   Skip, and Skip (with the Pause button beyond it) keeps the right. */
+#stage[data-touch] #letterbox .place {
+  grid-area: 1 / 1;
+  justify-self: start;
+}
+#stage[data-touch] #letterbox .dots {
+  display: block;
+  grid-area: 2 / 1;
+  justify-self: start;
+  color: var(--lf-accent);
+}
+#stage[data-touch] #letterbox .skip {
+  grid-area: 1 / 2 / 3;
+  align-self: center;
+}
+#stage[data-touch] #letterbox .bar.bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: calc(var(--n) * 4px);
+  padding: calc(var(--n) * 4px)
+    max(calc(var(--n) * 10px + var(--lf-safe-right)), var(--lf-touch-right))
+    calc(var(--n) * 4px + var(--lf-safe-bottom))
+    max(calc(var(--n) * 10px + var(--lf-safe-left)), var(--lf-touch-left));
+}
+/* The text box keeps the lines a page may take (two or three, whichever the story measured fits in
+   about 30 % of the height), so the strip does not jump between a short page and a long one. */
+#stage[data-touch] #letterbox .bar.bottom .text {
+  grid-column: 1;
+  max-width: none;
+  margin: 0;
+  min-height: calc(var(--lf-line) * var(--n) * var(--lf-story-lines, 2));
+}
+#stage[data-touch] #letterbox .foot {
+  grid-column: 2;
+  grid-row: 1;
+  width: auto;
+  max-width: none;
+  margin: 0;
+}
+#stage[data-touch] #letterbox .pips {
+  display: none;
+}
+#stage[data-touch] #letterbox .next {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+}
+#stage[data-touch] #letterbox .next .arrow {
+  display: inline;
+}
+/* The word stays for the button that leaves the intro. */
+#stage[data-touch] #letterbox .next[data-word] {
+  width: auto;
+  padding: 0 calc(var(--n) * 6px);
+}
+#stage[data-touch] #letterbox .next[data-word] .arrow {
+  display: none;
+}
+/* Otherwise the word is only for a screen reader. */
+#stage[data-touch] #letterbox .next:not([data-word]) .lbl {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Dialogue */

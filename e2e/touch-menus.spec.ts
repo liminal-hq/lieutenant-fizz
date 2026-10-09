@@ -272,14 +272,14 @@ test('the Sound steppers go down and up', async ({ page }) => {
 test('a tap on the cinematic text finishes the line, then moves on', async ({ page }) => {
   await open(page, 'cine');
   await expect(page.locator('#touch [data-control="dpad"]')).toBeHidden();
-  const text = (await page.locator('#letterbox .bar.bottom .text').boundingBox())!;
+  const text = (await page.locator('#letterbox .bar.bottom .text:not(.probe)').boundingBox())!;
   const at = { x: text.x + 40, y: text.y + 10 };
   await page.touchscreen.tap(at.x, at.y);
   await expect(page.locator('#letterbox .hidden-text')).toHaveText('');
-  const pips = await page.locator('#letterbox .pips').innerText();
+  const beat = await page.locator('#letterbox .shown').innerText();
   await page.waitForTimeout(150);
   await page.touchscreen.tap(at.x, at.y);
-  await expect(page.locator('#letterbox .pips')).not.toHaveText(pips);
+  await expect(page.locator('#letterbox .shown')).not.toHaveText(beat);
 });
 
 test('a tap on the dialogue moves to the next line', async ({ page }) => {

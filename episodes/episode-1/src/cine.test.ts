@@ -52,4 +52,35 @@ describe('Cinematic', () => {
     }
     expect([...missing]).toEqual([]);
   });
+  it('holds the Liftoff scene until it is launched, and no other scene', () => {
+    const c = new Cinematic(() => 0.5);
+    for (let stage = 0; stage < 8; stage++) {
+      c.start(stage);
+      expect(c.waiting, `stage ${stage}`).toBe(stage === 2);
+    }
+    c.start(2);
+    for (let i = 0; i < 600; i++) c.tick(1 / 60);
+    expect(c.waiting).toBe(true);
+    c.launch();
+    expect(c.waiting).toBe(false);
+    // A restart holds again.
+    c.start(2);
+    expect(c.waiting).toBe(true);
+  });
+
+  it('keeps the saucer under the lawn while held and lifts it after the launch', () => {
+    const lift = (launch: boolean): number => {
+      const buf = new Float32Array(20 * 5000);
+      const w = new InstanceWriter(buf, atlas.rects);
+      const c = new Cinematic(() => 0.5);
+      c.start(2);
+      if (launch) c.launch();
+      for (let i = 0; i < 360; i++) c.tick(1 / 60);
+      w.reset();
+      c.draw(w);
+      return w.n;
+    };
+    // Six seconds on, the held scene still draws the closed lawn; the launched one has a trail of puffs.
+    expect(lift(true)).toBeGreaterThan(lift(false));
+  });
 });

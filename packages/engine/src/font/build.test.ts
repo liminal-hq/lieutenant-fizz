@@ -54,7 +54,7 @@ describe('font metrics', () => {
   it('has the same glyph count in every face', () => {
     const counts = FACES.map((f) => parse(f).glyphs.length);
     expect(new Set(counts).size).toBe(1);
-    expect(counts[0]).toBe(307);
+    expect(counts[0]).toBe(309);
   });
 
   it('advances ordinary glyphs by their width plus one pixel', () => {
@@ -125,8 +125,24 @@ describe('coverage', () => {
   it('covers the typographic extras, accents, arrows and box drawing', () => {
     expect(has('‽“”‘’—–·…«»×')).toEqual([]);
     expect(has('éèêëàâçôûùîïÉÈÊÀÇÔ')).toEqual([]);
-    expect(has('→←↑↓↙►◄▸♪●○▌')).toEqual([]);
+    expect(has('→←↑↓↙►◄▸▼▲♪●○▌')).toEqual([]);
     expect(has('─│┌┐└┘├┤┬┴┼═║╔╗╚╝╠╣╦╩╬')).toEqual([]);
+  });
+
+  it('includes U+25BC and U+25B2 in every face, 7 wide with an 800-unit advance', () => {
+    for (const spec of FACES) {
+      const font = parse(spec);
+      for (const cp of [0x25bc, 0x25b2]) {
+        const g = font.glyphs.get(font.charToGlyphIndex(String.fromCodePoint(cp)));
+        expect(g.unicode, `${spec.file} U+${cp.toString(16)}`).toBe(cp);
+        expect(g.advanceWidth, `${spec.file} U+${cp.toString(16)}`).toBeGreaterThan(0);
+      }
+    }
+    const regular = parse(face('fizz-regular'));
+    const down = regular.glyphs.get(regular.charToGlyphIndex('▼'));
+    expect(down.advanceWidth).toBe(800);
+    // Ink rests on the baseline (y 0) and stops four rows above it.
+    expect(down.getBoundingBox()).toMatchObject({ x1: 0, x2: 700, y1: 0, y2: 400 });
   });
 
   it('covers the 24 pictures at their real code points', () => {

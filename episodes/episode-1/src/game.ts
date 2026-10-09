@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
+import { BeatCursor, type BeatScene } from '@lieutenant-fizz/engine/story-beats';
+import type { StoryMeasure } from './story-measure';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { FrameStats } from '@lieutenant-fizz/engine/frame-stats';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
@@ -171,7 +173,17 @@ import type { SoundLab } from './ui/sound-lab';
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
-import { CINE, CINE_TRACK, DIALOGUE, END, LEVELS, SAUCER_ID, SIGNS, type Line } from './story';
+import {
+  CINE,
+  CINE_TRACK,
+  DIALOGUE,
+  END,
+  LEVELS,
+  LIFTOFF_BEAT,
+  SAUCER_ID,
+  SIGNS,
+  type Line,
+} from './story';
 import { MORTIMER_STINGER } from './stinger';
 import { BEN_LOOK, BEN_WAVE, benFrame, benScale, type BenPose } from './titleBen';
 import {
@@ -416,8 +428,8 @@ export class Game {
   /** Frame-time statistics, kept only under `?debug` (null otherwise, so a normal run does nothing). */
   private perf: FrameStats | null = null;
   private lastBits = 0;
-  private cineIdx = 0;
-  private endIdx = 0;
+  /** The scene and beat of the opening cinematic or the ending, whichever is showing. */
+  private readonly story = new BeatCursor(CINE);
   private dlg: Line[] | null = null;
   private dlgId: 'bossIntro' | 'bossDefeated' | null = null;
   private dlgI = 0;
@@ -557,6 +569,7 @@ export class Game {
       creditsSkip: () => game?.skipEnding(),
       stingerPress: () => game?.primary(),
       stingerSkip: () => game?.skipEnding(),
+      storyLayout: () => game?.repackStory(),
     });
     try {
       const [sim] = await Promise.all([Sim.load(simUrl)]);
@@ -931,8 +944,7 @@ export class Game {
         break;
       case Ev.ENDING:
         this.screen = 'ending';
-        this.endIdx = 0;
-        this.typed = 0;
+        this.startStory(END);
         this.bossHp = null;
         this.syncUi();
         break;
@@ -1235,6 +1247,7 @@ export class Game {
       this.reducedForced ??
       reducedMotion(o, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     this.ui.setReducedMotion(this.reducedMotion);
+    this.story.setReduced(this.reducedMotion);
     this.haptics.setCalm(this.reducedMotion);
     this.applyHaptics();
     if (before !== this.reducedMotion && this.screen === 'title') this.loadAttract(this.attractIdx);
@@ -2306,6 +2319,7 @@ export class Game {
     };
     const onFullscreen = (): void => {
       this.onFullscreenChange();
+      this.ui.fullscreenChanged();
       this.syncBack();
       this.syncFullscreenButton();
       this.syncHints();
@@ -2331,9 +2345,9 @@ export class Game {
   /** Enter / jump / fire: finish the typewriter, then advance whatever is on screen. */
   primary(): void {
     const s = this.screen;
-    if (s === 'cine') this.typeOrNext(() => this.nextCine());
+    if (s === 'cine') this.pressStory(() => this.skipCine());
     else if (s === 'dialogue') this.typeOrNext(() => this.nextLine());
-    else if (s === 'ending') this.typeOrNext(() => this.nextEnd());
+    else if (s === 'ending') this.pressStory(() => this.startCredits());
     else if (s === 'credits') this.pressCredits();
     else if (s === 'stinger') this.pressStinger();
     else if (s === 'title' || s === 'pause' || s === 'card') {
@@ -2341,9 +2355,53 @@ export class Game {
     }
   }
 
+  /** What the pages of the intro or the ending were last packed for, for the debug state. */
+  private storyPack: StoryMeasure | null = null;
+
+  /** Starts the intro or the ending from its first page, packed for the text box as it is now. */
+  private startStory(scenes: BeatScene[]): void {
+    this.storyPack = this.ui.measureStory(scenes === CINE);
+    this.story.start(scenes, this.storyPack.fit);
+  }
+
+  /**
+   * Packs the story's pages again after the layout changed (a resize, a turn, fullscreen, the font
+   * arriving), keeping the player's place. A page that comes out the same is not touched.
+   */
+  repackStory(): void {
+    if (this.screen !== 'cine' && this.screen !== 'ending') return;
+    const before = this.story.view();
+    this.storyPack = this.ui.measureStory(this.screen === 'cine');
+    this.story.setFit(this.storyPack.fit);
+    const after = this.story.view();
+    if (after.text !== before.text || after.shown !== before.shown) this.syncUi();
+  }
+
+  /** Test hook: jumps to a page of a scene of the intro or the ending that is showing, as if the player had got there. */
+  debugStoryTo(scene: number, page = 0): void {
+    if (this.screen !== 'cine' && this.screen !== 'ending') return;
+    this.story.seek(scene, page);
+    if (this.screen === 'cine') {
+      this.cine.start(this.story.scene);
+      if (this.story.scene === 2 && this.story.beat >= LIFTOFF_BEAT) this.cine.launch();
+    }
+    this.syncUi();
+  }
+
+  /** A press on the cinematic or the ending: completes the beat, else moves on; `leave` runs after the last. */
+  private pressStory(leave: () => void): void {
+    const scene = this.story.scene;
+    const r = this.story.press();
+    if (r === 'end') return leave();
+    if (this.screen === 'cine') {
+      if (this.story.scene !== scene) this.cine.start(this.story.scene);
+      // The launch waits for the beat that opens the hatch.
+      if (this.story.scene === 2 && this.story.beat >= LIFTOFF_BEAT) this.cine.launch();
+    }
+    this.syncUi();
+  }
+
   private curText(): string {
-    if (this.screen === 'cine') return CINE[this.cineIdx]?.text ?? '';
-    if (this.screen === 'ending') return END[this.endIdx]?.text ?? '';
     if (this.screen === 'dialogue' && this.dlg) return this.dlg[this.dlgI]?.[1] ?? '';
     return '';
   }
@@ -2359,6 +2417,10 @@ export class Game {
   }
 
   private tickTypewriter(dt: number): void {
+    if (this.screen === 'cine' || this.screen === 'ending') {
+      if (this.story.tick(dt)) this.syncUi();
+      return;
+    }
     const len = this.curText().length;
     if (!len || this.typed >= len) return;
     const before = Math.floor(this.typed);
@@ -2373,18 +2435,8 @@ export class Game {
     this.sim.x.enter_none();
     this.played = 0;
     this.screen = 'cine';
-    this.cineIdx = 0;
-    this.typed = 0;
+    this.startStory(CINE);
     this.cine.start(0);
-    this.syncUi();
-  }
-
-  private nextCine(): void {
-    const n = this.cineIdx + 1;
-    if (n >= CINE.length) return this.skipCine();
-    this.cineIdx = n;
-    this.typed = 0;
-    this.cine.start(n);
     this.syncUi();
   }
 
@@ -2448,17 +2500,6 @@ export class Game {
       this.typed = 0;
     }
     this.syncUi();
-  }
-
-  private nextEnd(): void {
-    const n = this.endIdx + 1;
-    if (n < END.length) {
-      this.endIdx = n;
-      this.typed = 0;
-      this.syncUi();
-      return;
-    }
-    this.startCredits();
   }
 
   // ---------- Credits and stinger ----------
@@ -2720,16 +2761,16 @@ export class Game {
     const text = this.curText();
     const typed = Math.min(text.length, Math.floor(this.typed));
     if (s === 'cine' || s === 'ending') {
-      const panels = s === 'cine' ? CINE : END;
-      const i = s === 'cine' ? this.cineIdx : this.endIdx;
+      const v = this.story.view();
       ui.showLetterbox({
-        place: panels[i]?.place ?? '',
-        shown: text.slice(0, typed),
-        hidden: text.slice(typed),
-        pips: '●'.repeat(i + 1) + '○'.repeat(panels.length - i - 1),
-        done: typed >= text.length,
-        last: i === panels.length - 1,
+        place: v.place,
+        shown: v.shown,
+        hidden: v.hidden,
+        pips: v.pips,
+        done: v.done,
+        last: v.last,
         skip: s === 'cine',
+        announce: v.announcement,
       });
     } else ui.showLetterbox(null);
     const line = this.dlg?.[this.dlgI];
@@ -2771,7 +2812,7 @@ export class Game {
   private musicFor(): string | null {
     const s = this.screen;
     if (s === 'title' || s === 'loading') return 'title';
-    if (s === 'cine') return CINE_TRACK[this.cineIdx] ?? 'cine';
+    if (s === 'cine') return CINE_TRACK[this.story.scene] ?? 'cine';
     if (s === 'ending' || s === 'credits') return 'ending';
     if (s === 'stinger') return null;
     if (s === 'card' && this.card?.title.startsWith('The end of Episode')) return 'ending';
@@ -3087,6 +3128,7 @@ export class Game {
       | 'pause'
       | 'card'
       | 'cine'
+      | 'ending'
       | 'dialogue'
       | 'credits',
   ): void {
@@ -3114,6 +3156,13 @@ export class Game {
       return this.syncUi();
     }
     if (what === 'cine') return this.newGame();
+    if (what === 'ending') {
+      // The Citadel behind the panels, as the ending shows it; the camera is wherever the level starts.
+      this.debugEnterLevel(2);
+      this.screen = 'ending';
+      this.startStory(END);
+      return this.syncUi();
+    }
     if (what === 'pause' || what === 'dialogue') {
       this.debugEnterLevel(0);
       this.screen = what;
@@ -3242,6 +3291,16 @@ export class Game {
       bits: this.lastBits,
       touch: this.touchMode,
       ben: this.benAnchor(this.camDrawn.x, this.camDrawn.y),
+      story: this.story.view(),
+      storyPack: this.storyPack && {
+        allowed: this.storyPack.allowed,
+        width: this.storyPack.width,
+        lastWidth: this.storyPack.lastWidth,
+        share: this.storyPack.share,
+        touch: this.storyPack.touch,
+        pageCounts: this.story.pageCounts,
+        over: this.story.allPages.map((p) => p.over),
+      },
       custom: this.touchUi.placed?.custom ?? false,
       back: { enabled: this.backOn(), armed: this.backGuard.armed },
       lifecycle: {

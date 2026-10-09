@@ -45,6 +45,7 @@ import {
   type RowBox,
 } from './menu-scroll';
 import { pillItems, type PillIcon } from './hud';
+import { StoryMeasurer, type StoryMeasure } from './story-measure';
 import type { BenFrame, BenPose } from './titleBen';
 import './ui.css';
 
@@ -161,6 +162,8 @@ export interface UiHandlers {
   creditsSkip(): void;
   stingerPress(): void;
   stingerSkip(): void;
+  /** The layout changed (a resize, a turn, fullscreen, the font arriving): the story's pages may pack differently. */
+  storyLayout(): void;
 }
 
 const el = <K extends keyof HTMLElementTagNameMap>(
@@ -248,6 +251,7 @@ export class Ui {
   private gutters: TouchGutters = NO_GUTTERS;
   private titleLayout: TitleLayout = 'column';
   private disposed = false;
+  private readonly storyMeasure: StoryMeasurer;
   /** What each menu does when a row is chosen, for the taps handled on the menu itself. */
   private readonly choose = new WeakMap<HTMLElement, (i: number) => void>();
   /** A touch tap chose a row until this time, so the click the browser sends after it is ignored. */
@@ -313,10 +317,22 @@ export class Ui {
       if (this.overlayKind === 'list') h.advance();
     });
 
-    this.letterbox = el('div', { id: 'letterbox', class: 'lf', hidden: '' });
-    this.letterbox.innerHTML = `<div class="bar"><span class="place"></span><button class="btn ghost skip">Skip</button></div>
-      <div class="bar bottom"><div class="text"><span class="shown"></span><span class="hidden-text"></span></div>
-      <div class="foot"><span class="pips"></span><button class="btn next">Continue</button></div></div>`;
+    this.letterbox = el('div', {
+      id: 'letterbox',
+      class: 'lf',
+      role: 'region',
+      'aria-label': 'Story',
+      hidden: '',
+    });
+    // The typed text changes every few milliseconds, so it is hidden from a screen reader; the `sr`
+    // line gets each whole beat once, when it starts.
+    // The dots are drawn twice: in the foot on a desktop window, and in the top bar on a phone (the
+    // stylesheet shows one). The Continue button is its word on a desktop window and an arrow on a phone.
+    this.letterbox.innerHTML = `<div class="bar"><span class="place"></span><span class="dots" aria-hidden="true"></span><button class="btn ghost skip">Skip</button></div>
+      <div class="bar bottom"><div class="text" aria-hidden="true"><span class="shown"></span><span class="hidden-text"></span></div>
+      <div class="foot"><span class="pips" aria-hidden="true"></span><button class="btn next"><span class="lbl">Continue</span><span class="arrow" aria-hidden="true">↓</span></button></div></div>
+      <div class="sr" aria-live="polite" aria-atomic="true"></div>`;
+    this.storyMeasure = new StoryMeasurer(this.letterbox);
     this.letterbox.querySelector('.skip')?.addEventListener('click', () => h.skipCine());
     this.letterbox.querySelector('.next')?.addEventListener('click', () => h.advance());
     this.onTap(this.letterbox, () => h.advance());
@@ -405,6 +421,14 @@ export class Ui {
     });
   }
 
+  /**
+   * Lays the overlay out again now. Fullscreen resizes the window too, but the story repacks as soon
+   * as the mode changes, so the game calls this when its fullscreen backend reports a change.
+   */
+  fullscreenChanged(): void {
+    if (!this.disposed) this.relayout();
+  }
+
   /** Stops listening to the window and cancels pending timers. */
   dispose(): void {
     this.disposed = true;
@@ -478,6 +502,14 @@ export class Ui {
     this.fitTitle();
     this.fitOverlay();
     this.fitRows();
+    // The story's text box may now be another width, so its counts are stale and its pages repack.
+    this.storyMeasure.invalidate();
+    this.h.storyLayout();
+  }
+
+  /** Measures the story's text box for packing pages; `lastWord` for the intro, whose last button is a word. */
+  measureStory(lastWord: boolean): StoryMeasure {
+    return this.storyMeasure.measure(lastWord);
   }
 
   /**
@@ -1307,16 +1339,28 @@ export class Ui {
       done: boolean;
       last: boolean;
       skip: boolean;
+      /** What a screen reader reads for this beat. */
+      announce: string;
     } | null,
   ): void {
     this.letterbox.hidden = !o;
-    if (!o) return;
     const q = (s: string): HTMLElement => need(this.letterbox, s);
+    if (!o) {
+      // Cleared so the same beat is read again the next time the story opens.
+      q('.sr').textContent = '';
+      return;
+    }
+    if (q('.sr').textContent !== o.announce) q('.sr').textContent = o.announce;
     q('.place').textContent = o.place;
     q('.shown').textContent = o.shown;
     q('.hidden-text').textContent = o.hidden;
     q('.pips').textContent = o.pips;
-    q('.next').textContent = !o.done ? 'Hurry' : o.last && o.skip ? 'Step out' : 'Continue';
+    q('.dots').textContent = o.pips;
+    // The word is what a screen reader reads; on a phone the button shows an arrow instead, except
+    // for the one that leaves the intro.
+    const word = !o.done ? 'Hurry' : o.last && o.skip ? 'Step out' : 'Continue';
+    q('.next .lbl').textContent = word;
+    q('.next').toggleAttribute('data-word', word === 'Step out');
     q('.skip').hidden = !o.skip;
   }
 
