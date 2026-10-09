@@ -73,6 +73,7 @@ Menu rows are `--lf-menu-row` tall on touch: 40 dp by default (Cozy), or 36 (Com
 - Audio unlocks on the first touch.
 - The 60 Hz fixed timestep is kept. Watch battery and heat on long sessions, and cap the render rate if a phone cannot hold it.
 - Keep the screen awake while playing (built in slice 7.2; see "Keeping the screen on and auto-pause").
+- Frame times (built in slice 6b.1): open the `?debug` page and read `__lf.debugState.perf` (`p50`, `p95`, `p99` in milliseconds, `long` frames over 25 ms, `frames` since the last reset); `__lf.debugPerfReset()` starts a fresh window. See "Trying it on a phone" in `MOBILE_PLAN.md`.
 
 ### Fullscreen and the landscape lock (built in slice 7.1)
 - **The gesture rule.** Fullscreen is requested, and the landscape lock (`screen.orientation.lock`) after it, only from a tap or key that starts or resumes a run: New game, Continue, a slot on Load game from the title, and Resume. The request is made synchronously inside the gesture, before the Ben-wave delay, because the browser only allows it while the gesture's user activation lasts; a gamepad press grants none, so starting with the pad does not enter fullscreen. Tapping Options or Controls never does. Every failure is silent, the automatic request never leaves fullscreen, and it never asks from an event handler, so there is no loop. (The Fullscreen button, below, is the one thing that calls `exitFullscreen`, and only when pressed.)

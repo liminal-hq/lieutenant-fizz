@@ -143,6 +143,7 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 | Frame rate | 60 fps, paced up to 144 Hz | Interpolated; 60 fps typical |
 | Instances | 50–100k on integrated GPU | 120k capacity; 54k stress test |
 | GC | None during play | No per-frame allocation in render; sim allocates for shots/effects (pooling in the Rust port is Planned) |
+| Frame times | Measurable on a device | `?debug` keeps the last 600 frame times (`frame-stats.ts`); `debugState.perf` reports p50, p95, p99 and long frames, and `debugPerfReset()` starts a fresh window |
 | WASM size | < 2 MB | About 119 kB (48 kB gzipped) for Episode 1 |
 
 ## 9. Modules (prototype)
