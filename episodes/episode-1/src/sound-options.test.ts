@@ -174,6 +174,7 @@ describe('resetSound', () => {
       hapticsLab: true,
       fullscreen: 2,
       awake: false,
+      density: 2,
     };
     expect(resetSound(o)).toEqual({ ...o, audio: 0, music: 8, sfx: 8, lab: false });
   });

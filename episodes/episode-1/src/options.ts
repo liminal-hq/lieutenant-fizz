@@ -9,6 +9,7 @@ import {
   MAX_STRENGTH,
 } from '@lieutenant-fizz/engine/haptic-strength';
 import type { AudioMode } from '@lieutenant-fizz/engine/sound-field';
+import { DEFAULT_DENSITY, DENSITY_COUNT } from './menu-density';
 
 /** Storage key for the options; the version lives inside the saved JSON. */
 export const OPTIONS_KEY = 'lf-ep1-options-v1';
@@ -49,6 +50,8 @@ export interface Options {
   fullscreen: number;
   /** Whether the screen is kept on while playing and watching. On by default. */
   awake: boolean;
+  /** Menu row spacing on touch devices: 0 Compact, 1 Cozy, 2 Comfy (`menu-density.ts` has the heights). */
+  density: number;
 }
 
 /** The keys of {@link Options} the Options screen can change. */
@@ -68,6 +71,7 @@ export const DEFAULT_OPTIONS: Readonly<Options> = {
   hapticsLab: false,
   fullscreen: 0,
   awake: true,
+  density: DEFAULT_DENSITY,
 };
 
 const int = (v: unknown, lo: number, hi: number, fallback: number): number =>
@@ -92,6 +96,7 @@ export function parseOptions(json: string | null): Options {
       hapticsLab: typeof raw['hapticsLab'] === 'boolean' ? raw['hapticsLab'] : d.hapticsLab,
       fullscreen: int(raw['fullscreen'], 0, FULLSCREEN_COUNT - 1, d.fullscreen),
       awake: typeof raw['awake'] === 'boolean' ? raw['awake'] : d.awake,
+      density: int(raw['density'], 0, DENSITY_COUNT - 1, d.density),
     };
   } catch {
     return { ...d };
@@ -143,6 +148,7 @@ const CHOICES: Partial<Record<SettingKey, number>> = {
   hapticsLab: 2,
   fullscreen: FULLSCREEN_COUNT,
   awake: 2,
+  density: DENSITY_COUNT,
   rumble: MAX_STRENGTH + 1,
   layout: LAYOUTS.length,
   text: TEXT_SIZES.length,

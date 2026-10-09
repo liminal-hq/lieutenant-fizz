@@ -33,6 +33,14 @@
     var(--lf-keys-bottom) + var(--lf-n-hint) * var(--lf-line) + 8px + var(--lf-safe-bottom)
   );
 }
+/* The one-column overlay screens keep their rows above the hint bar even when it wraps to a second line
+   (`--lf-keys-h`, measured by the shell), so a menu and its cue strip never run under it. */
+#stage[data-touch] #overlay {
+  padding-bottom: max(
+    calc(var(--lf-pad-y) + 40px + var(--lf-safe-bottom)),
+    calc(var(--lf-keys-bottom) + var(--lf-keys-h, 0px) + 8px + var(--lf-safe-bottom))
+  );
+}
 #stage[data-touch] #title > .menu {
   align-self: stretch;
 }
@@ -53,23 +61,32 @@
   display: none;
 }
 
-/* Rows are 48 px tall where the screen has room (`--lf-row-h`, measured by the shell); the glyphs keep
-   their size and the plate fills the row, so the whole row is the target. */
+/* ── The menu row height ──
+   Every menu row on touch is this tall, whatever the phone's height; the glyphs keep their size and the
+   plate fills the row, so the whole row is the target. The value here is the default (Cozy, 40 dp); the
+   shell sets it on the root from the Row spacing option, whose Compact, Cozy and Comfy heights are the
+   one table in `menu-density.ts`. A menu that does not fit its screen at this height scrolls inside its
+   own area (`Ui.fitRows`), a whole number of rows at a time. */
+:root {
+  --lf-menu-row: 40px;
+}
 #stage[data-touch] .menu {
   gap: 0;
 }
 #stage[data-touch] .menu button:not(.slot) {
-  height: var(--lf-row-h, calc(var(--n) * 11px));
+  height: var(--lf-menu-row);
 }
 #stage[data-touch] .menu button.slot {
-  min-height: max(calc(var(--n) * 10px), var(--lf-row-h, 0px));
+  min-height: max(calc(var(--n) * 10px), var(--lf-menu-row));
 }
 .menu .step {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   align-self: stretch;
-  min-width: 48px;
+  /* As wide as the row is tall, and at least 40 dp, so Compact's longest value still fits the narrowest
+     column (640 px wide) without its label wrapping. */
+  min-width: max(40px, var(--lf-menu-row));
   color: var(--lf-muted);
 }
 .menu button.sel .step {

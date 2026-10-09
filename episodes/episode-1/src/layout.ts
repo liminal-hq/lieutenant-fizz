@@ -167,19 +167,6 @@ export function watchResize(
   };
 }
 
-/** The touch target a menu row aims for: Android's 48 dp. */
-export const TOUCH_ROW = 48;
-
-/**
- * The height of each of `rows` menu rows on touch: 48 px when the screen has room, else shorter by an
- * equal share of `overflow` (how far the screen overflowed with 48 px rows), never under `min` (one
- * glyph cell). A short landscape phone cannot fit every menu at 48 px, so the rows take what fits.
- */
-export function rowHeight(overflow: number, rows: number, min: number, max = TOUCH_ROW): number {
-  if (rows <= 0 || overflow <= 0) return max;
-  return Math.max(min, max - Math.ceil(overflow / rows));
-}
-
 /** Whether a window of this size is taller than it is wide (a phone held upright). */
 export const isPortrait = (width: number, height: number): boolean => height > width;
 

@@ -32,6 +32,7 @@ describe('options storage', () => {
       hapticsLab: true,
       fullscreen: 2,
       awake: false,
+      density: 2,
     };
     expect(parseOptions(serialiseOptions(o))).toEqual(o);
   });
@@ -65,6 +66,7 @@ describe('options storage', () => {
       hapticsLab: false,
       fullscreen: 0,
       awake: true,
+      density: 1,
     });
   });
 
@@ -85,6 +87,15 @@ describe('options storage', () => {
     expect(parseOptions('{"v":1,"awake":false}').awake).toBe(false);
     for (const bad of ['0', '"off"', 'null'])
       expect(parseOptions(`{"v":1,"awake":${bad}}`).awake).toBe(true);
+  });
+
+  it('defaults Row spacing to Cozy, takes Compact, Cozy and Comfy, and rejects anything else', () => {
+    expect(DEFAULT_OPTIONS.density).toBe(1);
+    for (const good of [0, 1, 2])
+      expect(parseOptions(`{"v":1,"density":${good}}`).density).toBe(good);
+    for (const bad of ['3', '-1', '1.5', '"2"', 'true', 'null', '[]'])
+      expect(parseOptions(`{"v":1,"density":${bad}}`).density, bad).toBe(1);
+    expect(parseOptions('{"v":1,"music":2}').density).toBe(1);
   });
 
   it('defaults Rumble to Strong and the haptics lab to Off, and rejects anything else', () => {
@@ -202,6 +213,7 @@ describe('stepOption', () => {
       hapticsLab: true,
       fullscreen: 1,
       awake: false,
+      density: 0,
     };
     expect(stepOption(o, 'music', 1)).toEqual({ ...o, music: 3 });
   });
@@ -219,6 +231,17 @@ describe('stepOption on the Display settings', () => {
   it('toggles Keep screen on whichever way it is stepped', () => {
     expect(stepOption(DEFAULT_OPTIONS, 'awake', 1).awake).toBe(false);
     expect(stepOption({ ...DEFAULT_OPTIONS, awake: false }, 'awake', -1).awake).toBe(true);
+  });
+});
+
+describe('stepOption on Row spacing', () => {
+  it('cycles Compact, Cozy and Comfy in both directions', () => {
+    const at = (n: number) => ({ ...DEFAULT_OPTIONS, density: n });
+    expect(stepOption(at(0), 'density', 1).density).toBe(1);
+    expect(stepOption(at(1), 'density', 1).density).toBe(2);
+    expect(stepOption(at(2), 'density', 1).density).toBe(0);
+    expect(stepOption(at(0), 'density', -1).density).toBe(2);
+    expect(stepOption(at(1), 'density', -1).density).toBe(0);
   });
 });
 

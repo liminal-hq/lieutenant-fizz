@@ -14,7 +14,6 @@ import {
   layoutVars,
   NO_GUTTERS,
   promptClear,
-  rowHeight,
   titleCandidates,
   watchResize,
   type TouchGutters,
@@ -89,20 +88,6 @@ describe('headCandidates', () => {
   it('never goes above 6, and is never empty', () => {
     expect(headCandidates(scaleSteps(6))[0]).toBe(6);
     expect(headCandidates(scaleSteps(1))).toEqual([2]);
-  });
-});
-
-describe('rowHeight', () => {
-  it('is 48 when the menu fits', () => {
-    expect(rowHeight(0, 5, 22)).toBe(48);
-    expect(rowHeight(-40, 5, 22)).toBe(48);
-  });
-
-  it('shares an overflow between the rows, down to one glyph cell', () => {
-    expect(rowHeight(50, 5, 22)).toBe(38);
-    expect(rowHeight(51, 5, 22)).toBe(37);
-    expect(rowHeight(500, 5, 22)).toBe(22);
-    expect(rowHeight(10, 0, 22)).toBe(48);
   });
 });
 

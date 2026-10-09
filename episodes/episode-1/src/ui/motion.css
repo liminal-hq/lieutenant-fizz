@@ -7,11 +7,13 @@
     transition: none;
   }
   .menu button.sel .plate,
-  .menu button.sel .bullet {
+  .menu button.sel .bullet,
+  .screen .more img {
     animation: none;
   }
 }
 #ui.rm .menu button.sel .plate,
-#ui.rm .menu button.sel .bullet {
+#ui.rm .menu button.sel .bullet,
+#ui.rm .screen .more img {
   animation: none;
 }

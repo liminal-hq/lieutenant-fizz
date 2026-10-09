@@ -5,6 +5,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { audit } from './audit';
+import { ROW_MIN } from './density';
 
 const OPTIONS = 'lf-ep1-options-v1';
 
@@ -30,13 +31,14 @@ test('Options > Display on touch: a tap steps Fullscreen and is saved, nothing c
   expect(await page.locator('#overlay .menu button .lbl').allInnerTexts()).toEqual([
     'Fullscreen',
     'Keep screen on',
+    'Row spacing',
     'Back',
   ]);
   await expect(row(page, 'Fullscreen').locator('.val')).toHaveText('Auto');
   const heights = await page
     .locator('#overlay .menu button')
     .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
-  expect(Math.min(...heights)).toBeGreaterThanOrEqual(47.9);
+  expect(Math.min(...heights)).toBeGreaterThanOrEqual(ROW_MIN);
   const { checked, ...problems } = await page.evaluate(audit, { roots: ['#ui', '#touch'] });
   expect(checked).toBeGreaterThan(3);
   expect(problems, JSON.stringify(problems, null, 2)).toMatchObject({
@@ -45,6 +47,10 @@ test('Options > Display on touch: a tap steps Fullscreen and is saved, nothing c
     badSize: [],
     clipped: [],
     crowdsHints: [],
+    shortRows: [],
+    selectedHidden: [],
+    menuCrowds: [],
+    cueCrowds: [],
   });
   // The right stepper moves Auto to On; the saved choice follows.
   await tapAt(row(page, 'Fullscreen').locator('[data-step="1"]'), page);

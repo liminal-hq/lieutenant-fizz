@@ -6,6 +6,7 @@
 import { expect, test, type CDPSession, type Page } from '@playwright/test';
 import { hintText } from '../packages/engine/src/font/tokens';
 import { audit } from './audit';
+import { ROW_MIN, STEP_MIN } from './density';
 
 interface Circle {
   cx: number;
@@ -202,6 +203,10 @@ for (const screen of ['pause', 'card', 'title', 'options', 'sound', 'touch', 'sa
       badSize: [],
       clipped: [],
       crowdsHints: [],
+      shortRows: [],
+      selectedHidden: [],
+      menuCrowds: [],
+      cueCrowds: [],
     });
   });
 }
@@ -254,7 +259,7 @@ test('the Sound steppers go down and up', async ({ page }) => {
   const before = await lit();
   const less = (await music.locator('[data-step="-1"]').boundingBox())!;
   const more = (await music.locator('[data-step="1"]').boundingBox())!;
-  expect(Math.min(less.width, more.width)).toBeGreaterThanOrEqual(47.9);
+  expect(Math.min(less.width, more.width)).toBeGreaterThanOrEqual(STEP_MIN);
   await page.touchscreen.tap(less.x + less.width / 2, less.y + less.height / 2);
   await expect.poll(lit).toBe(before - 1);
   const more2 = (await music.locator('[data-step="1"]').boundingBox())!;
@@ -368,8 +373,7 @@ test('sliding off Select before lifting cancels it', async ({ page }) => {
   await expect.poll(() => state(page).then((s) => s.screen)).toBe('play');
 });
 
-/** Rows of a one-column title, by window height: what a phone of that height can give them. */
-const COLUMN_ROWS: Record<number, number> = { 390: 38, 360: 35, 320: 30 };
+/** Rows keep the full touch height (`--lf-menu-row`, 40 dp by default) in the column too; a title that does not fit scrolls its menu. */
 
 interface TitleBoxes {
   rows: number[];
@@ -411,18 +415,17 @@ for (const mode of ['column', 'split'] as const) {
     }) => {
       if (size) await page.setViewportSize(size);
       await open(page, 'title', mode === 'split' ? '&title=split' : '');
-      const height = page.viewportSize()!.height;
       const b = await titleBoxes(page);
       expect(b.rows).toHaveLength(5);
       const min = Math.min(...b.rows);
       if (mode === 'column') {
-        // No flag leaves the layout unset, and the rows keep the height the head leaves them.
+        // No flag leaves the layout unset, and the rows keep their full height.
         expect(b.data.title).toBeUndefined();
-        expect(min).toBeGreaterThanOrEqual(COLUMN_ROWS[height]!);
+        expect(min).toBeGreaterThanOrEqual(ROW_MIN);
         expect(b.head.bottom).toBeLessThanOrEqual(b.menu.top);
       } else {
         expect(b.data).toEqual({ title: 'split', fit: undefined });
-        expect(min).toBeGreaterThanOrEqual(47.9);
+        expect(min).toBeGreaterThanOrEqual(ROW_MIN);
         expect(b.head.bottom).toBeLessThanOrEqual(b.dpad.top);
         expect(b.head.right).toBeLessThanOrEqual(b.menu.left);
         expect(b.menu.right).toBeLessThanOrEqual(page.viewportSize()!.width - b.touchRight + 0.5);
@@ -436,6 +439,10 @@ for (const mode of ['column', 'split'] as const) {
         badSize: [],
         clipped: [],
         crowdsHints: [],
+        shortRows: [],
+        selectedHidden: [],
+        menuCrowds: [],
+        cueCrowds: [],
       });
     });
   }
@@ -466,7 +473,7 @@ test('debugTitle switches between the two title layouts live', async ({ page }) 
   expect(await layout()).toBe('split');
   await expect
     .poll(async () => Math.min(...(await titleBoxes(page)).rows))
-    .toBeGreaterThanOrEqual(47.9);
+    .toBeGreaterThanOrEqual(ROW_MIN);
   await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugTitle('column'));
   expect(await layout()).toBeUndefined();
 });
@@ -517,6 +524,10 @@ for (const [label, size] of TITLE_SIZES) {
       badSize: [],
       clipped: [],
       crowdsHints: [],
+      shortRows: [],
+      selectedHidden: [],
+      menuCrowds: [],
+      cueCrowds: [],
     });
   });
 }
@@ -627,7 +638,10 @@ test('a tap on Back on the pause menu resumes the game', async ({ page }) => {
 
 /** Taps the row of the menu showing whose label has `text`. */
 async function tapRow(page: Page, text: string): Promise<void> {
-  const r = (await page.locator('#ui .menu:visible button', { hasText: text }).boundingBox())!;
+  const row = page.locator('#ui .menu:visible button', { hasText: text });
+  // A row of a scrolling menu may be out of view; bring it in as a finger would.
+  await row.evaluate((e) => e.scrollIntoView({ block: 'nearest' }));
+  const r = (await row.boundingBox())!;
   await page.touchscreen.tap(r.x + r.width / 2, r.y + r.height / 2);
 }
 
