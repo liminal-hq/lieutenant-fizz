@@ -10,6 +10,18 @@ import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
+import { enterFullscreen, type FullscreenResult } from '@lieutenant-fizz/engine/lifecycle';
+import {
+  backGuardAllowed,
+  detectCaps,
+  isAppHost,
+  onGesture,
+  pauseFor,
+  type Caps,
+  type Gesture,
+  type Host,
+  type Want,
+} from '@lieutenant-fizz/engine/lifecycle-policy';
 import { placeSound, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
 import {
@@ -40,6 +52,7 @@ import { FIZZ_HAPTICS } from './haptics/fizz-haptics';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { backAction, backEnabled, pauseAction } from './back';
 import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
+import { gestureFor } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
 import { isPortrait, watchResize, type TouchGutters } from './layout';
 import { touchFaces, type ShellScreen, type SubScreen, type TouchFaces } from './touch-menus';
@@ -166,6 +179,13 @@ export interface GameOptions {
    * forces them off. Left out, the Haptics screen decides. Either way the link is never saved.
    */
   haptics?: HapticsUrl;
+  /**
+   * Fullscreen: `on` (`?fullscreen`) asks for it on every device when a run starts or resumes, `off` never does.
+   * Left out, it is Auto: touch devices only.
+   */
+  fullscreen?: Want;
+  /** `app` (`?debug&host=app`) pretends to be the native app, where the web fullscreen and Back guard step aside. */
+  host?: Host;
 }
 
 /** The `display-mode` values an installed app runs in. */
@@ -213,6 +233,13 @@ export class Game {
    * only ever turns on, so the Options rows never shift while the screen is open.
    */
   private touchCapable = false;
+  /** What this page can do for fullscreen and orientation, and whether it is the native app. */
+  private readonly caps: Caps;
+  private readonly fullscreenWant: Want;
+  /** How the last fullscreen request went, and the pixel scale around it (for trying it on a phone). */
+  private lastFs: FullscreenResult | null = null;
+  private scaleBefore: number | null = null;
+  private scaleAfter: number | null = null;
   /** The Touch controls rows. */
   private readonly touchRowList: TouchRow[] = touchRows();
   /** What `?haptics` asked for, which wins over the saved strength and is never saved. */
@@ -366,6 +393,15 @@ export class Game {
     this.input = new InputManager(ui.stage);
     this.forcedTouch = options.touch ?? false;
     this.forcedBack = options.back ?? false;
+    this.fullscreenWant = options.fullscreen ?? 'auto';
+    this.caps = detectCaps({
+      doc: document,
+      orientation: screen.orientation,
+      nav: navigator as Navigator & { standalone?: boolean },
+      isSecureContext: window.isSecureContext,
+      matchMedia: window.matchMedia?.bind(window),
+      host: options.host ?? (isAppHost(window) ? 'app' : 'web'),
+    });
     this.touchSettings = readTouchSettings(this.store);
     this.touchUi = new TouchControls(ui.touchLayer, this.input, {
       labels: { dpad: 'Move', jump: 'Jump', pogo: 'Pogo', fire: 'Fizz', pause: 'Pause' },
@@ -1232,6 +1268,10 @@ export class Game {
     }
     this.touchUi.relayout();
     this.ui.setTouchGutters(this.touchGutters());
+    // The canvas re-places itself when fullscreen comes or goes; the last scale seen after a request is kept.
+    if (this.scaleBefore !== null && document.fullscreenElement !== null) {
+      this.scaleAfter = this.pixelScale;
+    }
   }
 
   /**
@@ -1742,6 +1782,9 @@ export class Game {
     this.audio.play('click');
     const id = it.id ?? '';
     if (id !== 'back') this.haptics.ui('select');
+    // Fullscreen is asked for here, inside the tap, not in the Ben-wave timer below: the browser only
+    // allows it while the gesture's user activation lasts. A second tap during the wave asks for nothing.
+    if (!this.titleAction) this.fullscreenFor(gestureFor(this.screen, this.sub, id, this.saveMode));
     if (this.sub === 'touch') {
       const row = touchRowOf(id);
       if (row === 'back') this.closeSub();
@@ -1853,6 +1896,42 @@ export class Game {
     }
   }
 
+  /**
+   * Asks for fullscreen and the landscape lock when the gesture starts or resumes a run and the setting
+   * resolves On. Called only from `activate()`, never from an event handler, so it cannot loop.
+   */
+  private fullscreenFor(g: Gesture): void {
+    const plan = onGesture(
+      g,
+      {
+        fullscreenWant: this.fullscreenWant,
+        touchCapable: this.touchCapable,
+        fullscreen: document.fullscreenElement !== null,
+      },
+      this.caps,
+    );
+    if (!plan.fullscreen && !plan.lock) return;
+    this.scaleBefore = this.pixelScale;
+    this.scaleAfter = null;
+    void enterFullscreen(document, screen.orientation, plan).then((r) => {
+      this.lastFs = r;
+      if (document.fullscreenElement !== null) this.scaleAfter = this.pixelScale;
+    });
+  }
+
+  /**
+   * Leaving fullscreen while a level is in play pauses it; this is how Android's Back button, which
+   * leaves fullscreen without a history entry, ends up on the pause menu. Never asks for fullscreen.
+   */
+  private onFullscreenChange(): void {
+    if (
+      document.fullscreenElement === null &&
+      pauseFor('fullscreenExit', { playing: this.screen === 'play' })
+    ) {
+      this.autoPause();
+    }
+  }
+
   /** Whether the game is in fullscreen or an installed app, where it takes the browser's Back button. */
   private backOn(): boolean {
     const mq = (q: string): boolean => {
@@ -1873,13 +1952,19 @@ export class Game {
 
   /** Holds the Back guard entry only while the screen has an answer to Back and the mode allows it. */
   private syncBack(): void {
-    this.backGuard.set(this.backOn() && backAction(this.screen, this.sub) !== null);
+    this.backGuard.set(
+      backGuardAllowed(this.caps) && this.backOn() && backAction(this.screen, this.sub) !== null,
+    );
   }
 
   /** Re-checks Back when the game enters or leaves fullscreen or an installed display mode. */
   private watchBack(): () => void {
     const sync = (): void => this.syncBack();
-    document.addEventListener('fullscreenchange', sync);
+    const onFullscreen = (): void => {
+      this.onFullscreenChange();
+      this.syncBack();
+    };
+    document.addEventListener('fullscreenchange', onFullscreen);
     const lists: MediaQueryList[] = [];
     for (const m of INSTALLED_MODES) {
       try {
@@ -1891,7 +1976,7 @@ export class Game {
       }
     }
     return () => {
-      document.removeEventListener('fullscreenchange', sync);
+      document.removeEventListener('fullscreenchange', onFullscreen);
       for (const l of lists) l.removeEventListener('change', sync);
     };
   }
@@ -2780,6 +2865,14 @@ export class Game {
       touch: this.touchMode,
       custom: this.touchUi.placed?.custom ?? false,
       back: { enabled: this.backOn(), armed: this.backGuard.armed },
+      lifecycle: {
+        host: this.caps.host,
+        caps: this.caps,
+        fullscreenWant: this.fullscreenWant,
+        lastFs: this.lastFs,
+        scaleBefore: this.scaleBefore,
+        scaleAfter: this.scaleAfter,
+      },
       instances: this.lastCount,
       atlas: this.atlas.size,
     };
