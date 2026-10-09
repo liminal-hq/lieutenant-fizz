@@ -19,6 +19,12 @@ export interface View {
   canvasH: number;
   cssW: number;
   cssH: number;
+  fast: boolean;
+  deviceScale: number;
+  overscanW: number;
+  overscanH: number;
+  cssCanvasW: number;
+  cssCanvasH: number;
 }
 
 interface Lf {
@@ -102,4 +108,40 @@ export async function measure(
   }
   const congruent = g > 0 && perRow.every((edges) => edges.every((e) => e % g === edges[0]! % g));
   return { divisor: g, congruent, runs: count };
+}
+
+/** The canvas's backing size and where its box sits in the page. */
+export const canvasBox = (
+  page: Page,
+): Promise<{ w: number; h: number; left: number; top: number; cw: number; ch: number }> =>
+  page.evaluate(() => {
+    const c = document.querySelector('#gl canvas') as HTMLCanvasElement;
+    const r = c.getBoundingClientRect();
+    return { w: c.width, h: c.height, left: r.left, top: r.top, cw: r.width, ch: r.height };
+  });
+
+/**
+ * The canvas covers the viewport: it starts at the top left corner and is at least as big as the
+ * viewport, and larger by less than `maxOver` CSS pixels (the few device pixels a Fast canvas overhangs
+ * the right and bottom edges by, which `#gl` crops). A Sharp or Soft canvas has `maxOver` 0 and fills it.
+ */
+export async function expectCovers(page: Page, maxOver = 0): Promise<void> {
+  const vp = page.viewportSize()!;
+  const b = await canvasBox(page);
+  expect([b.left, b.top]).toEqual([0, 0]);
+  expect(b.cw).toBeGreaterThanOrEqual(vp.width - 1e-6);
+  expect(b.ch).toBeGreaterThanOrEqual(vp.height - 1e-6);
+  expect(b.cw).toBeLessThanOrEqual(vp.width + maxOver + 1e-6);
+  expect(b.ch).toBeLessThanOrEqual(vp.height + maxOver + 1e-6);
+}
+
+/** The whole host box the canvas is cropped to, `#gl`, has the viewport's size and hides overflow. */
+export async function expectCropped(page: Page): Promise<void> {
+  const vp = page.viewportSize()!;
+  const gl = await page.evaluate(() => {
+    const e = document.getElementById('gl')!;
+    const r = e.getBoundingClientRect();
+    return { w: r.width, h: r.height, overflow: getComputedStyle(e).overflow };
+  });
+  expect([gl.w, gl.h, gl.overflow]).toEqual([vp.width, vp.height, 'hidden']);
 }

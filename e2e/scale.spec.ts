@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { expect, test } from '@playwright/test';
-import { measure, openLevel, view } from './pixels';
+import { canvasBox, expectCovers, expectCropped, measure, openLevel, view } from './pixels';
 
 // The Soft view at 1280×720 is checked in the browser. That a 2560×1440 canvas backs at the window size
 // with 13 tiles is proved by the unit tests in view-scale.test.ts ('frameView' and 'softRatio').
@@ -18,6 +18,32 @@ test('desktop at 1280x720 stays Soft with 13 tiles', async ({ page }) => {
   expect(v.dpr).toBe(1);
   expect([v.canvasW, v.canvasH]).toEqual([1280, 720]);
   expect(v.budgeted).toBe(false);
+});
+
+// Fast at 1280×720 backs 427×240 (S 3, one device pixel over on the right) and shows Sharp's 15 tiles; a
+// window of 1366×768 re-backs it to 456×256 (S 3, two over). About 0.1 MP, so it is cheap in software GL.
+test('?pixels=fast on desktop backs one canvas pixel per sprite pixel and follows the window', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openLevel(page, '/?debug&pixels=fast');
+  const v = await view(page);
+  expect(v.fast).toBe(true);
+  expect([v.canvasW, v.canvasH, v.k, v.scale, v.deviceScale]).toEqual([427, 240, 3, 1, 3]);
+  expect([v.overscanW, v.overscanH]).toEqual([1, 0]);
+  expect(v.tiles).toBe(15);
+  const box = await canvasBox(page);
+  expect([box.w, box.h]).toEqual([427, 240]);
+  expect([box.cw, box.ch]).toEqual([1281, 720]);
+  await expectCovers(page, 3);
+  await expectCropped(page);
+
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await expect.poll(async () => (await view(page)).canvasW).toBe(456);
+  const w = await view(page);
+  expect([w.canvasH, w.k, w.overscanW, w.overscanH]).toEqual([256, 3, 2, 0]);
+  expect(w.tiles).toBe(16);
+  await expectCovers(page, 3);
 });
 
 // A 3840 x 2160 canvas: about 7 s in software GL on a quiet machine, but over two minutes on a loaded
