@@ -66,7 +66,13 @@ The phone UI follows Android's guidelines for the best experience, which in a We
 - Pause when the app goes to the background, when the screen locks and when the Back gesture is used in a level.
 - Audio unlocks on the first touch.
 - The 60 Hz fixed timestep is kept. Watch battery and heat on long sessions, and cap the render rate if a phone cannot hold it.
-- Keep the screen awake while playing.
+- Keep the screen awake while playing (planned, slice 7.2).
+
+### Fullscreen and the landscape lock (built in slice 7.1)
+- **The gesture rule.** Fullscreen is requested, and the landscape lock (`screen.orientation.lock`) after it, only from a tap or key that starts or resumes a run: New game, Continue, a slot on Load game from the title, and Resume. The request is made synchronously inside the gesture, before the Ben-wave delay, because the browser only allows it while the gesture's user activation lasts; a gamepad press grants none, so starting with the pad does not enter fullscreen. Tapping Options or Controls never does. Every failure is silent, the game never calls `exitFullscreen`, and it never asks from an event handler, so there is no loop.
+- **The setting** is Auto: on for touch devices, off on desktop. `?fullscreen` (or `=on`) forces it on everywhere and `?fullscreen=off` forces it off; the Options row arrives in slice 7.4. In the Tauri app nothing is requested, and in an installed web app (already fullscreen) only the orientation is locked.
+- **Back leaves fullscreen and pauses.** On Android, Back in element fullscreen leaves fullscreen and fires no `popstate`, so the game listens for `fullscreenchange` and pauses a level in play when fullscreen ends; Resume enters fullscreen again with one tap. In an installed app Back should reach `BackGuard` as with `?back` (to verify on a device). `BackGuard` is never armed in the Tauri app, where the native Back calls `Game.back()`.
+- **Secure context.** Neither fullscreen nor the lock needs one in the specifications, so both should work over LAN http; the wake lock does need one. Unconfirmed on a device. On an iPhone there is no element fullscreen (`document.fullscreenEnabled` is false) and the request is skipped.
 
 ## Haptics
 Haptics are a third consumer of the events that already drive audio and captions, so they fit without touching the sim. The plugin side is specified in `design/uploads/HAPTICS_PLUGIN_UPGRADE.md`, a proposal for `tauri-plugin-haptics` (branch `chore/integrate-jules-haptics` in `haptics-lab-app`). Lieutenant Fizz is its first game client, and Haptics Lab is where patterns are tuned.
