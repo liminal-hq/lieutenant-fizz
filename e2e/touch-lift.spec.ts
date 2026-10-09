@@ -3,7 +3,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect as baseExpect, test, type Page } from '@playwright/test';
+
+// Going fullscreen resizes the page to the whole screen, and redrawing that under software GL leaves the page too busy to
+// answer a poll for seconds on a shared CI runner, so the default 5 s is too short for the fullscreen checks.
+const expect = baseExpect.configure({ timeout: 20_000 });
 
 const KEY = 'lf-touch-v1';
 type Id = 'dpad' | 'jump' | 'pogo' | 'fire' | 'pause';
@@ -97,18 +101,36 @@ test('a moved control stays where the player put it while the others rise', asyn
 test('the default controls rise in real fullscreen and fall back on leaving it', async ({
   page,
 }) => {
+  // Slow once fullscreen: the page redraws at the full screen size (see `expect` above).
+  test.slow();
   await play(page);
   const bars = await centres(page);
-  const entered = await page.evaluate(async () => {
-    try {
-      await document.documentElement.requestFullscreen();
-      return document.fullscreenElement !== null;
-    } catch {
-      return false;
-    }
-  });
-  test.skip(!entered, 'this Chromium would not enter fullscreen');
+  // Enter and leave fullscreen with the Fullscreen button on the title, as the fullscreen specs do.
+  const show = (screen: string): Promise<void> =>
+    page.evaluate((s) => (window as unknown as { __lf: Lf }).__lf.debugShow(s), screen);
+  const isFullscreen = (): Promise<boolean> =>
+    page.evaluate(() => document.fullscreenElement !== null);
+  await show('title');
+  await page.locator('#fsBtn').tap();
+  await expect.poll(isFullscreen).toBe(true);
+  // The lifted controls leave the button alone, at the top right.
+  await expect(page.locator('#fsBtn')).toBeVisible();
+  const btn = (await page.locator('#fsBtn').boundingBox())!;
+  for (const c of await page.locator('#touch [data-control]').all()) {
+    const b = await c.boundingBox();
+    if (!b) continue;
+    const apart =
+      b.x + b.width <= btn.x + 1 ||
+      btn.x + btn.width <= b.x + 1 ||
+      b.y + b.height <= btn.y + 1 ||
+      btn.y + btn.height <= b.y + 1;
+    expect(apart, (await c.getAttribute('data-control')) ?? '').toBe(true);
+  }
+  await show('play');
   await expect.poll(async () => (await centres(page)).dpad).toBeLessThan(bars.dpad - 20);
-  await page.evaluate(() => document.exitFullscreen());
+  await show('title');
+  await page.locator('#fsBtn').tap();
+  await expect.poll(isFullscreen).toBe(false);
+  await show('play');
   await expect.poll(async () => (await centres(page)).dpad).toBe(bars.dpad);
 });
