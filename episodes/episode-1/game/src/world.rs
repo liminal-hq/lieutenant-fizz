@@ -44,6 +44,13 @@ pub const VINE_SIDE_SPEED: f64 = 3.0;
 /// How high above his feet a wall's top edge can be for Ben to pull himself up onto it.
 pub const MANTLE_REACH: f64 = 0.95;
 
+/// How long a mantle takes from the grab to standing on the ledge, in seconds. This is the one knob
+/// for the pull-up: the sprite frames and the path both follow its progress.
+pub const MANTLE_TIME: f64 = 0.30;
+
+/// The share of `MANTLE_TIME` spent hauling straight up the wall; the rest steps over the lip.
+pub const MANTLE_RISE_SHARE: f64 = 0.6;
+
 /// A kick off a wall: how fast it sends Ben up and away, and how long before the next one.
 pub const WALL_KICK_UP: f64 = 19.0;
 pub const WALL_KICK_AWAY: f64 = 6.0;
@@ -131,6 +138,41 @@ impl Game {
     }
 }
 
+/// A pull-up onto a ledge in progress. While it runs Ben is carried from `from` to `to` along a
+/// rise-then-step path and nothing else moves him.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Mantle {
+    /// Seconds since the grab.
+    pub t: f64,
+    pub from: (f64, f64),
+    pub to: (f64, f64),
+}
+
+impl Mantle {
+    /// How far through the pull-up he is, from 0 at the grab to 1 on the ledge.
+    pub fn progress(&self) -> f64 {
+        (self.t / MANTLE_TIME).clamp(0.0, 1.0)
+    }
+
+    /// Where Ben's feet are after `t` seconds: straight up the wall first, then over the lip.
+    pub fn at(&self, t: f64) -> (f64, f64) {
+        let ease = |k: f64| {
+            let k = k.clamp(0.0, 1.0);
+            k * k * (3.0 - 2.0 * k)
+        };
+        let u = (t / MANTLE_TIME).clamp(0.0, 1.0);
+        if u >= 1.0 {
+            self.to
+        } else if u < MANTLE_RISE_SHARE {
+            let k = ease(u / MANTLE_RISE_SHARE);
+            (self.from.0, self.from.1 + (self.to.1 - self.from.1) * k)
+        } else {
+            let k = ease((u - MANTLE_RISE_SHARE) / (1.0 - MANTLE_RISE_SHARE));
+            (self.from.0 + (self.to.0 - self.from.0) * k, self.to.1)
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Player {
     pub b: Body,
@@ -162,6 +204,8 @@ pub struct Player {
     pub kick_side: f64,
     pub rot: f64,
     pub hidden: bool,
+    /// Set while Ben pulls himself up onto a ledge; see `Mantle`.
+    pub mantle: Option<Mantle>,
 }
 
 impl Player {
@@ -187,6 +231,7 @@ impl Player {
             kick_side: 0.0,
             rot: 0.0,
             hidden: false,
+            mantle: None,
         }
     }
 }
@@ -927,7 +972,6 @@ impl World {
     // ---------- Player ----------
 
     fn tick_ben(&mut self, dt: f64) {
-        let (h, e) = (self.held, self.edge);
         if self.p.dead > 0.0 {
             let p = &mut self.p;
             p.dead += dt;
@@ -961,6 +1005,18 @@ impl World {
             self.p.b.x += dx;
             self.p.b.y += dy;
         }
+        // A mantle owns Ben's movement until it ends: no running, jumping, firing or physics.
+        if self.p.mantle.is_some() {
+            self.tick_mantling(dt);
+        } else {
+            self.tick_ben_move(dt);
+        }
+        self.tick_ben_contacts();
+    }
+
+    /// Ben's own movement for one tick: input, jumps, kicks, climbing, shots and physics.
+    fn tick_ben_move(&mut self, dt: f64) {
+        let (h, e) = (self.held, self.edge);
         if e & POGO != 0 && !self.p.climb {
             self.p.pogo = !self.p.pogo;
             if !self.p.pogo {
@@ -1099,7 +1155,10 @@ impl World {
             self.p.b.vx.abs()
         } * dt;
         self.tick_mantle(ax);
+    }
 
+    /// Hazards, doors, items, enemy contact and the exit, at wherever Ben ended up this tick.
+    fn tick_ben_contacts(&mut self) {
         // Hazards, doors, exit.
         let (px, py, pw, ph) = (self.p.b.x, self.p.b.y, self.p.b.w, self.p.b.h);
         let mut die = py < -1.5;
@@ -1121,6 +1180,7 @@ impl World {
                 }
                 if t == EXIT && !self.won {
                     self.won = true;
+                    self.p.mantle = None;
                     self.game.set_done(self.level_id);
                     self.cap(px, py + 2.0, Cap::TaDa);
                     self.hud();
@@ -1310,6 +1370,7 @@ impl World {
                     self.p.b.vx = sign(if diff == 0.0 { 1.0 } else { diff }) * 12.0;
                     self.p.b.vy = self.p.b.vy.max(7.0);
                     self.p.b.on_ground = false;
+                    self.p.mantle = None;
                     self.cap(b.x, b.y + 1.2, Cap::Bwomp);
                 }
                 continue;
@@ -1391,8 +1452,24 @@ impl World {
         }
     }
 
-    /// Pulls Ben up onto a ledge he nearly made: in the air, pressing towards a wall whose top edge
-    /// is just above his feet, with room to stand on it, he mantles onto the top.
+    /// Whether a box of Ben's size at (x, y) overlaps no solid tile.
+    fn body_clear(&self, x: f64, y: f64) -> bool {
+        self.region_clear(x, x, y, y)
+    }
+
+    /// Whether everything Ben's body covers while its corner moves anywhere in the box from
+    /// (x0, y0) to (x1, y1) is free of solid tiles.
+    fn region_clear(&self, x0: f64, x1: f64, y0: f64, y1: f64) -> bool {
+        let b = &self.p.b;
+        (x0.floor() as i32..=(x1 + b.w - 1e-4).floor() as i32).all(|cx| {
+            (y0.floor() as i32..=(y1 + b.h - 1e-4).floor() as i32)
+                .all(|cy| !self.map.solid(cx, cy, false, 0.0))
+        })
+    }
+
+    /// Starts a pull-up onto a ledge Ben nearly made: in the air, pressing towards a wall whose top
+    /// edge is just above his feet, with room to stand on it and to haul up the wall and over the
+    /// lip, he grabs on. `tick_mantling` then carries him to the top over `MANTLE_TIME`.
     fn tick_mantle(&mut self, ax: f64) {
         let p = &self.p;
         if ax == 0.0 || p.b.on_ground || p.climb || p.pogo || p.dead > 0.0 || !p.b.hit_x {
@@ -1421,24 +1498,53 @@ impl World {
             } else {
                 f64::from(wx) + 1.0 - b.w - 0.1
             };
-            // The spot he lands on must be clear for his whole body.
-            let free = (nx.floor() as i32..=(nx + b.w - 1e-4).floor() as i32).all(|cx| {
-                (top.floor() as i32..=(top + b.h - 1e-4).floor() as i32)
-                    .all(|cy| !self.map.solid(cx, cy, false, 0.0))
-            });
+            // The whole path must be clear: straight up from where he hangs, then across the lip
+            // to the spot he stands on.
+            let free = self.region_clear(b.x, b.x, b.y, top)
+                && self.region_clear(b.x.min(nx), b.x.max(nx), top, top);
             if !free {
                 continue;
             }
             let (cx, cy) = (nx + b.w / 2.0, top + 1.0);
+            let from = (b.x, b.y);
             let b = &mut self.p.b;
-            b.x = nx;
-            b.y = top;
             b.vx = 0.0;
             b.vy = 0.0;
-            b.on_ground = true;
             self.p.cut = false;
+            self.p.mantle = Some(Mantle {
+                t: 0.0,
+                from,
+                to: (nx, top),
+            });
             self.cap(cx, cy, Cap::Heave);
             return;
+        }
+    }
+
+    /// Carries Ben along a pull-up in progress. Gravity and collision do not act; the path was
+    /// checked clear when it began, and a tile that has since closed on it (a switched gate) ends
+    /// the mantle where he hangs instead of pulling him through it. On the last tick he stands on
+    /// the ledge, at rest.
+    fn tick_mantling(&mut self, dt: f64) {
+        let Some(mut m) = self.p.mantle else { return };
+        m.t += dt;
+        let done = m.t >= MANTLE_TIME - 1e-9;
+        let (x, y) = if done { m.to } else { m.at(m.t) };
+        if !self.body_clear(x, y) {
+            self.p.mantle = None;
+            return;
+        }
+        let b = &mut self.p.b;
+        b.x = x;
+        b.y = y;
+        b.vx = 0.0;
+        b.vy = 0.0;
+        if done {
+            b.on_ground = true;
+            self.p.cut = false;
+            self.p.mantle = None;
+        } else {
+            self.p.mantle = Some(m);
         }
     }
 
@@ -1561,6 +1667,7 @@ impl World {
         }
         let p = &mut self.p;
         p.dead = 0.001;
+        p.mantle = None;
         p.b.vy = 14.0;
         p.b.vx = -p.face * 2.0;
         p.pogo = false;

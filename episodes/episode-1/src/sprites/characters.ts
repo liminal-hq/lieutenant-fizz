@@ -15,12 +15,20 @@ export type BenPose =
   | 'pogo2'
   | 'climb1'
   | 'climb2'
+  | 'mantle1'
+  | 'mantle2'
+  | 'mantle3'
   | 'lookUp'
   | 'lookDown'
   | 'aimUp'
   | 'aimDown';
 
-/** Ben "Lieutenant Fizz" Blaze: bicycle helmet, red shirt, 16x24 (16x32 on the pogo stick). */
+/**
+ * Ben "Lieutenant Fizz" Blaze: bicycle helmet, red shirt, 16x24 (16x32 on the pogo stick).
+ * Facing right; the renderer flips him for left. The three `mantle` poses are the pull-up onto a
+ * ledge: `mantle1` grips the lip with both arms up, `mantle2` hauls with the forearms on the lip
+ * and a knee against the wall, `mantle3` pushes down on the top and swings a knee over it.
+ */
 export function ben(pose: BenPose): Grid {
   if (pose === 'climb1' || pose === 'climb2') return benClimb(pose === 'climb2');
   const pogo = pose.startsWith('pogo');
@@ -44,7 +52,7 @@ export function ben(pose: BenPose): Grid {
   P(8, 3, 'G');
   P(11, 3, 'G');
   // Eyes and mouth follow where Ben is looking: up, level, or down under a lowered brim.
-  const up = pose === 'lookUp' || pose === 'aimUp';
+  const up = pose === 'lookUp' || pose === 'aimUp' || pose === 'mantle1';
   const down = pose === 'lookDown' || pose === 'aimDown';
   const eyeY = up ? 6 : down ? 8 : 7;
   R(5, 6, 7, 4, 'W');
@@ -65,7 +73,25 @@ export function ben(pose: BenPose): Grid {
   R(4, 15, 8, 1, 'R');
   R(6, 10, 4, 1, 'W');
   R(7, 12, 2, 2, 'y');
-  if (pose === 'aimUp') {
+  if (pose === 'mantle1') {
+    // Both arms reaching up for the lip, gloves gripping it.
+    R(12, 5, 2, 6, 'r');
+    R(12, 3, 2, 2, 'W');
+    R(14, 6, 2, 5, 'R');
+    R(14, 4, 2, 2, 'W');
+  } else if (pose === 'mantle2') {
+    // Elbows bent, forearms flat on the lip.
+    R(10, 9, 6, 2, 'r');
+    R(14, 9, 2, 2, 'W');
+    R(11, 12, 5, 2, 'R');
+    R(14, 12, 2, 2, 'W');
+  } else if (pose === 'mantle3') {
+    // The near arm braced down and forward on the ledge, the far arm swung back.
+    R(11, 11, 2, 4, 'r');
+    R(12, 14, 2, 3, 'r');
+    R(13, 17, 2, 2, 'W');
+    R(3, 11, 2, 4, 'R');
+  } else if (pose === 'aimUp') {
     R(3, 11, 2, 4, 'R');
     R(12, 4, 2, 8, 'r');
     R(12, 0, 3, 4, 'c');
@@ -90,7 +116,31 @@ export function ben(pose: BenPose): Grid {
     P(11, 15, 'W');
     P(12, 15, 'W');
   }
-  if (pose === 'run1') {
+  if (pose === 'mantle1') {
+    // Dangling, one shoe scrabbling at the wall.
+    R(5, 16, 6, 2, 'B');
+    R(5, 18, 2, 4, 'B');
+    R(4, 22, 4, 2, 'R');
+    R(9, 18, 2, 3, 'B');
+    R(11, 20, 2, 2, 'B');
+    R(12, 22, 3, 2, 'R');
+  } else if (pose === 'mantle2') {
+    // The back leg hangs; the front knee is drawn up against the wall.
+    R(5, 16, 6, 2, 'B');
+    R(5, 18, 2, 3, 'B');
+    R(3, 21, 4, 2, 'R');
+    R(9, 18, 4, 2, 'B');
+    R(11, 20, 2, 2, 'B');
+    R(11, 22, 4, 2, 'R');
+  } else if (pose === 'mantle3') {
+    // Back foot still down, the front knee swung up and over the lip.
+    R(5, 16, 6, 2, 'B');
+    R(5, 18, 2, 3, 'B');
+    R(3, 21, 4, 2, 'R');
+    R(9, 17, 3, 2, 'B');
+    R(10, 19, 2, 3, 'B');
+    R(9, 22, 4, 2, 'R');
+  } else if (pose === 'run1') {
     R(5, 16, 6, 2, 'B');
     R(4, 18, 2, 3, 'B');
     R(2, 21, 4, 2, 'R');

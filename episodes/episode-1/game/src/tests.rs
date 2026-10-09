@@ -8,9 +8,9 @@
 
 use crate::ents::{ItemKind, Kind, St};
 use crate::levels::{CAVES, CITADEL, CRATER};
-use crate::text::ev;
+use crate::text::{ev, Cap};
 use crate::tiles::*;
-use crate::world::{input::*, Mode, World};
+use crate::world::{input::*, Mode, World, MANTLE_REACH, MANTLE_TIME};
 
 fn level(id: u8) -> World {
     let mut w = World::new();
@@ -1760,6 +1760,287 @@ fn ben_pulls_himself_up_onto_a_ledge_he_nearly_made() {
         w.p.b.y
     );
     assert!(w.p.b.x >= 12.0, "over the wall, x = {}", w.p.b.x);
+}
+
+/// An arena with a four-tile wall to the right and Ben jumping at it, stepped to the tick the
+/// pull-up begins.
+fn grabbing_world() -> World {
+    let mut w = arena();
+    for x in 12..30 {
+        for y in 2..6 {
+            w.map.set(x, y, FILL);
+        }
+    }
+    w.p.b.x = 10.5;
+    run(&mut w, 2, 0);
+    run(&mut w, 6, RIGHT);
+    w.step(RIGHT | JUMP);
+    for _ in 0..80 {
+        if w.p.mantle.is_some() {
+            return w;
+        }
+        w.step(RIGHT | JUMP);
+    }
+    panic!("Ben never grabbed the ledge");
+}
+
+fn body_overlaps_solid(w: &World) -> bool {
+    let b = &w.p.b;
+    (b.x.floor() as i32..=(b.x + b.w - 1e-4).floor() as i32).any(|cx| {
+        (b.y.floor() as i32..=(b.y + b.h - 1e-4).floor() as i32)
+            .any(|cy| w.map.solid(cx, cy, false, 0.0))
+    })
+}
+
+#[test]
+fn a_mantle_takes_mantle_time_and_ends_where_the_instant_pull_up_did() {
+    let mut w = grabbing_world();
+    let heaves = |w: &World| {
+        events_of(w, ev::CAPTION)
+            .iter()
+            .filter(|e| e.c == f32::from(Cap::Heave as u16))
+            .count()
+    };
+    assert_eq!(heaves(&w), 1, "the heave sounds as the mantle starts");
+    let from = w.p.b.y;
+    let mut ticks = 0;
+    while w.p.mantle.is_some() {
+        w.step(RIGHT | JUMP);
+        ticks += 1;
+        assert!(ticks < 100, "the mantle never finished");
+    }
+    assert_eq!(heaves(&w), 1, "one heave per mantle");
+    assert_eq!(ticks, (MANTLE_TIME / lf_sim::STEP).round() as i32);
+    const { assert!(MANTLE_TIME > 0.2 && MANTLE_TIME < 0.5) };
+    let b = &w.p.b;
+    assert!(
+        from < 6.0 && 6.0 - from <= MANTLE_REACH,
+        "grabbed below the lip"
+    );
+    assert_eq!((b.x, b.y), (12.1, 6.0));
+    assert_eq!((b.vx, b.vy), (0.0, 0.0));
+    assert!(b.on_ground);
+    assert!(!w.p.cut);
+}
+
+#[test]
+fn ben_hangs_at_the_grab_then_rises_then_steps_over_the_lip() {
+    let mut w = grabbing_world();
+    let m = w.p.mantle.unwrap();
+    assert_eq!(m.t, 0.0);
+    assert_eq!((w.p.b.x, w.p.b.y), m.from, "the grab starts where he hangs");
+    let (mut last_y, mut last_x) = (w.p.b.y, w.p.b.x);
+    let mut stepping = false;
+    while w.p.mantle.is_some() {
+        w.step(0);
+        let b = &w.p.b;
+        assert!(
+            b.y >= last_y - 1e-12 && b.x >= last_x - 1e-12,
+            "never moves backwards"
+        );
+        if b.x > m.from.0 + 1e-9 {
+            stepping = true;
+        }
+        if stepping {
+            assert!(
+                (b.y - m.to.1).abs() < 1e-9,
+                "level with the lip while stepping over"
+            );
+        } else {
+            assert_eq!(b.x, m.from.0, "straight up the wall first");
+        }
+        (last_y, last_x) = (b.y, b.x);
+    }
+    assert!(stepping, "ended with a step over the lip");
+}
+
+#[test]
+fn during_a_mantle_ben_cannot_move_jump_fire_or_pogo_and_never_touches_a_solid() {
+    let mut calm = grabbing_world();
+    let mut mashed = grabbing_world();
+    let ammo = mashed.game.ammo;
+    let mut tick = 0;
+    while calm.p.mantle.is_some() {
+        calm.step(RIGHT);
+        // Every other input at once, changing every tick.
+        let held = [
+            LEFT | UP | FIRE,
+            POGO | DOWN | JUMP | FIRE,
+            LEFT | JUMP | POGO,
+        ][tick % 3];
+        mashed.step(held);
+        tick += 1;
+        assert_eq!((mashed.p.b.x, mashed.p.b.y), (calm.p.b.x, calm.p.b.y));
+        assert!(
+            !body_overlaps_solid(&mashed),
+            "inside a solid on tick {tick}"
+        );
+        assert_eq!(mashed.game.ammo, ammo, "no shot while hauling up");
+        assert!(mashed.shots.is_empty());
+        assert!(!mashed.p.pogo);
+    }
+    assert!(mashed.p.mantle.is_none());
+    assert_eq!((mashed.p.b.x, mashed.p.b.y), (12.1, 6.0));
+}
+
+#[test]
+fn a_mantle_never_overlaps_a_solid_when_mirrored_either_way() {
+    let mut w = arena();
+    // A wall to the left of Ben this time.
+    for x in 2..9 {
+        for y in 2..6 {
+            w.map.set(x, y, FILL);
+        }
+    }
+    w.p.b.x = 9.8;
+    run(&mut w, 2, 0);
+    run(&mut w, 6, LEFT);
+    w.step(LEFT | JUMP);
+    let mut seen = false;
+    for _ in 0..120 {
+        w.step(LEFT | JUMP);
+        seen |= w.p.mantle.is_some();
+        assert!(!body_overlaps_solid(&w));
+        if seen && w.p.mantle.is_none() {
+            break;
+        }
+    }
+    assert!(seen, "mantled leftwards");
+    assert!(w.p.b.on_ground && (w.p.b.y - 6.0).abs() < 0.01 && w.p.b.x < 9.0);
+}
+
+#[test]
+fn the_camera_follows_a_mantle_without_a_jump() {
+    let mut w = grabbing_world();
+    let mut last = (w.cam_x, w.cam_y);
+    while w.p.mantle.is_some() {
+        w.step(RIGHT);
+        let step = (w.cam_x - last.0).abs().max((w.cam_y - last.1).abs());
+        assert!(step < 0.15, "camera jumped {step} in one tick");
+        last = (w.cam_x, w.cam_y);
+    }
+}
+
+#[test]
+fn two_runs_with_the_same_inputs_mantle_identically() {
+    let trace = || {
+        let mut w = grabbing_world();
+        let mut t = vec![];
+        for i in 0..40 {
+            w.step(if i % 2 == 0 { RIGHT } else { 0 });
+            t.push((w.p.b.x, w.p.b.y, w.p.mantle.is_some()));
+        }
+        t
+    };
+    assert_eq!(trace(), trace());
+}
+
+#[test]
+fn a_hit_mid_mantle_cancels_it_and_ben_tumbles_from_where_he_was() {
+    let mut w = grabbing_world();
+    run(&mut w, 6, 0);
+    assert!(w.p.mantle.is_some());
+    w.kill();
+    assert!(w.p.mantle.is_none(), "dying ends the pull-up");
+    assert!(w.p.dead > 0.0);
+    run(&mut w, 100, 0);
+    assert!(w.p.mantle.is_none());
+    assert!(w.p.b.y < 6.0, "fell away instead of landing on the ledge");
+    assert!(w.p.b.x < 12.0, "still on the near side of the wall");
+}
+
+#[test]
+fn an_enemy_touching_ben_mid_mantle_kills_him_and_ends_the_mantle() {
+    let mut w = grabbing_world();
+    w.p.inv = 0.0;
+    let g = w.init_ent(&crate::ents::Spawn {
+        kind: Kind::Gloop,
+        x: w.p.b.x,
+        y: w.p.b.y,
+        dir: 1.0,
+        ride: false,
+    });
+    w.ents.push(g);
+    run(&mut w, 3, 0);
+    assert!(w.p.dead > 0.0, "damage still applies while hanging");
+    assert!(w.p.mantle.is_none());
+}
+
+#[test]
+fn a_gate_that_closes_on_the_path_ends_the_mantle_without_pulling_ben_through_it() {
+    let mut w = grabbing_world();
+    run(&mut w, 8, 0);
+    // The ledge fills in over the spot he was climbing to.
+    for y in 6..8 {
+        w.map.set(12, y, FILL);
+        w.map.set(13, y, FILL);
+    }
+    run(&mut w, 30, 0);
+    assert!(w.p.mantle.is_none());
+    assert!(!body_overlaps_solid(&w));
+    assert!(w.p.b.x < 12.0, "still on the near side of the wall");
+}
+
+#[test]
+fn a_mantle_does_not_start_when_there_is_no_room_to_haul_up_the_wall() {
+    // The wall is climbable, but a ceiling over Ben's head blocks the way up.
+    let mut w = arena();
+    for y in 2..6 {
+        w.map.set(12, y, FILL);
+    }
+    for x in 8..12 {
+        w.map.set(x, 6, FILL);
+        w.map.set(x, 7, FILL);
+    }
+    w.p.b.x = 10.5;
+    w.p.b.y = 4.8;
+    w.p.b.vy = 0.0;
+    for _ in 0..30 {
+        w.step(RIGHT | JUMP);
+        assert!(w.p.mantle.is_none());
+    }
+}
+
+#[test]
+fn leaving_for_the_map_or_reloading_the_level_clears_a_mantle() {
+    let mut w = grabbing_world();
+    run(&mut w, 5, 0);
+    assert!(w.p.mantle.is_some());
+    w.enter_level(CRATER);
+    assert!(w.p.mantle.is_none());
+    let mut w = grabbing_world();
+    w.enter_map();
+    assert!(w.p.mantle.is_none());
+    let mut w = grabbing_world();
+    w.load_level(CAVES);
+    assert!(w.p.mantle.is_none());
+}
+
+#[test]
+fn a_mantle_sprite_follows_its_progress() {
+    use crate::render::ben_sprite;
+    use crate::sprites::Spr;
+    let mut w = grabbing_world();
+    let mut seen = vec![];
+    loop {
+        let s = ben_sprite(&w.p);
+        if seen.last() != Some(&s) {
+            seen.push(s);
+        }
+        if w.p.mantle.is_none() {
+            break;
+        }
+        w.step(0);
+    }
+    assert_eq!(
+        seen[..4],
+        [
+            Spr::BenMantle1,
+            Spr::BenMantle2,
+            Spr::BenMantle3,
+            Spr::BenStand
+        ]
+    );
 }
 
 #[test]
