@@ -81,5 +81,13 @@ test('a desktop Options screen has no Touch controls row', async ({ page }) => {
   await open(page, 'options');
   const labels = await page.locator('#overlay .menu button .lbl').allInnerTexts();
   expect(labels).not.toContain('Touch controls');
-  expect(labels).toEqual(['Sound', 'Captions', 'Controls', 'Text size', 'Motion', 'Back']);
+  expect(labels).toEqual([
+    'Sound',
+    'Display',
+    'Captions',
+    'Controls',
+    'Text size',
+    'Motion',
+    'Back',
+  ]);
 });

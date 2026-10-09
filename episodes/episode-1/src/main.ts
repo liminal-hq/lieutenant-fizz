@@ -3,6 +3,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import {
+  parseFullscreenParam,
+  parseHostParam,
+  parseWakeParam,
+} from '@lieutenant-fizz/engine/lifecycle-policy';
 import { parseAudioParam } from '@lieutenant-fizz/engine/sound-field';
 import { Game } from './game';
 import { parseHapticsParam } from './url-lock';
@@ -28,6 +33,13 @@ const title = query.get('title') === 'split' ? 'split' : undefined;
 // (or `?haptics=on`) forces them on and `?haptics=off` forces them off, for this visit only.
 const haptics = parseHapticsParam(query.get('haptics'));
 
+// `?fullscreen` (or `=on`) asks for fullscreen on every device when a run starts, `?fullscreen=off` never
+// does; left out, touch devices do. `?debug&host=app` pretends to be the native app.
+const fullscreen = parseFullscreenParam(query.get('fullscreen'));
+const host = parseHostParam(query.get('host'), query.has('debug'));
+// `?wake=off` never keeps the screen on, `?wake` (or `=on`) does while playing; left out, it is on.
+const wake = parseWakeParam(query.get('wake'));
+
 // `?back` makes the browser's Back button the game's in an ordinary tab, to try it without fullscreen.
 
 Game.start(stage, {
@@ -38,6 +50,9 @@ Game.start(stage, {
   ...(pixels ? { pixels } : {}),
   ...(audio ? { audio } : {}),
   ...(title ? { title } : {}),
+  ...(fullscreen ? { fullscreen } : {}),
+  ...(host ? { host } : {}),
+  ...(wake ? { wake } : {}),
 })
   .then((game) => {
     if (query.has('debug')) {

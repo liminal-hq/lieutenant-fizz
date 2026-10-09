@@ -21,6 +21,8 @@ export const TEXT_SIZES = ['Normal', 'Large'] as const;
 export const MOTIONS = ['System', 'Reduced', 'Full'] as const;
 /** The stored sound style: Auto follows the game's default, the others are the player's choice. */
 export const AUDIO_CHOICES = ['Auto', 'Classic', 'Enhanced'] as const;
+/** How many fullscreen settings are stored (Auto, On, Off; the names are in `display-options.ts`). */
+const FULLSCREEN_COUNT = 3;
 
 export interface Options {
   /** Music volume, 0 to 8. */
@@ -43,6 +45,10 @@ export interface Options {
   rumble: number;
   /** Whether the haptics lab is available without `?debug`. Off by default. */
   hapticsLab: boolean;
+  /** Fullscreen when a run starts or resumes: 0 Auto (touch devices), 1 On, 2 Off. */
+  fullscreen: number;
+  /** Whether the screen is kept on while playing and watching. On by default. */
+  awake: boolean;
 }
 
 /** The keys of {@link Options} the Options screen can change. */
@@ -60,6 +66,8 @@ export const DEFAULT_OPTIONS: Readonly<Options> = {
   lab: false,
   rumble: DEFAULT_STRENGTH,
   hapticsLab: false,
+  fullscreen: 0,
+  awake: true,
 };
 
 const int = (v: unknown, lo: number, hi: number, fallback: number): number =>
@@ -82,6 +90,8 @@ export function parseOptions(json: string | null): Options {
       lab: typeof raw['lab'] === 'boolean' ? raw['lab'] : d.lab,
       rumble: isStrength(raw['rumble']) ? raw['rumble'] : d.rumble,
       hapticsLab: typeof raw['hapticsLab'] === 'boolean' ? raw['hapticsLab'] : d.hapticsLab,
+      fullscreen: int(raw['fullscreen'], 0, FULLSCREEN_COUNT - 1, d.fullscreen),
+      awake: typeof raw['awake'] === 'boolean' ? raw['awake'] : d.awake,
     };
   } catch {
     return { ...d };
@@ -131,6 +141,8 @@ const CHOICES: Partial<Record<SettingKey, number>> = {
   captions: 2,
   lab: 2,
   hapticsLab: 2,
+  fullscreen: FULLSCREEN_COUNT,
+  awake: 2,
   rumble: MAX_STRENGTH + 1,
   layout: LAYOUTS.length,
   text: TEXT_SIZES.length,
@@ -152,5 +164,6 @@ export function stepOption(o: Options, key: SettingKey, delta: number, wrapMeter
   if (key === 'captions') return { ...o, captions: !o.captions };
   if (key === 'lab') return { ...o, lab: !o.lab };
   if (key === 'hapticsLab') return { ...o, hapticsLab: !o.hapticsLab };
+  if (key === 'awake') return { ...o, awake: !o.awake };
   return { ...o, [key]: mod(o[key] + delta, n) };
 }

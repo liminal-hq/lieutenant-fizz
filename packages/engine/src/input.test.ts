@@ -4,8 +4,27 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { Input, inputBits, keysToBits, nextDevice, padToBits, pickPad, touchToBits } from './input';
+import {
+  Input,
+  inputBits,
+  keysToBits,
+  nextDevice,
+  padLostInUse,
+  padToBits,
+  pickPad,
+  touchToBits,
+} from './input';
 import { NO_TOUCH } from './touch';
+
+describe('padLostInUse', () => {
+  it('counts only the pad in use while the gamepad is the device', () => {
+    expect(padLostInUse('gamepad', 1, 1)).toBe(true);
+    expect(padLostInUse('gamepad', -1, 0)).toBe(true);
+    expect(padLostInUse('gamepad', 1, 0)).toBe(false);
+    expect(padLostInUse('keyboard', 1, 1)).toBe(false);
+    expect(padLostInUse('touch', -1, 0)).toBe(false);
+  });
+});
 
 describe('nextDevice', () => {
   it('switches to the keyboard on a key press', () => {

@@ -10,6 +10,26 @@ import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
+import {
+  enterFullscreen,
+  noKeepAwake,
+  webWakeLock,
+  type FullscreenResult,
+  type KeepAwakeBackend,
+} from '@lieutenant-fizz/engine/lifecycle';
+import {
+  backGuardAllowed,
+  detectCaps,
+  isAppHost,
+  isIdle,
+  lifecyclePolicy,
+  onGesture,
+  pauseFor,
+  type Caps,
+  type Gesture,
+  type Host,
+  type Want,
+} from '@lieutenant-fizz/engine/lifecycle-policy';
 import { placeSound, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
 import {
@@ -40,6 +60,7 @@ import { FIZZ_HAPTICS } from './haptics/fizz-haptics';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { backAction, backEnabled, pauseAction } from './back';
 import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
+import { gestureFor, isLive } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
 import { isPortrait, watchResize, type TouchGutters } from './layout';
 import { touchFaces, type ShellScreen, type SubScreen, type TouchFaces } from './touch-menus';
@@ -58,6 +79,19 @@ import {
   type Options,
   type SettingKey,
 } from './options';
+import {
+  displayItems,
+  displayLinkValue,
+  displayRowOf,
+  displayRows,
+  displayShown,
+  effectiveFullscreen,
+  effectiveWake,
+  isDisplayStepRow,
+  stepDisplay,
+  type DisplayCaps,
+  type DisplayRow,
+} from './display-options';
 import {
   effectiveScale,
   hapticsFeel,
@@ -95,7 +129,7 @@ import {
   type SoundRow,
 } from './sound-options';
 import { RESET_ARM_MS, resetArmed } from './two-tap';
-import { firstEnabled, type HapticsUrl, type UrlLocks } from './url-lock';
+import { firstEnabled, type HapticsUrl, type UrlLocks, type WakeUrl } from './url-lock';
 import {
   applyProgress,
   captureProgress,
@@ -166,6 +200,17 @@ export interface GameOptions {
    * forces them off. Left out, the Haptics screen decides. Either way the link is never saved.
    */
   haptics?: HapticsUrl;
+  /**
+   * Fullscreen: `on` (`?fullscreen`) asks for it on every device when a run starts or resumes, `off` never does.
+   * Left out, it is Auto: touch devices only.
+   */
+  fullscreen?: Want;
+  /** `app` (`?debug&host=app`) pretends to be the native app, where the web fullscreen and Back guard step aside. */
+  host?: Host;
+  /** `off` (`?wake=off`) never keeps the screen on, `on` (`?wake`) does while playing or watching; the default is on. */
+  wake?: 'on' | 'off';
+  /** What keeps the screen on in the app, given by the app; the web build uses the browser's wake lock. */
+  keepAwake?: KeepAwakeBackend;
 }
 
 /** The `display-mode` values an installed app runs in. */
@@ -213,6 +258,32 @@ export class Game {
    * only ever turns on, so the Options rows never shift while the screen is open.
    */
   private touchCapable = false;
+  /** Fullscreen as it stands: the link, else the saved choice (Auto on touch devices, when a run starts or resumes). */
+  private get fullscreenWant(): Want {
+    return effectiveFullscreen(this.fullscreenUrl, this.settings);
+  }
+
+  /** Whether the screen is kept on while playing: the link, else the saved choice. */
+  private get wakeWant(): WakeUrl {
+    return effectiveWake(this.wakeUrl, this.settings);
+  }
+
+  /** What this page can do for fullscreen and orientation, and whether it is the native app. */
+  private readonly caps: Caps;
+  /** What `?fullscreen` and `?wake` asked for, which win over the saved settings and are never saved. */
+  private readonly fullscreenUrl: Want | undefined;
+  private readonly wakeUrl: WakeUrl | undefined;
+  /** Keeps the screen on while `lifecyclePolicy` asks for it. */
+  private readonly keepAwake: KeepAwakeBackend;
+  /** Whether the screen is being kept on (what the policy last asked for). */
+  private awake = false;
+  /** When the last input came, and whether that is long enough ago to let the screen go. */
+  private idleAt = performance.now();
+  private idle = false;
+  /** How the last fullscreen request went, and the pixel scale around it (for trying it on a phone). */
+  private lastFs: FullscreenResult | null = null;
+  private scaleBefore: number | null = null;
+  private scaleAfter: number | null = null;
   /** The Touch controls rows. */
   private readonly touchRowList: TouchRow[] = touchRows();
   /** What `?haptics` asked for, which wins over the saved strength and is never saved. */
@@ -366,6 +437,22 @@ export class Game {
     this.input = new InputManager(ui.stage);
     this.forcedTouch = options.touch ?? false;
     this.forcedBack = options.back ?? false;
+    this.fullscreenUrl = options.fullscreen;
+    this.caps = detectCaps({
+      doc: document,
+      orientation: screen.orientation,
+      nav: navigator as Navigator & { standalone?: boolean },
+      isSecureContext: window.isSecureContext,
+      matchMedia: window.matchMedia?.bind(window),
+      host: options.host ?? (isAppHost(window) ? 'app' : 'web'),
+    });
+    this.wakeUrl = options.wake;
+    this.keepAwake =
+      this.caps.host === 'app'
+        ? (options.keepAwake ?? noKeepAwake)
+        : this.caps.wakeLock
+          ? webWakeLock(navigator, document)
+          : noKeepAwake;
     this.touchSettings = readTouchSettings(this.store);
     this.touchUi = new TouchControls(ui.touchLayer, this.input, {
       labels: { dpad: 'Move', jump: 'Jump', pogo: 'Pogo', fire: 'Fizz', pause: 'Pause' },
@@ -402,6 +489,13 @@ export class Game {
     this.captionNames = sim.names(Table.CAPTIONS);
     this.toastNames = sim.names(Table.TOASTS);
     this.input.onCommand((c) => this.onCommand(c));
+    this.input.onPadLost(() => {
+      if (pauseFor('padLost', { playing: this.screen === 'play' })) this.autoPause();
+    });
+    window.addEventListener('blur', this.onBlur);
+    for (const t of ['keydown', 'pointerdown', 'touchstart'] as const) {
+      window.addEventListener(t, this.onInputEvent, { capture: true, passive: true });
+    }
     this.unwatchBack = this.watchBack();
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('pagehide', this.onVisibility);
@@ -477,6 +571,11 @@ export class Game {
     cancelAnimationFrame(this.raf);
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('pagehide', this.onVisibility);
+    window.removeEventListener('blur', this.onBlur);
+    for (const t of ['keydown', 'pointerdown', 'touchstart'] as const) {
+      window.removeEventListener(t, this.onInputEvent, { capture: true });
+    }
+    this.keepAwake.dispose();
     window.removeEventListener('pointerdown', this.onTouchPointer, { capture: true });
     this.ui.stage.removeEventListener('contextmenu', this.onContextMenu);
     window.removeEventListener('pointermove', this.onMouseMove);
@@ -549,6 +648,9 @@ export class Game {
     const bits = this.input.peek();
     this.menuInput(bits);
     this.lastBits = bits;
+    // Input from a pad or a held key keeps the idle clock fresh; the screen is let go when it crosses five minutes.
+    if (bits !== 0) this.noteInput(t);
+    else if (isIdle(t - this.idleAt) !== this.idle) this.syncLifecycle();
     // The sim samples touch presses in play; a menu has no step, so it marks them seen itself.
     if (screen !== 'play') this.input.markTouchSeen();
 
@@ -941,6 +1043,7 @@ export class Game {
         this.sub === 'options' ||
         this.sub === 'sound' ||
         this.sub === 'haptics' ||
+        this.sub === 'display' ||
         this.sub === 'touch'
       ) {
         if (move & Bits.LEFT) this.adjust(-1);
@@ -1084,7 +1187,26 @@ export class Game {
 
   /** What the address fixes this session. */
   private urlLocks(): UrlLocks {
-    return { audio: this.audioUrl, haptics: this.hapticsUrl, debug: this.labForced };
+    return {
+      audio: this.audioUrl,
+      haptics: this.hapticsUrl,
+      fullscreen: this.fullscreenUrl,
+      wake: this.wakeUrl,
+      debug: this.labForced,
+    };
+  }
+
+  /** What the Display screen can offer here: fullscreen in a browser page, and anything that can hold the screen on. */
+  private displayCaps(): DisplayCaps {
+    return {
+      fullscreen: this.caps.fullscreen && this.caps.host === 'web',
+      keepAwake: this.keepAwake.kind !== 'none',
+    };
+  }
+
+  /** The rows of the Display screen. */
+  private displayRowList(): DisplayRow[] {
+    return displayRows(this.displayCaps());
   }
 
   /** Whether the phone can probably vibrate: the browser has the call and the device has a touch screen. */
@@ -1135,7 +1257,47 @@ export class Game {
     this.audio.setActive(this.visible);
     this.haptics.setActive(this.visible);
     if (!this.visible) this.autoPause();
+    this.syncLifecycle();
   };
+
+  /** The window lost focus (alt-tab, a notification shade, a system dialog): a level in play pauses. */
+  private readonly onBlur = (): void => {
+    if (pauseFor('blur', { playing: this.screen === 'play' })) this.autoPause();
+  };
+
+  /** A key, mouse or touch press counts as input for the idle clock. */
+  private readonly onInputEvent = (): void => this.noteInput(performance.now());
+
+  private noteInput(now: number): void {
+    this.idleAt = now;
+    if (this.idle) this.syncLifecycle();
+  }
+
+  /**
+   * Keeps the screen on exactly while the policy wants it. Called from `syncUi()` and the visibility
+   * handler, and by the frame when the idle clock crosses five minutes; it only tells the backend on a change.
+   */
+  private syncLifecycle(): void {
+    const now = performance.now();
+    this.idle = isIdle(now - this.idleAt);
+    const { awake } = lifecyclePolicy(
+      {
+        live: isLive(this.screen, this.sub),
+        playing: this.screen === 'play',
+        visible: this.visible,
+        rotated: this.rotated,
+        fullscreen: document.fullscreenElement !== null,
+        idleMs: now - this.idleAt,
+        touchCapable: this.touchCapable,
+        fullscreenWant: this.fullscreenWant,
+        wakeWant: this.wakeWant,
+      },
+      this.caps,
+    );
+    if (awake === this.awake) return;
+    this.awake = awake;
+    this.keepAwake.set(awake);
+  }
 
   /** Pauses a level in play, for when the page hides or the phone is turned upright. */
   private autoPause(): void {
@@ -1232,6 +1394,10 @@ export class Game {
     }
     this.touchUi.relayout();
     this.ui.setTouchGutters(this.touchGutters());
+    // The canvas re-places itself when fullscreen comes or goes; the last scale seen after a request is kept.
+    if (this.scaleBefore !== null && document.fullscreenElement !== null) {
+      this.scaleAfter = this.pixelScale;
+    }
   }
 
   /**
@@ -1282,6 +1448,7 @@ export class Game {
     return [
       { id: 'sound', label: 'Sound' },
       ...(this.hapticsShown() ? [{ id: 'haptics', label: 'Haptics' }] : []),
+      ...(displayShown(this.displayCaps()) ? [{ id: 'display', label: 'Display' }] : []),
       row('Captions', 'captions'),
       row('Controls', 'layout'),
       row('Text size', 'text'),
@@ -1311,6 +1478,7 @@ export class Game {
           label,
           value: hapticsLinkValue(this.urlLocks(), this.touchSettings.hapticStrength),
         };
+      if (id === 'display') return { id, label, value: displayLinkValue(this.urlLocks(), o) };
       return key ? { id, label, kind: 'choice', value: text(key) } : { id, label };
     });
   }
@@ -1355,6 +1523,8 @@ export class Game {
         this.hapticsRowList(),
         resetArmed(this.resetAt, performance.now()),
       );
+    if (this.sub === 'display')
+      return displayItems(this.settings, this.urlLocks(), this.displayRowList());
     if (this.sub === 'touch')
       return touchItems(
         this.touchSettings,
@@ -1499,6 +1669,10 @@ export class Game {
       this.stepHapticsRow(this.hapticsRowList()[this.menuIdx] ?? null, d, false);
       return;
     }
+    if (this.sub === 'display') {
+      this.stepDisplayRow(this.displayRowList()[this.menuIdx] ?? null, d);
+      return;
+    }
     if (this.sub !== 'options') return;
     const key = this.optionRows()[this.menuIdx]?.key;
     if (key) this.step(key, d, false);
@@ -1523,6 +1697,9 @@ export class Game {
       if (!isSoundStepRow(this.soundRowList[i] ?? null) || this.menuItems()[i]?.disabled) return;
     } else if (this.sub === 'haptics') {
       if (!isHapticsStepRow(this.hapticsRowList()[i] ?? null) || this.menuItems()[i]?.disabled)
+        return;
+    } else if (this.sub === 'display') {
+      if (!isDisplayStepRow(this.displayRowList()[i] ?? null) || this.menuItems()[i]?.disabled)
         return;
     } else if (this.sub !== 'options' || !this.optionRows()[i]?.key) return;
     if (this.menuIdx !== i) {
@@ -1589,6 +1766,30 @@ export class Game {
       'haptics',
       firstEnabled(hapticsItems(this.hapticsNow(), this.urlLocks(), this.hapticsRowList(), false)),
     );
+  }
+
+  /** Opens the Display screen, on the first row the address has not fixed. */
+  private openDisplay(): void {
+    this.openSub(
+      'display',
+      firstEnabled(displayItems(this.settings, this.urlLocks(), this.displayRowList())),
+    );
+  }
+
+  /**
+   * Steps a Display setting and saves it. A row the address fixes does not step. Turning Keep screen on
+   * off lets the screen go at once; turning Fullscreen off never leaves fullscreen, only stops asking.
+   */
+  private stepDisplayRow(row: DisplayRow | null, d: number): void {
+    if (!row || this.menuItems()[this.menuIdx]?.disabled) return;
+    const next = stepDisplay(this.settings, row, d, this.urlLocks());
+    if (next.fullscreen === this.settings.fullscreen && next.awake === this.settings.awake) return;
+    this.settings = next;
+    this.audio.play('menu');
+    if (row === 'awake') this.haptics.ui(next.awake ? 'toggleOn' : 'toggleOff');
+    else this.haptics.ui('move');
+    this.applySettings();
+    this.syncUi();
   }
 
   /**
@@ -1742,6 +1943,9 @@ export class Game {
     this.audio.play('click');
     const id = it.id ?? '';
     if (id !== 'back') this.haptics.ui('select');
+    // Fullscreen is asked for here, inside the tap, not in the Ben-wave timer below: the browser only
+    // allows it while the gesture's user activation lasts. A second tap during the wave asks for nothing.
+    if (!this.titleAction) this.fullscreenFor(gestureFor(this.screen, this.sub, id, this.saveMode));
     if (this.sub === 'touch') {
       const row = touchRowOf(id);
       if (row === 'back') this.closeSub();
@@ -1768,10 +1972,17 @@ export class Game {
       else this.stepHapticsRow(row, 1, true);
       return;
     }
+    if (this.sub === 'display') {
+      const row = displayRowOf(id);
+      if (row === 'back') this.closeSub();
+      else this.stepDisplayRow(row, 1);
+      return;
+    }
     if (this.sub === 'options') {
       if (id === 'back') this.closeSub();
       else if (id === 'sound') this.openSound();
       else if (id === 'haptics') this.openHaptics();
+      else if (id === 'display') this.openDisplay();
       else if (id === 'touch') this.openSub('touch');
       else if (id.startsWith('opt:')) {
         const key = id.slice(4) as SettingKey;
@@ -1853,6 +2064,42 @@ export class Game {
     }
   }
 
+  /**
+   * Asks for fullscreen and the landscape lock when the gesture starts or resumes a run and the setting
+   * resolves On. Called only from `activate()`, never from an event handler, so it cannot loop.
+   */
+  private fullscreenFor(g: Gesture): void {
+    const plan = onGesture(
+      g,
+      {
+        fullscreenWant: this.fullscreenWant,
+        touchCapable: this.touchCapable,
+        fullscreen: document.fullscreenElement !== null,
+      },
+      this.caps,
+    );
+    if (!plan.fullscreen && !plan.lock) return;
+    this.scaleBefore = this.pixelScale;
+    this.scaleAfter = null;
+    void enterFullscreen(document, screen.orientation, plan).then((r) => {
+      this.lastFs = r;
+      if (document.fullscreenElement !== null) this.scaleAfter = this.pixelScale;
+    });
+  }
+
+  /**
+   * Leaving fullscreen while a level is in play pauses it; this is how Android's Back button, which
+   * leaves fullscreen without a history entry, ends up on the pause menu. Never asks for fullscreen.
+   */
+  private onFullscreenChange(): void {
+    if (
+      document.fullscreenElement === null &&
+      pauseFor('fullscreenExit', { playing: this.screen === 'play' })
+    ) {
+      this.autoPause();
+    }
+  }
+
   /** Whether the game is in fullscreen or an installed app, where it takes the browser's Back button. */
   private backOn(): boolean {
     const mq = (q: string): boolean => {
@@ -1873,13 +2120,19 @@ export class Game {
 
   /** Holds the Back guard entry only while the screen has an answer to Back and the mode allows it. */
   private syncBack(): void {
-    this.backGuard.set(this.backOn() && backAction(this.screen, this.sub) !== null);
+    this.backGuard.set(
+      backGuardAllowed(this.caps) && this.backOn() && backAction(this.screen, this.sub) !== null,
+    );
   }
 
   /** Re-checks Back when the game enters or leaves fullscreen or an installed display mode. */
   private watchBack(): () => void {
     const sync = (): void => this.syncBack();
-    document.addEventListener('fullscreenchange', sync);
+    const onFullscreen = (): void => {
+      this.onFullscreenChange();
+      this.syncBack();
+    };
+    document.addEventListener('fullscreenchange', onFullscreen);
     const lists: MediaQueryList[] = [];
     for (const m of INSTALLED_MODES) {
       try {
@@ -1891,7 +2144,7 @@ export class Game {
       }
     }
     return () => {
-      document.removeEventListener('fullscreenchange', sync);
+      document.removeEventListener('fullscreenchange', onFullscreen);
       for (const l of lists) l.removeEventListener('change', sync);
     };
   }
@@ -2243,6 +2496,7 @@ export class Game {
       this.sub === 'saves' ||
       this.sub === 'sound' ||
       this.sub === 'haptics' ||
+      this.sub === 'display' ||
       this.sub === 'touch';
     ui.showTitle(onTitle && !this.sub ? items : null, sel, onTitle && this.sub === 'controls');
     const editing = this.sub === 'touchEdit' && (onTitle || s === 'pause');
@@ -2265,7 +2519,9 @@ export class Game {
               ? 'Sound'
               : this.sub === 'haptics'
                 ? 'Haptics'
-                : 'Options',
+                : this.sub === 'display'
+                  ? 'Display'
+                  : 'Options',
         text: '',
         items,
         sel,
@@ -2311,6 +2567,7 @@ export class Game {
     this.syncMix();
     this.updateMusic();
     this.syncBack();
+    this.syncLifecycle();
     this.updateRoom();
   }
 
@@ -2631,6 +2888,7 @@ export class Game {
       | 'options'
       | 'sound'
       | 'haptics'
+      | 'display'
       | 'touch'
       | 'touchEdit'
       | 'saves'
@@ -2711,6 +2969,15 @@ export class Game {
       );
       return this.openHaptics();
     }
+    if (what === 'display') {
+      // Title, then Options on its Display row, then the screen, as a player gets there.
+      this.openSub('options');
+      this.menuIdx = Math.max(
+        0,
+        this.optionRows().findIndex((r) => r.id === 'display'),
+      );
+      return this.openDisplay();
+    }
     if (what === 'saves') return this.openSaves('load');
     this.sub = what === 'title' ? null : what;
     this.syncUi();
@@ -2780,6 +3047,18 @@ export class Game {
       touch: this.touchMode,
       custom: this.touchUi.placed?.custom ?? false,
       back: { enabled: this.backOn(), armed: this.backGuard.armed },
+      lifecycle: {
+        host: this.caps.host,
+        caps: this.caps,
+        fullscreenWant: this.fullscreenWant,
+        wakeWant: this.wakeWant,
+        awake: this.awake,
+        wake: this.keepAwake.debug,
+        keepAwake: this.keepAwake.kind,
+        lastFs: this.lastFs,
+        scaleBefore: this.scaleBefore,
+        scaleAfter: this.scaleAfter,
+      },
       instances: this.lastCount,
       atlas: this.atlas.size,
     };

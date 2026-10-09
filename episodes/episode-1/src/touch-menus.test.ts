@@ -38,7 +38,15 @@ describe('touchFaces', () => {
   });
 
   it('adds Back, and keeps Pause, on a screen opened over a menu', () => {
-    for (const sub of ['options', 'saves', 'controls', 'sound', 'touch'] as const) {
+    for (const sub of [
+      'options',
+      'saves',
+      'controls',
+      'sound',
+      'haptics',
+      'display',
+      'touch',
+    ] as const) {
       for (const screen of ['title', 'pause'] as const) {
         const f = touchFaces(screen, sub);
         expect(f.shown).toEqual(['dpad', 'jump', 'pogo', 'pause']);

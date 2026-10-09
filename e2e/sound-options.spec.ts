@@ -50,6 +50,7 @@ test('Options > Sound: Left and Enter change the style, which is saved, and Esca
   await lf(page, (g) => g.debugShow('options'));
   expect(await labels(page)).toEqual([
     'Sound',
+    'Display',
     'Captions',
     'Controls',
     'Text size',

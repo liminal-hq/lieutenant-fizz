@@ -10,13 +10,29 @@ import type { ShellScreen } from './touch-menus';
 describe('backAction', () => {
   it('leaves the title to the browser, and closes a screen over it', () => {
     expect(backAction('title', null)).toBeNull();
-    for (const sub of ['controls', 'options', 'saves', 'sound', 'touch'] as const)
+    for (const sub of [
+      'controls',
+      'options',
+      'saves',
+      'sound',
+      'haptics',
+      'display',
+      'touch',
+    ] as const)
       expect(backAction('title', sub)).toBe('close');
   });
 
   it('resumes from the pause menu, and closes a screen over it', () => {
     expect(backAction('pause', null)).toBe('resume');
-    for (const sub of ['controls', 'options', 'saves', 'sound', 'touch'] as const)
+    for (const sub of [
+      'controls',
+      'options',
+      'saves',
+      'sound',
+      'haptics',
+      'display',
+      'touch',
+    ] as const)
       expect(backAction('pause', sub)).toBe('close');
   });
 
@@ -54,7 +70,16 @@ describe('backEnabled', () => {
 });
 
 describe('pauseAction', () => {
-  const SUBS = ['controls', 'options', 'saves', 'sound', 'touch', 'touchEdit'] as const;
+  const SUBS = [
+    'controls',
+    'options',
+    'saves',
+    'sound',
+    'haptics',
+    'display',
+    'touch',
+    'touchEdit',
+  ] as const;
 
   it('pauses in play, from the keyboard or the button', () => {
     expect(pauseAction('play', null, false)).toBe('pause');
