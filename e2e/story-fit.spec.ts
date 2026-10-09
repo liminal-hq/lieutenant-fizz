@@ -1,4 +1,4 @@
-// Browser check that every beat of the intro fits two lines in the phone strip, and how many taps it takes.
+// Browser check that every beat of the intro and the ending fits two lines in the phone strip, and the taps.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -155,6 +155,30 @@ for (const p of PHONES) {
       const liftoff = w.visits.filter((v) => v.scene === 2);
       expect(liftoff.map((v) => v.waiting)).toEqual([true, false, false]);
       expect(w.visits.filter((v) => v.scene !== 2).every((v) => !v.waiting)).toBe(true);
+    });
+
+    test('every beat of the ending is two lines or fewer in the strip, and it takes 12 taps', async ({
+      page,
+    }) => {
+      await boot(page);
+      const w = await walk(page, 'ending');
+      // 12 beats, so 12 taps to the credits (24 if each beat is also finished by a tap).
+      expect(w.visits).toHaveLength(12);
+      expect(w.advances).toBe(12);
+      expect(w.presses).toBe(24);
+      expect(w.screenAfter).toBe('credits');
+      const tooLong = w.visits.filter((v) => v.lines > 2).map((v) => `${v.lines}: ${v.text}`);
+      expect(tooLong).toEqual([]);
+      for (const v of w.visits) {
+        expect(v.shownEqualsText, v.text).toBe(true);
+        expect(v.barShare, v.text).toBeLessThanOrEqual(0.25);
+        expect(v.barBottom, v.text).toBeLessThanOrEqual(p.h + 0.5);
+        expect(v.textRight, v.text).toBeLessThanOrEqual(v.nextLeft);
+        expect(v.typing, v.text).toBe('Hurry');
+        // The ending has no "Step out": the last beat is a plain Continue, as before.
+        expect(v.typed, v.text).toBe('Continue');
+      }
+      expect(w.visits.map((v) => v.scene)).toEqual([0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3]);
     });
   });
 }

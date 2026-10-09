@@ -5,12 +5,15 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CINE, CINE_TRACK, LIFTOFF_BEAT } from './story';
+import { CINE, CINE_TRACK, END, LIFTOFF_BEAT } from './story';
 
 /** The longest beat that was measured to fit two lines at 640 px wide (the longest in the story is 84). */
 const LONGEST_BEAT = 90;
 
-const SCENES = [['intro', CINE]] as const;
+const SCENES = [
+  ['intro', CINE],
+  ['ending', END],
+] as const;
 
 describe.each(SCENES)('the %s', (_name, scenes) => {
   it('has places and beats that are non-empty and trimmed', () => {
@@ -67,4 +70,26 @@ describe('the intro', () => {
     }
     expect(listed).toEqual(CINE.map((s) => ({ place: s.place, beats: [...s.beats] })));
   });
+});
+
+/** The ending as the game had it before it was cut into beats: the beats only split it, so nothing is dropped. */
+const ENDING_BEFORE = [
+  "The gold USB drive slid into the security terminal with a satisfying click. Lines of green text raced up the screen. Mildred's security system blinked, sputtered, and gave up.",
+  'The cage door swung open. Billy stepped out, straightened his football helmet and grinned. “Took you long enough, Lieutenant Fizz.”',
+  "Somewhere above, a hatch slammed. Mildred McMire's voice echoed down the chocolate halls: “This isn't over, Ben Blaze! Mortimer and I have plenty more castles to build!”",
+  "The cousins raced back to the spaghetti with meatballs flying saucer, its hold stuffed with every cocoa bean the Zargs had taken. Earth's chocolate was safe — for now.",
+];
+
+describe('the ending', () => {
+  it('is four scenes and 12 beats', () => {
+    expect(END).toHaveLength(4);
+    expect(END.map((s) => s.beats.length)).toEqual([3, 3, 3, 3]);
+  });
+
+  it('is the game text before the beats, split and not edited', () => {
+    expect(END.map((s) => s.beats.join(' '))).toEqual(ENDING_BEFORE);
+  });
+
+  // docs/STORY.md still lists a shorter paraphrase of the ending; which text is canonical is undecided,
+  // so it is deliberately not compared here.
 });
