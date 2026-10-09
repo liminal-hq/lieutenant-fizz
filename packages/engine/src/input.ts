@@ -106,6 +106,20 @@ export function padToBits(pad: Pick<Gamepad, 'buttons' | 'axes'>): {
   return { bits, start: b(9) };
 }
 
+/**
+ * The pad to rumble: the one whose index is `lastIndex` (the pad last used), or failing that the first
+ * connected one. `pads` is what `navigator.getGamepads()` returns, with `null` for empty slots.
+ */
+export function pickPad<T>(pads: ArrayLike<T | null>, lastIndex: number): T | null {
+  const last = lastIndex >= 0 ? pads[lastIndex] : null;
+  if (last) return last;
+  for (let i = 0; i < pads.length; i++) {
+    const p = pads[i];
+    if (p) return p;
+  }
+  return null;
+}
+
 /** The held touch controls as sim input bits. */
 export function touchToBits(t: TouchHeld): number {
   let b = 0;
@@ -141,6 +155,8 @@ export class InputManager {
   private prevStart = false;
   private readonly handlers = new Set<(c: Command) => void>();
   padConnected = false;
+  /** Index of the pad that last had input, or -1. */
+  private lastPad = -1;
   /** The device the player last used. Starts on the gamepad if one is already connected. */
   device: InputDevice = 'keyboard';
   private readonly deviceHandlers = new Set<(d: InputDevice) => void>();
@@ -275,6 +291,12 @@ export class InputManager {
     this.touch.sample(performance.now());
   }
 
+  /** The pad the player is using, for rumble: the one that last had input, else the first connected. Null with none. */
+  activePad(): Gamepad | null {
+    const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+    return pickPad(pads, this.lastPad);
+  }
+
   /** Held bits right now, without consuming the one-shot CONFIRM latch. */
   peek(): number {
     return this.read(false);
@@ -292,7 +314,10 @@ export class InputManager {
       const r = padToBits(gp);
       padBits |= r.bits;
       start ||= r.start;
-      if (r.bits || r.start) this.setDevice('pad-input');
+      if (r.bits || r.start) {
+        this.lastPad = gp.index;
+        this.setDevice('pad-input');
+      }
     }
     this.padConnected = pad;
     if (start && !this.prevStart) this.emit({ type: 'pause' });

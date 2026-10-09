@@ -253,3 +253,107 @@ export function readEvents(raw: unknown): HapticEvent[] | null {
   }
   return out;
 }
+
+/** One steady rumble on a controller: `at` ms from the start, magnitudes 0 to 1 for the low (strong) and high (weak) motor. */
+export interface RumbleSegment {
+  at: number;
+  duration: number;
+  strong: number;
+  weak: number;
+}
+
+/** Tunable constants of the dual-rumble compiler. */
+export interface RumbleCompile {
+  /** A tap rumbles for `tapBase + tapSpan × intensity` ms: a pad motor needs time to spin up. */
+  tapBase: number;
+  tapSpan: number;
+  /** Length of one slice of a hum, in ms. */
+  slice: number;
+  /** Neighbouring slices closer than this in both motors become one segment. */
+  merge: number;
+  /** Intensity below this plays nothing. */
+  floor: number;
+  /** The most segments in one pattern; each is a separate call to the pad. */
+  maxSegments: number;
+  /** The longest pattern played, in ms. */
+  maxMs: number;
+}
+
+export const RUMBLE_COMPILE: Readonly<RumbleCompile> = {
+  tapBase: 40,
+  tapSpan: 40,
+  slice: 40,
+  merge: 0.05,
+  floor: 0.05,
+  maxSegments: 8,
+  maxMs: 1000,
+};
+
+const hundredths = (n: number): number => Math.round(n * 100) / 100;
+
+/**
+ * Compiles a pattern to steady rumble segments for a controller's two motors. Sharpness picks the
+ * motor: the low, heavy one carries `1 − sharpness` of the strength and the high, light one the rest
+ * (so a dull thud shakes the grips and a click buzzes). A tap is one segment of `40 + 40 × intensity`
+ * ms. A hum is cut into slices of at least 40 ms (at most `maxSegments` to a hum), each sampled in the
+ * middle, and neighbours that are nearly the same become one. Where two segments overlap the later
+ * takes over, because each call to the pad replaces the one before. Silent or empty means no segments.
+ */
+export function compileRumble(
+  p: HapticPattern,
+  scale = 1,
+  c: Readonly<RumbleCompile> = RUMBLE_COMPILE,
+): RumbleSegment[] {
+  const made: RumbleSegment[] = [];
+  const make = (at: number, duration: number, i: number, s: number): RumbleSegment => ({
+    at,
+    duration,
+    strong: hundredths(i * (1 - s)),
+    weak: hundredths(i * s),
+  });
+  for (const e of p.events) {
+    if (e.kind === 'transient') {
+      const i = Math.min(1, e.intensity * scale);
+      if (i >= c.floor) made.push(make(e.at, c.tapBase + c.tapSpan * i, i, e.sharpness));
+      continue;
+    }
+    const n = Math.max(1, Math.round(e.duration / Math.max(c.slice, e.duration / c.maxSegments)));
+    const len = e.duration / n;
+    const slices: RumbleSegment[] = [];
+    for (let k = 0; k < n; k++) {
+      const mid = len * k + len / 2;
+      const i = Math.min(1, sampleCurve(e.intensity, mid) * scale);
+      if (i < c.floor) continue;
+      slices.push(make(e.at + len * k, len, i, sampleCurve(e.sharpness, mid)));
+    }
+    for (const s of slices) {
+      const last = made[made.length - 1];
+      if (
+        last &&
+        Math.abs(last.at + last.duration - s.at) < 0.5 &&
+        Math.abs(last.strong - s.strong) <= c.merge &&
+        Math.abs(last.weak - s.weak) <= c.merge
+      ) {
+        const total = last.duration + s.duration;
+        last.strong = hundredths((last.strong * last.duration + s.strong * s.duration) / total);
+        last.weak = hundredths((last.weak * last.duration + s.weak * s.duration) / total);
+        last.duration = total;
+      } else made.push(s);
+    }
+  }
+  made.sort((a, b) => a.at - b.at);
+  const out: RumbleSegment[] = [];
+  for (let k = 0; k < made.length; k++) {
+    const seg = { ...(made[k] as RumbleSegment) };
+    const next = made[k + 1];
+    if (next && next.at < seg.at + seg.duration) seg.duration = next.at - seg.at;
+    if (seg.at >= c.maxMs) break;
+    seg.duration = Math.min(seg.duration, c.maxMs - seg.at);
+    const at = round(seg.at);
+    const duration = round(seg.duration);
+    if (duration < 1) continue;
+    out.push({ ...seg, at, duration });
+    if (out.length === c.maxSegments) break;
+  }
+  return out;
+}

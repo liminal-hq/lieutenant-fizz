@@ -4,10 +4,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import {
+  RUMBLE_COMPILE,
   VIBRATE_COMPILE,
+  compileRumble,
   compileVibrate,
   totalTime,
   type HapticPattern,
+  type RumbleCompile,
+  type RumbleSegment,
   type VibrateCompile,
 } from './haptic-pattern';
 
@@ -28,8 +32,8 @@ export interface PlayResult {
   downgraded: boolean;
   target: 'device' | 'controller';
   reason?: string;
-  /** What was sent to the platform. */
-  compiled?: number[];
+  /** What was sent to the platform: on and off times for a vibrator, segments for a controller. */
+  compiled?: number[] | RumbleSegment[];
   /** How long the effect runs, in ms; `GameHaptics` treats the backend as busy for this long. */
   ms: number;
 }
@@ -155,6 +159,143 @@ export function vibrateBackend(
   };
 }
 
+/** The slice of a `Gamepad.vibrationActuator` the rumble backend uses. */
+export interface RumbleActuator {
+  playEffect?: (
+    type: 'dual-rumble',
+    params: {
+      startDelay: number;
+      duration: number;
+      strongMagnitude: number;
+      weakMagnitude: number;
+    },
+  ) => Promise<unknown> | unknown;
+  reset?: () => Promise<unknown> | unknown;
+}
+
+export interface RumblePad {
+  id?: string;
+  vibrationActuator?: RumbleActuator | null;
+}
+
+/** Timers the rumble backend schedules its segments with; tests pass a fake clock. */
+export interface RumbleTimers {
+  set(fn: () => void, ms: number): unknown;
+  clear(handle: unknown): void;
+}
+
+const realTimers: RumbleTimers = {
+  set: (fn, ms) => setTimeout(fn, ms),
+  clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+};
+
+/**
+ * Controller rumble through `Gamepad.vibrationActuator`. Each `playEffect` replaces the running one, so a
+ * pattern is a list of steady segments, each fired by a timer at its start; a new play, `stop()` or a
+ * hidden page cancels the timers that have not fired. Rejections (the page hidden, an unplugged pad) are
+ * swallowed. `getPad` returns the pad the player is using, or null.
+ */
+export function gamepadBackend(
+  getPad: () => RumblePad | null,
+  opts: { timers?: RumbleTimers; compile?: Readonly<RumbleCompile> } = {},
+): HapticBackend {
+  const timers = opts.timers ?? realTimers;
+  const compile = opts.compile ?? RUMBLE_COMPILE;
+  let handles: unknown[] = [];
+  let used: RumbleActuator | null = null;
+  const actuator = (): RumbleActuator | null => {
+    const a = getPad()?.vibrationActuator;
+    return a && typeof a.playEffect === 'function' ? a : null;
+  };
+  const cancel = (): void => {
+    for (const h of handles) timers.clear(h);
+    handles = [];
+  };
+  const swallow = (r: unknown): void => {
+    if (r && typeof (r as Promise<unknown>).catch === 'function')
+      (r as Promise<unknown>).catch(() => {});
+  };
+  const caps = (): HapticCaps => {
+    const pad = getPad();
+    return actuator()
+      ? {
+          id: 'gamepad',
+          available: true,
+          tier: 2,
+          target: 'controller',
+          ...(pad?.id ? { name: pad.id } : {}),
+        }
+      : {
+          id: 'gamepad',
+          available: false,
+          reason: pad ? 'this controller cannot rumble' : 'no controller',
+          tier: 0,
+          target: 'controller',
+        };
+  };
+  const fail = (reason: string): PlayResult => ({
+    ok: false,
+    tier: 0,
+    downgraded: false,
+    target: 'controller',
+    reason,
+    ms: 0,
+  });
+  const fire = (a: RumbleActuator, seg: RumbleSegment): void => {
+    try {
+      swallow(
+        a.playEffect?.('dual-rumble', {
+          startDelay: 0,
+          duration: seg.duration,
+          strongMagnitude: seg.strong,
+          weakMagnitude: seg.weak,
+        }),
+      );
+    } catch {
+      /* a pad that throws is as good as no pad */
+    }
+  };
+  return {
+    caps,
+    play(p, scale) {
+      const a = actuator();
+      if (!a) return fail(caps().reason ?? 'no controller');
+      cancel();
+      const compiled = compileRumble(p, scale, compile);
+      if (compiled.length === 0)
+        return { ok: true, tier: 2, downgraded: false, target: 'controller', compiled, ms: 0 };
+      used = a;
+      for (const seg of compiled) {
+        if (seg.at <= 0) fire(a, seg);
+        else handles.push(timers.set(() => fire(a, seg), seg.at));
+      }
+      const last = compiled[compiled.length - 1] as RumbleSegment;
+      return {
+        ok: true,
+        tier: 2,
+        downgraded: false,
+        target: 'controller',
+        compiled,
+        ms: last.at + last.duration,
+      };
+    },
+    stop() {
+      cancel();
+      const a = used;
+      used = null;
+      if (!a) return;
+      try {
+        swallow(a.reset?.());
+      } catch {
+        /* nothing to stop */
+      }
+    },
+    dispose() {
+      this.stop();
+    },
+  };
+}
+
 /** A backend that records what it is asked to play, for tests and the lab. */
 export interface FakeBackend extends HapticBackend {
   readonly plays: { pattern: HapticPattern; scale: number; compiled: number[] }[];
@@ -164,9 +305,10 @@ export interface FakeBackend extends HapticBackend {
 }
 
 export function fakeBackend(
-  opts: { available?: boolean; tier?: 0 | 1 | 2 | 3 | 4 } = {},
+  opts: { available?: boolean; tier?: 0 | 1 | 2 | 3 | 4; target?: HapticCaps['target'] } = {},
 ): FakeBackend {
   const available = opts.available ?? true;
+  const target = opts.target ?? 'device';
   const plays: FakeBackend['plays'] = [];
   const compile: VibrateCompile = { ...VIBRATE_COMPILE };
   const b: FakeBackend = {
@@ -177,7 +319,7 @@ export function fakeBackend(
       id: 'fake',
       available,
       tier: available ? (opts.tier ?? 1) : 0,
-      target: 'device',
+      target,
       ...(available ? {} : { reason: 'fake is unavailable' }),
     }),
     play(pattern, scale) {
@@ -186,7 +328,7 @@ export function fakeBackend(
           ok: false,
           tier: 0,
           downgraded: false,
-          target: 'device',
+          target,
           reason: 'unavailable',
           ms: 0,
         };
@@ -196,7 +338,7 @@ export function fakeBackend(
         ok: true,
         tier: 1,
         downgraded: true,
-        target: 'device',
+        target,
         compiled,
         ms: totalTime(compiled),
       };
