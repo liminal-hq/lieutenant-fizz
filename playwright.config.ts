@@ -10,7 +10,17 @@ export default defineConfig({
   // Without WebGL every test fails the same way, so stop after a few instead of running them all.
   maxFailures: process.env.CI ? 3 : 0,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'github' : 'list',
+  // The tests share no state (each gets a fresh browser context), so every test is its own unit
+  // and `--shard=i/n` splits by test, not by file. Whole-file shards would be uneven because
+  // touch-menus.spec.ts alone is 39 tests in each of the two phone projects.
+  fullyParallel: true,
+  // The CI runner has 4 vCPUs and software GL is CPU-bound: measured on 4 pinned CPUs, 2 workers took
+  // 5.6 minutes and 3 or 4 took 4.6, so 3 leaves headroom for a slower runner. `LF_WORKERS` overrides it.
+  workers: process.env.LF_WORKERS ? Number(process.env.LF_WORKERS) : process.env.CI ? 3 : undefined,
+  // On CI the JSON report carries each test's duration, uploaded by the workflow for profiling.
+  reporter: process.env.CI
+    ? [['github'], ['json', { outputFile: 'test-results/timing.json' }]]
+    : 'list',
   use: {
     baseURL: 'http://127.0.0.1:5198',
     launchOptions: {
