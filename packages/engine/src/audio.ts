@@ -6,7 +6,16 @@
 import type { ControlPatch, Pattern, SoundType } from '@liminal-hq/undertone';
 import { applyAudioTune, type AudioTune, type TuneReport } from './audio-tune';
 import { Master } from './master';
-import { routedContext, createEmitter, createMusicBus, type MusicBus } from './sound-graph';
+import { MIX_OPEN, holdRamp, mixRamps, type MixShape, type Ramp } from './mix';
+import {
+  routedContext,
+  createEmitter,
+  createMusicBus,
+  mixAt,
+  scheduleRamp,
+  setMixNow,
+  type MusicBus,
+} from './sound-graph';
 import {
   isPanned,
   partMakeup,
@@ -75,6 +84,8 @@ export interface AudioPatterns {
   music: Record<string, MusicTrack>;
   /** Caption text to SFX name, so on-screen sound captions and audio always agree. */
   captionSfx: Record<string, string>;
+  /** The named mix states `AudioTune.mix` can change (see `mix.ts`); the episode keeps the live values. */
+  mix?: Record<string, MixShape>;
 }
 
 // ---------- Mini-notation subset: [ ] seq, < > alternate, , stack, *n repeat, ~ rest ----------
@@ -433,6 +444,15 @@ export class GameAudio {
   /** The Enhanced master chain, built on first use and taken down shortly after Classic returns. */
   private master: Master | null = null;
   private masterTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The mix the game last asked for. Classic and a music bus not yet built only keep it. */
+  private mixTarget: MixShape = MIX_OPEN;
+  /** The ramps of the last mix change, kept here so the next starts from where they have got to. */
+  private mixPlan: { lpf: Ramp; gain: Ramp } = {
+    lpf: holdRamp('exp', MIX_OPEN.lpf, 0),
+    gain: holdRamp('lin', MIX_OPEN.gain, 0),
+  };
+  /** True from the page hiding to its return: the context is suspended or about to be. */
+  private hidden = false;
   private readonly cache = new Map<string, Voice>();
   private readonly unlock = (): void => {
     if (this.disposed) return;
@@ -512,6 +532,8 @@ export class GameAudio {
       // Sounds already in the chain finish first; a quick switch back keeps the chain.
       this.masterTimer = setTimeout(() => this.detachMaster(), MASTER_DETACH_MS);
     }
+    // A music bus kept from before takes the mix and volume asked for in the meantime.
+    if (mode === 'enhanced') this.syncBus();
     // The running loop is on the old route, so start it again on the new one.
     if (this.handle && this.music && this.track) this.playMusic(this.track, true);
   }
@@ -541,6 +563,49 @@ export class GameAudio {
     this.musicBus = null;
   }
 
+  /** Sets the bus's volume and mix to the values asked for, with no ramp. */
+  private syncBus(): void {
+    const bus = this.musicBus;
+    if (!bus || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    bus.level.gain.cancelScheduledValues(now);
+    bus.level.gain.setValueAtTime(this.musicVol, now);
+    setMixNow(bus, this.mixTarget, now);
+    this.mixPlan = {
+      lpf: holdRamp('exp', this.mixTarget.lpf, now),
+      gain: holdRamp('lin', this.mixTarget.gain, now),
+    };
+  }
+
+  /**
+   * Sets how the music is heard: a low-pass and a gain (see `mix.ts`). In Enhanced the music bus
+   * glides there, closing over 0.18 s and opening over 0.35 s. In Classic, or before the bus
+   * exists, the value is only kept, and is applied without a ramp when the bus is built or Enhanced
+   * returns. While the page is hidden the context is frozen, so the change is made at once and is
+   * already in place when the page comes back.
+   */
+  setMix(shape: MixShape): void {
+    if (shape.lpf === this.mixTarget.lpf && shape.gain === this.mixTarget.gain) return;
+    this.mixTarget = { lpf: shape.lpf, gain: shape.gain };
+    const bus = this.mode === 'enhanced' ? this.musicBus : null;
+    const ctx = this.ctx;
+    if (!bus || !ctx) return;
+    const now = ctx.currentTime;
+    if (this.hidden || ctx.state !== 'running') {
+      this.syncBus();
+      return;
+    }
+    const ramps = mixRamps(mixAt(this.mixPlan, now), this.mixTarget, now);
+    scheduleRamp(bus.lpf.frequency, ramps.lpf);
+    scheduleRamp(bus.mix.gain, ramps.gain);
+    this.mixPlan = ramps;
+  }
+
+  /** The mix last asked for, and whether the music bus is carrying it (Enhanced with music started). */
+  get mixState(): { lpf: number; gain: number; applied: boolean } {
+    return { ...this.mixTarget, applied: this.mode === 'enhanced' && this.musicBus !== null };
+  }
+
   /** True while the master chain exists (Enhanced has been used and Classic has not yet detached it). */
   get masterBuilt(): boolean {
     return this.master !== null;
@@ -551,7 +616,7 @@ export class GameAudio {
    * glides to its new values; a new pan restarts the music, whose voices are built with the pans.
    */
   tune(t: AudioTune): TuneReport {
-    const report = applyAudioTune(t);
+    const report = applyAudioTune(t, this.patterns.mix);
     this.master?.apply();
     if (t.partPan && this.mode === 'enhanced' && this.handle && this.music && this.track) {
       this.playMusic(this.track, true);
@@ -564,6 +629,7 @@ export class GameAudio {
     if (this.musicBus) return this.musicBus;
     try {
       this.musicBus = createMusicBus(ctx, this.masterFor(ctx)?.musicBus ?? ctx.destination);
+      this.syncBus();
       return this.musicBus;
     } catch (err) {
       console.warn('Music field unavailable, playing the music as Classic', err);
@@ -635,7 +701,7 @@ export class GameAudio {
     if (this.ut) {
       try {
         const U = this.ut;
-        const voices = t.parts.map((p) => buildVoice(U, p, this.musicVol, true, !!field));
+        const voices = t.parts.map((p) => buildVoice(U, p, field ? 1 : this.musicVol, true, !!field));
         this.handle = U.stack(...voices).loop(
           field ? { ctx: field.routed, bpm: t.bpm } : { ctx: this.ctx, bpm: t.bpm },
         );
@@ -644,7 +710,7 @@ export class GameAudio {
         console.warn('Undertone music failed, using the built-in synth', track, e);
       }
     }
-    this.handle = this.mini.loop(t, this.musicVol, field?.bus);
+    this.handle = this.mini.loop(t, field ? 1 : this.musicVol, field?.bus);
   }
 
   setMusic(on: boolean): void {
@@ -660,11 +726,22 @@ export class GameAudio {
     this.sfx = on;
   }
 
-  /** Sets music loudness from 0 to 1. The running loop restarts so the new level takes effect. */
+  /**
+   * Sets music loudness from 0 to 1. In Enhanced the music bus's level glides to it and the loop
+   * keeps playing (the patterns are built at full level). In Classic the volume is baked into the
+   * patterns, so the running loop restarts so the new level takes effect.
+   */
   setMusicVolume(v: number): void {
     const vol = Math.min(1, Math.max(0, v));
     if (vol === this.musicVol) return;
     this.musicVol = vol;
+    const bus = this.mode === 'enhanced' ? this.musicBus : null;
+    if (bus && this.ctx) {
+      const now = this.ctx.currentTime;
+      bus.level.gain.cancelScheduledValues(now);
+      bus.level.gain.setTargetAtTime(vol, now, 0.02);
+      return;
+    }
     if (this.music && this.track) this.playMusic(this.track, true);
   }
 
@@ -678,6 +755,7 @@ export class GameAudio {
 
   /** Suspends or resumes the whole context (tab hidden, pause menu). */
   setActive(on: boolean): void {
+    this.hidden = !on;
     if (!this.ctx || this.disposed) return;
     void (on ? this.ctx.resume() : this.ctx.suspend());
   }

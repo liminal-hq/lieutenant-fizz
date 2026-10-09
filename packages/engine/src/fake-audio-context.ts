@@ -22,6 +22,10 @@ export class FakeParam {
     this.calls.push({ method: 'exponentialRampToValueAtTime', args: [value, time] });
     return this;
   }
+  cancelScheduledValues(time: number): this {
+    this.calls.push({ method: 'cancelScheduledValues', args: [time] });
+    return this;
+  }
   setTargetAtTime(value: number, time: number, timeConstant: number): this {
     this.calls.push({ method: 'setTargetAtTime', args: [value, time, timeConstant] });
     return this;

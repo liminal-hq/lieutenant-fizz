@@ -23,6 +23,7 @@ import { frameView, type FrameView } from '@lieutenant-fizz/engine/view-scale';
 import { HeldRepeat } from '@lieutenant-fizz/engine/repeat';
 import { TouchControls } from '@lieutenant-fizz/engine/touch-ui';
 import simUrl from './wasm/sim.wasm?url';
+import { MIX, mixFor } from './audio/mix';
 import { PATTERNS } from './audio/patterns';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { backAction, backEnabled } from './back';
@@ -252,7 +253,7 @@ export class Game {
     this.touchUi = new TouchControls(ui.touchLayer, this.input, {
       labels: { dpad: 'Move', jump: 'Jump', pogo: 'Pogo', fire: 'Fizz', pause: 'Pause' },
     });
-    this.audio = new GameAudio(PATTERNS);
+    this.audio = new GameAudio({ ...PATTERNS, mix: MIX });
     this.audioForced = options.audio !== undefined;
     this.audio.setMode(resolveAudioMode(options.audio));
     this.settings = readOptions(this.store);
@@ -1706,8 +1707,15 @@ export class Game {
           }
         : null,
     );
+    this.syncMix();
     this.updateMusic();
     this.syncBack();
+  }
+
+  /** Tells the audio how the music should be heard on this screen (muffled on pause, ducked under speech). */
+  private syncMix(): void {
+    const coarse = !!window.matchMedia?.('(pointer: coarse)').matches;
+    this.audio.setMix(mixFor(this.screen, this.sub, coarse));
   }
 
   private musicFor(): string | null {
@@ -1760,6 +1768,7 @@ export class Game {
     emitters: number;
     masterBuilt: boolean;
     ctxState: string;
+    mix: { lpf: number; gain: number; applied: boolean };
   } {
     if (mode) this.audio.setMode(mode);
     return {
@@ -1769,6 +1778,7 @@ export class Game {
       emitters: this.audio.emitters,
       masterBuilt: this.audio.masterBuilt,
       ctxState: this.audio.ctxState,
+      mix: this.audio.mixState,
     };
   }
 
@@ -1776,10 +1786,14 @@ export class Game {
    * Test hook: tunes the Enhanced sound live, so it can be set by ear on a phone or headphones. Any
    * part of `MASTER` (`master`), `FIELD` (`field`) and `PART_PAN` (`partPan`) can change, for example
    * `__lf.debugAudioTune({ master: { trim: 0.7, comp: { ratio: 3 } }, partPan: { bell: 0.2 } })`.
-   * Returns which values were set and which were refused. See `AudioTune`.
+   * `mix` changes the mix states by name (`open`, `pause`, `pauseCoarse`, `card`, `dialogue`, `cine`),
+   * for example `{ mix: { pause: { lpf: 700, gain: 0.6 } } }`; the current screen takes the change
+   * at once. Returns which values were set and which were refused. See `AudioTune`.
    */
   debugAudioTune(tune: AudioTune): TuneReport {
-    return this.audio.tune(tune);
+    const report = this.audio.tune(tune);
+    if (tune.mix) this.syncMix();
+    return report;
   }
 
   /** Test hook: switches the phone title between its two layouts. */

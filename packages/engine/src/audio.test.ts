@@ -333,6 +333,14 @@ describe('GameAudio Enhanced path', () => {
     return { sfx: sfx!, music: music!, trim: ctx.all('compressor')[1]!.out[0]! };
   };
 
+  /** The mix stage after a music bus: `bus -> level -> lpf -> mix -> master music bus`. */
+  const mixChain = (bus: FakeNode) => {
+    const level = bus.out[0]!;
+    const lpf = level.out[0]!;
+    const mix = lpf.out[0]!;
+    return { level, lpf, mix };
+  };
+
   /** The voice gains an effect left on `to`: every gain that connects straight to that node. */
   const voicesInto = (ctx: FakeContext, to: unknown) =>
     ctx.all('gain').filter((g) => g.out.includes(to as never));
@@ -437,7 +445,9 @@ describe('GameAudio Enhanced path', () => {
     expect(arg.bpm).toBe(120);
     expect(arg.ctx).not.toBe(ctx);
     const bus = arg.ctx!.destination as unknown as FakeNode;
-    expect(bus.out).toEqual([buses(ctx).music]);
+    const chain = mixChain(bus);
+    expect(chain.lpf.kind).toBe('biquad');
+    expect(chain.mix.out).toEqual([buses(ctx).music]);
     // The music bus is built once, and the next loop reuses it.
     audio.playMusic('title', true);
     expect(loop.mock.calls[1]![0]!.ctx).toBe(arg.ctx);
@@ -508,7 +518,7 @@ describe('GameAudio Enhanced path', () => {
       for (const p of panners) {
         expect(p.pan.value).toBe(PART_PAN.lead);
         expect(p.out).toHaveLength(1);
-        expect(p.out[0]!.out).toEqual([buses(ctx).music]);
+        expect(mixChain(p.out[0]!).mix.out).toEqual([buses(ctx).music]);
       }
       // The centred bass goes straight to the bus, and nothing but the bus reaches the destination.
       expect(voicesInto(ctx, ctx.destination)).toEqual([buses(ctx).trim]);
