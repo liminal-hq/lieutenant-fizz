@@ -7,7 +7,6 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_TOUCH_SETTINGS, type TouchSettings } from '@lieutenant-fizz/engine/touch-settings';
 import {
   isStepRow,
-  resetArmed,
   resetTouch,
   stepTouch,
   touchItems,
@@ -133,14 +132,5 @@ describe('resetTouch', () => {
     const r = resetTouch();
     expect(r).toEqual(DEFAULT_TOUCH_SETTINGS);
     expect(r.pos).not.toBe(DEFAULT_TOUCH_SETTINGS.pos);
-  });
-});
-
-describe('resetArmed', () => {
-  it('is armed for 3 seconds after the first tap', () => {
-    expect(resetArmed(null, 5000)).toBe(false);
-    expect(resetArmed(1000, 1000)).toBe(true);
-    expect(resetArmed(1000, 3999)).toBe(true);
-    expect(resetArmed(1000, 4000)).toBe(false);
   });
 });

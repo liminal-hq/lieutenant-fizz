@@ -65,15 +65,14 @@ import {
 } from './options';
 import {
   isStepRow,
-  resetArmed,
   resetTouch,
   stepTouch,
   touchItems,
   touchRowOf,
   touchRows,
-  RESET_ARM_MS,
   type TouchRow,
 } from './touch-options';
+import { RESET_ARM_MS, resetArmed } from './two-tap';
 import {
   applyProgress,
   captureProgress,

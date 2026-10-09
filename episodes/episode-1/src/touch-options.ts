@@ -20,9 +20,6 @@ export interface TouchCaps {
   haptics: boolean;
 }
 
-/** How long a first tap on Reset stays armed, in milliseconds. */
-export const RESET_ARM_MS = 3000;
-
 const SIZE_NAMES: Record<(typeof SIZES)[number], string> = {
   S: 'Small',
   M: 'Medium',
@@ -116,9 +113,4 @@ export function stepTouch(
 /** Every setting back to its default, including the moved controls. */
 export function resetTouch(): TouchSettings {
   return { ...DEFAULT_TOUCH_SETTINGS, pos: {} };
-}
-
-/** Whether a Reset armed at `at` (a time in milliseconds, or null) is still waiting for its second tap at `now`. */
-export function resetArmed(at: number | null, now: number): boolean {
-  return at !== null && now - at < RESET_ARM_MS;
 }
