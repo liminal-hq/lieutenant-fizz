@@ -40,6 +40,8 @@ export interface HapticBackend {
   play(p: HapticPattern, scale: number): PlayResult;
   /** Stops whatever runs. Never throws. */
   stop(): void;
+  /** Changes the compiler constants while running (the lab and the console); absent where nothing compiles. */
+  tune?(patch: Partial<VibrateCompile>): void;
   dispose(): void;
 }
 
@@ -80,8 +82,9 @@ export interface VibrateNavigator {
  */
 export function vibrateBackend(
   nav: VibrateNavigator,
-  compile: Readonly<VibrateCompile> = VIBRATE_COMPILE,
+  compileFrom: Readonly<VibrateCompile> = VIBRATE_COMPILE,
 ): HapticBackend {
+  const compile: VibrateCompile = { ...compileFrom };
   let refused = false;
   let sent = false;
   const fn = (): ((p: number | number[]) => boolean) | null =>
@@ -143,6 +146,9 @@ export function vibrateBackend(
       sent = false;
       call(0);
     },
+    tune(patch) {
+      Object.assign(compile, patch);
+    },
     dispose() {
       this.stop();
     },
@@ -152,6 +158,8 @@ export function vibrateBackend(
 /** A backend that records what it is asked to play, for tests and the lab. */
 export interface FakeBackend extends HapticBackend {
   readonly plays: { pattern: HapticPattern; scale: number; compiled: number[] }[];
+  /** The compiler patches it was given. */
+  readonly tuned: Partial<VibrateCompile>[];
   stops: number;
 }
 
@@ -160,8 +168,10 @@ export function fakeBackend(
 ): FakeBackend {
   const available = opts.available ?? true;
   const plays: FakeBackend['plays'] = [];
+  const compile: VibrateCompile = { ...VIBRATE_COMPILE };
   const b: FakeBackend = {
     plays,
+    tuned: [],
     stops: 0,
     caps: () => ({
       id: 'fake',
@@ -180,7 +190,7 @@ export function fakeBackend(
           reason: 'unavailable',
           ms: 0,
         };
-      const compiled = compileVibrate(pattern, scale);
+      const compiled = compileVibrate(pattern, scale, compile);
       plays.push({ pattern, scale, compiled });
       return {
         ok: true,
@@ -193,6 +203,10 @@ export function fakeBackend(
     },
     stop() {
       b.stops++;
+    },
+    tune(patch) {
+      Object.assign(compile, patch);
+      b.tuned.push(patch);
     },
     dispose() {},
   };

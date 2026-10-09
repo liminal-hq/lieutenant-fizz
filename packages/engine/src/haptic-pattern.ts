@@ -174,3 +174,82 @@ export function compileVibrate(
   }
   return out;
 }
+
+/** The most a calm cue's hum lasts, in ms. */
+export const CALM_HUM_MS = 150;
+
+/**
+ * A softer copy of a pattern for players who want less motion: every hum longer than `maxHum` is
+ * squeezed into `maxHum` ms with the same shape. Taps are unchanged.
+ */
+export function calmPattern(p: HapticPattern, maxHum = CALM_HUM_MS): HapticPattern {
+  const squeeze = (v: number | Curve, k: number): number | Curve =>
+    typeof v === 'number' ? v : v.map((pt) => ({ t: pt.t * k, v: pt.v }));
+  return {
+    events: p.events.map((e) => {
+      if (e.kind === 'transient' || e.duration <= maxHum) return e;
+      const k = maxHum / e.duration;
+      return {
+        ...e,
+        duration: maxHum,
+        intensity: squeeze(e.intensity, k),
+        sharpness: squeeze(e.sharpness, k),
+      };
+    }),
+  };
+}
+
+/** The range each compile constant may take when tuned. */
+export const COMPILE_LIMITS: Readonly<Record<keyof VibrateCompile, readonly [number, number]>> = {
+  period: [10, 100],
+  minOn: [1, 50],
+  minOff: [0, 50],
+  floor: [0, 1],
+  tBase: [1, 100],
+  tSpan: [0, 100],
+  maxMs: [50, 3000],
+};
+
+const MAX_EVENTS = 8;
+const MAX_AT = 1000;
+
+const unit = (v: unknown): v is number => typeof v === 'number' && v >= 0 && v <= 1;
+
+function readCurve(v: unknown, duration: number): number | Curve | null {
+  if (unit(v)) return v;
+  if (!Array.isArray(v) || v.length < 2 || v.length > 8) return null;
+  const out: { t: number; v: number }[] = [];
+  for (const pt of v as unknown[]) {
+    const o = pt as { t?: unknown; v?: unknown } | null;
+    if (!o || typeof o.t !== 'number' || o.t < 0 || o.t > duration || !unit(o.v)) return null;
+    out.push({ t: o.t, v: o.v });
+  }
+  return out;
+}
+
+/** Checks a list of events from outside (the console, the lab). Returns a clean copy, or null if any part is wrong. */
+export function readEvents(raw: unknown): HapticEvent[] | null {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_EVENTS) return null;
+  const out: HapticEvent[] = [];
+  for (const item of raw as unknown[]) {
+    const e = item as Record<string, unknown> | null;
+    if (!e || typeof e['at'] !== 'number' || e['at'] < 0 || e['at'] > MAX_AT) return null;
+    if (e['kind'] === 'transient') {
+      if (!unit(e['intensity']) || !unit(e['sharpness'])) return null;
+      out.push({
+        kind: 'transient',
+        at: e['at'],
+        intensity: e['intensity'],
+        sharpness: e['sharpness'],
+      });
+    } else if (e['kind'] === 'continuous') {
+      const d = e['duration'];
+      if (typeof d !== 'number' || d < 10 || d > MAX_AT) return null;
+      const intensity = readCurve(e['intensity'], d);
+      const sharpness = readCurve(e['sharpness'], d);
+      if (intensity === null || sharpness === null) return null;
+      out.push({ kind: 'continuous', at: e['at'], duration: d, intensity, sharpness });
+    } else return null;
+  }
+  return out;
+}
