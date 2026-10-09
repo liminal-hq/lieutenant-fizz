@@ -9,15 +9,7 @@ import { Mode } from '../sim/protocol';
 
 /** The kinds of place. Every level, and every screen, has one. */
 export type RoomName =
-  | 'neutral'
-  | 'map'
-  | 'outdoor'
-  | 'cave'
-  | 'shaft'
-  | 'citadel'
-  | 'tower'
-  | 'theatre'
-  | 'foundry';
+  'neutral' | 'map' | 'outdoor' | 'cave' | 'shaft' | 'citadel' | 'tower' | 'theatre' | 'foundry';
 
 /**
  * The rooms, as data to tune by ear (`__lf.debugAudioTune({ rooms: { cave: { sfxSend: 0.15 } } })`;
