@@ -254,6 +254,18 @@ export class GameHaptics {
     this.cue(`ui.${kind}`);
   }
 
+  /**
+   * Plays a cue at once on one target at that target's strength, for a settings screen that lets the player
+   * feel a change. It ignores the lane, the cooldown, the route and the budget, but not the strength (Off
+   * plays nothing) or a hidden page. Returns whether a play was sent.
+   */
+  preview(id: string, target: Target): boolean {
+    const cue = this.table.cues[id];
+    if (!cue || !this.active || this.ch[target].master <= 0) return false;
+    this.play(target, { id, scale: 1, count: 1, order: this.order++, cue }, this.clock.now());
+    return true;
+  }
+
   private drop(reason: string): void {
     this.dropped[reason] = (this.dropped[reason] ?? 0) + 1;
   }

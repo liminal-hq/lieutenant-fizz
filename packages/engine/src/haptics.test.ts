@@ -534,3 +534,46 @@ describe('GameHaptics routing', () => {
     expect(routeFor('keyboard')).toBe('device');
   });
 });
+
+describe('GameHaptics.preview', () => {
+  let pad: FakeBackend;
+  beforeEach(() => {
+    pad = fakeBackend({ target: 'controller' });
+    h.setBackends({ controller: pad });
+  });
+
+  it('plays a game cue at once on the target, outside a level and without a flush', () => {
+    h.setGameplay(false);
+    expect(h.preview('light', 'device')).toBe(true);
+    expect(fake.plays).toHaveLength(1);
+    expect(pad.plays).toHaveLength(0);
+    expect(h.preview('heavy', 'controller')).toBe(true);
+    expect(pad.plays).toHaveLength(1);
+  });
+
+  it('plays at the strength of the target it is sent to', () => {
+    h.setScale(0.5, 0.75);
+    h.preview('light', 'device');
+    h.preview('light', 'controller');
+    expect(fake.plays[0]?.scale).toBe(0.5);
+    expect(pad.plays[0]?.scale).toBe(0.75);
+  });
+
+  it('plays nothing at a strength of Off, for an unknown cue or while the page is hidden', () => {
+    h.setScale(0, 1);
+    expect(h.preview('light', 'device')).toBe(false);
+    expect(h.preview('light', 'controller')).toBe(true);
+    expect(h.preview('nope', 'controller')).toBe(false);
+    h.setActive(false);
+    expect(h.preview('light', 'controller')).toBe(false);
+    expect(fake.plays).toHaveLength(0);
+    expect(pad.plays).toHaveLength(1);
+  });
+
+  it('ignores the cooldown, so every step of a held key is felt, and shows in the report', () => {
+    h.preview('light', 'device');
+    h.preview('light', 'device');
+    expect(fake.plays).toHaveLength(2);
+    expect(h.report().plays.map((p) => p.cue)).toEqual(['light', 'light']);
+  });
+});
