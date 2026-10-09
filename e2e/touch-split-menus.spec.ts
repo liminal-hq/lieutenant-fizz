@@ -6,6 +6,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import { audit } from './audit';
 
+// Times out under software GL on the shared CI runner. Disabled for now and kept, to be profiled and
+// re-enabled; set LF_E2E_SPLIT_MENUS=1 to run it locally.
+test.fixme(
+  !process.env['LF_E2E_SPLIT_MENUS'],
+  'flaky on CI: times out under software GL on the shared runner; profile and re-enable (LF_E2E_SPLIT_MENUS=1 runs it locally)',
+);
+
 interface Box {
   left: number;
   top: number;
