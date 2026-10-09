@@ -89,6 +89,7 @@ bun install
 bun run dev         # builds the WASM, then starts the Vite dev server
 bun run build       # production build: WASM, TypeScript and Vite
 bun run build:site  # landing page plus episodes assembled in dist-site/, as Pages publishes them
+bun run build:icons # redraw the web app icons from assets/icon/fizz-icon.svg (check:icons verifies them)
 bun run test        # TypeScript tests
 bun run test:rust   # Rust tests across the Cargo workspace
 bun run test:e2e    # Browser layout checks of the overlay (Playwright; not part of validate)

@@ -86,7 +86,7 @@ The launcher navigates the WebView to the episode's own page with a launch contr
 
 ## Icon
 - **Chosen: 2g, "Fizz ring · Zargoth"** (`design/App Icons.dc.html`, `design/assets/fizz-icon.svg`): Ben in the fizz ring, in EGA magenta, the colours of Planet Zargoth. It reads at 24 px, and the art stays inside the Android 66 dp safe zone.
-- The source is a 512×512 pixel-art SVG. The design export's copy carries embedded generator metadata, which is stripped when the source is committed to `assets/icon/`.
+- The source is a 512×512 pixel-art SVG. The design export's copy carries embedded generator metadata; `assets/icon/fizz-icon.svg` is the stripped copy (same shapes, no `<metadata>` block) and is the committed source. The web build already uses it: `bun run build:icons` draws the PNGs the web manifest and page head use into `episodes/episode-1/public/icons/` (see MOBILE_PLAN.md, slice 7.3), and `check:icons` keeps them in step with the SVG. The rest of the set below (adaptive layers, notification icon, dev variant) is still to come.
 - `assets/icon/` follows Cadence: the source SVG, the adaptive-icon foreground, background and monochrome layers, a notification icon, and a **dev variant** with a small "Dev" ribbon so it is never mistaken for the release build. `tauri icon` generates the Android adaptive, Windows, macOS and Linux sets from it.
 - `design/assets/liminalhq-mark.svg` is the Liminal HQ mark for About and the splash.
 
