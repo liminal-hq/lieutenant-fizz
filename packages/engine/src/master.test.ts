@@ -50,6 +50,11 @@ function build(coarse = false) {
     trim: limiter!.out[0]!,
     predelay: ctx.all('delay')[0]!,
     convolver: ctx.all('convolver')[0]!,
+    // The room crossfade: slot A (playing) and slot B (idle), each a predelay, a convolver and a gain.
+    predelayB: ctx.all('delay')[1]!,
+    convolverB: ctx.all('convolver')[1]!,
+    fadeA: ctx.all('convolver')[0]!.out[0]!,
+    fadeB: ctx.all('convolver')[1]!.out[0]!,
   };
 }
 
@@ -81,9 +86,16 @@ describe('Master chain', () => {
     expect(sfxSend!.out).toEqual([g.sendHpf]);
     expect(musicSend.out).toEqual([g.sendHpf]);
     expect(g.sendHpf.out).toEqual([g.sendLpf]);
-    expect(g.sendLpf.out).toEqual([g.predelay]);
+    expect(g.sendLpf.out).toEqual([g.predelay, g.predelayB]);
     expect(g.predelay.out).toEqual([g.convolver]);
-    expect(g.convolver.out).toEqual([g.comp]);
+    expect(g.predelayB.out).toEqual([g.convolverB]);
+    expect(g.convolver.out).toEqual([g.fadeA]);
+    expect(g.convolverB.out).toEqual([g.fadeB]);
+    expect(g.fadeA.out).toEqual([g.comp]);
+    expect(g.fadeB.out).toEqual([g.comp]);
+    expect(g.fadeA.gain.value).toBe(1);
+    expect(g.fadeB.gain.value).toBe(0);
+    expect(g.convolverB.buffer).toBeNull();
     expect(g.sendHpf.type).toBe('highpass');
     expect(g.sendHpf.frequency.value).toBe(300);
     expect(g.sendLpf.type).toBe('lowpass');
@@ -149,14 +161,17 @@ describe('Master chain', () => {
     expect(g.convolver.buffer).toBe(first);
     MASTER.reverb.seconds = 1.2;
     g.m.apply();
-    expect(g.convolver.buffer).not.toBe(first);
+    // The new length is built into the idle slot and crossfaded in; the first stays until it dies.
+    expect(g.convolver.buffer).toBe(first);
+    expect(g.convolverB.buffer).not.toBeNull();
+    expect(g.convolverB.buffer).not.toBe(first);
   });
 
   it('adds no stereo widening to the dry path', () => {
     const g = build();
     for (const kind of ['panner', 'merger']) expect(g.ctx.all(kind), kind).toHaveLength(0);
-    // The only delay is the reverb's predelay, on the send.
-    expect(g.ctx.all('delay')).toEqual([g.predelay]);
+    // The only delays are the two reverb slots' predelays, on the send.
+    expect(g.ctx.all('delay')).toEqual([g.predelay, g.predelayB]);
   });
 
   it('disconnects every node when disposed', () => {
@@ -288,11 +303,14 @@ describe('applyAudioTune', () => {
 
   it('changes the named mix states, and refuses unknown states, keys and out-of-range values', () => {
     const mix = { pause: { lpf: 900, gain: 0.7 } };
-    const report = applyAudioTune({ mix: { pause: { lpf: 700 }, nowhere: { gain: 0.5 } } }, mix);
+    const report = applyAudioTune(
+      { mix: { pause: { lpf: 700 }, nowhere: { gain: 0.5 } } },
+      { mix },
+    );
     expect(mix.pause.lpf).toBe(700);
     expect(report.applied).toEqual(['mix.pause.lpf']);
     expect(report.ignored).toEqual(['mix.nowhere.gain']);
-    const bad = applyAudioTune({ mix: { pause: { lpf: 5, gain: 9, q: 1 } as never } }, mix);
+    const bad = applyAudioTune({ mix: { pause: { lpf: 5, gain: 9, q: 1 } as never } }, { mix });
     expect(bad.applied).toEqual([]);
     expect(bad.ignored).toEqual(['mix.pause.lpf', 'mix.pause.gain', 'mix.pause.q']);
     expect(mix.pause).toEqual({ lpf: 700, gain: 0.7 });

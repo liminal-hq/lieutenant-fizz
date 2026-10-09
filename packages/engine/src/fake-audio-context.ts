@@ -8,6 +8,8 @@ import { vi } from 'vitest';
 /** A recorded AudioParam: remembers the value and every scheduled change. */
 export class FakeParam {
   readonly calls: { method: string; args: number[] }[] = [];
+  /** The value curves set, in order. */
+  readonly curves: { values: number[]; time: number; duration: number }[] = [];
   constructor(public value = 0) {}
   setValueAtTime(value: number, time: number): this {
     this.value = value;
@@ -24,6 +26,11 @@ export class FakeParam {
   }
   cancelScheduledValues(time: number): this {
     this.calls.push({ method: 'cancelScheduledValues', args: [time] });
+    return this;
+  }
+  setValueCurveAtTime(values: Float32Array | number[], time: number, duration: number): this {
+    this.curves.push({ values: Array.from(values), time, duration });
+    this.calls.push({ method: 'setValueCurveAtTime', args: [time, duration] });
     return this;
   }
   setTargetAtTime(value: number, time: number, timeConstant: number): this {

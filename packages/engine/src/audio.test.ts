@@ -608,9 +608,8 @@ describe('GameAudio master chain', () => {
     audio.play('zap');
     audio.playMusic('title');
     expect(compressors(ctx)).toHaveLength(2);
-    expect(ctx.all('convolver').filter((c) => c.out.includes(compressors(ctx)[0]!))).toHaveLength(
-      1,
-    );
+    // One room reverb: two convolver slots (for crossfades), built once.
+    expect(ctx.all('convolver')).toHaveLength(2);
     expect(audio.masterBuilt).toBe(true);
   });
 

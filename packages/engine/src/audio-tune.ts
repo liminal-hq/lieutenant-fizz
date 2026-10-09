@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { MixShape } from './mix';
-import { MASTER, type MasterTuning } from './master';
+import { MASTER, type MasterTuning, type RoomProfile } from './master';
 import { FIELD, PART_PAN, type FieldTuning, type PartPan, type PartRole } from './sound-field';
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
@@ -18,12 +18,15 @@ type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]>
  *   `{ bell: 0.2, arp: [-0.4, 0.4] }`
  * - `mix`: a change to a named mix state (`lpf` in Hz, `gain` linear) when the episode has one of
  *   that name, for example `{ pause: { lpf: 700 }, dialogue: { gain: 0.6 } }`
+ * - `rooms`: any part of a named room of the episode's room table, for example
+ *   `{ cave: { sfxSend: 0.15, seconds: 2.2 } }`. A room's `ring` can be tuned only if it has one.
  */
 export interface AudioTune {
   master?: DeepPartial<MasterTuning>;
   field?: Partial<FieldTuning>;
   partPan?: Partial<Record<PartRole, PartPan>>;
   mix?: Record<string, Partial<MixShape>>;
+  rooms?: Record<string, DeepPartial<RoomProfile>>;
 }
 
 /** What `applyAudioTune` did: the values it set, and the paths it did not recognise or refused. */
@@ -59,15 +62,24 @@ const validPan = (v: unknown): v is PartPan => {
 };
 
 /**
- * Applies a tuning to the live `MASTER`, `FIELD` and `PART_PAN`, and to the named mix states in
- * `mix`. Unknown keys, non-numbers, pans outside -1 to 1, cutoffs outside 20 to 20000 Hz and gains
- * outside 0 to 2 are skipped and listed in the report rather than thrown, so a typo in the console
- * does not stop the music.
+ * Applies a tuning to the live `MASTER`, `FIELD` and `PART_PAN`, and to the named mix states and rooms
+ * in `tables`. Unknown keys, non-numbers, pans outside -1 to 1, cutoffs outside 20 to 20000 Hz and
+ * gains outside 0 to 2 are skipped and listed in the report rather than thrown, so a typo in the
+ * console does not stop the music. `tables` holds the episode's `mix` states and `rooms`; a `mix` or
+ * `rooms` key with no table to land in is reported as ignored.
  */
-export function applyAudioTune(tune: AudioTune, mix?: Record<string, MixShape>): TuneReport {
+export function applyAudioTune(
+  tune: AudioTune,
+  tables: { mix?: Record<string, MixShape>; rooms?: Record<string, RoomProfile> } = {},
+): TuneReport {
   const report: TuneReport = { applied: [], ignored: [] };
   if (tune.master) assign(MASTER as never, tune.master as never, 'master', report);
   if (tune.field) assign(FIELD as never, tune.field as never, 'field', report);
+  for (const [name, change] of Object.entries(tune.rooms ?? {})) {
+    const room = tables.rooms?.[name];
+    if (room && isRecord(change)) assign(room as never, change as never, `rooms.${name}`, report);
+    else report.ignored.push(`rooms.${name}`);
+  }
   for (const [role, pan] of Object.entries(tune.partPan ?? {})) {
     const path = `partPan.${role}`;
     if (role in PART_PAN && validPan(pan)) {
@@ -76,7 +88,7 @@ export function applyAudioTune(tune: AudioTune, mix?: Record<string, MixShape>):
     } else report.ignored.push(path);
   }
   for (const [name, change] of Object.entries(tune.mix ?? {})) {
-    const state = mix?.[name];
+    const state = tables.mix?.[name];
     for (const [key, value] of Object.entries(change ?? {})) {
       const path = `mix.${name}.${key}`;
       const ok =

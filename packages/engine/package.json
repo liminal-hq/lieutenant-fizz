@@ -15,6 +15,7 @@
     "./font/tokens": "./src/font/tokens.ts",
     "./input": "./src/input.ts",
     "./instances": "./src/instances.ts",
+    "./master": "./src/master.ts",
     "./mix": "./src/mix.ts",
     "./palette": "./src/palette.ts",
     "./pen": "./src/pen.ts",

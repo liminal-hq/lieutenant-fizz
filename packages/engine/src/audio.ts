@@ -5,7 +5,7 @@
 
 import type { ControlPatch, Pattern, SoundType } from '@liminal-hq/undertone';
 import { applyAudioTune, type AudioTune, type TuneReport } from './audio-tune';
-import { Master } from './master';
+import { Master, type RoomProfile } from './master';
 import { MIX_OPEN, holdRamp, mixRamps, type MixShape, type Ramp } from './mix';
 import {
   routedContext,
@@ -453,6 +453,8 @@ export class GameAudio {
   };
   /** True from the page hiding to its return: the context is suspended or about to be. */
   private hidden = false;
+  /** The room Enhanced sound is in; kept in Classic and before the chain exists, applied when built. */
+  private room: RoomProfile | null = null;
   private readonly cache = new Map<string, Voice>();
   private readonly unlock = (): void => {
     if (this.disposed) return;
@@ -534,6 +536,7 @@ export class GameAudio {
     }
     // A music bus kept from before takes the mix and volume asked for in the meantime.
     if (mode === 'enhanced') this.syncBus();
+    if (mode === 'enhanced' && this.room) this.master?.setRoom(this.room);
     // The running loop is on the old route, so start it again on the new one.
     if (this.handle && this.music && this.track) this.playMusic(this.track, true);
   }
@@ -546,7 +549,7 @@ export class GameAudio {
     if (this.master) return this.master;
     try {
       const coarse = !!window.matchMedia?.('(pointer: coarse)').matches;
-      this.master = new Master(ctx, ctx.destination, coarse);
+      this.master = new Master(ctx, ctx.destination, coarse, this.room);
       return this.master;
     } catch (err) {
       console.warn('Master chain unavailable, playing Enhanced sound unmastered', err);
@@ -612,11 +615,21 @@ export class GameAudio {
   }
 
   /**
+   * Puts Enhanced sound in a room: the reverb's length, sends, filters and character, crossfaded
+   * from the room before. In Classic, or before the master chain exists, it only remembers the room
+   * and the chain starts in it. Classic itself has no room.
+   */
+  setRoom(profile: RoomProfile): void {
+    this.room = profile;
+    if (this.mode === 'enhanced') this.master?.setRoom(profile);
+  }
+
+  /**
    * Applies a live change to `MASTER`, `FIELD` and `PART_PAN` (see `AudioTune`). The master chain
    * glides to its new values; a new pan restarts the music, whose voices are built with the pans.
    */
-  tune(t: AudioTune): TuneReport {
-    const report = applyAudioTune(t, this.patterns.mix);
+  tune(t: AudioTune, rooms?: Record<string, RoomProfile>): TuneReport {
+    const report = applyAudioTune(t, { mix: this.patterns.mix, rooms });
     this.master?.apply();
     if (t.partPan && this.mode === 'enhanced' && this.handle && this.music && this.track) {
       this.playMusic(this.track, true);
