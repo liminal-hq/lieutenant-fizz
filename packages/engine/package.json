@@ -32,6 +32,7 @@
     "./repeat": "./src/repeat.ts",
     "./sound-field": "./src/sound-field.ts",
     "./stinger": "./src/stinger.ts",
+    "./story-beats": "./src/story-beats.ts",
     "./touch": "./src/touch.ts",
     "./touch-layout": "./src/touch-layout.ts",
     "./touch-settings": "./src/touch-settings.ts",
