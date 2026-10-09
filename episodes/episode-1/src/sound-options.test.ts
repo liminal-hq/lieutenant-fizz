@@ -23,8 +23,8 @@ const base = (): Options => ({ ...DEFAULT_OPTIONS });
 const rows = soundRows();
 
 describe('soundRows', () => {
-  it('lists Style, Music, Effects, Reset and Back', () => {
-    expect(rows).toEqual(['style', 'music', 'sfx', 'reset', 'back']);
+  it('lists Style, Music, Effects, Sound lab, Reset and Back', () => {
+    expect(rows).toEqual(['style', 'music', 'sfx', 'lab', 'reset', 'back']);
   });
 
   it('round-trips a row through its menu id and rejects anything else', () => {
@@ -43,11 +43,18 @@ describe('soundItems', () => {
       ['Style', styleName(AUDIO_DEFAULT), undefined],
       ['Music', undefined, 8],
       ['Effects', undefined, 8],
+      ['Sound lab', 'Off', undefined],
       ['Reset', undefined, undefined],
       ['Back', undefined, undefined],
     ]);
     expect(items[0]?.kind).toBe('choice');
     expect(items[1]?.kind).toBe('meter');
+  });
+
+  it('shows the Sound lab row as an Off or On choice', () => {
+    const lab = (on: boolean) => soundItems({ ...base(), lab: on }, undefined, rows, false)[3];
+    expect(lab(false)).toMatchObject({ label: 'Sound lab', kind: 'choice', value: 'Off' });
+    expect(lab(true)?.value).toBe('On');
   });
 
   it('shows the saved choice', () => {
@@ -62,7 +69,7 @@ describe('soundItems', () => {
   });
 
   it('asks for a second tap once Reset is armed', () => {
-    const reset = (armed: boolean) => soundItems(base(), undefined, rows, armed)[3];
+    const reset = (armed: boolean) => soundItems(base(), undefined, rows, armed)[4];
     expect(reset(false)?.value).toBeUndefined();
     expect(reset(true)?.value).toBe('Tap again');
   });
@@ -80,8 +87,8 @@ describe('effectiveAudio', () => {
 });
 
 describe('isSoundStepRow', () => {
-  it('steps Style, Music and Effects only', () => {
-    expect(rows.filter((r) => isSoundStepRow(r))).toEqual(['style', 'music', 'sfx']);
+  it('steps Style, Music, Effects and the Sound lab only', () => {
+    expect(rows.filter((r) => isSoundStepRow(r))).toEqual(['style', 'music', 'sfx', 'lab']);
     expect(isSoundStepRow(null)).toBe(false);
   });
 });
@@ -126,6 +133,18 @@ describe('stepSound', () => {
     expect(stepSound(o, 'style', -1, false)).toEqual({ ...o, audio: 1 });
   });
 
+  it('toggles the Sound lab with a step either way or with Enter, and changes nothing else', () => {
+    const o = { ...base(), music: 3, audio: 2 };
+    for (const [d, wrap] of [
+      [1, false],
+      [-1, false],
+      [1, true],
+    ] as const) {
+      expect(stepSound(o, 'lab', d, wrap)).toEqual({ ...o, lab: true });
+    }
+    expect(stepSound({ ...o, lab: true }, 'lab', 1, true)).toEqual(o);
+  });
+
   it('returns the same options for a row that does not step', () => {
     const o = base();
     expect(stepSound(o, 'reset', 1, true)).toBe(o);
@@ -134,7 +153,7 @@ describe('stepSound', () => {
 });
 
 describe('resetSound', () => {
-  it('puts Style, Music and Effects back and leaves every other option alone', () => {
+  it('puts Style, Music, Effects and the Sound lab back and leaves every other option alone', () => {
     const o: Options = {
       music: 2,
       sfx: 5,
@@ -143,8 +162,9 @@ describe('resetSound', () => {
       layout: 1,
       text: 1,
       motion: 2,
+      lab: true,
     };
-    expect(resetSound(o)).toEqual({ ...o, audio: 0, music: 8, sfx: 8 });
+    expect(resetSound(o)).toEqual({ ...o, audio: 0, music: 8, sfx: 8, lab: false });
   });
 
   it('does not change options already at their defaults', () => {
@@ -170,8 +190,8 @@ describe('soundPreview', () => {
     expect(soundPreview('sfx', { sfx: 0 })).toEqual([]);
   });
 
-  it('has none for Music (it changes live), Reset or Back', () => {
-    for (const r of ['music', 'reset', 'back'] as const)
+  it('has none for Music (it changes live), the Sound lab, Reset or Back', () => {
+    for (const r of ['music', 'lab', 'reset', 'back'] as const)
       expect(soundPreview(r, base())).toEqual([]);
   });
 

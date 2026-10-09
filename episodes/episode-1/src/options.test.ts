@@ -19,7 +19,16 @@ import {
 
 describe('options storage', () => {
   it('round-trips every option', () => {
-    const o = { music: 3, sfx: 0, audio: 2, captions: false, layout: 1, text: 1, motion: 2 };
+    const o = {
+      music: 3,
+      sfx: 0,
+      audio: 2,
+      captions: false,
+      layout: 1,
+      text: 1,
+      motion: 2,
+      lab: true,
+    };
     expect(parseOptions(serialiseOptions(o))).toEqual(o);
   });
 
@@ -47,7 +56,15 @@ describe('options storage', () => {
       layout: 1,
       text: 1,
       motion: 2,
+      lab: false,
     });
+  });
+
+  it('keeps the Sound lab off unless it is saved as true, and rejects anything else', () => {
+    expect(DEFAULT_OPTIONS.lab).toBe(false);
+    expect(parseOptions('{"v":1,"lab":true}').lab).toBe(true);
+    for (const bad of ['"on"', '1', 'null', '[]'])
+      expect(parseOptions(`{"v":1,"lab":${bad}}`).lab).toBe(false);
   });
 
   it('rejects a Style outside Auto, Classic and Enhanced', () => {
@@ -125,8 +142,22 @@ describe('stepOption', () => {
     expect(stepOption({ ...DEFAULT_OPTIONS, captions: false }, 'captions', -1).captions).toBe(true);
   });
 
+  it('toggles the Sound lab in either direction', () => {
+    expect(stepOption(DEFAULT_OPTIONS, 'lab', 1).lab).toBe(true);
+    expect(stepOption({ ...DEFAULT_OPTIONS, lab: true }, 'lab', -1).lab).toBe(false);
+  });
+
   it('does not change the other options', () => {
-    const o = { music: 2, sfx: 3, audio: 1, captions: false, layout: 1, text: 1, motion: 2 };
+    const o = {
+      music: 2,
+      sfx: 3,
+      audio: 1,
+      captions: false,
+      layout: 1,
+      text: 1,
+      motion: 2,
+      lab: true,
+    };
     expect(stepOption(o, 'music', 1)).toEqual({ ...o, music: 3 });
   });
 });
