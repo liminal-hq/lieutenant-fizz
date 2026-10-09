@@ -131,13 +131,28 @@ export function onGesture(
   };
 }
 
-/** Whether the display should be kept on. Not used by the game yet. */
+/** Whether no input has come for long enough that the display is let go. */
+export function isIdle(idleMs: number): boolean {
+  return idleMs >= IDLE_RELEASE_MS;
+}
+
+/** Reads `?wake`: bare or `on` forces the wake lock on, `off` forces it off, anything else leaves it to the setting. */
+export function parseWakeParam(value: string | null | undefined): 'on' | 'off' | undefined {
+  if (value === '' || value === 'on') return 'on';
+  return value === 'off' ? 'off' : undefined;
+}
+
+/**
+ * Whether the display should be kept on: a screen being watched or played, the page showing, the phone
+ * upright, input within the last five minutes, the setting on, and something to hold it (the browser's
+ * wake lock, or the app's native backend).
+ */
 export function wakeWanted(s: LifeState, c: Caps): boolean {
   return (
     s.live &&
     s.visible &&
     !s.rotated &&
-    s.idleMs < IDLE_RELEASE_MS &&
+    !isIdle(s.idleMs) &&
     s.wakeWant === 'on' &&
     (c.wakeLock || c.host === 'app')
   );

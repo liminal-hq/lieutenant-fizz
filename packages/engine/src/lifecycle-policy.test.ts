@@ -9,10 +9,12 @@ import {
   backGuardAllowed,
   detectCaps,
   isAppHost,
+  isIdle,
   lifecyclePolicy,
   onGesture,
   parseFullscreenParam,
   parseHostParam,
+  parseWakeParam,
   pauseFor,
   resolveFullscreen,
   wakeWanted,
@@ -249,5 +251,21 @@ describe('the URL flags', () => {
     expect(parseHostParam('app', false)).toBeUndefined();
     expect(parseHostParam('web', true)).toBeUndefined();
     expect(parseHostParam(null, true)).toBeUndefined();
+  });
+});
+
+describe('isIdle and parseWakeParam', () => {
+  it('lets the display go at exactly five minutes without input', () => {
+    expect(isIdle(0)).toBe(false);
+    expect(isIdle(299_999)).toBe(false);
+    expect(isIdle(300_000)).toBe(true);
+    expect(isIdle(IDLE_RELEASE_MS + 1)).toBe(true);
+  });
+
+  it('reads ?wake like ?fullscreen', () => {
+    expect(parseWakeParam('')).toBe('on');
+    expect(parseWakeParam('on')).toBe('on');
+    expect(parseWakeParam('off')).toBe('off');
+    for (const v of [null, undefined, 'maybe', '1']) expect(parseWakeParam(v)).toBeUndefined();
   });
 });
