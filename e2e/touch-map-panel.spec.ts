@@ -22,10 +22,7 @@ interface Box {
   h: number;
 }
 
-const PLAYER_X = 13;
-const PLAYER_Y = 14;
 const EDGE = 8;
-const BEN_UNITS = 1.3;
 
 /** Where the level nodes and the first sign are on the map, in world units. */
 const SPOTS = {
@@ -69,6 +66,7 @@ async function goTo(page: Page, spot: keyof typeof SPOTS): Promise<void> {
     ([x, y]) => {
       const g = (window as unknown as { __lf: Lf }).__lf;
       g.debugShow('map');
+      // State slots 13 and 14 are Ben's x and y.
       g.sim.set(13, x!);
       g.sim.set(14, y!);
       (window as unknown as { __last: string }).__last = '';
@@ -213,5 +211,4 @@ test('still clear of Ben at 640x320', async ({ page }) => {
   // The longest text may step onto the top of a control, but never onto Ben or off the screen.
   expect(hits(long.card, long.ben), 'covers Ben').toBe(false);
   expect(long.card.y + long.card.h).toBeLessThanOrEqual(long.view.h - EDGE + 0.5);
-  expect(BEN_UNITS).toBeGreaterThan(1);
 });
