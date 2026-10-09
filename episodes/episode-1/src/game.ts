@@ -10,11 +10,19 @@ import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
-import { enterFullscreen, type FullscreenResult } from '@lieutenant-fizz/engine/lifecycle';
+import {
+  enterFullscreen,
+  noKeepAwake,
+  webWakeLock,
+  type FullscreenResult,
+  type KeepAwakeBackend,
+} from '@lieutenant-fizz/engine/lifecycle';
 import {
   backGuardAllowed,
   detectCaps,
   isAppHost,
+  isIdle,
+  lifecyclePolicy,
   onGesture,
   pauseFor,
   type Caps,
@@ -52,7 +60,7 @@ import { FIZZ_HAPTICS } from './haptics/fizz-haptics';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { backAction, backEnabled, pauseAction } from './back';
 import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
-import { gestureFor } from './lifecycle-rules';
+import { gestureFor, isLive } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
 import { isPortrait, watchResize, type TouchGutters } from './layout';
 import { touchFaces, type ShellScreen, type SubScreen, type TouchFaces } from './touch-menus';
@@ -186,6 +194,10 @@ export interface GameOptions {
   fullscreen?: Want;
   /** `app` (`?debug&host=app`) pretends to be the native app, where the web fullscreen and Back guard step aside. */
   host?: Host;
+  /** `off` (`?wake=off`) never keeps the screen on, `on` (`?wake`) does while playing or watching; the default is on. */
+  wake?: 'on' | 'off';
+  /** What keeps the screen on in the app, given by the app; the web build uses the browser's wake lock. */
+  keepAwake?: KeepAwakeBackend;
 }
 
 /** The `display-mode` values an installed app runs in. */
@@ -236,6 +248,14 @@ export class Game {
   /** What this page can do for fullscreen and orientation, and whether it is the native app. */
   private readonly caps: Caps;
   private readonly fullscreenWant: Want;
+  private readonly wakeWant: 'on' | 'off';
+  /** Keeps the screen on while `lifecyclePolicy` asks for it. */
+  private readonly keepAwake: KeepAwakeBackend;
+  /** Whether the screen is being kept on (what the policy last asked for). */
+  private awake = false;
+  /** When the last input came, and whether that is long enough ago to let the screen go. */
+  private idleAt = performance.now();
+  private idle = false;
   /** How the last fullscreen request went, and the pixel scale around it (for trying it on a phone). */
   private lastFs: FullscreenResult | null = null;
   private scaleBefore: number | null = null;
@@ -402,6 +422,13 @@ export class Game {
       matchMedia: window.matchMedia?.bind(window),
       host: options.host ?? (isAppHost(window) ? 'app' : 'web'),
     });
+    this.wakeWant = options.wake ?? 'on';
+    this.keepAwake =
+      this.caps.host === 'app'
+        ? (options.keepAwake ?? noKeepAwake)
+        : this.caps.wakeLock
+          ? webWakeLock(navigator, document)
+          : noKeepAwake;
     this.touchSettings = readTouchSettings(this.store);
     this.touchUi = new TouchControls(ui.touchLayer, this.input, {
       labels: { dpad: 'Move', jump: 'Jump', pogo: 'Pogo', fire: 'Fizz', pause: 'Pause' },
@@ -438,6 +465,13 @@ export class Game {
     this.captionNames = sim.names(Table.CAPTIONS);
     this.toastNames = sim.names(Table.TOASTS);
     this.input.onCommand((c) => this.onCommand(c));
+    this.input.onPadLost(() => {
+      if (pauseFor('padLost', { playing: this.screen === 'play' })) this.autoPause();
+    });
+    window.addEventListener('blur', this.onBlur);
+    for (const t of ['keydown', 'pointerdown', 'touchstart'] as const) {
+      window.addEventListener(t, this.onInputEvent, { capture: true, passive: true });
+    }
     this.unwatchBack = this.watchBack();
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('pagehide', this.onVisibility);
@@ -513,6 +547,11 @@ export class Game {
     cancelAnimationFrame(this.raf);
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('pagehide', this.onVisibility);
+    window.removeEventListener('blur', this.onBlur);
+    for (const t of ['keydown', 'pointerdown', 'touchstart'] as const) {
+      window.removeEventListener(t, this.onInputEvent, { capture: true });
+    }
+    this.keepAwake.dispose();
     window.removeEventListener('pointerdown', this.onTouchPointer, { capture: true });
     this.ui.stage.removeEventListener('contextmenu', this.onContextMenu);
     window.removeEventListener('pointermove', this.onMouseMove);
@@ -585,6 +624,9 @@ export class Game {
     const bits = this.input.peek();
     this.menuInput(bits);
     this.lastBits = bits;
+    // Input from a pad or a held key keeps the idle clock fresh; the screen is let go when it crosses five minutes.
+    if (bits !== 0) this.noteInput(t);
+    else if (isIdle(t - this.idleAt) !== this.idle) this.syncLifecycle();
     // The sim samples touch presses in play; a menu has no step, so it marks them seen itself.
     if (screen !== 'play') this.input.markTouchSeen();
 
@@ -1171,7 +1213,47 @@ export class Game {
     this.audio.setActive(this.visible);
     this.haptics.setActive(this.visible);
     if (!this.visible) this.autoPause();
+    this.syncLifecycle();
   };
+
+  /** The window lost focus (alt-tab, a notification shade, a system dialog): a level in play pauses. */
+  private readonly onBlur = (): void => {
+    if (pauseFor('blur', { playing: this.screen === 'play' })) this.autoPause();
+  };
+
+  /** A key, mouse or touch press counts as input for the idle clock. */
+  private readonly onInputEvent = (): void => this.noteInput(performance.now());
+
+  private noteInput(now: number): void {
+    this.idleAt = now;
+    if (this.idle) this.syncLifecycle();
+  }
+
+  /**
+   * Keeps the screen on exactly while the policy wants it. Called from `syncUi()` and the visibility
+   * handler, and by the frame when the idle clock crosses five minutes; it only tells the backend on a change.
+   */
+  private syncLifecycle(): void {
+    const now = performance.now();
+    this.idle = isIdle(now - this.idleAt);
+    const { awake } = lifecyclePolicy(
+      {
+        live: isLive(this.screen, this.sub),
+        playing: this.screen === 'play',
+        visible: this.visible,
+        rotated: this.rotated,
+        fullscreen: document.fullscreenElement !== null,
+        idleMs: now - this.idleAt,
+        touchCapable: this.touchCapable,
+        fullscreenWant: this.fullscreenWant,
+        wakeWant: this.wakeWant,
+      },
+      this.caps,
+    );
+    if (awake === this.awake) return;
+    this.awake = awake;
+    this.keepAwake.set(awake);
+  }
 
   /** Pauses a level in play, for when the page hides or the phone is turned upright. */
   private autoPause(): void {
@@ -2396,6 +2478,7 @@ export class Game {
     this.syncMix();
     this.updateMusic();
     this.syncBack();
+    this.syncLifecycle();
     this.updateRoom();
   }
 
@@ -2869,6 +2952,9 @@ export class Game {
         host: this.caps.host,
         caps: this.caps,
         fullscreenWant: this.fullscreenWant,
+        awake: this.awake,
+        wake: this.keepAwake.debug,
+        keepAwake: this.keepAwake.kind,
         lastFs: this.lastFs,
         scaleBefore: this.scaleBefore,
         scaleAfter: this.scaleAfter,
