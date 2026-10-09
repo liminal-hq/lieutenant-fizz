@@ -7,11 +7,14 @@ import { describe, expect, it } from 'vitest';
 import {
   MIN_TILES,
   PIXEL_BUDGET,
+  backing,
   frameView,
   sharpDivisor,
   sharpView,
   softRatio,
+  type BackingInput,
   type FrameView,
+  type PixelMode,
 } from './view-scale';
 
 describe('sharpView', () => {
@@ -225,5 +228,216 @@ describe('frameView', () => {
     expect(
       frameView(o, { cssW: 1, cssH: 1, devW: 1, devH: 1, target: 13, zoom: 1, sharp: false }),
     ).toBe(o);
+  });
+});
+
+describe('backing', () => {
+  const input = (
+    cssW: number,
+    cssH: number,
+    dpr: number,
+    mode: PixelMode,
+    target = 13,
+  ): BackingInput => ({
+    cssW,
+    cssH,
+    devW: Math.round(cssW * dpr),
+    devH: Math.round(cssH * dpr),
+    dpr,
+    mode,
+    target,
+  });
+
+  describe('Sharp and Soft', () => {
+    it('backs a Sharp phone one to one onto device pixels', () => {
+      const b = backing(input(844, 390, 3, 'sharp'));
+      expect([b.canvasW, b.canvasH, b.k, b.pixelGrid, b.budgeted]).toEqual([
+        2532,
+        1170,
+        1,
+        true,
+        false,
+      ]);
+      expect([b.cssW, b.cssH, b.overscanW, b.overscanH, b.fastScale]).toEqual([844, 390, 0, 0, 0]);
+    });
+
+    it('divides a canvas over the budget by a whole k', () => {
+      const b = backing({ ...input(2560, 1440, 2, 'sharp') });
+      expect([b.canvasW, b.canvasH, b.k, b.budgeted]).toEqual([2560, 1440, 2, true]);
+    });
+
+    it('falls back to Soft when the device size does not divide by k', () => {
+      const b = backing({ ...input(2561, 1440, 2, 'sharp'), devW: 5123, devH: 2880 });
+      expect(b.pixelGrid).toBe(false);
+      expect(b.k).toBe(1);
+      expect(b.canvasW).toBe(Math.floor(2561 * softRatio(2, 2561, 1440)));
+    });
+
+    it('backs Soft at the capped device ratio', () => {
+      const b = backing(input(844, 390, 3, 'soft'));
+      expect([b.canvasW, b.canvasH, b.k, b.pixelGrid]).toEqual([1688, 780, 1, false]);
+      const d = backing(input(1280, 720, 1, 'soft'));
+      expect([d.canvasW, d.canvasH, d.budgeted]).toEqual([1280, 720, false]);
+    });
+  });
+
+  describe('Fast', () => {
+    // [css w, css h, dpr, target, canvas w, canvas h, k, overscan w, overscan h]
+    const cases: [number, number, number, number, number, number, number, number, number][] = [
+      [844, 390, 3, 13, 507, 234, 5, 3, 0],
+      [844, 390, 3, 12, 422, 195, 6, 0, 0],
+      [740, 360, 2.6, 13, 481, 234, 4, 0, 0],
+      [915, 412, 2.625, 13, 481, 217, 5, 3, 3],
+      [800, 360, 2, 13, 534, 240, 3, 2, 0],
+      [1366, 768, 1, 13, 456, 256, 3, 2, 0],
+      [1920, 1080, 1, 13, 384, 216, 5, 0, 0],
+      [1920, 1080, 1, 14, 480, 270, 4, 0, 0],
+      [2560, 1440, 1, 13, 427, 240, 6, 2, 0],
+      [1920, 1080, 2, 13, 384, 216, 10, 0, 0],
+      [2560, 1440, 2, 13, 394, 222, 13, 2, 6],
+      [1280, 720, 1, 13, 427, 240, 3, 1, 0],
+    ];
+    it.each(cases)(
+      '%i×%i at %fx, target %i backs %i×%i at k %i with overscan %i×%i',
+      (cw, ch, dpr, target, w, h, k, ow, oh) => {
+        const i = input(cw, ch, dpr, 'fast', target);
+        const b = backing(i);
+        expect([b.canvasW, b.canvasH, b.k, b.fastScale]).toEqual([w, h, k, k]);
+        expect([b.overscanW, b.overscanH]).toEqual([ow, oh]);
+        expect(b.pixelGrid).toBe(true);
+        expect(b.budgeted).toBe(false);
+        // The CSS box maps onto a whole k× of the backing in device pixels.
+        expect(b.cssW * dpr).toBeCloseTo(w * k, 6);
+        expect(b.cssH * dpr).toBeCloseTo(h * k, 6);
+        expect(b.canvasW * k - i.devW).toBe(ow);
+        expect(b.canvasH * k - i.devH).toBe(oh);
+      },
+    );
+
+    it('follows the target: the map and a cinematic can use another k', () => {
+      expect(backing(input(844, 390, 3, 'fast', 13)).k).toBe(5);
+      expect(backing(input(844, 390, 3, 'fast', 12)).k).toBe(6);
+      expect(backing(input(915, 412, 2.625, 'fast', 13)).k).toBe(5);
+      expect(backing(input(915, 412, 2.625, 'fast', 14)).k).toBe(4);
+    });
+
+    it('shades 9 to 100 times fewer pixels than Sharp on the docs sizes', () => {
+      for (const [w, h, dpr, ratio] of [
+        [844, 390, 3, 25],
+        [740, 360, 2.6, 16],
+        [800, 360, 2, 9],
+        [1920, 1080, 1, 25],
+        [2560, 1440, 1, 36],
+        [1920, 1080, 2, 100],
+      ] as const) {
+        const sharp = backing(input(w, h, dpr, 'sharp'));
+        const fast = backing(input(w, h, dpr, 'fast'));
+        const cut = (sharp.canvasW * sharp.canvasH) / (fast.canvasW * fast.canvasH);
+        expect(cut, `${w}×${h}`).toBeGreaterThan(ratio * 0.9);
+        expect(cut, `${w}×${h}`).toBeLessThan(ratio * 1.15);
+      }
+    });
+
+    it('stays small at 5K at 2x, where Sharp has to divide', () => {
+      const b = backing(input(2560, 1440, 2, 'fast'));
+      expect([b.canvasW, b.canvasH, b.k, b.overscanW, b.overscanH]).toEqual([394, 222, 13, 2, 6]);
+      expect(b.canvasW * b.canvasH).toBeLessThan(PIXEL_BUDGET / 50);
+    });
+
+    it('falls back to Soft at half the ratio where Sharp cannot apply', () => {
+      const b = backing(input(640, 300, 1, 'fast'));
+      expect(b.pixelGrid).toBe(false);
+      expect(b.k).toBe(1);
+      expect([b.canvasW, b.canvasH]).toEqual([320, 150]);
+      expect([b.overscanW, b.overscanH, b.fastScale]).toEqual([0, 0, 0]);
+      expect([b.cssW, b.cssH]).toEqual([640, 300]);
+    });
+
+    it('keeps Sharp’s tile count on every screen, within one sprite pixel row where it overscans', () => {
+      for (const target of [12, 13, 14]) {
+        for (const dpr of [1, 2, 2.6, 3]) {
+          for (let devH = 352; devH <= 2200; devH += 7) {
+            const devW = Math.round((devH * 16) / 9);
+            const i: BackingInput = {
+              devW,
+              devH,
+              cssW: devW / dpr,
+              cssH: devH / dpr,
+              dpr,
+              mode: 'fast',
+              target,
+            };
+            const sharp = sharpView(devH, target);
+            const b = backing(i);
+            if (!sharp) {
+              expect(b.fastScale).toBe(0);
+              continue;
+            }
+            expect(b.k).toBe(sharp.scale);
+            expect(b.overscanW).toBeLessThan(b.k);
+            expect(b.overscanH).toBeLessThan(b.k);
+            expect(b.canvasW * b.k).toBeGreaterThanOrEqual(devW);
+            expect(b.canvasH * b.k).toBeGreaterThanOrEqual(devH);
+            const v = frameView(
+              { halfW: 0, halfH: 0, scale: 0 },
+              {
+                cssW: b.cssW,
+                cssH: b.cssH,
+                devW: b.canvasW,
+                devH: b.canvasH,
+                target,
+                zoom: 1,
+                sharp: b.pixelGrid,
+                minScale: 1,
+              },
+            );
+            // One canvas pixel per sprite pixel, and Sharp's tiles to within the cropped row.
+            expect(v.scale).toBe(1);
+            expect(v.halfH * 2).toBeGreaterThanOrEqual(sharp.tiles - 1e-9);
+            expect(v.halfH * 2).toBeLessThan(sharp.tiles + 1 / 16 + 1e-9);
+            if (b.overscanH === 0) expect(v.halfH * 2).toBeCloseTo(sharp.tiles, 9);
+          }
+        }
+      }
+    });
+  });
+});
+
+describe('frameView under Fast', () => {
+  it('shows Sharp’s tiles with one canvas pixel per sprite pixel', () => {
+    const v = frameView(
+      { halfW: 0, halfH: 0, scale: 0 },
+      {
+        cssW: 845,
+        cssH: 390,
+        devW: 507,
+        devH: 234,
+        target: 13,
+        zoom: 1,
+        sharp: true,
+        minScale: 1,
+      },
+    );
+    expect(v.scale).toBe(1);
+    expect(v.halfH * 2).toBe(14.625);
+    expect(v.halfW).toBeCloseTo((14.625 / 2) * (507 / 234), 9);
+  });
+
+  it('is Soft when zoomed, following the canvas box', () => {
+    const v = frameView(
+      { halfW: 0, halfH: 0, scale: 0 },
+      {
+        cssW: 845,
+        cssH: 390,
+        devW: 507,
+        devH: 234,
+        target: 13,
+        zoom: 2,
+        sharp: true,
+        minScale: 1,
+      },
+    );
+    expect(v.scale).toBe(0);
+    expect(v.halfH).toBe(3.25);
   });
 });
