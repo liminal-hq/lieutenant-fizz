@@ -39,6 +39,7 @@ import {
   snapScroll,
   snapViewport,
   stripLayout,
+  uniformRowUnit,
   type RowBox,
 } from './menu-scroll';
 import { pillItems, type PillIcon } from './hud';
@@ -582,9 +583,16 @@ export class Ui {
    * A cue strip, about half a row tall, is reserved above and below the menu (as its margins) for the
    * "more rows" chevrons, paid for first from the pixels the cut frees; half of what is left then goes
    * above the menu as spacing. A chevron shows in a strip only when rows are out of view that way, and
-   * the selected row is kept in view. A menu that fits is left alone. Measured after the menu is drawn.
+   * the selected row is kept in view. A scrolling list lays every row out at the height of its tallest
+   * (`--lf-menu-unit`), never under the default row height, so a save slot whose text wraps does not
+   * leave a sliver of the next row at an edge. A menu that fits is left alone. Measured after the menu
+   * is drawn.
    */
   private fitRows(): void {
+    const touch = this.touchMode;
+    const minRow = touch
+      ? Number.parseFloat(getComputedStyle(this.stage).getPropertyValue('--lf-menu-row')) || 0
+      : 0;
     for (const screen of [this.title, this.overlay]) {
       const menus = [...screen.querySelectorAll<HTMLElement>('.menu')];
       const shown = menus.find((m) => !m.hidden && m.offsetParent);
@@ -593,14 +601,27 @@ export class Ui {
         m.style.removeProperty('max-height');
         m.style.removeProperty('margin-top');
         m.style.removeProperty('margin-bottom');
+        m.style.removeProperty('--lf-menu-unit');
         delete m.dataset.scroll;
+        delete m.dataset.unit;
         delete m.dataset.strip;
       }
       if (screen.hidden || !shown || !shown.firstElementChild) {
         this.updateCues(screen, null);
         continue;
       }
-      const overflow = screen.scrollHeight - screen.clientHeight;
+      let overflow = screen.scrollHeight - screen.clientHeight;
+      if (overflow > 0) {
+        // Snapping and the window maths assume one row height, so a scrolling list lays every row out at
+        // the height of its tallest (a save slot whose text wraps), though never under the default row.
+        const heights = this.rowBoxes(shown).map((r) => r.height);
+        const unit = uniformRowUnit(heights, minRow);
+        if (heights.some((h) => Math.abs(h - unit) > 0.5)) {
+          shown.style.setProperty('--lf-menu-unit', `${unit}px`);
+          shown.dataset.unit = '';
+          overflow = screen.scrollHeight - screen.clientHeight;
+        }
+      }
       const boxes = this.rowBoxes(shown);
       // The head and controls decide what is left; two rows and their strips are the least worth scrolling.
       const least = snapViewport(boxes, 0) + 2 * MIN_STRIP;

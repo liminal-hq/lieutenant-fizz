@@ -90,6 +90,14 @@ export function snapViewport(rows: readonly RowBox[], view: number, minRows = MI
 /** The least height of a cue strip, in CSS pixels: room for the chevron drawn at one CSS pixel per art pixel. */
 export const MIN_STRIP = 10;
 
+/**
+ * The height of every row in a scrolling list: the tallest row, though never under `min` (the default
+ * row height). A list of rows no taller than `min` gets `min`, so it looks as it does without a unit.
+ */
+export function uniformRowUnit(heights: readonly number[], min: number): number {
+  return heights.reduce((tallest, h) => Math.max(tallest, h), min);
+}
+
 /** How a scrolling list sits in the height it is given: the list's own height and the strip above and below it. */
 export interface StripLayout {
   /** The list's height: a whole number of rows. */

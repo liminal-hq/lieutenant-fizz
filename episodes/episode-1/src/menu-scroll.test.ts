@@ -18,6 +18,7 @@ import {
   snapScroll,
   snapViewport,
   stripLayout,
+  uniformRowUnit,
   type RowBox,
   TAP_SLOP,
   visibleWindow,
@@ -226,6 +227,20 @@ describe('chevronSvg', () => {
 
 const rowsOf = (n: number, h: number): RowBox[] =>
   Array.from({ length: n }, (_, i) => ({ top: i * h, height: h }));
+
+describe('uniformRowUnit', () => {
+  it('is the default row height when no row is taller', () => {
+    expect(uniformRowUnit([40, 40, 40], 40)).toBe(40);
+    expect(uniformRowUnit([36, 38], 40)).toBe(40);
+    expect(uniformRowUnit([], 40)).toBe(40);
+  });
+  it('is the tallest row when one is taller than the default', () => {
+    expect(uniformRowUnit([40, 56, 40, 44], 40)).toBe(56);
+  });
+  it('lets rows set the unit when there is no default', () => {
+    expect(uniformRowUnit([12, 20], 0)).toBe(20);
+  });
+});
 
 describe('stripLayout', () => {
   const rows = rowsOf(9, 40);

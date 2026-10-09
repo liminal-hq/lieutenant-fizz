@@ -158,6 +158,14 @@
     transform: scaleY(-1) translateY(calc(var(--lf-cue, 1) * 1px));
   }
 }
+/* A scrolling list lays every row out at the height of its tallest (`--lf-menu-unit`, set by the shell),
+   so the whole-row snapping and the window maths hold when a save slot's text wraps. */
+#stage .menu[data-unit] > button,
+#stage[data-touch] .menu[data-unit] > button:not(.slot),
+#stage[data-touch] .menu[data-unit] > button.slot {
+  height: var(--lf-menu-unit);
+  min-height: var(--lf-menu-unit);
+}
 .menu[hidden],
 #controls[hidden] {
   display: none;
