@@ -345,7 +345,6 @@ const TOWER: RoomProfile = {
 };
 
 describe('Master.setRoom', () => {
-  const gains = (n: FakeNode) => (n.gain as unknown as FakeNode['gain']).calls;
   const sendOf = (g: ReturnType<typeof build>, bus: FakeNode) =>
     bus.out.find((n) => n.kind === 'gain' && n !== bus && n.gain.value < 1)!;
 
