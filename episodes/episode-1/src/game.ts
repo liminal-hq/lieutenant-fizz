@@ -189,7 +189,11 @@ export class Game {
   private resetAt: number | null = null;
   /** What the editor reports as controls are moved: every drop is saved. */
   private readonly editHooks: EditHooks = {
-    drop: (id, off) => this.applyTouchSettings(withPosition(this.touchSettings, id, off)),
+    pick: () => this.haptics.ui('move'),
+    drop: (id, off) => {
+      this.haptics.ui('select');
+      this.applyTouchSettings(withPosition(this.touchSettings, id, off));
+    },
   };
   private resetTimer = 0;
   /** Whether the on-screen controls and the phone HUD are showing (it follows the device in use). */
@@ -1310,6 +1314,17 @@ export class Game {
     if (!changed) return;
     this.disarmReset();
     this.audio.play('menu');
+    this.haptics.ui(
+      next.haptics !== s.haptics
+        ? next.haptics
+          ? 'toggleOn'
+          : 'toggleOff'
+        : next.leftHanded !== s.leftHanded
+          ? next.leftHanded
+            ? 'toggleOn'
+            : 'toggleOff'
+          : 'move',
+    );
     this.applyTouchSettings(next);
     this.syncUi();
   }
@@ -1356,10 +1371,12 @@ export class Game {
     if (resetArmed(this.resetAt, performance.now())) {
       this.disarmReset();
       this.audio.play('click');
+      this.haptics.ui('select');
       this.applyTouchSettings(resetPositions(this.touchSettings));
       this.syncUi();
       return;
     }
+    this.haptics.ui('select');
     this.armReset();
   }
 
