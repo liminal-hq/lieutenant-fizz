@@ -41,7 +41,7 @@ test.describe('haptics', () => {
   test('a menu move vibrates and hiding the page stops it', async ({ page }, info) => {
     test.skip(info.project.name !== ONE, 'one viewport');
     await open(page, '&haptics');
-    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown', { delay: 300 });
     await expect.poll(() => calls(page)).not.toEqual([]);
     expect((await calls(page))[0]).toEqual(expect.arrayContaining([expect.any(Number)]));
     await page.evaluate(() => {
@@ -55,7 +55,7 @@ test.describe('haptics', () => {
     test.skip(info.project.name !== ONE, 'one viewport');
     await open(page, '');
     const before = await menu(page);
-    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown', { delay: 300 });
     await expect.poll(() => menu(page)).not.toBe(before);
     // Two frames after the move: a haptic cue would have played by then.
     await page.evaluate(
