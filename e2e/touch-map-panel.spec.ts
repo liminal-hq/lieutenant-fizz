@@ -51,6 +51,27 @@ async function openMap(page: Page, hand: 'right' | 'left' = 'right'): Promise<vo
       }),
     ],
   );
+  // A standalone display mode the test can switch, as an installed app would.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __standalone: boolean; __setStandalone(on: boolean): void };
+    const lists: { fire: () => void }[] = [];
+    const real = window.matchMedia.bind(window);
+    w.__standalone = false;
+    window.matchMedia = (q: string): MediaQueryList => {
+      if (!q.includes('display-mode')) return real(q);
+      const target = new EventTarget() as EventTarget & { matches: boolean; media: string };
+      Object.defineProperty(target, 'matches', {
+        get: () => w.__standalone && q.includes('standalone'),
+      });
+      target.media = q;
+      lists.push({ fire: () => target.dispatchEvent(new Event('change')) });
+      return target as unknown as MediaQueryList;
+    };
+    w.__setStandalone = (on: boolean): void => {
+      w.__standalone = on;
+      for (const l of lists) l.fire();
+    };
+  });
   await page.goto('/?debug&touch');
   await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
     timeout: 30_000,
@@ -211,4 +232,32 @@ test('still clear of Ben at 640x320', async ({ page }) => {
   // The longest text may step onto the top of a control, but never onto Ben or off the screen.
   expect(hits(long.card, long.ben), 'covers Ben').toBe(false);
   expect(long.card.y + long.card.h).toBeLessThanOrEqual(long.view.h - EDGE + 0.5);
+});
+
+test('clears the controls where they rise in an installed app and where they fall back', async ({
+  page,
+}) => {
+  await openMap(page);
+  await goTo(page, 'crater');
+  const bars = await seen(page);
+  expectClear(bars, false);
+  // The default controls rise; the card is placed again against their new places.
+  await page.evaluate(() =>
+    (window as unknown as { __setStandalone(on: boolean): void }).__setStandalone(true),
+  );
+  await expect
+    .poll(async () => (await seen(page)).controls[0]!.y, { timeout: 10_000 })
+    .toBeLessThan(bars.controls[0]!.y - 20);
+  await goTo(page, 'crater');
+  const up = await seen(page);
+  expectClear(up, false);
+  if (up.tier === '1') expectClear(up, true);
+  await page.evaluate(() =>
+    (window as unknown as { __setStandalone(on: boolean): void }).__setStandalone(false),
+  );
+  await expect
+    .poll(async () => (await seen(page)).controls[0]!.y, { timeout: 10_000 })
+    .toBe(bars.controls[0]!.y);
+  await goTo(page, 'crater');
+  expectClear(await seen(page), false);
 });
