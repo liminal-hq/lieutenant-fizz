@@ -55,7 +55,7 @@ test.describe('on a landscape phone window', () => {
     // The room and mix pickers, a slider and the reset leave the game running.
     await page.locator('#lab [role=tab]', { hasText: 'Rooms and mix' }).click();
     await page.locator('#lab button', { hasText: /^cave$/ }).click();
-    await page.locator('#lab input[type=range]').first().press('ArrowRight');
+    await page.locator('#lab input[type=range]:visible').first().press('ArrowRight');
     await expect(page.locator('#lab button', { hasText: /changed/ })).toBeVisible();
     await page.locator('#lab button', { hasText: 'Reset to defaults' }).click();
     await expect(page.locator('#lab button', { hasText: 'Copy as JSON' })).toHaveText(
