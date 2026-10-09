@@ -97,7 +97,7 @@ test('a pad that can rumble adds the Haptics row, whose Rumble row steps and rum
   // Down to Haptics, Enter opens the screen: Strength, Rumble, Haptics lab (fixed by ?debug), Reset, Back.
   await hold(page, 'ArrowDown');
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Haptics');
-  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter', { delay: 300 });
   await expect(page.locator('#overlay h2')).toHaveText('Haptics');
   expect(await labels(page)).toEqual(['Strength', 'Rumble', 'Haptics lab', 'Reset', 'Back']);
   // ?debug puts the haptics lab on, so that row is fixed and Down skips it.
@@ -123,7 +123,7 @@ test('a pad that can rumble adds the Haptics row, whose Rumble row steps and rum
   // Down skips the fixed Haptics lab row and lands on Reset; Escape returns to Haptics on Options.
   await hold(page, 'ArrowDown');
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Reset');
-  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape', { delay: 300 });
   await expect(page.locator('#overlay h2')).toHaveText('Options');
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Haptics');
   expect(errors).toEqual([]);
