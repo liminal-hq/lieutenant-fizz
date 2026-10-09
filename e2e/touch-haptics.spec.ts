@@ -7,7 +7,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 interface Win {
   __vib: unknown[];
-  __lf: { debugState: { menu: number } };
+  __lf: { debugState: { menu: number }; debugHaptics(): { plays: { cue: string }[] } };
 }
 
 /** Boots the title with a `navigator.vibrate` that records what it is given. */
@@ -44,6 +44,13 @@ test.describe('haptics', () => {
     await page.keyboard.press('ArrowDown', { delay: 300 });
     await expect.poll(() => calls(page)).not.toEqual([]);
     expect((await calls(page))[0]).toEqual(expect.arrayContaining([expect.any(Number)]));
+    // The title's attract loop raises captions too; none of them may reach the vibrator.
+    await page.waitForTimeout(1500);
+    const cues = await page.evaluate(() =>
+      (window as unknown as Win).__lf.debugHaptics().plays.map((p) => p.cue),
+    );
+    expect(cues.length).toBeGreaterThan(0);
+    expect(cues.every((c) => c.startsWith('ui.'))).toBe(true);
     await page.evaluate(() => {
       Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
       document.dispatchEvent(new Event('visibilitychange'));

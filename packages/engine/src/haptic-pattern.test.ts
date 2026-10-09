@@ -6,9 +6,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   VIBRATE_COMPILE,
+  calmPattern,
   compileVibrate,
   onTime,
   patternLength,
+  readEvents,
   sampleCurve,
   type HapticPattern,
 } from './haptic-pattern';
@@ -121,5 +123,58 @@ describe('helpers', () => {
   it('measures a pattern', () => {
     expect(patternLength({ events: [tap(1, 1, 80), ramp(20, 100, 1, 1)] })).toBe(120);
     expect(onTime([10, 5, 20, 5])).toBe(30);
+  });
+});
+
+describe('calmPattern', () => {
+  it('squeezes a long hum into the cap and leaves taps and short hums alone', () => {
+    const long = ramp(0, 300, 1, 0.2);
+    const calm = calmPattern({ events: [tap(0.5, 0.5, 10), long] });
+    const hum = calm.events[1];
+    expect(calm.events[0]).toEqual(tap(0.5, 0.5, 10));
+    expect(hum).toMatchObject({ kind: 'continuous', duration: 150 });
+    if (hum?.kind === 'continuous' && typeof hum.intensity !== 'number')
+      expect(hum.intensity.map((p) => p.t)).toEqual([0, 150]);
+    const short = ramp(0, 100, 1, 0);
+    expect(calmPattern({ events: [short] }).events[0]).toBe(short);
+    expect(onTime(compileVibrate(calmPattern({ events: [long] })))).toBeLessThan(
+      onTime(compileVibrate({ events: [long] })),
+    );
+  });
+});
+
+describe('readEvents', () => {
+  const good = [
+    { kind: 'transient', at: 0, intensity: 0.5, sharpness: 0.5 },
+    { kind: 'continuous', at: 20, duration: 100, intensity: 0.4, sharpness: 0.2 },
+    {
+      kind: 'continuous',
+      at: 0,
+      duration: 100,
+      intensity: [
+        { t: 0, v: 1 },
+        { t: 100, v: 0 },
+      ],
+      sharpness: 0.5,
+    },
+  ];
+  it('returns a clean copy of good events', () => {
+    const out = readEvents(good);
+    expect(out).toEqual(good);
+    expect(out).not.toBe(good);
+  });
+  it('rejects anything out of range or malformed', () => {
+    const bad: unknown[] = [
+      [],
+      'x',
+      [{ kind: 'transient', at: 0, intensity: 1.5, sharpness: 0.5 }],
+      [{ kind: 'transient', at: -1, intensity: 0.5, sharpness: 0.5 }],
+      [{ kind: 'transient', at: 0, intensity: 0.5 }],
+      [{ kind: 'continuous', at: 0, duration: 5, intensity: 0.5, sharpness: 0.5 }],
+      [{ kind: 'continuous', at: 0, duration: 100, intensity: [{ t: 0, v: 1 }], sharpness: 0.5 }],
+      [{ kind: 'wobble', at: 0 }],
+      Array.from({ length: 9 }, () => good[0]),
+    ];
+    for (const b of bad) expect(readEvents(b), JSON.stringify(b)).toBeNull();
   });
 });
