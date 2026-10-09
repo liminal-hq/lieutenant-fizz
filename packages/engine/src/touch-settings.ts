@@ -8,6 +8,7 @@
 
 import { DEFAULT_STRENGTH, isStrength } from './haptic-strength';
 import {
+  CHROMELESS_LIFT,
   DEFAULT_TOUCH_SPEC,
   type EdgeOffset,
   type MovableId,
@@ -142,9 +143,22 @@ export function writeTouchSettings(store: Writer | null, s: TouchSettings): bool
   }
 }
 
-/** The placement spec for these settings: the size, the hand and the moved controls. */
-export function touchSpec(s: TouchSettings, base: TouchSpec = DEFAULT_TOUCH_SPEC): TouchSpec {
-  return { ...base, scale: SIZE_SCALE[s.size], leftHanded: s.leftHanded, moved: { ...s.pos } };
+/**
+ * The placement spec for these settings: the size, the hand and the moved controls. With the browser's
+ * bars gone (`chromeless`) the default places are lifted; moved controls keep their stored offsets.
+ */
+export function touchSpec(
+  s: TouchSettings,
+  base: TouchSpec = DEFAULT_TOUCH_SPEC,
+  chromeless = false,
+): TouchSpec {
+  return {
+    ...base,
+    scale: SIZE_SCALE[s.size],
+    leftHanded: s.leftHanded,
+    moved: { ...s.pos },
+    lift: chromeless ? CHROMELESS_LIFT : base.lift,
+  };
 }
 
 /** The settings with one control moved. */

@@ -52,6 +52,13 @@ export interface TouchSpec {
   scale: number;
   /** Swaps the D-pad and the buttons (Pause stays top right). */
   leftHanded: boolean;
+  /**
+   * How far the default places are raised, in CSS pixels at a window `LIFT_REFERENCE_HEIGHT` tall (see
+   * `liftFor`). It stands in for the browser's bottom bar when that bar is gone (fullscreen or an installed
+   * app), so the controls sit at the same height from the bottom of the phone. It moves only controls that
+   * have not been moved: a stored offset is measured from the bottom of the window and is never lifted.
+   */
+  lift: number;
   /** Controls the player moved, by their offset from the safe corner; absent means the default place. */
   moved?: Partial<Record<MovableId, EdgeOffset>>;
   /** Room kept free when controls are moved, in CSS pixels. */
@@ -81,8 +88,19 @@ export const DEFAULT_TOUCH_SPEC: TouchSpec = {
   pause: { d: 36, hit: 48, right: 8, top: 8 },
   scale: 1,
   leftHanded: false,
+  lift: 0,
   reserve: { top: 96, content: 300, gap: 8, edge: 8 },
 };
+
+/** The window height the spec's `lift` is given for; shorter windows lift proportionally less. */
+export const LIFT_REFERENCE_HEIGHT = 390;
+
+/**
+ * The default lift while the browser's bar is gone, at the reference height. It is the bar's height
+ * (about 64 dp on Android) less what the controls' larger size on the taller window already gives; see
+ * `docs/MOBILE_PLAN.md`.
+ */
+export const CHROMELESS_LIFT = 49;
 
 export interface PlacedControls {
   /** The hit areas, for `TouchState`. */
@@ -199,10 +217,28 @@ interface Frame {
   insets: Insets;
   spec: TouchSpec;
   s: number;
+  /** How far the default places are raised, in CSS pixels. */
+  lift: number;
   mirror: boolean;
   /** The inset on the hand side and on the action side. */
   left: number;
   right: number;
+}
+
+/**
+ * The lift in use: the spec's lift scaled by the window height, and never more than keeps the highest
+ * default face below the top band (`reserve.top`), so a short window or a large size lifts less.
+ */
+function liftFor(h: number, insets: Insets, spec: TouchSpec, s: number): number {
+  if (!(spec.lift > 0)) return 0;
+  const want = spec.lift * Math.min(1, h / LIFT_REFERENCE_HEIGHT);
+  let room = Infinity;
+  for (const id of MOVABLE) {
+    const o = defaultOffset(spec, id);
+    const top = h - insets.bottom - (o.bottom + spec[id].d) * s;
+    room = Math.min(room, top - insets.top - spec.reserve.top);
+  }
+  return Math.max(0, Math.min(want, room));
 }
 
 function frameOf(w: number, h: number, insets: Insets, spec: TouchSpec): Frame {
@@ -219,6 +255,7 @@ function frameOf(w: number, h: number, insets: Insets, spec: TouchSpec): Frame {
     insets,
     spec,
     s,
+    lift: liftFor(h, insets, spec, s),
     mirror,
     left: mirror ? insets.right : insets.left,
     right: mirror ? insets.left : insets.right,
@@ -235,14 +272,18 @@ const defaultOffset = (spec: TouchSpec, id: MovableId): EdgeOffset =>
     : { side: spec[id].right, bottom: spec[id].bottom };
 
 /** A control's face in mirror space, at an offset from its own safe corner. */
-function faceAt(f: Frame, id: MovableId, off: EdgeOffset): Circle {
+function faceAt(f: Frame, id: MovableId, off: EdgeOffset, lift = 0): Circle {
   const d = diameter(f, id);
   const r = (d / 2) * f.s;
-  const cy = f.h - f.insets.bottom - (off.bottom + d / 2) * f.s;
+  const cy = f.h - f.insets.bottom - (off.bottom + d / 2) * f.s - lift;
   const cx =
     id === 'dpad' ? f.left + (off.side + d / 2) * f.s : f.w - f.right - (off.side + d / 2) * f.s;
   return { cx, cy, r };
 }
+
+/** A control's face at its default place, raised by the lift. */
+const defaultFace = (f: Frame, id: MovableId): Circle =>
+  faceAt(f, id, defaultOffset(f.spec, id), f.lift);
 
 /** The radius of a control's hit area, given its face radius. */
 const hitRadius = (f: Frame, id: MovableId, r: number): number =>
@@ -255,8 +296,8 @@ const hitRadius = (f: Frame, id: MovableId, r: number): number =>
  * other side then gives up what it needs (the sum never exceeds `max(w - content, the default sum)`).
  */
 function gutterLimits(f: Frame): { hand: number; action: number } {
-  const dp = faceAt(f, 'dpad', defaultOffset(f.spec, 'dpad'));
-  const jp = faceAt(f, 'jump', defaultOffset(f.spec, 'jump'));
+  const dp = defaultFace(f, 'dpad');
+  const jp = defaultFace(f, 'jump');
   const defHand = up(dp.cx + dp.r + GUTTER_MARGIN);
   const defAction = up(f.w - (jp.cx - jp.r) + GUTTER_MARGIN);
   const budget = f.w - f.spec.reserve.content;
@@ -269,7 +310,7 @@ function gutterLimits(f: Frame): { hand: number; action: number } {
 
 /** The box a control's face centre may be in, in mirror space. */
 function zoneMirror(f: Frame, id: MovableId): Rect {
-  const def = faceAt(f, id, defaultOffset(f.spec, id));
+  const def = defaultFace(f, id);
   const rh = hitRadius(f, id, def.r);
   const { top, edge } = f.spec.reserve;
   const yLo = f.insets.top + top + def.r;
@@ -464,7 +505,7 @@ function build(f: Frame, moved: TouchSpec['moved']): PlacedControls {
   const circle = {} as Record<MovableId, Circle>;
   for (const id of MOVABLE) {
     const off = moved?.[id];
-    let c = faceAt(f, id, off ?? defaultOffset(spec, id));
+    let c = off ? faceAt(f, id, off) : defaultFace(f, id);
     if (off) {
       const z = zoneMirror(f, id);
       c = { ...c, cx: clamp(c.cx, z.x, z.x + z.w), cy: clamp(c.cy, z.y, z.y + z.h) };

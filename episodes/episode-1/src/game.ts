@@ -23,8 +23,10 @@ import {
 } from '@lieutenant-fizz/engine/lifecycle';
 import {
   backGuardAllowed,
+  chromeHidden,
   detectCaps,
   fullscreenButton,
+  isInstalled,
   isAppHost,
   isIdle,
   lifecyclePolicy,
@@ -486,7 +488,7 @@ export class Game {
     this.touchUi = new TouchControls(ui.touchLayer, this.input, {
       labels: { dpad: 'Move', jump: 'Jump', pogo: 'Pogo', fire: 'Fizz', pause: 'Pause' },
       editLabels: { dpad: 'Move D-pad' },
-      spec: touchSpec(this.touchSettings),
+      spec: touchSpec(this.touchSettings, undefined, this.chromeless()),
     });
     ui.setTouchOpacity(this.touchSettings.opacity);
     this.audio = new GameAudio({ ...PATTERNS, mix: MIX });
@@ -1928,7 +1930,7 @@ export class Game {
   /** Puts new touch settings to use now (the controls, their opacity and the room they take) and saves them. */
   private applyTouchSettings(next: TouchSettings): void {
     this.touchSettings = next;
-    this.touchUi.setSpec(touchSpec(next));
+    this.touchUi.setSpec(touchSpec(next, undefined, this.chromeless()));
     this.ui.setTouchOpacity(next.opacity);
     this.ui.setTouchGutters(this.touchGutters());
     writeTouchSettings(this.store, next);
@@ -2220,19 +2222,32 @@ export class Game {
     }
   }
 
+  /** Whether the page runs as an installed app (a standalone, fullscreen or minimal-ui display mode). */
+  private installed(): boolean {
+    return isInstalled({
+      matchMedia: window.matchMedia?.bind(window),
+      nav: navigator as Navigator & { standalone?: boolean },
+    });
+  }
+
+  /** Whether the browser's bars are gone (fullscreen or an installed app), so the controls are lifted to match. */
+  private chromeless(): boolean {
+    return chromeHidden({
+      fullscreen: this.fs.isFullscreen(),
+      installed: this.installed(),
+    });
+  }
+
+  /** Places the controls again when fullscreen or an installed display mode comes or goes. */
+  private syncLift(): void {
+    this.touchUi.setSpec(touchSpec(this.touchSettings, undefined, this.chromeless()));
+    this.ui.setTouchGutters(this.touchGutters());
+  }
+
   /** Whether the game is in fullscreen or an installed app, where it takes the browser's Back button. */
   private backOn(): boolean {
-    const mq = (q: string): boolean => {
-      try {
-        return window.matchMedia?.(q).matches ?? false;
-      } catch {
-        return false;
-      }
-    };
     return backEnabled({
-      standalone:
-        INSTALLED_MODES.some((m) => mq(`(display-mode: ${m})`)) ||
-        (navigator as Navigator & { standalone?: boolean }).standalone === true,
+      standalone: this.installed(),
       fullscreen: this.fs.isFullscreen(),
       forced: this.forcedBack,
     });
@@ -2247,12 +2262,16 @@ export class Game {
 
   /** Re-checks Back when the game enters or leaves fullscreen or an installed display mode. */
   private watchBack(): () => void {
-    const sync = (): void => this.syncBack();
+    const sync = (): void => {
+      this.syncBack();
+      this.syncLift();
+    };
     const onFullscreen = (): void => {
       this.onFullscreenChange();
       this.syncBack();
       this.syncFullscreenButton();
       this.syncHints();
+      this.syncLift();
     };
     const offFullscreen = this.fs.onChange(onFullscreen);
     const lists: MediaQueryList[] = [];
