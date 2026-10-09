@@ -756,6 +756,8 @@ describe('GameAudio master chain', () => {
 describe('GameAudio mix stage', () => {
   const PAUSE = { lpf: 900, gain: 0.7 };
   const OPEN = { lpf: 20000, gain: 1 };
+  /** What an open cutoff becomes on the fake context (44.1 kHz): its Nyquist frequency. */
+  const NYQUIST = 22050;
 
   /** Starts Enhanced music and returns the context and the mix nodes of its bus. */
   async function enhancedMusic(p: AudioPatterns = roled) {
@@ -782,7 +784,7 @@ describe('GameAudio mix stage', () => {
     expect(lpf.kind).toBe('biquad');
     expect(lpf.type).toBe('lowpass');
     expect(lpf.Q.value).toBe(0);
-    expect(lpf.frequency.value).toBe(20000);
+    expect(lpf.frequency.value).toBe(NYQUIST);
     expect(level.gain.value).toBe(1);
     expect(mix.gain.value).toBe(1);
   });
@@ -794,7 +796,7 @@ describe('GameAudio mix stage', () => {
     audio.setMix(PAUSE);
     expect(calls(lpf.frequency)).toEqual([
       ['cancelScheduledValues', 10],
-      ['setValueAtTime', 20000, 10],
+      ['setValueAtTime', NYQUIST, 10],
       ['exponentialRampToValueAtTime', 900, 10.18],
     ]);
     expect(calls(mix.gain)).toEqual([
@@ -810,7 +812,7 @@ describe('GameAudio mix stage', () => {
     expect(cancel).toEqual(['cancelScheduledValues', 10.06]);
     expect(set![0]).toBe('setValueAtTime');
     expect(set![1]).toBeCloseTo(7114, -1);
-    expect(ramp![1]).toBe(20000);
+    expect(ramp![1]).toBe(NYQUIST);
     expect(ramp![2]).toBeCloseTo(10.41, 10);
   });
 
@@ -847,7 +849,7 @@ describe('GameAudio mix stage', () => {
     audio.setMode('classic');
     audio.setMix(PAUSE);
     expect(audio.mixState.applied).toBe(false);
-    expect(lpf.frequency.value).toBe(20000);
+    expect(lpf.frequency.value).toBe(NYQUIST);
     audio.setMode('enhanced');
     expect(lpf.frequency.value).toBe(900);
     expect(mix.gain.value).toBe(0.7);
@@ -870,7 +872,7 @@ describe('GameAudio mix stage', () => {
     audio.setActive(true);
     ctx.currentTime = 4.5;
     audio.setMix(OPEN);
-    expect(calls(lpf.frequency).pop()).toEqual(['exponentialRampToValueAtTime', 20000, 4.85]);
+    expect(calls(lpf.frequency).pop()).toEqual(['exponentialRampToValueAtTime', NYQUIST, 4.85]);
   });
 
   it('puts the music volume on the bus in Enhanced, with no restart', async () => {

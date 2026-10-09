@@ -8,7 +8,8 @@ import type { AudioContextLike } from '@liminal-hq/undertone';
 import { describe, expect, it } from 'vitest';
 import { FakeAudioContext, type FakeNode } from './fake-audio-context';
 import { PANNED_MAKEUP } from './sound-field';
-import { createEmitter, routedContext } from './sound-graph';
+import { MIX_OPEN } from './mix';
+import { createEmitter, createMusicBus, lpfHz, routedContext, setMixNow } from './sound-graph';
 
 const asLike = (c: FakeAudioContext): AudioContextLike => c as unknown as AudioContextLike;
 const asNode = (n: FakeNode): AudioNode => n as unknown as AudioNode;
@@ -151,5 +152,31 @@ describe('createEmitter', () => {
       asNode(ctx.destination),
     ) as unknown as FakeNode;
     expect(centre.gain.value).toBeCloseTo(Math.SQRT2, 12);
+  });
+});
+
+describe('the mix low-pass when open', () => {
+  it('is set at the context’s Nyquist frequency, not at 20 kHz', () => {
+    // A biquad low-pass at 20 kHz on a 44.1 or 48 kHz context is not open: measured in Chromium it
+    // lifts 12 to 18 kHz by up to 0.95 dB and takes 1.2 dB off 20 kHz. At Nyquist it is the identity.
+    expect(lpfHz(22050, MIX_OPEN.lpf)).toBe(22050);
+    expect(lpfHz(24000, 20000)).toBe(24000);
+    expect(lpfHz(16000, 20000)).toBe(16000);
+  });
+
+  it('leaves a closed cutoff alone', () => {
+    expect(lpfHz(24000, 900)).toBe(900);
+    expect(lpfHz(24000, 19999)).toBe(19999);
+  });
+
+  it('builds the bus open at Nyquist, and sets an open mix at Nyquist and a closed one as asked', () => {
+    const ctx = new FakeAudioContext();
+    const bus = createMusicBus(ctx as unknown as BaseAudioContext, asNode(ctx.createGain()));
+    const lpf = bus.lpf as unknown as FakeNode;
+    expect(lpf.frequency.value).toBe(22050);
+    setMixNow(bus, { lpf: 900, gain: 0.7 }, 1);
+    expect(lpf.frequency.calls.pop()).toEqual({ method: 'setValueAtTime', args: [900, 1] });
+    setMixNow(bus, MIX_OPEN, 2);
+    expect(lpf.frequency.calls.pop()).toEqual({ method: 'setValueAtTime', args: [22050, 2] });
   });
 });

@@ -11,6 +11,7 @@ import {
   routedContext,
   createEmitter,
   createMusicBus,
+  lpfHz,
   mixAt,
   scheduleRamp,
   setMixNow,
@@ -599,7 +600,7 @@ export class GameAudio {
       return;
     }
     const ramps = mixRamps(mixAt(this.mixPlan, now), this.mixTarget, now);
-    scheduleRamp(bus.lpf.frequency, ramps.lpf);
+    scheduleRamp(bus.lpf.frequency, ramps.lpf, (hz) => lpfHz(bus.nyquist, hz));
     scheduleRamp(bus.mix.gain, ramps.gain);
     this.mixPlan = ramps;
   }
