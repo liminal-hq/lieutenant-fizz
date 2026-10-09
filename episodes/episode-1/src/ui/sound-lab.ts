@@ -27,6 +27,7 @@ import {
   type LabState,
   type SliderSpec,
 } from '../audio/lab';
+import type { LabShell } from './lab-shell';
 
 /** What the lab needs from the game. The game owns every audio call; the lab only holds the controls. */
 export interface LabHost {
@@ -72,10 +73,13 @@ const el = <K extends keyof HTMLElementTagNameMap>(
   return e;
 };
 
-/** The overlay and its button. Both are hidden until opened, and exist only under ?debug. */
+/**
+ * The sound lab's overlay. It is in the page only while open; the Lab button and the switch to the
+ * haptics lab belong to the shell.
+ */
 export class SoundLab {
-  readonly button: HTMLButtonElement;
   readonly root: HTMLElement;
+  private readonly switcher: HTMLElement;
   private readonly body: HTMLElement;
   private readonly tabButtons = new Map<TabId, HTMLButtonElement>();
   private readonly sections = new Map<TabId, HTMLElement>();
@@ -103,10 +107,12 @@ export class SoundLab {
     this.close();
   };
 
-  constructor(private readonly h: LabHost) {
-    this.button = el('button', { id: 'labBtn', class: 'lf', 'aria-label': 'Sound lab' }, 'Lab');
-    this.button.addEventListener('click', () => this.toggle());
+  constructor(
+    private readonly h: LabHost,
+    private readonly shell: LabShell,
+  ) {
     this.root = el('div', { id: 'lab', class: 'lf lf-panel', hidden: '' });
+    this.switcher = shell.switcher('sound');
     // Arrow keys and Space move sliders and press buttons here; they must not reach the game's input.
     for (const type of ['keydown', 'keyup'] as const) {
       this.root.addEventListener(type, (e) => e.stopPropagation());
@@ -132,7 +138,7 @@ export class SoundLab {
     reset.addEventListener('click', () => this.reset());
     const close = el('button', {}, 'Close');
     close.addEventListener('click', () => this.close());
-    head.append(modes, this.copyBtn, reset, close);
+    head.append(this.switcher, modes, this.copyBtn, reset, close);
 
     const tabs = el('div', { class: 'lab-row lab-tabs', role: 'tablist' });
     for (const [id, label] of TABS) {
@@ -157,7 +163,7 @@ export class SoundLab {
 
   open(): void {
     this.root.hidden = false;
-    this.button.hidden = true;
+    this.shell.shown('sound', this.root);
     this.refresh();
     this.timer = window.setInterval(() => this.refreshStatus(), 500);
     window.addEventListener('keydown', this.onEscape, true);
@@ -165,16 +171,16 @@ export class SoundLab {
 
   close(): void {
     this.root.hidden = true;
-    this.button.hidden = false;
+    this.shell.hidden(this.root);
     window.clearInterval(this.timer);
     window.removeEventListener('keydown', this.onEscape, true);
   }
 
-  /** Closes the lab, puts every tuned value back and takes its button and overlay out of the page. */
+  /** Closes the lab, puts every tuned value back and takes its overlay out of the page. */
   dispose(): void {
     this.close();
     this.reset();
-    this.button.remove();
+    this.shell.release(this.switcher);
     this.root.remove();
   }
 

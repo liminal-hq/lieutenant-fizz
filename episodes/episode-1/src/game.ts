@@ -118,6 +118,8 @@ import {
   type SlotSummary,
 } from './slots';
 import { thumbDataUrl } from './thumb';
+import type { HapticsLab } from './ui/haptics-lab';
+import type { LabId, LabShell } from './ui/lab-shell';
 import type { SoundLab } from './ui/sound-lab';
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
@@ -263,12 +265,15 @@ export class Game {
   private labRoom: RoomName | null = null;
   private labMix: MixName | null = null;
   private labMusic = false;
-  private lab: SoundLab | null = null;
-  /** `?debug` was given, so the sound lab is there whatever the Sound lab option says. */
+  /** The Lab button and the switch between the labs; null while neither lab is wanted. */
+  private labShell: LabShell | null = null;
+  private soundLab: SoundLab | null = null;
+  private hapticsLab: HapticsLab | null = null;
+  /** `?debug` was given, so both labs are there whatever the Sound lab and Haptics lab options say. */
   private labForced = false;
-  /** The lab modules are loading, and whether the lab should open when they arrive. */
+  /** The shell is loading, and which lab to open when it is ready. */
   private labLoading = false;
-  private labOpenWhenReady = false;
+  private labOpenWhenReady: LabId | null = null;
   private coarseSpeaker = false;
   private readonly haptics: GameHaptics;
   /** Whether pogo was on last frame, so a toggle can be felt (it raises no event). */
@@ -2411,40 +2416,71 @@ export class Game {
   }
 
   /**
-   * Test hook for `?debug` and `?debug&lab`: the sound lab is there whatever the Sound lab option says,
-   * and opens if asked. Resolves once the lab is built.
+   * Test hook for `?debug` and `?debug&lab`: both labs are there whatever the options say, and one opens
+   * if asked (`true` or `'sound'` the sound lab, `'haptics'` the haptics lab). Resolves once the lab is
+   * built.
    */
-  async debugLab(open = false): Promise<void> {
+  async debugLab(open: boolean | LabId = false): Promise<void> {
     this.labForced = true;
-    await this.syncLab(open);
+    await this.syncLab(open === true ? 'sound' : open === false ? null : open);
+  }
+
+  /** The labs the player can reach now: `?debug` gives both, otherwise each has its own option. */
+  private labsWanted(): LabId[] {
+    return [
+      ...(this.labForced || this.settings.lab ? (['sound'] as const) : []),
+      ...(this.labForced || this.settings.hapticsLab ? (['haptics'] as const) : []),
+    ];
   }
 
   /**
-   * Adds or removes the sound lab (a "Lab" button and its overlay) to match `?debug` and the Sound lab
-   * option. Off, nothing of it exists: the modules are not loaded and no node is in the page. Turning it
-   * off closes it and lets go of anything it held. Auditioning never touches the saved options: it plays
-   * through the audio directly and holds a room, a mix state or a track only until "Follow" is chosen.
+   * Adds or removes the labs (one "Lab" button, and an overlay for each lab) to match `?debug` and the
+   * Sound lab and Haptics lab options. With neither wanted, nothing of them exists: no module is loaded
+   * and no node is in the page. A lab's own code is loaded the first time it is opened. Turning a lab off
+   * closes it and lets go of anything it held. Auditioning never touches the saved options: sound plays
+   * through the audio directly and holds a room, a mix state or a track only until "Follow" is chosen,
+   * and haptics play through `audition`, which ignores the settings.
    */
-  private async syncLab(open = false): Promise<void> {
-    const want = (): boolean => this.labForced || this.settings.lab;
-    if (!want()) {
-      this.unmountLab();
+  private async syncLab(open: LabId | null = null): Promise<void> {
+    const wanted = this.labsWanted();
+    if (wanted.length === 0) {
+      this.unmountLabs();
       return;
     }
-    if (this.lab) {
-      if (open) this.lab.open();
-      return;
+    if (open) this.labOpenWhenReady = open;
+    if (!this.labShell) {
+      if (this.labLoading) return;
+      this.labLoading = true;
+      try {
+        const { LabShell } = await import('./ui/lab-shell');
+        if (this.labsWanted().length === 0 || this.labShell) return;
+        this.labShell = new LabShell({
+          mount: (node) => this.ui.mount(node),
+          load: (id) => (id === 'sound' ? this.buildSoundLab() : this.buildHapticsLab()),
+        });
+      } finally {
+        this.labLoading = false;
+      }
     }
-    if (open) this.labOpenWhenReady = true;
-    if (this.labLoading) return;
-    this.labLoading = true;
-    try {
-      const [{ SoundLab }, { captureState, labItems }] = await Promise.all([
-        import('./ui/sound-lab'),
-        import('./audio/lab'),
-      ]);
-      if (!want() || this.lab) return;
-      this.lab = new SoundLab({
+    const shell = this.labShell as LabShell;
+    shell.setAvailable(this.labsWanted());
+    if (!wanted.includes('sound')) this.unmountSoundLab();
+    if (!wanted.includes('haptics')) this.unmountHapticsLab();
+    const want = this.labOpenWhenReady;
+    this.labOpenWhenReady = null;
+    if (want) await shell.open(wanted.includes(want) ? want : (wanted[0] as LabId));
+  }
+
+  /** Loads the sound lab's code and builds the lab, if it is still wanted. */
+  private async buildSoundLab(): Promise<void> {
+    const [{ SoundLab }, { captureState, labItems }] = await Promise.all([
+      import('./ui/sound-lab'),
+      import('./audio/lab'),
+    ]);
+    const shell = this.labShell;
+    if (!shell || this.soundLab || !this.labsWanted().includes('sound')) return;
+    this.soundLab = new SoundLab(
+      {
         sfx: labItems(Object.keys(SFX)),
         music: labItems(Object.keys(MUSIC)),
         rooms: labItems(Object.keys(ROOMS)),
@@ -2484,29 +2520,60 @@ export class Game {
           ];
           return [ctx, a.mode, ...off].filter(Boolean).join(' · ');
         },
-        copy: async (text) => {
-          try {
-            await navigator.clipboard.writeText(text);
-            return true;
-          } catch {
-            return false;
-          }
+        copy: (text) => this.copyText(text),
+      },
+      shell,
+    );
+    shell.register('sound', this.soundLab);
+  }
+
+  /** Loads the haptics lab's code and builds the lab, if it is still wanted. */
+  private async buildHapticsLab(): Promise<void> {
+    const [{ HapticsLab }, { hapticLabItems }] = await Promise.all([
+      import('./ui/haptics-lab'),
+      import('./haptics/lab'),
+    ]);
+    const shell = this.labShell;
+    if (!shell || this.hapticsLab || !this.labsWanted().includes('haptics')) return;
+    this.hapticsLab = new HapticsLab(
+      {
+        groups: hapticLabItems(Object.keys(this.haptics.cues())),
+        state: () => ({ cues: this.haptics.cues(), ...this.haptics.tuning() }),
+        tune: (patch) => this.haptics.tune(patch),
+        audition: (p, target, scale) => this.haptics.audition(p, target, scale),
+        caps: () => {
+          const { caps } = this.haptics.report();
+          return { device: caps.device, controller: caps.controller };
         },
-      });
-      this.ui.mount(this.lab.button, this.lab.root);
-      if (this.labOpenWhenReady) this.lab.open();
-    } finally {
-      this.labLoading = false;
-      this.labOpenWhenReady = false;
+        route: () => this.haptics.report().route,
+        tapped: () =>
+          typeof navigator !== 'undefined' && navigator.userActivation
+            ? navigator.userActivation.hasBeenActive
+            : null,
+        last: () => this.haptics.report().plays.at(-1),
+        copy: (text) => this.copyText(text),
+      },
+      shell,
+    );
+    shell.register('haptics', this.hapticsLab);
+  }
+
+  /** Copies text to the clipboard; false when the browser refuses (the lab then logs it to the console). */
+  private async copyText(text: string): Promise<boolean> {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
     }
   }
 
-  /** Closes the lab and takes it out of the page, putting back what it tuned or held. */
-  private unmountLab(): void {
-    this.labOpenWhenReady = false;
-    const lab = this.lab;
+  /** Closes the sound lab and takes it out of the page, putting back what it tuned or held. */
+  private unmountSoundLab(): void {
+    const lab = this.soundLab;
     if (!lab) return;
-    this.lab = null;
+    this.soundLab = null;
+    this.labShell?.unregister('sound');
     lab.dispose();
     this.audio.setMode(effectiveAudio(this.audioUrl, this.settings));
     if (this.labMusic) {
@@ -2521,6 +2588,24 @@ export class Game {
       this.labMix = null;
       this.syncMix();
     }
+  }
+
+  /** Closes the haptics lab and takes it out of the page, putting every tuned cue and constant back. */
+  private unmountHapticsLab(): void {
+    const lab = this.hapticsLab;
+    if (!lab) return;
+    this.hapticsLab = null;
+    this.labShell?.unregister('haptics');
+    lab.dispose();
+  }
+
+  /** Takes both labs and the Lab button out of the page. */
+  private unmountLabs(): void {
+    this.labOpenWhenReady = null;
+    this.unmountSoundLab();
+    this.unmountHapticsLab();
+    this.labShell?.dispose();
+    this.labShell = null;
   }
 
   /** Test hook: what haptics last played, what each compiled to, and what the backend can do. */

@@ -1,0 +1,95 @@
+/* Haptics lab (?debug or the Haptics lab option). It reuses #lab from the sound lab: this adds the Sound | Haptics switch, the cue buttons with a second line, the cue picker and the preview bars. */
+#lab .lab-switch[hidden] {
+  display: none;
+}
+#lab button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+#lab .lab-cues button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: calc(var(--n) * 1px);
+  padding: calc(var(--n) * 1px) calc(var(--n) * 4px);
+  border-radius: calc(var(--n) * 4px);
+  text-align: left;
+}
+#lab .lab-cues .lab-sub {
+  color: var(--lf-muted);
+}
+#lab .lab-pick {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: calc(var(--n) * 3px);
+  color: var(--lf-text);
+}
+#lab select {
+  min-height: 48px;
+  min-width: 0;
+  padding: 0 calc(var(--n) * 3px);
+  border: 1px solid var(--lf-border);
+  border-radius: 999px;
+  background: rgba(12, 12, 16, 0.8);
+  color: #fff;
+  font: inherit;
+}
+#lab .lab-event {
+  margin-top: calc(var(--n) * 2px);
+}
+#lab .lab-track {
+  position: relative;
+  height: calc(var(--n) * 5px);
+  margin: calc(var(--n) * 1px) 0 calc(var(--n) * 2px);
+  border: 1px solid var(--lf-border);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+#lab .lab-track i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--lf-accent);
+}
+#lab .lab-track.pad i {
+  background: #5ec8ff;
+}
+/* The lab's strength sits on one line in the header, so the header stays two rows tall on a short phone. */
+#lab .lab-inline {
+  grid-template-columns: auto auto 1fr;
+  column-gap: calc(var(--n) * 3px);
+  min-width: calc(var(--n) * 11px * 22);
+}
+#lab .lab-inline input {
+  grid-column: auto;
+  min-width: calc(var(--n) * 11px * 8);
+}
+#lab .lab-inline b {
+  order: 3;
+}
+/* On a short window the header takes most of the height, so the whole panel scrolls and only the tabs stay put. */
+@media (max-height: 420px) {
+  #lab.lab-haptics {
+    display: block;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+  #lab.lab-haptics > * + * {
+    margin-top: calc(var(--n) * 2px);
+  }
+  #lab.lab-haptics .lab-body {
+    overflow: visible;
+  }
+  #lab.lab-haptics .lab-tabs {
+    position: sticky;
+    top: calc(var(--n) * -3px);
+    z-index: 1;
+    padding: calc(var(--n) * 1px) 0;
+    background: var(--lf-panel);
+    backdrop-filter: blur(6px);
+  }
+}
