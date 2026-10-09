@@ -7,8 +7,12 @@ import type { BeatScene } from '@lieutenant-fizz/engine/story-beats';
 import type { RoomName } from './audio/rooms';
 
 // Episode 1 text: the eight scenes of the opening cinematic and the four of the ending, each a place
-// and its beats (the pieces of text read one at a time), then dialogue and level blurbs.
+// and its beats (the author's break points; the screen packs as many consecutive beats of a scene as
+// fit into a page, see `story-measure.ts`), then dialogue and level blurbs.
 // docs/STORY.md mirrors the cinematic text.
+
+/** The beat of the Liftoff scene that opens the hatch, where the launch begins (see `Cinematic.launch`). */
+export const LIFTOFF_BEAT = 1;
 
 export const CINE: BeatScene[] = [
   {
@@ -32,6 +36,8 @@ export const CINE: BeatScene[] = [
   },
   {
     place: 'Liftoff',
+    // The page that opens the hatch always starts at its beat, so the launch waits for exactly that text.
+    breaks: [LIFTOFF_BEAT],
     beats: [
       'Ben put on his bicycle helmet, climbed aboard and hit the big Engage button.',
       'A hatch in the lawn slid open.',
@@ -92,9 +98,6 @@ export const CINE: BeatScene[] = [
     ],
   },
 ];
-
-/** The beat of the Liftoff scene that opens the hatch, where the launch begins (see `Cinematic.launch`). */
-export const LIFTOFF_BEAT = 1;
 
 /** Music track per cinematic scene. */
 export const CINE_TRACK = ['yard', 'lab', 'launch', 'launch', 'cine', 'cine', 'cine', 'cine'];

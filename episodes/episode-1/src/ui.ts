@@ -45,6 +45,7 @@ import {
   type RowBox,
 } from './menu-scroll';
 import { pillItems, type PillIcon } from './hud';
+import { StoryMeasurer, type StoryMeasure } from './story-measure';
 import type { BenFrame, BenPose } from './titleBen';
 import './ui.css';
 
@@ -161,6 +162,8 @@ export interface UiHandlers {
   creditsSkip(): void;
   stingerPress(): void;
   stingerSkip(): void;
+  /** The layout changed (a resize, a turn, fullscreen, the font arriving): the story's pages may pack differently. */
+  storyLayout(): void;
 }
 
 const el = <K extends keyof HTMLElementTagNameMap>(
@@ -248,6 +251,7 @@ export class Ui {
   private gutters: TouchGutters = NO_GUTTERS;
   private titleLayout: TitleLayout = 'column';
   private disposed = false;
+  private readonly storyMeasure: StoryMeasurer;
   /** What each menu does when a row is chosen, for the taps handled on the menu itself. */
   private readonly choose = new WeakMap<HTMLElement, (i: number) => void>();
   /** A touch tap chose a row until this time, so the click the browser sends after it is ignored. */
@@ -328,6 +332,7 @@ export class Ui {
       <div class="bar bottom"><div class="text" aria-hidden="true"><span class="shown"></span><span class="hidden-text"></span></div>
       <div class="foot"><span class="pips" aria-hidden="true"></span><button class="btn next"><span class="lbl">Continue</span><span class="arrow" aria-hidden="true">↓</span></button></div></div>
       <div class="sr" aria-live="polite" aria-atomic="true"></div>`;
+    this.storyMeasure = new StoryMeasurer(this.letterbox);
     this.letterbox.querySelector('.skip')?.addEventListener('click', () => h.skipCine());
     this.letterbox.querySelector('.next')?.addEventListener('click', () => h.advance());
     this.onTap(this.letterbox, () => h.advance());
@@ -410,16 +415,23 @@ export class Ui {
     this.relayout();
     this.refreshHints();
     this.unwatch = watchResize(() => this.relayout());
+    // Fullscreen resizes the window too, but the story repacks as soon as the mode changes.
+    document.addEventListener('fullscreenchange', this.onFullscreen);
     // The wordmark is measured in the Fizz font, so measure again once it has loaded.
     void document.fonts?.ready.then(() => {
       if (!this.disposed) this.relayout();
     });
   }
 
+  private readonly onFullscreen = (): void => {
+    if (!this.disposed) this.relayout();
+  };
+
   /** Stops listening to the window and cancels pending timers. */
   dispose(): void {
     this.disposed = true;
     this.unwatch();
+    document.removeEventListener('fullscreenchange', this.onFullscreen);
     window.clearTimeout(this.toastTimer);
   }
 
@@ -489,6 +501,14 @@ export class Ui {
     this.fitTitle();
     this.fitOverlay();
     this.fitRows();
+    // The story's text box may now be another width, so its counts are stale and its pages repack.
+    this.storyMeasure.invalidate();
+    this.h.storyLayout();
+  }
+
+  /** Measures the story's text box for packing pages; `lastWord` for the intro, whose last button is a word. */
+  measureStory(lastWord: boolean): StoryMeasure {
+    return this.storyMeasure.measure(lastWord);
   }
 
   /**

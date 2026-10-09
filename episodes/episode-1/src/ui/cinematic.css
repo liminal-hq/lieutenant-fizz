@@ -35,7 +35,16 @@
   max-width: calc(var(--lf-cols) * 6px * var(--n));
   margin: 0 auto;
   width: 100%;
-  min-height: calc(var(--lf-line) * var(--n) * 3);
+  /* The lines a page may take; the story measures them (`story-measure.ts`) and sets this, three here. */
+  min-height: calc(var(--lf-line) * var(--n) * var(--lf-story-lines, 3));
+}
+/* The hidden copy of the text box that pages are measured in: the same type, set to the real box's width. */
+#letterbox .text.probe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 /* Read by a screen reader and never drawn. */
 #letterbox .sr {
@@ -102,9 +111,9 @@
 
 /* Phones (the touch mode, `#stage[data-touch]`, the same switch the other text screens use; a desktop
    window keeps the opaque bars above, whatever its height). The top bar floats over the art as a
-   fading shade, the dots move into it, and the bottom bar is a strip: the beat's two lines with a 48 px
-   arrow button beside them. At 844x390, 740x360 and 640x320 that leaves the art 80, 79 and 76 % of
-   the height uncovered by the bottom bar (the top bar adds a shade, not a cover). */
+   fading shade, the dots move into it, and the bottom bar is a strip: a page of two or three lines
+   with a 48 px arrow button beside them. Three lines when the strip stays within about 30 % of the
+   height, otherwise two (about 25 % or less); the top bar adds a shade, not a cover. */
 #stage[data-touch] #letterbox {
   justify-content: flex-end;
 }
@@ -143,12 +152,13 @@
     calc(var(--n) * 4px + var(--lf-safe-bottom))
     max(calc(var(--n) * 10px + var(--lf-safe-left)), var(--lf-touch-left));
 }
-/* Two lines is the most a beat takes, so the strip does not jump between one and two. */
+/* The text box keeps the lines a page may take (two or three, whichever the story measured fits in
+   about 30 % of the height), so the strip does not jump between a short page and a long one. */
 #stage[data-touch] #letterbox .bar.bottom .text {
   grid-column: 1;
   max-width: none;
   margin: 0;
-  min-height: calc(var(--lf-line) * var(--n) * 2);
+  min-height: calc(var(--lf-line) * var(--n) * var(--lf-story-lines, 2));
 }
 #stage[data-touch] #letterbox .foot {
   grid-column: 2;

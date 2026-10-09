@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
-import { BeatCursor } from '@lieutenant-fizz/engine/story-beats';
+import { BeatCursor, type BeatScene } from '@lieutenant-fizz/engine/story-beats';
+import type { StoryMeasure } from './story-measure';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { FrameStats } from '@lieutenant-fizz/engine/frame-stats';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
@@ -568,6 +569,7 @@ export class Game {
       creditsSkip: () => game?.skipEnding(),
       stingerPress: () => game?.primary(),
       stingerSkip: () => game?.skipEnding(),
+      storyLayout: () => game?.repackStory(),
     });
     try {
       const [sim] = await Promise.all([Sim.load(simUrl)]);
@@ -942,7 +944,7 @@ export class Game {
         break;
       case Ev.ENDING:
         this.screen = 'ending';
-        this.story.start(END);
+        this.startStory(END);
         this.bossHp = null;
         this.syncUi();
         break;
@@ -2352,6 +2354,39 @@ export class Game {
     }
   }
 
+  /** What the pages of the intro or the ending were last packed for, for the debug state. */
+  private storyPack: StoryMeasure | null = null;
+
+  /** Starts the intro or the ending from its first page, packed for the text box as it is now. */
+  private startStory(scenes: BeatScene[]): void {
+    this.storyPack = this.ui.measureStory(scenes === CINE);
+    this.story.start(scenes, this.storyPack.fit);
+  }
+
+  /**
+   * Packs the story's pages again after the layout changed (a resize, a turn, fullscreen, the font
+   * arriving), keeping the player's place. A page that comes out the same is not touched.
+   */
+  repackStory(): void {
+    if (this.screen !== 'cine' && this.screen !== 'ending') return;
+    const before = this.story.view();
+    this.storyPack = this.ui.measureStory(this.screen === 'cine');
+    this.story.setFit(this.storyPack.fit);
+    const after = this.story.view();
+    if (after.text !== before.text || after.shown !== before.shown) this.syncUi();
+  }
+
+  /** Test hook: jumps to a page of a scene of the intro or the ending that is showing, as if the player had got there. */
+  debugStoryTo(scene: number, page = 0): void {
+    if (this.screen !== 'cine' && this.screen !== 'ending') return;
+    this.story.seek(scene, page);
+    if (this.screen === 'cine') {
+      this.cine.start(this.story.scene);
+      if (this.story.scene === 2 && this.story.beat >= LIFTOFF_BEAT) this.cine.launch();
+    }
+    this.syncUi();
+  }
+
   /** A press on the cinematic or the ending: completes the beat, else moves on; `leave` runs after the last. */
   private pressStory(leave: () => void): void {
     const scene = this.story.scene;
@@ -2399,7 +2434,7 @@ export class Game {
     this.sim.x.enter_none();
     this.played = 0;
     this.screen = 'cine';
-    this.story.start(CINE);
+    this.startStory(CINE);
     this.cine.start(0);
     this.syncUi();
   }
@@ -3124,7 +3159,7 @@ export class Game {
       // The Citadel behind the panels, as the ending shows it; the camera is wherever the level starts.
       this.debugEnterLevel(2);
       this.screen = 'ending';
-      this.story.start(END);
+      this.startStory(END);
       return this.syncUi();
     }
     if (what === 'pause' || what === 'dialogue') {
@@ -3256,6 +3291,15 @@ export class Game {
       touch: this.touchMode,
       ben: this.benAnchor(this.camDrawn.x, this.camDrawn.y),
       story: this.story.view(),
+      storyPack: this.storyPack && {
+        allowed: this.storyPack.allowed,
+        width: this.storyPack.width,
+        lastWidth: this.storyPack.lastWidth,
+        share: this.storyPack.share,
+        touch: this.storyPack.touch,
+        pageCounts: this.story.pageCounts,
+        over: this.story.allPages.map((p) => p.over),
+      },
       custom: this.touchUi.placed?.custom ?? false,
       back: { enabled: this.backOn(), armed: this.backGuard.armed },
       lifecycle: {
