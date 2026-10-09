@@ -13,6 +13,7 @@
     "./font/fizz.css": "./src/font/fizz.css",
     "./font/scale": "./src/font/scale.ts",
     "./font/tokens": "./src/font/tokens.ts",
+    "./fullscreen-backend": "./src/fullscreen-backend.ts",
     "./haptic-backends": "./src/haptic-backends.ts",
     "./haptic-pattern": "./src/haptic-pattern.ts",
     "./haptic-strength": "./src/haptic-strength.ts",

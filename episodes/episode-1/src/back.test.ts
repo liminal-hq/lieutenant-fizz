@@ -114,6 +114,15 @@ describe('pauseAction', () => {
   });
 });
 
+/** A fake backend: the Esc rules need only what it says, not a browser. */
+const fake = (isFullscreen: boolean, escapeCaptured: boolean) => ({
+  isFullscreen: () => isFullscreen,
+  escapeCaptured,
+});
+const OUT = fake(false, false);
+const CAPTURED = fake(true, true);
+const UNCAPTURED = fake(true, false);
+
 describe('escAction', () => {
   const SUBS = [
     'controls',
@@ -140,45 +149,55 @@ describe('escAction', () => {
 
   it('is the pause command outside fullscreen, on every screen and screen over one', () => {
     for (const screen of SCREENS) {
-      expect(escAction(screen, null, false)).toBe(pauseAction(screen, null, false));
+      expect(escAction(screen, null, OUT)).toBe(pauseAction(screen, null, false));
       for (const sub of SUBS)
-        expect(escAction(screen, sub, false)).toBe(pauseAction(screen, sub, false));
+        expect(escAction(screen, sub, OUT)).toBe(pauseAction(screen, sub, false));
     }
   });
 
   it('pauses in play, fullscreen or not', () => {
-    expect(escAction('play', null, false)).toBe('pause');
-    expect(escAction('play', null, true)).toBe('pause');
+    expect(escAction('play', null, OUT)).toBe('pause');
+    expect(escAction('play', null, CAPTURED)).toBe('pause');
   });
 
   it('resumes from the pause menu outside fullscreen, and does nothing on the title', () => {
-    expect(escAction('pause', null, false)).toBe('resume');
-    expect(escAction('title', null, false)).toBeNull();
+    expect(escAction('pause', null, OUT)).toBe('resume');
+    expect(escAction('title', null, OUT)).toBeNull();
   });
 
   it('leaves fullscreen from the top of the pause menu and the title, and keeps the menu open', () => {
-    expect(escAction('pause', null, true)).toBe('exitFullscreen');
-    expect(escAction('title', null, true)).toBe('exitFullscreen');
+    expect(escAction('pause', null, CAPTURED)).toBe('exitFullscreen');
+    expect(escAction('title', null, CAPTURED)).toBe('exitFullscreen');
+  });
+
+  it('does not leave fullscreen when the page would not have seen the key', () => {
+    // Fullscreen but no capture (Firefox, Safari): an Esc that arrives is ordinary.
+    expect(escAction('pause', null, UNCAPTURED)).toBe('resume');
+    expect(escAction('title', null, UNCAPTURED)).toBeNull();
+    expect(escAction('play', null, UNCAPTURED)).toBe('pause');
+    // Captured without fullscreen is nothing to leave.
+    expect(escAction('pause', null, fake(false, true))).toBe('resume');
   });
 
   it('closes a screen over the pause menu or the title first, fullscreen or not', () => {
     for (const screen of ['pause', 'title'] as const)
       for (const sub of SUBS) {
-        expect(escAction(screen, sub, true)).toBe('close');
-        expect(escAction(screen, sub, false)).toBe('close');
+        expect(escAction(screen, sub, CAPTURED)).toBe('close');
+        expect(escAction(screen, sub, OUT)).toBe('close');
+        expect(escAction(screen, sub, UNCAPTURED)).toBe('close');
       }
   });
 
   it('is unchanged in fullscreen on every other screen', () => {
     for (const screen of SCREENS.filter((s) => s !== 'pause' && s !== 'title')) {
-      expect(escAction(screen, null, true)).toBe(escAction(screen, null, false));
+      expect(escAction(screen, null, CAPTURED)).toBe(escAction(screen, null, OUT));
     }
-    expect(escAction('cine', null, true)).toBe('skipCine');
-    expect(escAction('credits', null, true)).toBe('skipEnding');
-    expect(escAction('stinger', null, true)).toBe('skipEnding');
-    expect(escAction('card', null, true)).toBeNull();
-    expect(escAction('dialogue', null, true)).toBeNull();
-    expect(escAction('ending', null, true)).toBeNull();
-    expect(escAction('loading', null, true)).toBeNull();
+    expect(escAction('cine', null, CAPTURED)).toBe('skipCine');
+    expect(escAction('credits', null, CAPTURED)).toBe('skipEnding');
+    expect(escAction('stinger', null, CAPTURED)).toBe('skipEnding');
+    expect(escAction('card', null, CAPTURED)).toBeNull();
+    expect(escAction('dialogue', null, CAPTURED)).toBeNull();
+    expect(escAction('ending', null, CAPTURED)).toBeNull();
+    expect(escAction('loading', null, CAPTURED)).toBeNull();
   });
 });
