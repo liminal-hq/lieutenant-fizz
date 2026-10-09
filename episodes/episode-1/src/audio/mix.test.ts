@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { ShellScreen, SubScreen } from '../touch-menus';
-import { MIX, mixFor } from './mix';
+import { MIX, mixFor, mixNameFor } from './mix';
 
 const SCREENS: ShellScreen[] = [
   'loading',
@@ -65,5 +65,17 @@ describe('mixFor', () => {
     } finally {
       MIX.pause.lpf = 900;
     }
+  });
+});
+
+describe('mixNameFor', () => {
+  it('names the state mixFor reads, for every screen', () => {
+    for (const s of SCREENS) {
+      for (const coarse of [false, true]) {
+        expect(mixFor(s, null, coarse)).toEqual(MIX[mixNameFor(s, coarse)]);
+      }
+    }
+    expect(mixNameFor('pause', true)).toBe('pauseCoarse');
+    expect(mixNameFor('play')).toBe('open');
   });
 });

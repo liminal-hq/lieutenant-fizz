@@ -6,6 +6,9 @@
 import { MIX_OPEN, type MixShape } from '@lieutenant-fizz/engine/mix';
 import type { ShellScreen, SubScreen } from '../touch-menus';
 
+/** The names of the mix states. */
+export type MixName = 'open' | 'pause' | 'pauseCoarse' | 'card' | 'dialogue' | 'cine';
+
 /**
  * The mix states, in Enhanced only. They are mutable so `__lf.debugAudioTune({ mix: ... })` can
  * tune them by ear; `mixFor` reads them live.
@@ -17,10 +20,7 @@ import type { ShellScreen, SubScreen } from '../touch-menus';
  * - `dialogue`: not muffled, about 3 dB down so speech sits on top
  * - `cine`: about 1.4 dB down under the cinematic and ending panels
  */
-export const MIX: Record<
-  'open' | 'pause' | 'pauseCoarse' | 'card' | 'dialogue' | 'cine',
-  MixShape
-> = {
+export const MIX: Record<MixName, MixShape> = {
   open: { ...MIX_OPEN },
   pause: { lpf: 900, gain: 0.7 },
   pauseCoarse: { lpf: 1400, gain: 0.7 },
@@ -37,21 +37,26 @@ export const MIX: Record<
  */
 export function mixFor(screen: ShellScreen, sub: SubScreen, coarse = false): MixShape {
   void sub; // Pause muffles whatever is open over it; the title's sub-screens are open like the title.
+  return { ...MIX[mixNameFor(screen, coarse)] };
+}
+
+/** The name of the mix state a screen uses (the sound lab shows it, and `mixFor` reads it). */
+export function mixNameFor(screen: ShellScreen, coarse = false): MixName {
   switch (screen) {
     case 'pause':
-      return { ...(coarse ? MIX.pauseCoarse : MIX.pause) };
+      return coarse ? 'pauseCoarse' : 'pause';
     case 'card':
-      return { ...MIX.card };
+      return 'card';
     case 'dialogue':
-      return { ...MIX.dialogue };
+      return 'dialogue';
     case 'cine':
     case 'ending':
-      return { ...MIX.cine };
+      return 'cine';
     case 'loading':
     case 'title':
     case 'play':
     case 'credits':
     case 'stinger':
-      return { ...MIX.open };
+      return 'open';
   }
 }
