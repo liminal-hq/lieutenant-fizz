@@ -5,6 +5,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { audit } from './audit';
+import { pressUntil } from './keys';
 
 const KEY = 'lf-ep1-options-v1';
 
@@ -36,13 +37,6 @@ const styleValue = async (page: Page): Promise<string> =>
     .replace(/[◄►]/g, '')
     .trim();
 
-/** Holds a direction for a few frames: the game reads the keyboard once a frame, so a bare press can fall between two. */
-const hold = async (page: Page, key: string): Promise<void> => {
-  await page.keyboard.down(key);
-  await page.waitForTimeout(120);
-  await page.keyboard.up(key);
-};
-
 const stored = (page: Page): Promise<Record<string, unknown> | null> =>
   page.evaluate((k) => {
     const raw = localStorage.getItem(k);
@@ -64,7 +58,11 @@ test('Options > Sound: Left and Enter change the style, which is saved, and Esca
   ]);
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Sound');
   // Enter opens the Sound screen.
-  await page.keyboard.press('Enter', { delay: 300 });
+  await pressUntil(
+    page,
+    'Enter',
+    () => document.querySelector('#overlay h2')?.textContent === 'Sound',
+  );
   await expect(page.locator('#overlay h2')).toHaveText('Sound');
   expect(await labels(page)).toEqual(['Style', 'Music', 'Effects', 'Reset', 'Back']);
   // Auto resolves to the game's default.
@@ -72,23 +70,46 @@ test('Options > Sound: Left and Enter change the style, which is saved, and Esca
   expect((await lf(page, (g) => g.debugAudio())).mode).toBe('enhanced');
   expect((await stored(page))?.['audio']).toBe(0);
   // Left steps to Classic and saves the choice.
-  await hold(page, 'ArrowLeft');
+  await pressUntil(page, 'ArrowLeft', () =>
+    [...document.querySelectorAll('#overlay .menu button')].some(
+      (b) =>
+        b.textContent?.includes('Style') &&
+        b.querySelector('.val')?.textContent?.includes('Classic'),
+    ),
+  );
   await expect.poll(() => styleValue(page)).toBe('Classic');
   await expect.poll(() => lf(page, (g) => g.debugAudio().mode)).toBe('classic');
   expect(await stored(page)).toMatchObject({ v: 1, audio: 1, music: 8, sfx: 8 });
   // Enter on the row goes round to Enhanced.
-  await page.keyboard.press('Enter', { delay: 300 });
+  await pressUntil(
+    page,
+    'Enter',
+    () => (window as unknown as { __lf: Lf }).__lf.debugAudio().mode === 'enhanced',
+  );
   await expect.poll(() => lf(page, (g) => g.debugAudio().mode)).toBe('enhanced');
   expect(await stored(page)).toMatchObject({ audio: 2 });
   // Music and Effects moved here: Down, then Left lowers the meter and saves the level.
-  await hold(page, 'ArrowDown');
-  await hold(page, 'ArrowLeft');
+  await pressUntil(
+    page,
+    'ArrowDown',
+    () => (window as unknown as { __lf: Lf }).__lf.debugState.menu === 1,
+  );
+  await pressUntil(
+    page,
+    'ArrowLeft',
+    (k) => JSON.parse(localStorage.getItem(k) ?? '{}').music === 7,
+    KEY,
+  );
   await expect.poll(async () => (await stored(page))?.['music']).toBe(7);
   const { checked, ...problems } = await page.evaluate(audit, {});
   expect(checked).toBeGreaterThan(3);
   expect(problems, JSON.stringify(problems)).toMatchObject({ pageOverflow: [], clipped: [] });
   // Escape goes back to Options with the selection on Sound.
-  await page.keyboard.press('Escape', { delay: 300 });
+  await pressUntil(
+    page,
+    'Escape',
+    () => document.querySelector('#overlay h2')?.textContent === 'Options',
+  );
   await expect(page.locator('#overlay h2')).toHaveText('Options');
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Sound');
   expect(errors).toEqual([]);
@@ -106,7 +127,12 @@ test('?audio= wins over the saved style, fixes Style and writes nothing', async 
   expect(await styleValue(page)).toBe('Classic (link)');
   // The screen opens on Music, since Style cannot change; Left lowers Music and leaves Style alone.
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Music');
-  await hold(page, 'ArrowLeft');
+  await pressUntil(
+    page,
+    'ArrowLeft',
+    (k) => JSON.parse(localStorage.getItem(k) ?? '{}').music === 7,
+    KEY,
+  );
   await expect.poll(async () => (await stored(page))?.['music']).toBe(7);
   expect((await stored(page))?.['audio']).toBe(2);
   expect((await lf(page, (g) => g.debugAudio())).mode).toBe('classic');
