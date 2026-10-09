@@ -6,6 +6,24 @@
 import type { Page } from '@playwright/test';
 
 /**
+ * Lets the game run a few frames. The page shows a new screen before the game's next frame notices
+ * the change, and a direction held when it notices is ignored until it comes up (so it cannot move
+ * the new menu). A key pressed right after a screen opens can be swallowed unless the game has had
+ * the frames first; `pressUntil` does this, and a spec that holds a key itself must too.
+ */
+export async function settle(page: Page, frames = 3): Promise<void> {
+  await page.evaluate(
+    (count) =>
+      new Promise<void>((resolve) => {
+        let left = count;
+        const tick = (): void => (--left > 0 ? void requestAnimationFrame(tick) : resolve());
+        requestAnimationFrame(tick);
+      }),
+    frames,
+  );
+}
+
+/**
  * Holds `key` down until `done` reports, inside the page, the change the press should cause, then
  * lifts it at once.
  *
@@ -23,17 +41,7 @@ export async function pressUntil(
   done: (arg: string) => boolean,
   arg = '',
 ): Promise<void> {
-  // The page shows a new screen before the game's next frame notices the change, and a direction
-  // held when it notices is ignored until it comes up (so it cannot move the new menu). Let the
-  // game take a few frames first, or a press right after opening a screen is swallowed.
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        let frames = 3;
-        const tick = (): void => (--frames > 0 ? void requestAnimationFrame(tick) : resolve());
-        requestAnimationFrame(tick);
-      }),
-  );
+  await settle(page);
   await page.keyboard.down(key);
   try {
     await page.waitForFunction(done, arg, { polling: 'raf', timeout: 10_000 });
