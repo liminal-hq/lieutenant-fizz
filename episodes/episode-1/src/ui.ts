@@ -322,9 +322,11 @@ export class Ui {
     });
     // The typed text changes every few milliseconds, so it is hidden from a screen reader; the `sr`
     // line gets each whole beat once, when it starts.
-    this.letterbox.innerHTML = `<div class="bar"><span class="place"></span><button class="btn ghost skip">Skip</button></div>
+    // The dots are drawn twice: in the foot on a desktop window, and in the top bar on a phone (the
+    // stylesheet shows one). The Continue button is its word on a desktop window and an arrow on a phone.
+    this.letterbox.innerHTML = `<div class="bar"><span class="place"></span><span class="dots" aria-hidden="true"></span><button class="btn ghost skip">Skip</button></div>
       <div class="bar bottom"><div class="text" aria-hidden="true"><span class="shown"></span><span class="hidden-text"></span></div>
-      <div class="foot"><span class="pips" aria-hidden="true"></span><button class="btn next">Continue</button></div></div>
+      <div class="foot"><span class="pips" aria-hidden="true"></span><button class="btn next"><span class="lbl">Continue</span><span class="arrow" aria-hidden="true">↓</span></button></div></div>
       <div class="sr" aria-live="polite" aria-atomic="true"></div>`;
     this.letterbox.querySelector('.skip')?.addEventListener('click', () => h.skipCine());
     this.letterbox.querySelector('.next')?.addEventListener('click', () => h.advance());
@@ -1332,7 +1334,12 @@ export class Ui {
     q('.shown').textContent = o.shown;
     q('.hidden-text').textContent = o.hidden;
     q('.pips').textContent = o.pips;
-    q('.next').textContent = !o.done ? 'Hurry' : o.last && o.skip ? 'Step out' : 'Continue';
+    q('.dots').textContent = o.pips;
+    // The word is what a screen reader reads; on a phone the button shows an arrow instead, except
+    // for the one that leaves the intro.
+    const word = !o.done ? 'Hurry' : o.last && o.skip ? 'Step out' : 'Continue';
+    q('.next .lbl').textContent = word;
+    q('.next').toggleAttribute('data-word', word === 'Step out');
     q('.skip').hidden = !o.skip;
   }
 

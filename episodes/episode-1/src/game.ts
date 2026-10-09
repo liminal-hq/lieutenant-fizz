@@ -3078,6 +3078,7 @@ export class Game {
       | 'pause'
       | 'card'
       | 'cine'
+      | 'ending'
       | 'dialogue'
       | 'credits',
   ): void {
@@ -3105,6 +3106,13 @@ export class Game {
       return this.syncUi();
     }
     if (what === 'cine') return this.newGame();
+    if (what === 'ending') {
+      // The Citadel behind the panels, as the ending shows it; the camera is wherever the level starts.
+      this.debugEnterLevel(2);
+      this.screen = 'ending';
+      this.story.start(END);
+      return this.syncUi();
+    }
     if (what === 'pause' || what === 'dialogue') {
       this.debugEnterLevel(0);
       this.screen = what;
