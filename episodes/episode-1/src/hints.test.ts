@@ -190,3 +190,46 @@ describe('controlsTable on touch', () => {
     expect(t.rows.at(-1)).toEqual(['Save / Load', 'Pause menu']);
   });
 });
+
+describe('the fullscreen shortcut in the hints', () => {
+  const can = (c: HintContext): HintContext => ({ ...c, fullscreen: true });
+
+  it('adds F to a keyboard hint bar where the page can go fullscreen, and nothing else changes', () => {
+    for (const screen of ['list', 'pause', 'options', 'saves', 'controls'] as const) {
+      expect(menuHints(screen, can(keen))).toEqual([
+        ...menuHints(screen, keen),
+        '{[F]} Fullscreen',
+      ]);
+      expect(menuHints(screen, can(modern))).toEqual([
+        ...menuHints(screen, modern),
+        '{[F]} Fullscreen',
+      ]);
+    }
+  });
+
+  it('leaves the gamepad and touch hints alone, since neither has the key', () => {
+    for (const screen of ['list', 'pause', 'options', 'saves', 'controls'] as const) {
+      expect(menuHints(screen, can(pad))).toEqual(menuHints(screen, pad));
+      expect(menuHints(screen, can(touch))).toEqual(menuHints(screen, touch));
+    }
+  });
+
+  it('adds a Fullscreen row to the keyboard Controls table only where it applies', () => {
+    expect(controlsTable(can(keen), false).rows.at(-1)).toEqual([
+      'Fullscreen',
+      '{[F]}',
+      '{[F]}',
+      '—',
+    ]);
+    expect(controlsTable(can(keen), false).rows.slice(0, -1)).toEqual(
+      controlsTable(keen, false).rows,
+    );
+  });
+
+  it('names the button on touch, with no key glyph', () => {
+    const t = controlsTable(can(touch), true);
+    expect(t.rows.at(-1)).toEqual(['Fullscreen', 'Fullscreen button']);
+    for (const c of [...t.head, ...t.rows.flat(), t.note]) expect(c, c).not.toMatch(KEYS);
+    expect(controlsTable(touch, true).rows.map((r) => r[0])).not.toContain('Fullscreen');
+  });
+});

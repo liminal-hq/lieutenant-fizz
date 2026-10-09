@@ -12,6 +12,7 @@ import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import {
   enterFullscreen,
+  exitFullscreen,
   noKeepAwake,
   webWakeLock,
   type FullscreenResult,
@@ -20,13 +21,16 @@ import {
 import {
   backGuardAllowed,
   detectCaps,
+  fullscreenButton,
   isAppHost,
   isIdle,
   lifecyclePolicy,
   onGesture,
   pauseFor,
   type Caps,
+  type FullscreenScreen,
   type Gesture,
+  type GesturePlan,
   type Host,
   type Want,
 } from '@lieutenant-fizz/engine/lifecycle-policy';
@@ -63,6 +67,7 @@ import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
 import { gestureFor, isLive } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
 import { isPortrait, watchResize, type TouchGutters } from './layout';
+import { FullscreenControl, glyphGrid, type FullscreenPlace } from './fullscreen-button';
 import { touchFaces, type ShellScreen, type SubScreen, type TouchFaces } from './touch-menus';
 import { EPISODE } from './episode';
 import {
@@ -283,6 +288,8 @@ export class Game {
   private idle = false;
   /** How the last fullscreen request went, and the pixel scale around it (for trying it on a phone). */
   private lastFs: FullscreenResult | null = null;
+  /** The Fullscreen button: a pill in the top-right corner, and the `F` key does the same. */
+  private readonly fsControl: FullscreenControl;
   private scaleBefore: number | null = null;
   private scaleAfter: number | null = null;
   /** The Touch controls rows. */
@@ -447,6 +454,11 @@ export class Game {
       matchMedia: window.matchMedia?.bind(window),
       host: options.host ?? (isAppHost(window) ? 'app' : 'web'),
     });
+    this.fsControl = new FullscreenControl({
+      press: () => this.toggleFullscreen(),
+      glyphUrl: (g) => ui.spriteUrl(glyphGrid(g)),
+    });
+    ui.mount(this.fsControl.el);
     this.wakeUrl = options.wake;
     this.keepAwake =
       this.caps.host === 'app'
@@ -577,6 +589,7 @@ export class Game {
       window.removeEventListener(t, this.onInputEvent, { capture: true });
     }
     this.keepAwake.dispose();
+    this.fsControl.dispose();
     window.removeEventListener('pointerdown', this.onTouchPointer, { capture: true });
     this.ui.stage.removeEventListener('contextmenu', this.onContextMenu);
     window.removeEventListener('pointermove', this.onMouseMove);
@@ -1103,6 +1116,9 @@ export class Game {
             break;
         }
         break;
+      case 'fullscreen':
+        this.toggleFullscreen();
+        break;
       case 'quickSave':
         this.quickSave();
         break;
@@ -1252,7 +1268,11 @@ export class Game {
 
   private syncHints(): void {
     const device: InputDevice = this.input.device;
-    this.ui.setHintContext({ device, layout: this.settings.layout });
+    this.ui.setHintContext({
+      device,
+      layout: this.settings.layout,
+      fullscreen: this.caps.fullscreen && this.caps.host === 'web',
+    });
   }
 
   private readonly onVisibility = (): void => {
@@ -2088,11 +2108,67 @@ export class Game {
       this.caps,
     );
     if (!plan.fullscreen && !plan.lock) return;
+    this.requestFullscreen(plan);
+  }
+
+  /** Makes the request and keeps how it went and the pixel scale around it (for trying it on a phone). */
+  private requestFullscreen(plan: GesturePlan): void {
     this.scaleBefore = this.pixelScale;
     this.scaleAfter = null;
     void enterFullscreen(document, screen.orientation, plan).then((r) => {
       this.lastFs = r;
       if (document.fullscreenElement !== null) this.scaleAfter = this.pixelScale;
+    });
+  }
+
+  /** The screen as the Fullscreen button sees it. */
+  private fullscreenScreen(): FullscreenScreen {
+    if (this.rotated || this.sub === 'touchEdit') return 'other';
+    switch (this.screen) {
+      case 'title':
+      case 'pause':
+      case 'card':
+      case 'play':
+        return this.screen;
+      default:
+        return 'other';
+    }
+  }
+
+  /** Whether the Fullscreen button (and so `F`) is on offer, and what it shows. */
+  private fullscreenState(): ReturnType<typeof fullscreenButton> {
+    return fullscreenButton({
+      screen: this.fullscreenScreen(),
+      touch: this.touchMode,
+      caps: this.caps,
+      fullscreen: document.fullscreenElement !== null,
+    });
+  }
+
+  /** Shows, hides and relabels the Fullscreen button. Called from `syncUi()` and when fullscreen comes or goes. */
+  private syncFullscreenButton(): void {
+    const place: FullscreenPlace = touchFaces(this.screen, this.sub).shown.includes('pause')
+      ? 'beside-pause'
+      : 'corner';
+    this.fsControl.set(this.fullscreenState(), this.touchMode, place);
+  }
+
+  /**
+   * The Fullscreen button and `F`: enters fullscreen, or leaves it. An explicit request, so it works
+   * whatever Options > Display > Fullscreen says (that governs the automatic requests only). Called from
+   * the click or the keydown itself, so the request still has its gesture. On a touch device it also
+   * locks the landscape orientation, as the automatic request does. Leaving fullscreen during a level
+   * pauses it, as for any other way out.
+   */
+  private toggleFullscreen(): void {
+    if (!this.fullscreenState().show) return;
+    if (document.fullscreenElement !== null) {
+      void exitFullscreen(document);
+      return;
+    }
+    this.requestFullscreen({
+      fullscreen: true,
+      lock: this.touchCapable && this.caps.orientationLock,
     });
   }
 
@@ -2140,6 +2216,7 @@ export class Game {
     const onFullscreen = (): void => {
       this.onFullscreenChange();
       this.syncBack();
+      this.syncFullscreenButton();
     };
     document.addEventListener('fullscreenchange', onFullscreen);
     const lists: MediaQueryList[] = [];
@@ -2577,6 +2654,7 @@ export class Game {
     this.updateMusic();
     this.syncBack();
     this.syncLifecycle();
+    this.syncFullscreenButton();
     this.updateRoom();
   }
 

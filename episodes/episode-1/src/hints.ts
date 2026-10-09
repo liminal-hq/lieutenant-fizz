@@ -9,6 +9,8 @@ import type { InputDevice } from '@lieutenant-fizz/engine/input';
 export interface HintContext {
   device: InputDevice;
   layout: number;
+  /** The page can go fullscreen on request, so the `F` shortcut and the Fullscreen button exist. */
+  fullscreen?: boolean;
 }
 
 /** The screens that show a hint bar. */
@@ -69,8 +71,13 @@ function touchMenuHints(screen: HintScreen): string[] {
   }
 }
 
-/** The hints along the bottom of a menu screen, one entry per hint. */
+/** The hints along the bottom of a menu screen, one entry per hint. A keyboard also gets the fullscreen shortcut where the page has one. */
 export function menuHints(screen: HintScreen, c: HintContext): string[] {
+  const hints = baseMenuHints(screen, c);
+  return c.fullscreen && c.device === 'keyboard' ? [...hints, '{[F]} Fullscreen'] : hints;
+}
+
+function baseMenuHints(screen: HintScreen, c: HintContext): string[] {
   if (touch(c)) return touchMenuHints(screen);
   const choose = '{[↑↓]} Choose';
   const select = `${selectHint(c)} Select`;
@@ -119,7 +126,8 @@ export interface ControlsTable {
 /**
  * The Controls table. The desktop table has a column per scheme (Keen-style, Modern, Gamepad) with the
  * device in use picked out. The touch table has one column, the on-screen controls' own names, and
- * uses only `TOUCH_LABELS`: no key or gamepad glyph.
+ * uses only `TOUCH_LABELS`: no key or gamepad glyph. Where the page can go fullscreen both tables gain a
+ * Fullscreen row (`F` on a keyboard, the button on touch).
  */
 export function controlsTable(c: HintContext, onTouch: boolean): ControlsTable {
   if (onTouch) {
@@ -134,6 +142,7 @@ export function controlsTable(c: HintContext, onTouch: boolean): ControlsTable {
         ['Pause', touchCap(TOUCH_LABELS.pause)],
         ['Menus', `${dpad} ${touchCap(TOUCH_LABELS.select)} ${touchCap(TOUCH_LABELS.back)}`],
         ['Save / Load', 'Pause menu'],
+        ...(c.fullscreen ? [['Fullscreen', 'Fullscreen button']] : []),
       ],
       on: 1,
       note: `Hold Jump while pogoing for a high bounce. Aim Fizz up or down with the ${dpad}.`,
@@ -148,6 +157,7 @@ export function controlsTable(c: HintContext, onTouch: boolean): ControlsTable {
       ['Fizz', '{Space}', '{[C]}', '{X} {RT}'],
       ['Menu', '{Esc}', '{Esc} {[P]}', '{Start}'],
       ['Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu'],
+      ...(c.fullscreen ? [['Fullscreen', '{[F]}', '{[F]}', '—']] : []),
     ],
     on: controlsColumn(c),
     note: 'Hold jump while pogoing for a high bounce. Aim fizz up with {[↑]}, or down with {[↓]} in the air.',

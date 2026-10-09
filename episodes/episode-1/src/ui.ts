@@ -395,7 +395,12 @@ export class Ui {
 
   /** Sets the device and keyboard layout the hints are written for. */
   setHintContext(ctx: HintContext): void {
-    if (ctx.device === this.ctx.device && ctx.layout === this.ctx.layout) return;
+    if (
+      ctx.device === this.ctx.device &&
+      ctx.layout === this.ctx.layout &&
+      ctx.fullscreen === this.ctx.fullscreen
+    )
+      return;
     this.ctx = ctx;
     this.refreshHints();
     if (this.touchMode) this.relayout();
