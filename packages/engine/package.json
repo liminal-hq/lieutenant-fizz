@@ -19,6 +19,8 @@
     "./haptics": "./src/haptics.ts",
     "./input": "./src/input.ts",
     "./instances": "./src/instances.ts",
+    "./lifecycle": "./src/lifecycle.ts",
+    "./lifecycle-policy": "./src/lifecycle-policy.ts",
     "./master": "./src/master.ts",
     "./mix": "./src/mix.ts",
     "./palette": "./src/palette.ts",
