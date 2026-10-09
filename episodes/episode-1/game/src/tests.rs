@@ -2943,3 +2943,153 @@ fn attract_camera_holds_still_for_reduced_motion() {
     run(&mut w, 600, 0);
     assert_eq!((w.cam_x, w.cam_y), (x, y));
 }
+
+// Shots pass through enemies that are already stunned.
+
+fn put(w: &mut World, kind: Kind, x: f64) -> usize {
+    let s = crate::ents::Spawn {
+        kind,
+        x,
+        y: 2.0,
+        dir: 1.0,
+        ride: false,
+    };
+    let e = w.init_ent(&s);
+    w.ents.push(e);
+    w.ents.len() - 1
+}
+
+fn stunned_pair() -> (World, usize, usize) {
+    let mut w = arena();
+    let a = put(&mut w, Kind::Gloop, 10.0);
+    let b = put(&mut w, Kind::Gloop, 14.0);
+    w.ents[a].stun = 6.0;
+    (w, a, b)
+}
+
+#[test]
+fn a_shot_passes_through_a_stunned_enemy_and_stuns_the_one_behind() {
+    let (mut w, a, b) = stunned_pair();
+    w.shots.push(bubble(6.0, 2.4, 16.0, 0.0));
+    run(&mut w, 40, 0);
+    assert!(w.shots.is_empty(), "the second enemy consumed the shot");
+    assert!(
+        w.ents[b].stun > 4.0,
+        "second enemy stunned: {}",
+        w.ents[b].stun
+    );
+    assert!(w.ents[a].stun > 0.0);
+}
+
+#[test]
+fn passing_through_does_not_refresh_the_stun() {
+    let mut w = arena();
+    let a = put(&mut w, Kind::Gloop, 10.0);
+    w.ents[a].stun = 3.0;
+    w.shots.push(bubble(6.0, 2.4, 16.0, 0.0));
+    run(&mut w, 80, 0);
+    assert!(
+        w.ents[a].stun < 3.0 - 0.5,
+        "kept counting down: {}",
+        w.ents[a].stun
+    );
+    assert!(
+        w.shots.is_empty(),
+        "the shot flew on to the wall or ran out"
+    );
+}
+
+#[test]
+fn a_shot_still_stuns_and_is_consumed_by_a_non_stunned_enemy() {
+    let mut w = arena();
+    let a = put(&mut w, Kind::Gloop, 10.0);
+    w.shots.push(bubble(6.0, 2.4, 16.0, 0.0));
+    run(&mut w, 20, 0);
+    assert!(w.shots.is_empty());
+    assert!(w.ents[a].stun > 5.0);
+}
+
+#[test]
+fn bosses_and_invulnerable_enemies_still_stop_a_shot() {
+    for kind in [Kind::Roller, Kind::Marsh, Kind::Boss] {
+        let mut w = arena();
+        let a = put(&mut w, kind, 10.0);
+        let c = put(&mut w, Kind::Gloop, 14.0);
+        w.ents[a].stun = 6.0;
+        // A parked (not hot) boss: the shot plinks off it.
+        w.ents[a].state = crate::ents::St::Idle;
+        w.shots.push(bubble(6.0, 2.4, 16.0, 0.0));
+        run(&mut w, 30, 0);
+        assert!(w.shots.is_empty(), "{kind:?}: shot is gone");
+        assert!(w.ents[c].stun <= 0.0, "{kind:?} stopped the shot");
+    }
+}
+
+#[test]
+fn an_enemy_that_wakes_up_stops_shots_again() {
+    let mut w = arena();
+    let a = put(&mut w, Kind::Gloop, 10.0);
+    let c = put(&mut w, Kind::Gloop, 14.0);
+    w.ents[a].stun = 0.05;
+    run(&mut w, 10, 0);
+    assert!(w.ents[a].stun <= 0.0);
+    w.shots.push(bubble(6.0, 2.4, 16.0, 0.0));
+    run(&mut w, 30, 0);
+    assert!(w.ents[a].stun > 5.0, "re-stunned");
+    assert!(w.ents[c].stun <= 0.0, "the woken enemy absorbed the shot");
+}
+
+#[test]
+fn a_shot_behind_a_stunned_enemy_still_hits_walls_and_cracked_walls() {
+    let mut w = arena();
+    let a = put(&mut w, Kind::Gloop, 10.0);
+    w.ents[a].stun = 6.0;
+    w.map.set(14, 2, CRACKED);
+    w.map.set(14, 3, CRACKED);
+    w.map.set(20, 2, FILL);
+    w.shots.push(bubble(6.0, 2.4, 16.0, 0.0));
+    run(&mut w, 30, 0);
+    assert_eq!(w.map.get(14, 2), EMPTY, "cracked wall crumbled");
+    assert_eq!(w.map.get(14, 3), EMPTY);
+    assert!(w.shots.is_empty());
+    let mut w = arena();
+    let a = put(&mut w, Kind::Gloop, 10.0);
+    w.ents[a].stun = 6.0;
+    w.map.set(14, 2, FILL);
+    w.shots.push(bubble(6.0, 2.4, 16.0, 0.0));
+    run(&mut w, 30, 0);
+    assert!(w.shots.is_empty(), "plain wall stopped it");
+}
+
+#[test]
+fn a_shot_spawned_inside_a_stunned_enemy_passes_without_a_spark() {
+    let (mut w, a, b) = stunned_pair();
+    w.shots.push(bubble(10.3, 2.4, 16.0, 0.0));
+    let sparks = w.fx.len();
+    w.step(0);
+    assert_eq!(w.fx.len(), sparks, "no spark for an overlap at spawn");
+    run(&mut w, 30, 0);
+    assert!(w.ents[b].stun > 4.0);
+    assert!(w.ents[a].stun > 0.0);
+}
+
+#[test]
+fn passing_a_stunned_enemy_sparks_once_and_runs_identically_twice() {
+    let run_it = || {
+        let (mut w, _, _) = stunned_pair();
+        w.shots.push(bubble(6.0, 2.4, 16.0, 0.0));
+        let mut sparks = 0;
+        for _ in 0..40 {
+            let before = w.fx.iter().filter(|f| (f.life - 0.15).abs() < 1e-9).count();
+            w.step(0);
+            let after = w.fx.iter().filter(|f| (f.life - 0.15).abs() < 1e-9).count();
+            sparks += after.saturating_sub(before);
+        }
+        let stuns: Vec<f64> = w.ents.iter().map(|e| e.stun).collect();
+        (sparks, stuns, w.shots.len())
+    };
+    let (s1, st1, n1) = run_it();
+    let (s2, st2, n2) = run_it();
+    assert_eq!(s1, 1, "one spark for the one pass");
+    assert_eq!((s1, &st1, n1), (s2, &st2, n2));
+}
