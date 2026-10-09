@@ -1095,26 +1095,30 @@ export class Ui {
       return;
     }
     const w = this.root.clientWidth;
-    const key = JSON.stringify([
-      Math.round(anchor.x),
-      Math.round(anchor.y),
-      Math.round(anchor.ppu * 10),
-      boxes,
-      w,
-      this.root.clientHeight,
-    ]);
-    if (key === this.dockKey && p.dataset['dock'] !== 'pending') return;
     const obstacles: Obstacle[] = boxes.controls.map((c) => ({
       hit: shapeBox(c.hit),
       face: shapeBox(c.face),
     }));
-    for (const e of [this.hud, this.backBtn]) {
-      const r = e.hidden ? null : e.getBoundingClientRect();
+    // The HUD pills, the Back button and the Fullscreen button are page elements, so they are measured; the
+    // Fullscreen button shows on the map only where the page offers it (not on a phone in play).
+    const fsBtn = this.root.querySelector<HTMLElement>('#fsBtn');
+    for (const e of [this.hud, this.backBtn, fsBtn]) {
+      const r = !e || e.hidden ? null : e.getBoundingClientRect();
       if (r && r.width > 0) {
         const b = { x: r.x, y: r.y, w: r.width, h: r.height };
         obstacles.push({ hit: b, face: b });
       }
     }
+    const key = JSON.stringify([
+      Math.round(anchor.x),
+      Math.round(anchor.y),
+      Math.round(anchor.ppu * 10),
+      boxes,
+      obstacles.slice(boxes.controls.length).map((o) => [o.hit.x, o.hit.y, o.hit.w, o.hit.h]),
+      w,
+      this.root.clientHeight,
+    ]);
+    if (key === this.dockKey && p.dataset['dock'] !== 'pending') return;
     // Measured at each candidate width with the card docked, so the CSS decides how it wraps.
     p.dataset['dock'] = this.dockSide ?? 'right';
     const measure = (width: number): number => {
