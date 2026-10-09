@@ -57,6 +57,14 @@ export function nextDevice(current: InputDevice, event: DeviceEvent, padsLeft = 
   }
 }
 
+/**
+ * Whether unplugging pad `index` takes away the pad the player was using: the gamepad is the device in
+ * use and the pad is the one that last had input (or none has had input yet).
+ */
+export function padLostInUse(device: InputDevice, lastPad: number, index: number): boolean {
+  return device === 'gamepad' && (lastPad < 0 || lastPad === index);
+}
+
 const MAPPED = new Set([
   'ArrowLeft',
   'ArrowRight',
@@ -164,6 +172,7 @@ export class InputManager {
   /** The device the player last used. Starts on the gamepad if one is already connected. */
   device: InputDevice = 'keyboard';
   private readonly deviceHandlers = new Set<(d: InputDevice) => void>();
+  private readonly padLostHandlers = new Set<() => void>();
   /** When true, held bits are suppressed (menus, dialogue) but commands still fire. */
   blocked = false;
   /** The touch controls' state. A DOM controller feeds it; its bits count only while touch is enabled. */
@@ -223,8 +232,12 @@ export class InputManager {
   };
 
   private readonly onPadConnected = (): void => this.setDevice('pad-connected');
-  private readonly onPadDisconnected = (): void =>
+  private readonly onPadDisconnected = (e: Event): void => {
+    const index = (e as GamepadEvent).gamepad?.index ?? -1;
+    const inUse = padLostInUse(this.device, this.lastPad, index);
     this.setDevice('pad-disconnected', this.padCount());
+    if (inUse) for (const h of this.padLostHandlers) h();
+  };
 
   constructor(private readonly host: HTMLElement) {
     if (this.padCount() > 0) this.device = 'gamepad';
@@ -254,6 +267,12 @@ export class InputManager {
   onDevice(fn: (d: InputDevice) => void): () => void {
     this.deviceHandlers.add(fn);
     return () => this.deviceHandlers.delete(fn);
+  }
+
+  /** Calls `fn` when the pad the player was using is unplugged. Returns an unsubscribe function. */
+  onPadLost(fn: () => void): () => void {
+    this.padLostHandlers.add(fn);
+    return () => this.padLostHandlers.delete(fn);
   }
 
   onCommand(fn: (c: Command) => void): () => void {
