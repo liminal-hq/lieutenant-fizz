@@ -25,6 +25,7 @@ import { TouchControls } from '@lieutenant-fizz/engine/touch-ui';
 import simUrl from './wasm/sim.wasm?url';
 import { MIX, mixFor } from './audio/mix';
 import { PATTERNS } from './audio/patterns';
+import { ROOMS, roomFor, roomProfile, type RoomName } from './audio/rooms';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { backAction, backEnabled } from './back';
 import { Cinematic, CINE_TALL } from './cine';
@@ -167,6 +168,9 @@ export class Game {
   private readonly audio: GameAudio;
   /** Whether `GameOptions.audio` chose the audio mode, rather than the default applying. */
   private readonly audioForced: boolean;
+  /** The room the sound is in, and whether the speaker is a phone's (shorter rooms, lower sends). */
+  private roomName: RoomName = 'neutral';
+  private coarseSpeaker = false;
   private readonly ui: Ui;
   private readonly cine = new Cinematic();
   private readonly writer: InstanceWriter;
@@ -256,6 +260,7 @@ export class Game {
     this.audio = new GameAudio({ ...PATTERNS, mix: MIX });
     this.audioForced = options.audio !== undefined;
     this.audio.setMode(resolveAudioMode(options.audio));
+    this.coarseSpeaker = !!window.matchMedia?.('(pointer: coarse)').matches;
     this.settings = readOptions(this.store);
     this.applySettings();
     this.input.onDevice(() => this.syncHints());
@@ -1710,12 +1715,22 @@ export class Game {
     this.syncMix();
     this.updateMusic();
     this.syncBack();
+    this.updateRoom();
+  }
+
+  /** Moves the sound to the room of the screen or level it is now on (Enhanced; Classic only remembers it). */
+  private updateRoom(force = false): void {
+    const mode = this.sim.x.mode();
+    const level = this.sim.get(State.LEVEL_ID);
+    const name = roomFor(this.screen, mode, level);
+    if (name === this.roomName && !force) return;
+    this.roomName = name;
+    this.audio.setRoom(roomProfile(name, this.coarseSpeaker));
   }
 
   /** Tells the audio how the music should be heard on this screen (muffled on pause, ducked under speech). */
   private syncMix(): void {
-    const coarse = !!window.matchMedia?.('(pointer: coarse)').matches;
-    this.audio.setMix(mixFor(this.screen, this.sub, coarse));
+    this.audio.setMix(mixFor(this.screen, this.sub, this.coarseSpeaker));
   }
 
   private musicFor(): string | null {
@@ -1759,9 +1774,11 @@ export class Game {
 
   /**
    * Test hook: reads (and, given a mode, sets) the audio mode, so Classic and Enhanced can be
-   * compared by ear on a phone. `emitters` counts the sounds placed since the page loaded.
+   * compared by ear on a phone. `emitters` counts the sounds placed since the page loaded, and
+   * `room` is the room the sound is in (see `audio/rooms.ts`).
    */
   debugAudio(mode?: AudioMode): {
+    room: RoomName;
     mode: AudioMode;
     forced: boolean;
     backend: string;
@@ -1772,6 +1789,7 @@ export class Game {
   } {
     if (mode) this.audio.setMode(mode);
     return {
+      room: this.roomName,
       mode: this.audio.mode,
       forced: this.audioForced,
       backend: this.audio.backend,
@@ -1788,11 +1806,13 @@ export class Game {
    * `__lf.debugAudioTune({ master: { trim: 0.7, comp: { ratio: 3 } }, partPan: { bell: 0.2 } })`.
    * `mix` changes the mix states by name (`open`, `pause`, `pauseCoarse`, `card`, `dialogue`, `cine`),
    * for example `{ mix: { pause: { lpf: 700, gain: 0.6 } } }`; the current screen takes the change
-   * at once. Returns which values were set and which were refused. See `AudioTune`.
+   * at once. `rooms` changes a room by name, for example `{ rooms: { cave: { sfxSend: 0.15, seconds: 2.2 } } }`.
+   * Returns which values were set and which were refused. See `AudioTune`.
    */
   debugAudioTune(tune: AudioTune): TuneReport {
-    const report = this.audio.tune(tune);
+    const report = this.audio.tune(tune, ROOMS);
     if (tune.mix) this.syncMix();
+    if (tune.rooms) this.updateRoom(true);
     return report;
   }
 
