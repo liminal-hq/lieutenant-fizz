@@ -78,3 +78,13 @@
 #stage:has(#fsBtn[data-place='desktop']:not([hidden])) #labBtn {
   right: calc(var(--lf-safe-right) + 16px + 40px + var(--n) * 11px * 9);
 }
+
+/* The desktop Controls table with its Fullscreen row (eight lines with the header) is one row taller, which a
+   short window cannot spare: the rows close up by their 2 n px of padding, which the line height already
+   covers. */
+@media (max-height: 700px) {
+  #stage:not([data-touch]) #controls table:has(tr:nth-child(8)) :is(td, th) {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}

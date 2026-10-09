@@ -71,10 +71,16 @@ function touchMenuHints(screen: HintScreen): string[] {
   }
 }
 
-/** The hints along the bottom of a menu screen, one entry per hint. A keyboard also gets the fullscreen shortcut where the page has one. */
+/**
+ * The hints along the bottom of a menu screen, one entry per hint. A keyboard also gets the fullscreen
+ * shortcut where the page has one, except on the Controls screen, whose table already lists it and which
+ * has no room for a third hint on a narrow window.
+ */
 export function menuHints(screen: HintScreen, c: HintContext): string[] {
   const hints = baseMenuHints(screen, c);
-  return c.fullscreen && c.device === 'keyboard' ? [...hints, '{[F]} Fullscreen'] : hints;
+  return c.fullscreen && c.device === 'keyboard' && screen !== 'controls'
+    ? [...hints, '{[F]} Fullscreen']
+    : hints;
 }
 
 function baseMenuHints(screen: HintScreen, c: HintContext): string[] {

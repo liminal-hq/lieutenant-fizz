@@ -195,7 +195,7 @@ describe('the fullscreen shortcut in the hints', () => {
   const can = (c: HintContext): HintContext => ({ ...c, fullscreen: true });
 
   it('adds F to a keyboard hint bar where the page can go fullscreen, and nothing else changes', () => {
-    for (const screen of ['list', 'pause', 'options', 'saves', 'controls'] as const) {
+    for (const screen of ['list', 'pause', 'options', 'saves'] as const) {
       expect(menuHints(screen, can(keen))).toEqual([
         ...menuHints(screen, keen),
         '{[F]} Fullscreen',
@@ -205,6 +205,10 @@ describe('the fullscreen shortcut in the hints', () => {
         '{[F]} Fullscreen',
       ]);
     }
+  });
+
+  it('leaves the Controls screen hint bar alone, since its table lists the key', () => {
+    expect(menuHints('controls', can(keen))).toEqual(menuHints('controls', keen));
   });
 
   it('leaves the gamepad and touch hints alone, since neither has the key', () => {
