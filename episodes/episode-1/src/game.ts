@@ -5,6 +5,7 @@
 
 import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
+import { FrameStats } from '@lieutenant-fizz/engine/frame-stats';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
@@ -410,6 +411,8 @@ export class Game {
   private viewKey = [0, 0, 0, 0, 0, 0, 0];
   private statT = 0;
   private fpsE = 60;
+  /** Frame-time statistics, kept only under `?debug` (null otherwise, so a normal run does nothing). */
+  private perf: FrameStats | null = null;
   private lastBits = 0;
   private cineIdx = 0;
   private endIdx = 0;
@@ -632,6 +635,7 @@ export class Game {
   // ---------- Frame ----------
 
   private frame(t: number): void {
+    this.perf?.frame(t);
     const dt = Math.max(0, (t - this.last) / 1000);
     this.last = t;
     const sim = this.sim;
@@ -3027,6 +3031,16 @@ export class Game {
     this.labShell = null;
   }
 
+  /** Debug hook: starts recording frame times (`?debug` does this at boot); `debugState.perf` reports them. */
+  debugPerf(): void {
+    this.perf ??= new FrameStats();
+  }
+
+  /** Debug hook: starts a fresh frame-time window, for comparing two settings in one session. */
+  debugPerfReset(): void {
+    this.perf?.reset();
+  }
+
   /** Test hook: what haptics last played, what each compiled to, and what the backend can do. */
   debugHaptics(): ReturnType<GameHaptics['report']> {
     return this.haptics.report();
@@ -3225,6 +3239,7 @@ export class Game {
       },
       instances: this.lastCount,
       atlas: this.atlas.size,
+      perf: this.perf?.report() ?? null,
     };
   }
 }
