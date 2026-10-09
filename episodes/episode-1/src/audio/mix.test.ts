@@ -42,6 +42,14 @@ describe('mixFor', () => {
     }
   });
 
+  it('keeps the Sound screen open, even over Pause, so the music can be judged', () => {
+    expect(mixFor('pause', 'sound')).toEqual(OPEN);
+    expect(mixFor('pause', 'sound', true)).toEqual(OPEN);
+    expect(mixFor('title', 'sound')).toEqual(OPEN);
+    // Options itself, one level up, is still muffled over Pause.
+    expect(mixFor('pause', 'options')).toEqual({ lpf: 900, gain: 0.7 });
+  });
+
   it('leaves the title, its sub-screens, play and the credits open', () => {
     for (const s of ['loading', 'title', 'play', 'credits', 'stinger'] as const) {
       for (const sub of SUBS) expect(mixFor(s, sub)).toEqual(OPEN);

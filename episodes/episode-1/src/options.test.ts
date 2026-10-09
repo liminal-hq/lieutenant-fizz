@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  audioChoice,
   DEFAULT_OPTIONS,
   OPTIONS_KEY,
   parseOptions,
@@ -18,7 +19,7 @@ import {
 
 describe('options storage', () => {
   it('round-trips every option', () => {
-    const o = { music: 3, sfx: 0, captions: false, layout: 1, text: 1, motion: 2 };
+    const o = { music: 3, sfx: 0, audio: 2, captions: false, layout: 1, text: 1, motion: 2 };
     expect(parseOptions(serialiseOptions(o))).toEqual(o);
   });
 
@@ -34,6 +35,37 @@ describe('options storage', () => {
       '{"v":1,"music":99,"sfx":2,"captions":"yes","layout":1,"text":-1,"motion":1}',
     );
     expect(got).toEqual({ ...DEFAULT_OPTIONS, sfx: 2, layout: 1, motion: 1 });
+  });
+
+  it('loads a save from before the Style setting with Auto', () => {
+    const old = '{"v":1,"music":3,"sfx":5,"captions":false,"layout":1,"text":1,"motion":2}';
+    expect(parseOptions(old)).toEqual({
+      music: 3,
+      sfx: 5,
+      audio: 0,
+      captions: false,
+      layout: 1,
+      text: 1,
+      motion: 2,
+    });
+  });
+
+  it('rejects a Style outside Auto, Classic and Enhanced', () => {
+    for (const bad of ['3', '-1', '1.5', '"classic"', 'null', 'true']) {
+      expect(parseOptions(`{"v":1,"audio":${bad}}`).audio).toBe(0);
+    }
+    expect(parseOptions('{"v":1,"audio":2}').audio).toBe(2);
+  });
+
+  it('keeps the same storage key and version', () => {
+    expect(OPTIONS_KEY).toBe('lf-ep1-options-v1');
+    expect(JSON.parse(serialiseOptions(DEFAULT_OPTIONS)).v).toBe(1);
+  });
+
+  it('reads the saved Style as a mode, or none on Auto', () => {
+    expect(audioChoice({ audio: 0 })).toBeUndefined();
+    expect(audioChoice({ audio: 1 })).toBe('classic');
+    expect(audioChoice({ audio: 2 })).toBe('enhanced');
   });
 
   it('starts volumes at full', () => {
@@ -94,7 +126,7 @@ describe('stepOption', () => {
   });
 
   it('does not change the other options', () => {
-    const o = { music: 2, sfx: 3, captions: false, layout: 1, text: 1, motion: 2 };
+    const o = { music: 2, sfx: 3, audio: 1, captions: false, layout: 1, text: 1, motion: 2 };
     expect(stepOption(o, 'music', 1)).toEqual({ ...o, music: 3 });
   });
 });

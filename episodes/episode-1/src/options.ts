@@ -1,7 +1,9 @@
-// Player options: volumes, captions, controls layout, text size and motion, saved on this device.
+// Player options: volumes, sound style, captions, controls layout, text size and motion, saved on this device.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
+
+import type { AudioMode } from '@lieutenant-fizz/engine/sound-field';
 
 /** Storage key for the options; the version lives inside the saved JSON. */
 export const OPTIONS_KEY = 'lf-ep1-options-v1';
@@ -12,12 +14,16 @@ export const METER_BLOCKS = 8;
 export const LAYOUTS = ['Keen-style', 'Modern'] as const;
 export const TEXT_SIZES = ['Normal', 'Large'] as const;
 export const MOTIONS = ['System', 'Reduced', 'Full'] as const;
+/** The stored sound style: Auto follows the game's default, the others are the player's choice. */
+export const AUDIO_CHOICES = ['Auto', 'Classic', 'Enhanced'] as const;
 
 export interface Options {
   /** Music volume, 0 to 8. */
   music: number;
   /** Sound effect volume, 0 to 8. */
   sfx: number;
+  /** Sound style: 0 Auto (the game's default), 1 Classic, 2 Enhanced. */
+  audio: number;
   /** Floating sound captions on or off. */
   captions: boolean;
   /** Which keyboard layout the hints and Controls table show: 0 Keen-style, 1 Modern. */
@@ -35,6 +41,7 @@ export type SettingKey = keyof Options;
 export const DEFAULT_OPTIONS: Readonly<Options> = {
   music: METER_BLOCKS,
   sfx: METER_BLOCKS,
+  audio: 0,
   captions: true,
   layout: 0,
   text: 0,
@@ -53,6 +60,7 @@ export function parseOptions(json: string | null): Options {
     return {
       music: int(raw['music'], 0, METER_BLOCKS, d.music),
       sfx: int(raw['sfx'], 0, METER_BLOCKS, d.sfx),
+      audio: int(raw['audio'], 0, AUDIO_CHOICES.length - 1, d.audio),
       captions: typeof raw['captions'] === 'boolean' ? raw['captions'] : d.captions,
       layout: int(raw['layout'], 0, LAYOUTS.length - 1, d.layout),
       text: int(raw['text'], 0, TEXT_SIZES.length - 1, d.text),
@@ -87,6 +95,11 @@ export function writeOptions(store: Writer | null, o: Options): boolean {
   }
 }
 
+/** The sound style the player chose, or undefined while it is on Auto. */
+export function audioChoice(o: Pick<Options, 'audio'>): AudioMode | undefined {
+  return o.audio === 1 ? 'classic' : o.audio === 2 ? 'enhanced' : undefined;
+}
+
 /** A meter level as a gain from 0 to 1. */
 export const volumeOf = (level: number): number => level / METER_BLOCKS;
 
@@ -97,6 +110,7 @@ export function reducedMotion(o: Pick<Options, 'motion'>, system: boolean): bool
 
 /** The number of values a choice option cycles through. */
 const CHOICES: Partial<Record<SettingKey, number>> = {
+  audio: AUDIO_CHOICES.length,
   captions: 2,
   layout: LAYOUTS.length,
   text: TEXT_SIZES.length,
