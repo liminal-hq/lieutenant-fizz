@@ -82,7 +82,9 @@ export function applyAudioTune(tune: AudioTune, mix?: Record<string, MixShape>):
       const ok =
         typeof value === 'number' &&
         Number.isFinite(value) &&
-        (key === 'lpf' ? value >= 20 && value <= 20000 : key === 'gain' && value >= 0 && value <= 2);
+        (key === 'lpf'
+          ? value >= 20 && value <= 20000
+          : key === 'gain' && value >= 0 && value <= 2);
       if (state && ok) {
         state[key as keyof MixShape] = value;
         report.applied.push(path);

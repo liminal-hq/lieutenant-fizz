@@ -683,3 +683,163 @@ describe('GameAudio master chain', () => {
     expect(loop).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('GameAudio mix stage', () => {
+  const PAUSE = { lpf: 900, gain: 0.7 };
+  const OPEN = { lpf: 20000, gain: 1 };
+
+  /** Starts Enhanced music and returns the context and the mix nodes of its bus. */
+  async function enhancedMusic(p: AudioPatterns = roled) {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(p, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.setMode('enhanced');
+    audio.playMusic('title');
+    const bus = loop.mock.calls[0]![0]!.ctx!.destination as unknown as FakeNode;
+    const level = bus.out[0]!;
+    const lpf = level.out[0]!;
+    const mix = lpf.out[0]!;
+    // Building the bus set its starting values; the tests look at what happens after.
+    for (const p of [level.gain, lpf.frequency, mix.gain]) p.calls.length = 0;
+    return { audio, ctx, loop, bus, level, lpf, mix };
+  }
+
+  const calls = (p: { calls: { method: string; args: number[] }[] }) =>
+    p.calls.map((c) => [c.method, ...c.args]);
+
+  it('builds the bus as bus, level, a flat low-pass, mix gain, with the mix open', async () => {
+    const { lpf, level, mix } = await enhancedMusic();
+    expect(lpf.kind).toBe('biquad');
+    expect(lpf.type).toBe('lowpass');
+    expect(lpf.Q.value).toBe(0);
+    expect(lpf.frequency.value).toBe(20000);
+    expect(level.gain.value).toBe(1);
+    expect(mix.gain.value).toBe(1);
+  });
+
+  it('glides into the pause muffle from the current time and back out slowly', async () => {
+    const { audio, ctx, lpf, mix } = await enhancedMusic();
+    ctx.state = 'running';
+    ctx.currentTime = 10;
+    audio.setMix(PAUSE);
+    expect(calls(lpf.frequency)).toEqual([
+      ['cancelScheduledValues', 10],
+      ['setValueAtTime', 20000, 10],
+      ['exponentialRampToValueAtTime', 900, 10.18],
+    ]);
+    expect(calls(mix.gain)).toEqual([
+      ['cancelScheduledValues', 10],
+      ['setValueAtTime', 1, 10],
+      ['linearRampToValueAtTime', 0.7, 10.18],
+    ]);
+    // Resume halfway through the close: the open starts from where the close had got to.
+    ctx.currentTime = 10.06;
+    lpf.frequency.calls.length = 0;
+    audio.setMix(OPEN);
+    const [cancel, set, ramp] = calls(lpf.frequency);
+    expect(cancel).toEqual(['cancelScheduledValues', 10.06]);
+    expect(set![0]).toBe('setValueAtTime');
+    expect(set![1]).toBeCloseTo(7114, -1);
+    expect(ramp![1]).toBe(20000);
+    expect(ramp![2]).toBeCloseTo(10.41, 10);
+  });
+
+  it('ignores a mix it already has, and reports it', async () => {
+    const { audio, ctx, lpf } = await enhancedMusic();
+    ctx.state = 'running';
+    audio.setMix(OPEN);
+    expect(lpf.frequency.calls).toEqual([]);
+    audio.setMix(PAUSE);
+    expect(audio.mixState).toEqual({ ...PAUSE, applied: true });
+  });
+
+  it('applies a mix asked for before the bus exists without a ramp when it is built', async () => {
+    vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(roled, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.setMode('enhanced');
+    audio.setMix(PAUSE);
+    expect(audio.mixState.applied).toBe(false);
+    audio.playMusic('title');
+    const lpf = ctx.all('biquad')[ctx.all('biquad').length - 1]!;
+    expect(lpf.frequency.value).toBe(900);
+    expect(calls(lpf.frequency).some((c) => String(c[0]).endsWith('RampToValueAtTime'))).toBe(
+      false,
+    );
+    expect(ctx.all('gain').some((g) => g.gain.value === 0.7)).toBe(true);
+    expect(audio.mixState).toEqual({ ...PAUSE, applied: true });
+  });
+
+  it('keeps a mix asked for in Classic and applies it at once when Enhanced returns', async () => {
+    const { audio, ctx, lpf, mix } = await enhancedMusic();
+    ctx.state = 'running';
+    audio.setMode('classic');
+    audio.setMix(PAUSE);
+    expect(audio.mixState.applied).toBe(false);
+    expect(lpf.frequency.value).toBe(20000);
+    audio.setMode('enhanced');
+    expect(lpf.frequency.value).toBe(900);
+    expect(mix.gain.value).toBe(0.7);
+    expect(calls(lpf.frequency).some((c) => String(c[0]).endsWith('RampToValueAtTime'))).toBe(
+      false,
+    );
+  });
+
+  it('changes the mix at once while the page is hidden, so it is in place on return', async () => {
+    const { audio, ctx, lpf, mix } = await enhancedMusic();
+    ctx.state = 'running';
+    ctx.currentTime = 4;
+    audio.setActive(false);
+    audio.setMix(PAUSE);
+    expect(calls(lpf.frequency)).toEqual([
+      ['cancelScheduledValues', 4],
+      ['setValueAtTime', 900, 4],
+    ]);
+    expect(mix.gain.value).toBe(0.7);
+    audio.setActive(true);
+    ctx.currentTime = 4.5;
+    audio.setMix(OPEN);
+    expect(calls(lpf.frequency).pop()).toEqual(['exponentialRampToValueAtTime', 20000, 4.85]);
+  });
+
+  it('puts the music volume on the bus in Enhanced, with no restart', async () => {
+    const { audio, ctx, loop, level } = await enhancedMusic();
+    ctx.currentTime = 2;
+    audio.setMusicVolume(0.5);
+    expect(loop).toHaveBeenCalledTimes(1);
+    expect(calls(level.gain).slice(-2)).toEqual([
+      ['cancelScheduledValues', 2],
+      ['setTargetAtTime', 0.5, 2, 0.02],
+    ]);
+    expect(audio.musicVol).toBe(0.5);
+  });
+
+  it('builds the music at the stored volume on the level gain, and restarts in Classic as before', async () => {
+    vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(roled, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.setMusicVolume(0.4);
+    audio.setMode('enhanced');
+    audio.playMusic('title');
+    const lpf = ctx.all('biquad').at(-1)!;
+    const level = ctx.nodes.find((n) => n.out.includes(lpf))!;
+    expect(level.gain.value).toBe(0.4);
+  });
+
+  it('builds the Classic path with no extra nodes after setMix, and the mix stays stored', async () => {
+    vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(roled, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    audio.setMix(PAUSE);
+    audio.playMusic('title');
+    audio.play('jump');
+    audio.setMix(OPEN);
+    expect(ctx.extras()).toEqual([]);
+    expect(ctx.all('biquad')).toEqual([]);
+    expect(audio.masterBuilt).toBe(false);
+  });
+});

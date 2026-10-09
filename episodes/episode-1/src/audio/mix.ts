@@ -17,15 +17,17 @@ import type { ShellScreen, SubScreen } from '../touch-menus';
  * - `dialogue`: not muffled, about 3 dB down so speech sits on top
  * - `cine`: about 1.4 dB down under the cinematic and ending panels
  */
-export const MIX: Record<'open' | 'pause' | 'pauseCoarse' | 'card' | 'dialogue' | 'cine', MixShape> =
-  {
-    open: { ...MIX_OPEN },
-    pause: { lpf: 900, gain: 0.7 },
-    pauseCoarse: { lpf: 1400, gain: 0.7 },
-    card: { lpf: 2200, gain: 0.8 },
-    dialogue: { lpf: 20000, gain: 0.7 },
-    cine: { lpf: 20000, gain: 0.85 },
-  };
+export const MIX: Record<
+  'open' | 'pause' | 'pauseCoarse' | 'card' | 'dialogue' | 'cine',
+  MixShape
+> = {
+  open: { ...MIX_OPEN },
+  pause: { lpf: 900, gain: 0.7 },
+  pauseCoarse: { lpf: 1400, gain: 0.7 },
+  card: { lpf: 2200, gain: 0.8 },
+  dialogue: { lpf: 20000, gain: 0.7 },
+  cine: { lpf: 20000, gain: 0.85 },
+};
 
 /**
  * The mix for a screen, and the sub-screen open over it. Pause and everything opened from it

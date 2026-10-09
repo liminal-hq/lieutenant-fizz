@@ -285,4 +285,18 @@ describe('applyAudioTune', () => {
     expect(MASTER).toEqual(MASTER_DEFAULTS);
     expect(PART_PAN.bell).toBe(0.3);
   });
+
+  it('changes the named mix states, and refuses unknown states, keys and out-of-range values', () => {
+    const mix = { pause: { lpf: 900, gain: 0.7 } };
+    const report = applyAudioTune({ mix: { pause: { lpf: 700 }, nowhere: { gain: 0.5 } } }, mix);
+    expect(mix.pause.lpf).toBe(700);
+    expect(report.applied).toEqual(['mix.pause.lpf']);
+    expect(report.ignored).toEqual(['mix.nowhere.gain']);
+    const bad = applyAudioTune({ mix: { pause: { lpf: 5, gain: 9, q: 1 } as never } }, mix);
+    expect(bad.applied).toEqual([]);
+    expect(bad.ignored).toEqual(['mix.pause.lpf', 'mix.pause.gain', 'mix.pause.q']);
+    expect(mix.pause).toEqual({ lpf: 700, gain: 0.7 });
+    // Without mix states there is nothing to change.
+    expect(applyAudioTune({ mix: { pause: { lpf: 800 } } }).ignored).toEqual(['mix.pause.lpf']);
+  });
 });

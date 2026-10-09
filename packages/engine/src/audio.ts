@@ -701,7 +701,9 @@ export class GameAudio {
     if (this.ut) {
       try {
         const U = this.ut;
-        const voices = t.parts.map((p) => buildVoice(U, p, field ? 1 : this.musicVol, true, !!field));
+        const voices = t.parts.map((p) =>
+          buildVoice(U, p, field ? 1 : this.musicVol, true, !!field),
+        );
         this.handle = U.stack(...voices).loop(
           field ? { ctx: field.routed, bpm: t.bpm } : { ctx: this.ctx, bpm: t.bpm },
         );
