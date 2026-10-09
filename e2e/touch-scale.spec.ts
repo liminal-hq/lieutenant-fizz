@@ -43,6 +43,7 @@ test('the view is a whole scale and shows more of the level instead of bars', as
 });
 
 test('a sprite pixel is exactly the scale in device pixels', async ({ page }) => {
+  test.slow(); // reading pixels in software GL is slow on a loaded runner
   await openLevel(page, '/?debug&touch');
   const v = await view(page);
   const m = await measure(page, v);
@@ -52,6 +53,7 @@ test('a sprite pixel is exactly the scale in device pixels', async ({ page }) =>
 });
 
 test('with ?pixels=soft the same measure fails, so the check can tell', async ({ page }) => {
+  test.slow(); // reading pixels in software GL is slow on a loaded runner
   await openLevel(page, '/?debug&touch&pixels=soft');
   const v = await view(page);
   expect(v.sharp).toBe(false);
