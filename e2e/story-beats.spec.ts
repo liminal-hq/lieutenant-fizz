@@ -1,4 +1,4 @@
-// Browser checks of the story screens' beats: complete-then-advance, the dots and what a screen reader reads.
+// Browser checks of the story screens' pages: complete-then-advance, the dots and what a screen reader reads.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -67,7 +67,7 @@ test('the dots count scenes', async ({ page }) => {
   await expect(page.locator('#letterbox .pips')).toHaveText(first.pips);
 });
 
-test('a screen reader gets the whole beat once, with the place when the scene starts', async ({
+test('a screen reader gets the whole page once, with the place when the scene starts', async ({
   page,
 }) => {
   await openCine(page);
@@ -78,7 +78,7 @@ test('a screen reader gets the whole beat once, with the place when the scene st
   await expect(live).toHaveAttribute('aria-live', 'polite');
   await expect(live).toHaveAttribute('aria-atomic', 'true');
   // The typed text is hidden from a screen reader, so it never reads half a line.
-  await expect(page.locator('#letterbox .text')).toHaveAttribute('aria-hidden', 'true');
+  await expect(page.locator('#letterbox .text:not(.probe)')).toHaveAttribute('aria-hidden', 'true');
   const first = await story(page);
   await expect(live).toHaveText(`The backyard. ${first.text}`);
   // Typing does not change what was announced.

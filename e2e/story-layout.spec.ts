@@ -14,7 +14,11 @@ interface Lf {
   debugShow(s: string): void;
   primary(): void;
   ui: { showLetterbox(o: unknown): void };
-  debugState: { screen: string; story: { scene: number; beat: number; done: boolean } };
+  debugState: {
+    screen: string;
+    story: { scene: number; beat: number; done: boolean };
+    storyPack: { allowed: number } | null;
+  };
   debugTouch: { face: { jump: Circle; pause: Circle } } | null;
 }
 interface Box {
@@ -104,15 +108,21 @@ for (const p of PHONES) {
     });
 
     for (const screen of ['cine', 'ending'] as const) {
-      test(`the ${screen} strip is at most a quarter of the height and leaves most of the art`, async ({
+      test(`the ${screen} strip is at most 30 % of the height with three lines (25 % with two) and leaves most of the art`, async ({
         page,
       }) => {
         await open(page, screen, true);
         await twoLineBeat(page, screen === 'cine');
         const bottom = (await box(page, '#letterbox .bar.bottom'))!;
-        // Measured at 19.5, 21.1 and 23.8 % of the height: a quarter, and the art left at 72 %, keep a margin.
-        expect(bottom.h / p.h).toBeLessThanOrEqual(0.25);
-        expect(1 - bottom.h / p.h).toBeGreaterThanOrEqual(0.72);
+        // The strip keeps the lines a page may take: three at 844x390 and 740x360 (27.2 and 29.4 %), two
+        // at 640x320 (23.8 %), so the share is at most 30 % with three lines and 25 % with two.
+        const allowed = await page.evaluate(
+          () => (window as unknown as { __lf: Lf }).__lf.debugState.storyPack?.allowed ?? 0,
+        );
+        expect(allowed).toBe(p.h >= 360 ? 3 : 2);
+        const most = allowed === 3 ? 0.3 : 0.25;
+        expect(bottom.h / p.h).toBeLessThanOrEqual(most);
+        expect(1 - bottom.h / p.h).toBeGreaterThanOrEqual(1 - most - 0.02);
         // Nothing runs off the screen, and the page does not scroll.
         expect(bottom.b).toBeLessThanOrEqual(p.h + 0.5);
         expect(bottom.r).toBeLessThanOrEqual(p.w + 0.5);

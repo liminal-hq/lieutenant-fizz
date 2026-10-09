@@ -77,6 +77,12 @@ export class BeatCursor {
   private pages: Pages[] = [];
   private sceneIdx = 0;
   private pageIdx = 0;
+  /**
+   * The first beat of the page the player last moved to. A re-pack finds its page from this rather
+   * than from the page showing, so a layout that passes through other widths on its way (a turn of the
+   * phone) puts the player back where they were, not wherever an in-between pack put them.
+   */
+  private anchor = 0;
   private typedChars = 0;
 
   constructor(scenes: readonly BeatScene[], options: BeatOptions = {}) {
@@ -96,22 +102,22 @@ export class BeatCursor {
     this.pages = this.pack();
     this.sceneIdx = 0;
     this.pageIdx = 0;
+    this.anchor = 0;
     this.typedChars = this.reduced ? this.text.length : 0;
   }
 
   /**
    * Packs the pages again for a new fit (the text box changed size, or the font arrived), keeping the
-   * player's place: the page that holds the first beat of the page they were on. The typed text is kept
+   * player's place: the page that holds the first beat of the page they last moved to. The typed text is kept
    * as far as the new page starts the same way, so a page that is already complete and comes out the
    * same is not typed again, and a page that grew keeps what was shown and types the rest.
    */
   setFit(fit: PageFit | null): void {
-    const beat = this.beat;
     const text = this.text;
     const typed = this.typedChars;
     this.fit = fit;
     this.pages = this.pack();
-    this.pageIdx = pageOfBeat(this.pages[this.sceneIdx]?.starts ?? [], beat);
+    this.pageIdx = pageOfBeat(this.pages[this.sceneIdx]?.starts ?? [], this.anchor);
     const now = this.text;
     if (this.reduced) this.typedChars = now.length;
     else if (now !== text) this.typedChars = Math.min(typed, commonPrefix(text, now));
@@ -122,6 +128,7 @@ export class BeatCursor {
     this.sceneIdx = Math.max(0, Math.min(scene, this.scenes.length - 1));
     const count = this.pages[this.sceneIdx]?.texts.length ?? 1;
     this.pageIdx = Math.max(0, Math.min(page, count - 1));
+    this.anchor = this.beat;
     this.reveal();
   }
 
@@ -192,12 +199,14 @@ export class BeatCursor {
     }
     if (this.pageIdx + 1 < this.pageCount) {
       this.pageIdx++;
+      this.anchor = this.beat;
       this.reveal();
       return 'beat';
     }
     if (this.sceneIdx + 1 < this.scenes.length) {
       this.sceneIdx++;
       this.pageIdx = 0;
+      this.anchor = 0;
       this.reveal();
       return 'scene';
     }

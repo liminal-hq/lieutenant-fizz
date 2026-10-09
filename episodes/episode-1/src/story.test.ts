@@ -5,6 +5,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { paginate } from '@lieutenant-fizz/engine/story-pages';
 import { CINE, CINE_TRACK, END, LIFTOFF_BEAT } from './story';
 
 /** The longest beat that was measured to fit two lines at 640 px wide (the longest in the story is 84). */
@@ -56,6 +57,21 @@ describe('the intro', () => {
   it('launches the saucer on the beat that opens the hatch', () => {
     expect(CINE[2]?.place).toBe('Liftoff');
     expect(CINE[2]?.beats[LIFTOFF_BEAT]).toMatch(/^A hatch in the lawn/);
+  });
+
+  it('always starts a page at the beat that opens the hatch, and nowhere else is forced', () => {
+    expect(CINE.map((s) => s.breaks ?? [])).toEqual([[], [], [LIFTOFF_BEAT], [], [], [], [], []]);
+    const pages = paginate(CINE, { fits: () => true });
+    expect(pages[2]?.starts).toEqual([0, LIFTOFF_BEAT]);
+    expect(pages[2]?.texts[1]).toMatch(/^A hatch in the lawn slid open\./);
+  });
+
+  it('packs into the author paragraph of each scene when everything fits one page', () => {
+    const pages = paginate(CINE, { fits: () => true });
+    CINE.forEach((s, i) => {
+      expect(pages[i]?.texts.join(' '), s.place).toBe(s.beats.join(' '));
+      expect(pages[i]?.texts.length, s.place).toBe(i === 2 ? 2 : 1);
+    });
   });
 
   it('is the intro that docs/STORY.md lists', () => {
