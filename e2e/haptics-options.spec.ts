@@ -60,6 +60,7 @@ test('a desktop without a vibrator or a pad has no Haptics row in Options', asyn
   );
   expect(await labels(page)).toEqual([
     'Sound',
+    'Display',
     'Captions',
     'Controls',
     'Text size',

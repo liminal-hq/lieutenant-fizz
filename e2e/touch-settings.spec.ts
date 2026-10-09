@@ -359,6 +359,7 @@ test('Options offers Touch controls on touch, and it opens the Touch controls sc
   expect(labels).toEqual([
     'Sound',
     ...((await canVibrate(page)) ? ['Haptics'] : []),
+    'Display',
     'Captions',
     'Controls',
     'Text size',
