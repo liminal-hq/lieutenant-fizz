@@ -2216,11 +2216,31 @@ impl World {
                         self.teleport_phantom(j);
                         continue;
                     }
-                    if b.x > ex - 0.15
-                        && b.x < ex + ew + 0.15
-                        && b.y > ey - 0.2
-                        && b.y < ey + eh.max(1.1) + 0.2
-                    {
+                    let inside = |x: f64, y: f64| {
+                        x > ex - 0.15
+                            && x < ex + ew + 0.15
+                            && y > ey - 0.2
+                            && y < ey + eh.max(1.1) + 0.2
+                    };
+                    if inside(b.x, b.y) {
+                        // Pass-through rule: a fizz shot flies straight through an enemy that is
+                        // already stunned (`stun > 0`). It is not consumed and does not refresh
+                        // the stun, so it carries on to the next enemy or the wall. Bosses and
+                        // invulnerable enemies still stop it. A shot spawned already overlapping a
+                        // stunned enemy simply passes, with no spark. A tiny spark marks the moment
+                        // the shot enters the enemy, so the pass reads as intentional.
+                        if e.stun > 0.0 && e.kind != Kind::Boss && !d.inv {
+                            if !inside(ox, oy) {
+                                self.fx.push(Fx {
+                                    x: b.x,
+                                    y: b.y,
+                                    t: 0.0,
+                                    life: 0.15,
+                                    tint: 0xaaffff,
+                                });
+                            }
+                            continue;
+                        }
                         gone = true;
                         let (kind, state) = (e.kind, e.state);
                         if kind == Kind::Boss {
