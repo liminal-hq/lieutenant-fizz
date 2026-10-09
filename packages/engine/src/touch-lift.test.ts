@@ -59,13 +59,13 @@ describe('the default lift', () => {
   });
 
   it('puts the 844×390 fullscreen controls where the browser-bar layout had them', () => {
-    // The browser-bar layout: a window 297 px tall above a bar of about 64 dp, measured on a phone.
+    // The browser-bar layout: a window 304 px tall above a bar of about 65 dp, measured on a phone.
     // The distances are from the bottom of the phone, so the bar is added to the window's own.
-    const target = fromBottom(803, 297, DEFAULT_TOUCH_SPEC, 64);
+    const target = fromBottom(844, 304, DEFAULT_TOUCH_SPEC, 65);
     const now = fromBottom(844, 390, lifted);
-    // Measured on the phone: D-pad 144, Jump 118, Pogo 187, Fizz 114.
-    expect(target.dpad).toBeCloseTo(144, 0);
-    expect(target.jump).toBeCloseTo(118, 0);
+    // Measured on the phone: D-pad 147, Jump 121, Pogo 191, Fizz 117.
+    expect(target.dpad).toBeCloseTo(147, 0);
+    expect(target.jump).toBeCloseTo(121, 0);
     // The window is taller, so the controls are bigger and the cluster spreads a little further
     // apart; the lift fits the D-pad and Jump (where the thumbs rest) to within 3 dp.
     expect(Math.abs(now.dpad - target.dpad)).toBeLessThanOrEqual(3);

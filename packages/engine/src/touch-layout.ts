@@ -100,7 +100,7 @@ export const LIFT_REFERENCE_HEIGHT = 390;
  * (about 64 dp on Android) less what the controls' larger size on the taller window already gives; see
  * `docs/MOBILE_PLAN.md`.
  */
-export const CHROMELESS_LIFT = 49;
+export const CHROMELESS_LIFT = 52;
 
 export interface PlacedControls {
   /** The hit areas, for `TouchState`. */
