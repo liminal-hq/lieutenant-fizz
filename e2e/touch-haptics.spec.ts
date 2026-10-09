@@ -34,13 +34,12 @@ const calls = (page: Page): Promise<unknown[]> =>
 const menu = (page: Page): Promise<number> =>
   page.evaluate(() => (window as unknown as Win).__lf.debugState.menu);
 
-test.describe('haptics', () => {
-  // One phone size is enough: nothing here depends on the layout.
-  test.beforeEach(({}, info) => {
-    test.skip(info.project.name !== 'touch-844', 'one viewport');
-  });
+// One phone size is enough: nothing here depends on the layout.
+const ONE = 'touch-844';
 
-  test('a menu move vibrates and hiding the page stops it', async ({ page }) => {
+test.describe('haptics', () => {
+  test('a menu move vibrates and hiding the page stops it', async ({ page }, info) => {
+    test.skip(info.project.name !== ONE, 'one viewport');
     await open(page, '&haptics');
     await page.keyboard.press('ArrowDown');
     await expect.poll(() => calls(page)).not.toEqual([]);
@@ -52,7 +51,8 @@ test.describe('haptics', () => {
     await expect.poll(async () => (await calls(page)).at(-1)).toBe(0);
   });
 
-  test('without the flag nothing vibrates', async ({ page }) => {
+  test('without the flag nothing vibrates', async ({ page }, info) => {
+    test.skip(info.project.name !== ONE, 'one viewport');
     await open(page, '');
     const before = await menu(page);
     await page.keyboard.press('ArrowDown');
