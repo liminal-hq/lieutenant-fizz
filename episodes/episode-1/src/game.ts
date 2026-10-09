@@ -14,7 +14,7 @@ import {
 } from '@lieutenant-fizz/engine/haptic-backends';
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
-import { placeSound, resolveAudioMode, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
+import { placeSound, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
 import {
   Input as Bits,
@@ -72,6 +72,19 @@ import {
   touchRows,
   type TouchRow,
 } from './touch-options';
+import {
+  effectiveAudio,
+  isSoundStepRow,
+  PREVIEW_DELAY_MS,
+  resetSound,
+  soundItems,
+  soundPreview,
+  soundRowOf,
+  soundRows,
+  stepSound,
+  styleName,
+  type SoundRow,
+} from './sound-options';
 import { RESET_ARM_MS, resetArmed } from './two-tap';
 import {
   applyProgress,
@@ -220,6 +233,12 @@ export class Game {
   private readonly audio: GameAudio;
   /** Whether `GameOptions.audio` chose the audio mode, rather than the default applying. */
   private readonly audioForced: boolean;
+  /** The mode `?audio=` chose, which wins over the saved Style and is never saved. */
+  private readonly audioUrl: AudioMode | undefined;
+  /** The Sound screen's rows. */
+  private readonly soundRowList: SoundRow[] = soundRows();
+  /** The pending Sound preview (one timer for the wait, one per sound after it). */
+  private previewTimers: number[] = [];
   /** The room the sound is in, and whether the speaker is a phone's (shorter rooms, lower sends). */
   private roomName: RoomName = 'neutral';
   /** What the sound lab holds in place of the game's choice; null follows the game. */
@@ -328,7 +347,7 @@ export class Game {
     ui.setTouchOpacity(this.touchSettings.opacity);
     this.audio = new GameAudio({ ...PATTERNS, mix: MIX });
     this.audioForced = options.audio !== undefined;
-    this.audio.setMode(resolveAudioMode(options.audio));
+    this.audioUrl = options.audio;
     this.coarseSpeaker = !!window.matchMedia?.('(pointer: coarse)').matches;
     this.haptics = new GameHaptics(FIZZ_HAPTICS, performance);
     this.haptics.setBackends(
@@ -441,6 +460,7 @@ export class Game {
     this.touchUi.dispose();
     window.clearTimeout(this.titleAction);
     window.clearTimeout(this.resetTimer);
+    this.cancelPreview();
     this.input.dispose();
     this.audio.dispose();
     this.haptics.dispose();
@@ -890,7 +910,7 @@ export class Game {
         if (move & Bits.UP) this.nav(-1);
         if (move & Bits.DOWN) this.nav(1);
       }
-      if (this.sub === 'options' || this.sub === 'touch') {
+      if (this.sub === 'options' || this.sub === 'sound' || this.sub === 'touch') {
         if (move & Bits.LEFT) this.adjust(-1);
         if (move & Bits.RIGHT) this.adjust(1);
       }
@@ -969,6 +989,7 @@ export class Game {
   /** Applies the options to audio, captions, text size, motion and hints, and saves them. */
   private applySettings(save = true): void {
     const o = this.settings;
+    this.audio.setMode(effectiveAudio(this.audioUrl, o));
     this.audio.setMusicVolume(volumeOf(o.music));
     this.audio.setMusic(o.music > 0);
     this.audio.setSfxVolume(volumeOf(o.sfx));
@@ -1130,10 +1151,12 @@ export class Game {
 
   // ---------- Menus ----------
 
-  /** The Options rows, in order, and the setting each one changes. */
+  /**
+   * The Options rows, in order, and the setting each one changes. Sound opens its own screen (the
+   * `audio` row is a link; Music and Effects live there).
+   */
   private static readonly OPTION_ROWS: { label: string; key: SettingKey }[] = [
-    { label: 'Music', key: 'music' },
-    { label: 'Sound', key: 'sfx' },
+    { label: 'Sound', key: 'audio' },
     { label: 'Captions', key: 'captions' },
     { label: 'Controls', key: 'layout' },
     { label: 'Text size', key: 'text' },
@@ -1153,8 +1176,8 @@ export class Game {
             ? (TEXT_SIZES[o.text] ?? '')
             : (MOTIONS[o.motion] ?? '');
     const rows: MenuItem[] = Game.OPTION_ROWS.map(({ label, key }) =>
-      key === 'music' || key === 'sfx'
-        ? { id: `opt:${key}`, label, kind: 'meter', meter: o[key] }
+      key === 'audio'
+        ? { id: 'sound', label, value: styleName(effectiveAudio(this.audioUrl, o)) }
         : { id: `opt:${key}`, label, kind: 'choice', value: text(key) },
     );
     if (this.touchCapable) rows.push({ id: 'touch', label: 'Touch controls' });
@@ -1187,6 +1210,13 @@ export class Game {
 
   private menuItems(): MenuItem[] {
     if (this.sub === 'options') return this.optionItems();
+    if (this.sub === 'sound')
+      return soundItems(
+        this.settings,
+        this.audioUrl,
+        this.soundRowList,
+        resetArmed(this.resetAt, performance.now()),
+      );
     if (this.sub === 'touch')
       return touchItems(
         this.touchSettings,
@@ -1270,6 +1300,7 @@ export class Game {
     this.audio.play('click');
     this.haptics.ui('back');
     this.disarmReset();
+    this.cancelPreview();
     const under = this.subStack.pop();
     this.sub = under?.sub ?? null;
     this.menuIdx = under?.idx ?? 0;
@@ -1305,9 +1336,13 @@ export class Game {
       this.stepTouchRow(this.touchRowList[this.menuIdx] ?? null, d, false);
       return;
     }
+    if (this.sub === 'sound') {
+      this.stepSoundRow(this.soundRowList[this.menuIdx] ?? null, d, false);
+      return;
+    }
     if (this.sub !== 'options') return;
     const row = Game.OPTION_ROWS[this.menuIdx];
-    if (!row) return;
+    if (!row || row.key === 'audio') return;
     this.step(row.key, d, false);
   }
 
@@ -1326,12 +1361,73 @@ export class Game {
   private stepRow(i: number, d: number): void {
     if (this.sub === 'touch') {
       if (!isStepRow(this.touchRowList[i] ?? null)) return;
-    } else if (this.sub !== 'options' || !Game.OPTION_ROWS[i]) return;
+    } else if (this.sub === 'sound') {
+      if (!isSoundStepRow(this.soundRowList[i] ?? null) || this.menuItems()[i]?.disabled) return;
+    } else if (
+      this.sub !== 'options' ||
+      !Game.OPTION_ROWS[i] ||
+      Game.OPTION_ROWS[i]?.key === 'audio'
+    )
+      return;
     if (this.menuIdx !== i) {
       this.menuIdx = i;
       this.syncUi();
     }
     this.adjust(d);
+  }
+
+  /**
+   * Steps a Sound setting. Music and Effects take the new level at once; Style switches the mode. Then a
+   * short preview plays so the change can be heard.
+   */
+  private stepSoundRow(row: SoundRow | null, d: number, wrap: boolean): void {
+    if (!row || this.menuItems()[this.menuIdx]?.disabled) return;
+    const o = this.settings;
+    const next = stepSound(o, row, d, wrap);
+    if (next.audio === o.audio && next.music === o.music && next.sfx === o.sfx) return;
+    this.disarmReset();
+    this.settings = next;
+    // Style and Effects are heard in their previews; Music plays the menu blip as the other rows do.
+    if (row === 'music') this.audio.play('menu');
+    this.applySettings();
+    this.syncUi();
+    this.schedulePreview(row);
+  }
+
+  /** Plays a row's preview a moment after the last step, so a held key plays one and not one per step. */
+  private schedulePreview(row: SoundRow): void {
+    this.cancelPreview();
+    const list = soundPreview(row, this.settings);
+    if (!list.length) return;
+    this.previewTimers.push(
+      window.setTimeout(() => {
+        this.previewTimers = list.map((p) =>
+          window.setTimeout(() => this.audio.play(p.name, p.at), p.delayMs),
+        );
+      }, PREVIEW_DELAY_MS),
+    );
+  }
+
+  private cancelPreview(): void {
+    for (const t of this.previewTimers) window.clearTimeout(t);
+    this.previewTimers = [];
+  }
+
+  /** Opens the Sound screen, on Music when Style is fixed by the link. */
+  private openSound(): void {
+    this.openSub('sound', this.audioUrl ? this.soundRowList.indexOf('music') : 0);
+  }
+
+  /** Reset on the Sound screen asks twice, then puts Style, Music and Effects back and nothing else. */
+  private tapSoundReset(): void {
+    if (resetArmed(this.resetAt, performance.now())) {
+      this.disarmReset();
+      this.settings = resetSound(this.settings);
+      this.applySettings();
+      this.syncUi();
+      return;
+    }
+    this.armReset();
   }
 
   /** Steps a Touch controls setting; Size and Left-handed show at once on the controls behind the menu. */
@@ -1395,7 +1491,7 @@ export class Game {
     window.clearTimeout(this.resetTimer);
     if (this.resetAt === null) return;
     this.resetAt = null;
-    if (this.sub === 'touch' || this.sub === 'touchEdit') this.syncUi();
+    if (this.sub === 'touch' || this.sub === 'touchEdit' || this.sub === 'sound') this.syncUi();
   }
 
   /** Reset in the editor puts the controls back where they start (the other settings stay), after two taps. */
@@ -1450,8 +1546,16 @@ export class Game {
       }
       return;
     }
+    if (this.sub === 'sound') {
+      const row = soundRowOf(id);
+      if (row === 'back') this.closeSub();
+      else if (row === 'reset') this.tapSoundReset();
+      else this.stepSoundRow(row, 1, true);
+      return;
+    }
     if (this.sub === 'options') {
       if (id === 'back') this.closeSub();
+      else if (id === 'sound') this.openSound();
       else if (id === 'touch') this.openSub('touch');
       else if (id.startsWith('opt:')) {
         const key = id.slice(4) as SettingKey;
@@ -1913,7 +2017,11 @@ export class Game {
     const items = this.menuItems();
     const sel = Math.min(this.menuIdx, Math.max(0, items.length - 1));
     const onTitle = s === 'title';
-    const over = this.sub === 'options' || this.sub === 'saves' || this.sub === 'touch';
+    const over =
+      this.sub === 'options' ||
+      this.sub === 'saves' ||
+      this.sub === 'sound' ||
+      this.sub === 'touch';
     ui.showTitle(onTitle && !this.sub ? items : null, sel, onTitle && this.sub === 'controls');
     const editing = this.sub === 'touchEdit' && (onTitle || s === 'pause');
     ui.setBack(this.touchMode && !!this.sub && !editing && (onTitle || s === 'pause'));
@@ -1930,7 +2038,9 @@ export class Game {
             : 'Load game'
           : this.sub === 'touch'
             ? 'Touch controls'
-            : 'Options',
+            : this.sub === 'sound'
+              ? 'Sound'
+              : 'Options',
         text: '',
         items,
         sel,
@@ -2162,6 +2272,7 @@ export class Game {
       | 'title'
       | 'controls'
       | 'options'
+      | 'sound'
       | 'touch'
       | 'touchEdit'
       | 'saves'
@@ -2221,6 +2332,12 @@ export class Game {
         this.openSub('touchEdit');
       }
       return;
+    }
+    if (what === 'sound') {
+      // Title, then Options on its Sound row, then the screen, as a player gets there.
+      this.openSub('options');
+      this.menuIdx = 0;
+      return this.openSound();
     }
     if (what === 'saves') return this.openSaves('load');
     this.sub = what === 'title' ? null : what;
