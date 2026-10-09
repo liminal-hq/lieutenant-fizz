@@ -19,6 +19,7 @@
     "./haptics": "./src/haptics.ts",
     "./input": "./src/input.ts",
     "./instances": "./src/instances.ts",
+    "./keyboard-lock": "./src/keyboard-lock.ts",
     "./lifecycle": "./src/lifecycle.ts",
     "./lifecycle-policy": "./src/lifecycle-policy.ts",
     "./master": "./src/master.ts",
