@@ -44,6 +44,7 @@ import { ROOMS, roomFor, roomProfile, type RoomName } from './audio/rooms';
 import { FIZZ_HAPTICS } from './haptics/fizz-haptics';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { backAction, backEnabled } from './back';
+import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
 import { Cinematic, CINE_TALL } from './cine';
 import { isPortrait, watchResize, type TouchGutters } from './layout';
 import { touchFaces, type ShellScreen, type SubScreen, type TouchFaces } from './touch-menus';
@@ -257,6 +258,10 @@ export class Game {
 
   private raf = 0;
   private last = 0;
+  /** When the mouse last moved (the clock of `frame`), whether it was over the overlay controls, and whether the cursor is hidden. */
+  private mouseMovedAt = Number.NEGATIVE_INFINITY;
+  private mouseOverUi = false;
+  private cursorIsHidden = false;
   private disposed = false;
   private zoom = 1;
   private alpha = 1;
@@ -344,6 +349,7 @@ export class Game {
     this.input.onDevice((d) => this.setTouchMode(this.forcedTouch || d === 'touch'));
     window.addEventListener('pointerdown', this.onTouchPointer, { capture: true, passive: true });
     ui.stage.addEventListener('contextmenu', this.onContextMenu);
+    window.addEventListener('pointermove', this.onMouseMove);
     this.unwatchViewport = watchResize(() => this.onViewport());
     this.touchCapable = this.forcedTouch || !!window.matchMedia?.('(pointer: coarse)').matches;
     if (this.touchCapable) this.input.noteTouch();
@@ -429,6 +435,7 @@ export class Game {
     window.removeEventListener('pagehide', this.onVisibility);
     window.removeEventListener('pointerdown', this.onTouchPointer, { capture: true });
     this.ui.stage.removeEventListener('contextmenu', this.onContextMenu);
+    window.removeEventListener('pointermove', this.onMouseMove);
     this.unwatchViewport();
     this.unwatchBack();
     this.backGuard.dispose();
@@ -449,6 +456,13 @@ export class Game {
     this.last = t;
     const sim = this.sim;
     const screen = this.screen;
+
+    const hide = cursorHidden(screen, t - this.mouseMovedAt, this.mouseOverUi ? 'ui' : 'game');
+    if (hide !== this.cursorIsHidden) {
+      this.cursorIsHidden = hide;
+      if (hide) this.ui.stage.dataset.cursor = 'hidden';
+      else delete this.ui.stage.dataset.cursor;
+    }
 
     const mode = sim.x.mode();
     const tall = screen === 'cine' ? TALL.cine : mode === Mode.MAP ? TALL.map : TALL.level;
@@ -1011,6 +1025,13 @@ export class Game {
   };
 
   /** A long press on the controls must not open the browser's menu. */
+  /** A moving mouse shows the cursor again; touch never does. */
+  private readonly onMouseMove = (e: PointerEvent): void => {
+    if (e.pointerType === 'touch') return;
+    this.mouseMovedAt = e.timeStamp;
+    this.mouseOverUi = e.target instanceof Element && e.target.closest(CURSOR_UI_SELECTOR) !== null;
+  };
+
   private readonly onContextMenu = (e: Event): void => {
     if (this.touchMode) e.preventDefault();
   };

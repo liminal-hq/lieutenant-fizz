@@ -106,6 +106,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 - **Options:** Music and Sound are 8-block volume meters; Captions is On or Off; Controls picks which keyboard column the hints and the Controls table show (Keen-style or Modern; both layouts always work); Text size is Normal or Large (one scale step up); Motion is System, Reduced or Full. Left and right change a value, and Enter steps it. They are saved on this device.
 - **Save slots:** the autosave (read-only) plus four slots. Each shows a mini overworld with Ben's position, the area, a pip per level cleared, lives, score, time played and the date. Esc or B goes back from any screen opened over a menu.
 - **Hints:** keycap and button hints along the bottom of each screen follow the last input used: pressing a key shows keyboard hints, touching the gamepad (or connecting one) shows button hints, and unplugging the last pad goes back to the keyboard.
+- **Mouse cursor:** in play (a level or the map) the cursor hides after the mouse rests for 1.5 seconds and comes back as soon as it moves, so a keyboard or gamepad player does not see it. It stays on every screen the mouse can click (title, pause, cards, dialogue, cinematics and the rest) and over the debug panel and the labs. Touch never shows one.
 
 ## Art direction
 - 16-colour EGA palette; bright and fun, in the style of *Goodbye, Galaxy!* and *Aliens Ate My Babysitter*.

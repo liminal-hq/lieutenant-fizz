@@ -132,3 +132,9 @@ body {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(6px);
 }
+
+/* The cursor hides over the game after the mouse rests in play (see cursor.ts). */
+#stage[data-cursor='hidden'],
+#stage[data-cursor='hidden'] * {
+  cursor: none !important;
+}
