@@ -8,7 +8,7 @@ import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { noneBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
-import { GameHaptics } from '@lieutenant-fizz/engine/haptics';
+import { GameHaptics, onScreen } from '@lieutenant-fizz/engine/haptics';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import { placeSound, resolveAudioMode, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
@@ -221,6 +221,8 @@ export class Game {
   private lab: SoundLab | null = null;
   private coarseSpeaker = false;
   private readonly haptics: GameHaptics;
+  /** Whether pogo was on last frame, so a toggle can be felt (it raises no event). */
+  private pogoOn = false;
   private readonly ui: Ui;
   private readonly cine = new Cinematic();
   private readonly writer: InstanceWriter;
@@ -484,7 +486,10 @@ export class Game {
         this.played += dt;
         // Toggling pogo raises no event, so the lit state is read each frame (it writes on a change only).
         if (this.touchMode) this.touchUi.setLit(sim.get(State.POGO_ON) === 1);
-      }
+        const pogo = sim.get(State.POGO_ON) === 1;
+        if (pogo !== this.pogoOn) this.haptics.cue(pogo ? 'pogoOn' : 'pogoOff');
+        this.pogoOn = pogo;
+      } else this.pogoOn = sim.get(State.POGO_ON) === 1;
       this.handleEvents();
     } else if (screen === 'credits') {
       this.stepper.reset();
@@ -617,6 +622,7 @@ export class Game {
         this.prompt = null;
         this.bossHp = null;
         this.levelSeconds = 0;
+        this.pogoOn = sim.get(State.POGO_ON) === 1;
         this.ui.toast(LEVELS[e.a]?.name ?? '');
         this.syncUi();
         break;
@@ -650,6 +656,7 @@ export class Game {
         break;
       }
       case Ev.GAME_OVER:
+        this.haptics.cue('gameOver');
         this.showCard({
           title: 'Out of lives',
           text: `You finished with ${e.a} snack points. Your last save is still on this device.`,
@@ -668,6 +675,8 @@ export class Game {
         this.syncUi();
         break;
       case Ev.BOSS_HP:
+        // Each hit already raised ZZZAP; only the last one gets the long fade.
+        if (e.a <= 0) this.haptics.cue('bossDown');
         this.bossHp = e.a;
         this.syncUi();
         break;
@@ -748,7 +757,8 @@ export class Game {
         ? placeSound(x, y, this.sim.camera, { w: this.halfW, h: this.halfH })
         : undefined;
     this.audio.caption(text, at);
-    this.haptics.caption(text);
+    // Out in the level, a world cue is felt only when it is on screen (and with Captions off too).
+    this.haptics.caption(text, onScreen(x, y, this.sim.camera, this.halfW, this.halfH));
     const colour = this.sim.captionColour(id);
     if (!this.opts.captions || colour === 0) return;
     const now = performance.now();
@@ -939,6 +949,7 @@ export class Game {
       this.reducedForced ??
       reducedMotion(o, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     this.ui.setReducedMotion(this.reducedMotion);
+    this.haptics.setCalm(this.reducedMotion);
     if (before !== this.reducedMotion && this.screen === 'title') this.loadAttract(this.attractIdx);
     this.ui.setTextLarge(o.text === 1);
     this.ui.setToggle('music', o.music > 0);
@@ -1220,6 +1231,7 @@ export class Game {
   private closeSub(): void {
     if (!this.sub) return;
     this.audio.play('click');
+    this.haptics.ui('back');
     this.disarmReset();
     const under = this.subStack.pop();
     this.sub = under?.sub ?? null;
@@ -1267,6 +1279,8 @@ export class Game {
     if (next[key] === this.settings[key]) return;
     this.settings = next;
     this.audio.play('menu');
+    const value = next[key];
+    this.haptics.ui(typeof value === 'boolean' ? (value ? 'toggleOn' : 'toggleOff') : 'move');
     this.applySettings();
     this.syncUi();
   }
@@ -1364,12 +1378,16 @@ export class Game {
     const items = this.menuItems();
     const i = idx ?? Math.min(this.menuIdx, items.length - 1);
     const it = items[i];
-    if (!it || it.disabled) return;
+    if (!it) return;
+    if (it.disabled) {
+      this.haptics.ui('reject');
+      return;
+    }
     // A tap chooses the row it lands on, so the screen it opens returns to that row.
     this.menuIdx = i;
     this.audio.play('click');
-    this.haptics.ui('select');
     const id = it.id ?? '';
+    if (id !== 'back') this.haptics.ui('select');
     if (this.sub === 'touch') {
       const row = touchRowOf(id);
       if (row === 'back') this.closeSub();
@@ -2076,6 +2094,11 @@ export class Game {
   /** Test hook: what haptics last played, what each compiled to, and what the backend can do. */
   debugHaptics(): ReturnType<GameHaptics['report']> {
     return this.haptics.report();
+  }
+
+  /** Test hook: changes haptic cues, compiler constants or the budget; returns what was applied and refused. */
+  debugHapticsTune(patch: unknown): ReturnType<GameHaptics['tune']> {
+    return this.haptics.tune(patch);
   }
 
   /** Test hook: switches the phone title between its two layouts. */
