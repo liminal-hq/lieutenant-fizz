@@ -4,6 +4,34 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { ControlPatch, Pattern, SoundType } from '@liminal-hq/undertone';
+import { applyAudioTune, type AudioTune, type TuneReport } from './audio-tune';
+import { Master, type RoomProfile } from './master';
+import { MIX_OPEN, holdRamp, mixRamps, type MixShape, type Ramp } from './mix';
+import {
+  routedContext,
+  createEmitter,
+  createMusicBus,
+  lpfHz,
+  mixAt,
+  scheduleRamp,
+  setMixNow,
+  type MusicBus,
+} from './sound-graph';
+import {
+  isPanned,
+  partMakeup,
+  partPanAt,
+  undertonePan,
+  type AudioMode,
+  type PartRole,
+  type SoundAt,
+} from './sound-field';
+
+/** How long the master chain stays after the switch to Classic, so sounds already in it can finish. */
+const MASTER_DETACH_MS = 2000;
+
+/** Where an unplaced sound sits in Enhanced: the centre, at full level. */
+const CENTRE: SoundAt = { pan: 0, gain: 1 };
 
 /** The runtime surface of `@liminal-hq/undertone` the game uses (the module namespace, or a test double). */
 export type UndertoneModule = Pick<
@@ -43,6 +71,8 @@ export interface MusicPart {
   slide?: number;
   room?: number;
   delay?: number;
+  /** What the part does in the mix; Enhanced uses it to place the part in the stereo field. */
+  role?: PartRole;
 }
 
 export interface MusicTrack {
@@ -55,6 +85,8 @@ export interface AudioPatterns {
   music: Record<string, MusicTrack>;
   /** Caption text to SFX name, so on-screen sound captions and audio always agree. */
   captionSfx: Record<string, string>;
+  /** The named mix states `AudioTune.mix` can change (see `mix.ts`); the episode keeps the live values. */
+  mix?: Record<string, MixShape>;
 }
 
 // ---------- Mini-notation subset: [ ] seq, < > alternate, , stack, *n repeat, ~ rest ----------
@@ -166,12 +198,54 @@ interface VoiceSpec {
   slide?: number;
   nudge?: number;
   delay?: number;
+  /** The part's role, set only when it is placed in the stereo field. */
+  role?: PartRole;
+  /** Where the voice sits in its cycle, 0 up to 1, for roles that alternate their pan. */
+  cyclePos?: number;
+}
+
+/**
+ * One Undertone voice. Music parts hold their envelope for the note length; effects are percussive.
+ * With `placed` (Enhanced music) a part's role gives it a pan and, if panned, the make-up gain.
+ */
+export function buildVoice(
+  U: UndertoneModule,
+  v: SfxVoice | MusicPart,
+  vol: number,
+  gated: boolean,
+  placed = false,
+): Voice {
+  const text = 'notes' in v ? v.notes : v.n;
+  const role = placed && 'notes' in v ? v.role : undefined;
+  const noisy = 'noise' in v ? !!v.noise : isNoise(text);
+  let p: Voice = noisy
+    ? U.sound(text as SoundType)
+    : U.note(text).sound((v.w ?? 'triangle') as SoundType);
+  p = p
+    .attack(v.a ?? 0.001)
+    .decay(v.d ?? 0.1)
+    .sustain(gated ? ('s' in v ? (v.s ?? 0.3) : 0.3) : 0)
+    .release(v.r ?? 0.05)
+    .gain(v.g * vol * partMakeup(role));
+  if (role) {
+    const pan = undertonePan(role);
+    if (pan !== undefined) p = p.pan(pan);
+  }
+  if (v.lpf) p = p.lpf(v.lpf);
+  if (v.hpf) p = p.hpf(v.hpf);
+  if (v.slide) p = p.slide(v.slide);
+  if ('nudge' in v && v.nudge) p = p.nudge(v.nudge);
+  if ('room' in v && v.room) p = p.room(v.room).roomsize(6).orbit(1);
+  if ('delay' in v && v.delay) p = p.delay(v.delay).delaytime(0.33).delayfeedback(0.35).orbit(2);
+  return p;
 }
 
 /** Built-in Web Audio synth: plays the same patterns as Undertone, plus music loops. */
 export class MiniSynth {
   private readonly noise: Partial<Record<string, AudioBuffer>> = {};
   private readonly delay: DelayNode;
+  /** Echo lines for outputs other than the synth's own, made when a part asks for one. */
+  private readonly echoes = new Map<AudioNode, DelayNode>();
 
   constructor(
     private readonly ctx: AudioContext,
@@ -184,6 +258,23 @@ export class MiniSynth {
     this.delay.connect(fb);
     fb.connect(this.delay);
     this.delay.connect(out);
+  }
+
+  /** The echo line that feeds `out`: the synth's own, or one made for that output. */
+  private echoInto(out: AudioNode): DelayNode {
+    if (out === this.out) return this.delay;
+    let line = this.echoes.get(out);
+    if (!line) {
+      line = this.ctx.createDelay(1);
+      line.delayTime.value = 0.33;
+      const fb = this.ctx.createGain();
+      fb.gain.value = 0.35;
+      line.connect(fb);
+      fb.connect(line);
+      line.connect(out);
+      this.echoes.set(out, line);
+    }
+    return line;
   }
 
   private noiseBuf(kind: string): AudioBuffer {
@@ -213,7 +304,7 @@ export class MiniSynth {
     return buf;
   }
 
-  voice(v: VoiceSpec, when: number, dur: number, gated: boolean): void {
+  voice(v: VoiceSpec, when: number, dur: number, gated: boolean, out: AudioNode = this.out): void {
     const ctx = this.ctx;
     const t = when + (v.nudge ?? 0);
     let src: AudioBufferSourceNode | OscillatorNode;
@@ -251,7 +342,7 @@ export class MiniSynth {
     const d = v.d || 0.1;
     const s = gated ? (v.s ?? 0) : 0;
     const r = v.r || 0.05;
-    const peak = v.g;
+    const peak = v.g * partMakeup(v.role);
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(peak, t + a);
     g.gain.linearRampToValueAtTime(peak * s, t + a + d);
@@ -259,24 +350,36 @@ export class MiniSynth {
     g.gain.setValueAtTime(peak * s, end);
     g.gain.linearRampToValueAtTime(0, end + r);
     node.connect(g);
-    g.connect(this.out);
+    // A panned part goes through a stereo panner, as Undertone's `.pan()` does; its echo follows it.
+    let tail: AudioNode = g;
+    if (v.role && isPanned(v.role)) {
+      const panner = ctx.createStereoPanner();
+      panner.pan.value = partPanAt(v.role, v.cyclePos ?? 0);
+      g.connect(panner);
+      tail = panner;
+    }
+    tail.connect(out);
     if (v.delay) {
       const sg = ctx.createGain();
       sg.gain.value = v.delay;
-      g.connect(sg);
-      sg.connect(this.delay);
+      tail.connect(sg);
+      sg.connect(this.echoInto(out));
     }
     src.start(t);
     src.stop(end + r + 0.05);
   }
 
-  playSfx(list: readonly SfxVoice[], vol: number): void {
+  /** Plays an effect's voices into `out` (the synth's own output when left out). */
+  playSfx(list: readonly SfxVoice[], vol: number, out?: AudioNode): void {
     const t = this.ctx.currentTime + 0.01;
-    for (const v of list) this.voice({ ...v, g: v.g * vol }, t, 0, false);
+    for (const v of list) this.voice({ ...v, g: v.g * vol }, t, 0, false, out);
   }
 
-  /** Loops a track, scheduling voices ~300 ms ahead. Returns a stopper. */
-  loop(track: MusicTrack, vol: number): { stop(): void } {
+  /**
+   * Loops a track, scheduling voices ~300 ms ahead. Returns a stopper. With `out` the track plays
+   * into that node instead of the synth's own output, and each part is placed by its role.
+   */
+  loop(track: MusicTrack, vol: number, out?: AudioNode): { stop(): void } {
     const ctx = this.ctx;
     const cyc = 240 / track.bpm;
     const parsed = track.parts.map((p) => ({ p, tree: parseMini(p.notes) }));
@@ -291,10 +394,11 @@ export class MiniSynth {
           evalMini(tree, 0, 1, c, ev);
           for (const e of ev) {
             this.voice(
-              { ...p, n: e.v, g: p.g * vol },
+              { ...p, n: e.v, g: p.g * vol, role: out ? p.role : undefined, cyclePos: e.t0 },
               next + e.t0 * cyc,
               (e.t1 - e.t0) * cyc,
               true,
+              out,
             );
           }
         }
@@ -325,6 +429,10 @@ export class GameAudio {
   musicVol = 1;
   sfxVol = 1;
   backend = 'Loading Undertone';
+  /** Classic is today's sound, untouched. Enhanced places sound effects in the stereo field. */
+  mode: AudioMode = 'classic';
+  /** How many sound effects have been placed through an emitter (always 0 in Classic). */
+  emitters = 0;
   private ctx: AudioContext | null = null;
   private mini: MiniSynth | null = null;
   private ut: UndertoneModule | null = null;
@@ -332,6 +440,22 @@ export class GameAudio {
   private track: string | null = null;
   private pending: string | null = null;
   private disposed = false;
+  /** The Enhanced music route, built the first time Enhanced music plays. */
+  private musicBus: MusicBus | null = null;
+  /** The Enhanced master chain, built on first use and taken down shortly after Classic returns. */
+  private master: Master | null = null;
+  private masterTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The mix the game last asked for. Classic and a music bus not yet built only keep it. */
+  private mixTarget: MixShape = MIX_OPEN;
+  /** The ramps of the last mix change, kept here so the next starts from where they have got to. */
+  private mixPlan: { lpf: Ramp; gain: Ramp } = {
+    lpf: holdRamp('exp', MIX_OPEN.lpf, 0),
+    gain: holdRamp('lin', MIX_OPEN.gain, 0),
+  };
+  /** True from the page hiding to its return: the context is suspended or about to be. */
+  private hidden = false;
+  /** The room Enhanced sound is in; kept in Classic and before the chain exists, applied when built. */
+  private room: RoomProfile | null = null;
   private readonly cache = new Map<string, Voice>();
   private readonly unlock = (): void => {
     if (this.disposed) return;
@@ -385,61 +509,194 @@ export class GameAudio {
     return this.ctx;
   }
 
-  /** One Undertone voice. Music parts hold their envelope for the note length; effects are percussive. */
-  private utVoice(U: UndertoneModule, v: SfxVoice | MusicPart, vol: number, gated: boolean): Voice {
-    const text = 'notes' in v ? v.notes : v.n;
-    const noisy = 'noise' in v ? !!v.noise : isNoise(text);
-    let p: Voice = noisy
-      ? U.sound(text as SoundType)
-      : U.note(text).sound((v.w ?? 'triangle') as SoundType);
-    p = p
-      .attack(v.a ?? 0.001)
-      .decay(v.d ?? 0.1)
-      .sustain(gated ? ('s' in v ? (v.s ?? 0.3) : 0.3) : 0)
-      .release(v.r ?? 0.05)
-      .gain(v.g * vol);
-    if (v.lpf) p = p.lpf(v.lpf);
-    if (v.hpf) p = p.hpf(v.hpf);
-    if (v.slide) p = p.slide(v.slide);
-    if ('nudge' in v && v.nudge) p = p.nudge(v.nudge);
-    if ('room' in v && v.room) p = p.room(v.room).roomsize(6).orbit(1);
-    if ('delay' in v && v.delay) p = p.delay(v.delay).delaytime(0.33).delayfeedback(0.35).orbit(2);
-    return p;
-  }
-
   private undertoneEffect(U: UndertoneModule, name: string, voices: readonly SfxVoice[]): Voice {
     const key = `${name}@${this.sfxVol}`;
     const hit = this.cache.get(key);
     if (hit) return hit;
-    const fx = U.stack(...voices.map((v) => this.utVoice(U, v, this.sfxVol, false)));
+    const fx = U.stack(...voices.map((v) => buildVoice(U, v, this.sfxVol, false)));
     this.cache.set(key, fx);
     return fx;
   }
 
-  play(name: string): void {
+  /** The state of the audio context, or `none` before the first input creates it. */
+  get ctxState(): string {
+    return this.ctx?.state ?? 'none';
+  }
+
+  /**
+   * Switches between Classic and Enhanced for the sounds that start from now on. Nothing is built
+   * here, and Classic never touches the Enhanced path, so switching back restores it exactly.
+   */
+  setMode(mode: AudioMode): void {
+    if (mode === this.mode) return;
+    this.mode = mode;
+    clearTimeout(this.masterTimer);
+    if (mode === 'classic' && this.master) {
+      // Sounds already in the chain finish first; a quick switch back keeps the chain.
+      this.masterTimer = setTimeout(() => this.detachMaster(), MASTER_DETACH_MS);
+    }
+    // A music bus kept from before takes the mix and volume asked for in the meantime.
+    if (mode === 'enhanced') this.syncBus();
+    if (mode === 'enhanced' && this.room) this.master?.setRoom(this.room);
+    // The running loop is on the old route, so start it again on the new one.
+    if (this.handle && this.music && this.track) this.playMusic(this.track, true);
+  }
+
+  /**
+   * The master chain, built the first time Enhanced needs it, or null (send sound straight to the
+   * destination, as before the chain existed) if the context cannot build one.
+   */
+  private masterFor(ctx: AudioContext): Master | null {
+    if (this.master) return this.master;
+    try {
+      const coarse = !!window.matchMedia?.('(pointer: coarse)').matches;
+      this.master = new Master(ctx, ctx.destination, coarse, this.room);
+      return this.master;
+    } catch (err) {
+      console.warn('Master chain unavailable, playing Enhanced sound unmastered', err);
+      return null;
+    }
+  }
+
+  /** Takes the master chain and the music bus that feeds it out of the graph. */
+  private detachMaster(): void {
+    this.masterTimer = undefined;
+    if (this.mode !== 'classic') return;
+    this.master?.dispose();
+    this.master = null;
+    this.musicBus = null;
+  }
+
+  /** Sets the bus's volume and mix to the values asked for, with no ramp. */
+  private syncBus(): void {
+    const bus = this.musicBus;
+    if (!bus || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    bus.level.gain.cancelScheduledValues(now);
+    bus.level.gain.setValueAtTime(this.musicVol, now);
+    setMixNow(bus, this.mixTarget, now);
+    this.mixPlan = {
+      lpf: holdRamp('exp', this.mixTarget.lpf, now),
+      gain: holdRamp('lin', this.mixTarget.gain, now),
+    };
+  }
+
+  /**
+   * Sets how the music is heard: a low-pass and a gain (see `mix.ts`). In Enhanced the music bus
+   * glides there, closing over 0.18 s and opening over 0.35 s. In Classic, or before the bus
+   * exists, the value is only kept, and is applied without a ramp when the bus is built or Enhanced
+   * returns. While the page is hidden the context is frozen, so the change is made at once and is
+   * already in place when the page comes back.
+   */
+  setMix(shape: MixShape): void {
+    if (shape.lpf === this.mixTarget.lpf && shape.gain === this.mixTarget.gain) return;
+    this.mixTarget = { lpf: shape.lpf, gain: shape.gain };
+    const bus = this.mode === 'enhanced' ? this.musicBus : null;
+    const ctx = this.ctx;
+    if (!bus || !ctx) return;
+    const now = ctx.currentTime;
+    if (this.hidden || ctx.state !== 'running') {
+      this.syncBus();
+      return;
+    }
+    const ramps = mixRamps(mixAt(this.mixPlan, now), this.mixTarget, now);
+    scheduleRamp(bus.lpf.frequency, ramps.lpf, (hz) => lpfHz(bus.nyquist, hz));
+    scheduleRamp(bus.mix.gain, ramps.gain);
+    this.mixPlan = ramps;
+  }
+
+  /** The mix last asked for, and whether the music bus is carrying it (Enhanced with music started). */
+  get mixState(): { lpf: number; gain: number; applied: boolean } {
+    return { ...this.mixTarget, applied: this.mode === 'enhanced' && this.musicBus !== null };
+  }
+
+  /** True while the master chain exists (Enhanced has been used and Classic has not yet detached it). */
+  get masterBuilt(): boolean {
+    return this.master !== null;
+  }
+
+  /**
+   * Puts Enhanced sound in a room: the reverb's length, sends, filters and character, crossfaded
+   * from the room before. In Classic, or before the master chain exists, it only remembers the room
+   * and the chain starts in it. Classic itself has no room.
+   */
+  setRoom(profile: RoomProfile): void {
+    this.room = profile;
+    if (this.mode === 'enhanced') this.master?.setRoom(profile);
+  }
+
+  /**
+   * Applies a live change to `MASTER`, `FIELD` and `PART_PAN` (see `AudioTune`). The master chain
+   * glides to its new values; a new pan restarts the music, whose voices are built with the pans.
+   */
+  tune(t: AudioTune, rooms?: Record<string, RoomProfile>): TuneReport {
+    const report = applyAudioTune(t, { mix: this.patterns.mix, rooms });
+    this.master?.apply();
+    if (t.partPan && this.mode === 'enhanced' && this.handle && this.music && this.track) {
+      this.playMusic(this.track, true);
+    }
+    return report;
+  }
+
+  /** The music bus for Enhanced, or null (play the music as Classic) if the context cannot build one. */
+  private enhancedMusic(ctx: AudioContext): MusicBus | null {
+    if (this.musicBus) return this.musicBus;
+    try {
+      this.musicBus = createMusicBus(ctx, this.masterFor(ctx)?.musicBus ?? ctx.destination);
+      this.syncBus();
+      return this.musicBus;
+    } catch (err) {
+      console.warn('Music field unavailable, playing the music as Classic', err);
+      return null;
+    }
+  }
+
+  /** An emitter for one Enhanced sound, or null (play it as Classic) if the context cannot build one. */
+  private emitter(ctx: AudioContext, at: SoundAt): GainNode | null {
+    try {
+      const e = createEmitter(ctx, at, this.masterFor(ctx)?.sfxBus ?? ctx.destination);
+      this.emitters++;
+      return e;
+    } catch (err) {
+      console.warn('Sound field unavailable, playing this sound as Classic', err);
+      return null;
+    }
+  }
+
+  /**
+   * Plays a sound effect. Classic ignores `at` and plays the effect on the real context, centred.
+   * Enhanced routes the effect's voices into an emitter for this one call (a gain into a stereo
+   * panner into the destination), which places it at `at` (the centre if omitted).
+   */
+  play(name: string, at?: SoundAt): void {
     const voices = this.patterns.sfx[name];
     if (!this.sfx || !voices) return;
     const ctx = this.ensure();
     if (!ctx || ctx.state !== 'running') return;
     try {
+      // Undertone schedules a play() synchronously, so the voices of this call all connect to
+      // this call's emitter before the next call can build its own.
+      const emitter = this.mode === 'enhanced' ? this.emitter(ctx, at ?? CENTRE) : null;
       if (this.ut) {
         try {
-          this.undertoneEffect(this.ut, name, voices).play({ ctx });
+          const fx = this.undertoneEffect(this.ut, name, voices);
+          if (emitter) fx.play({ ctx: routedContext(ctx, emitter) });
+          else fx.play({ ctx });
           return;
         } catch (e) {
           console.warn('Undertone sfx failed, using the built-in synth', name, e);
         }
       }
-      this.mini?.playSfx(voices, this.sfxVol);
+      this.mini?.playSfx(voices, this.sfxVol, emitter ?? undefined);
     } catch (e) {
       console.warn('sfx failed', name, e);
     }
   }
 
-  /** Plays the sound effect tied to an on-screen caption, if it has one. */
-  caption(text: string): void {
+  /** Plays the sound effect tied to an on-screen caption, if it has one, placed at `at`. */
+  caption(text: string, at?: SoundAt): void {
     const k = this.patterns.captionSfx[text];
-    if (k) this.play(k);
+    if (k) this.play(k, at);
   }
 
   playMusic(track: string | null, force = false): void {
@@ -454,19 +711,22 @@ export class GameAudio {
       this.pending = track;
       return;
     }
+    const field = this.mode === 'enhanced' ? this.enhancedMusic(this.ctx) : null;
     if (this.ut) {
       try {
         const U = this.ut;
-        this.handle = U.stack(...t.parts.map((p) => this.utVoice(U, p, this.musicVol, true))).loop({
-          ctx: this.ctx,
-          bpm: t.bpm,
-        });
+        const voices = t.parts.map((p) =>
+          buildVoice(U, p, field ? 1 : this.musicVol, true, !!field),
+        );
+        this.handle = U.stack(...voices).loop(
+          field ? { ctx: field.routed, bpm: t.bpm } : { ctx: this.ctx, bpm: t.bpm },
+        );
         return;
       } catch (e) {
         console.warn('Undertone music failed, using the built-in synth', track, e);
       }
     }
-    this.handle = this.mini.loop(t, this.musicVol);
+    this.handle = this.mini.loop(t, field ? 1 : this.musicVol, field?.bus);
   }
 
   setMusic(on: boolean): void {
@@ -482,11 +742,22 @@ export class GameAudio {
     this.sfx = on;
   }
 
-  /** Sets music loudness from 0 to 1. The running loop restarts so the new level takes effect. */
+  /**
+   * Sets music loudness from 0 to 1. In Enhanced the music bus's level glides to it and the loop
+   * keeps playing (the patterns are built at full level). In Classic the volume is baked into the
+   * patterns, so the running loop restarts so the new level takes effect.
+   */
   setMusicVolume(v: number): void {
     const vol = Math.min(1, Math.max(0, v));
     if (vol === this.musicVol) return;
     this.musicVol = vol;
+    const bus = this.mode === 'enhanced' ? this.musicBus : null;
+    if (bus && this.ctx) {
+      const now = this.ctx.currentTime;
+      bus.level.gain.cancelScheduledValues(now);
+      bus.level.gain.setTargetAtTime(vol, now, 0.02);
+      return;
+    }
     if (this.music && this.track) this.playMusic(this.track, true);
   }
 
@@ -500,12 +771,16 @@ export class GameAudio {
 
   /** Suspends or resumes the whole context (tab hidden, pause menu). */
   setActive(on: boolean): void {
+    this.hidden = !on;
     if (!this.ctx || this.disposed) return;
     void (on ? this.ctx.resume() : this.ctx.suspend());
   }
 
   dispose(): void {
     this.disposed = true;
+    clearTimeout(this.masterTimer);
+    this.master?.dispose();
+    this.master = null;
     this.handle?.stop();
     this.handle = null;
     window.removeEventListener('pointerdown', this.unlock);

@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { RoomName } from './audio/rooms';
+
 // Episode 1 text: eight opening cinematic panels (one per scene), the ending, dialogue and level
 // blurbs. docs/STORY.md mirrors the cinematic text.
 
@@ -102,6 +104,8 @@ export interface LevelInfo {
   blurb: string;
   /** Music track while playing it. */
   track: string;
+  /** The reverb it is heard in (see `audio/rooms.ts`). */
+  room: RoomName;
   /** Shown on the level-cleared card. */
   cleared: string;
 }
@@ -122,6 +126,7 @@ export const LEVELS: LevelInfo[] = [
     name: 'Crater Fields',
     blurb: 'Twinkling crystal craters and chocolate pools.',
     track: 'crater',
+    room: 'outdoor',
     cleared:
       'The path on to Meteor Mesa is open. Clear it and Zarg Lookout, and the first teleporter will hum.',
   },
@@ -129,6 +134,7 @@ export const LEVELS: LevelInfo[] = [
     name: 'Crystal Caves',
     blurb: 'Dark, glittering tunnels over chocolate rivers.',
     track: 'caves',
+    room: 'cave',
     cleared:
       'One of the two levels the Frosting Frontier teleporter wants is done. Mirror Shafts is the other.',
   },
@@ -136,30 +142,35 @@ export const LEVELS: LevelInfo[] = [
     name: "Mildred's Citadel",
     blurb: 'A castle of cake, cookie doors and frozen chocolate.',
     track: 'citadel',
+    room: 'citadel',
     cleared: 'The Citadel is cleared.',
   },
   {
     name: 'Meteor Mesa',
     blurb: 'Biscuit-rock mesas in open sky, with cloud ledges between them.',
     track: 'sky',
+    room: 'outdoor',
     cleared: 'The sky is clear all the way to the horizon. Zarg Lookout is next along the path.',
   },
   {
     name: 'Zarg Lookout',
     blurb: 'A watchtower of ladders, stairs and one slow lift. The red key is on the roof.',
     track: 'tower',
+    room: 'tower',
     cleared: 'The first teleporter is humming now, and Marshmallow Meadows are waiting.',
   },
   {
     name: 'Marshmallow Meadows',
     blurb: 'Soft hills, fenced-in marshmallows to bounce off, and a blue key in the clouds.',
     track: 'sky',
+    room: 'outdoor',
     cleared: 'Marshmallow fluff clings to Ben’s boots. Somewhere ahead, the music of a playhouse.',
   },
   {
     name: 'Bonbon Playhouse',
     blurb: 'A candy theatre. The walls are only painted flats, so walk right in.',
     track: 'theatre',
+    room: 'theatre',
     cleared:
       'The curtain falls on a very sticky stage. That is one of the two levels the teleporter to Rock Candy Reach wants; Marshmallow Meadows is the other.',
   },
@@ -167,6 +178,7 @@ export const LEVELS: LevelInfo[] = [
     name: 'Fudge Bog',
     blurb: 'Wide pools of hot fudge, stepping stones and three very puffy spore pods.',
     track: 'crater',
+    room: 'outdoor',
     cleared: 'Ben wipes fudge off his boots. That was the hard way round, and he knows it.',
   },
   {
@@ -174,6 +186,7 @@ export const LEVELS: LevelInfo[] = [
     blurb:
       'A tall crystal shaft sealed by gates. Bounce fizz off the mirrors to reach the switches.',
     track: 'caves',
+    room: 'shaft',
     cleared:
       'The last gate slides open and the shaft hums. That is one of the two levels the teleporter to the Frosting Frontier wants; the Crystal Caves are the other.',
   },
@@ -181,18 +194,21 @@ export const LEVELS: LevelInfo[] = [
     name: 'Sugar Glass Gallery',
     blurb: 'A long gallery of hidden rooms. Not everything on these walls is decoration.',
     track: 'theatre',
+    room: 'theatre',
     cleared: 'Ben leaves the gallery with a head full of paintings and pockets full of crumbs.',
   },
   {
     name: 'Frosting Flats',
     blurb: 'Long, open stretches of frosted rock, spike runs and hover platforms. Mind the drones.',
     track: 'sky',
+    room: 'outdoor',
     cleared: 'A long way across, and not a single frosting stain on Ben’s helmet. Almost.',
   },
   {
     name: 'Frosting Spire',
     blurb: 'The tallest Zarg tower: twelve floors, three lifts, and a key in every colour.',
     track: 'tower',
+    room: 'tower',
     cleared:
       'Twelve floors up and twelve floors down, and Ben’s knees have opinions about it. The Citadel needs both the Spire and the Foundry.',
   },
@@ -200,6 +216,7 @@ export const LEVELS: LevelInfo[] = [
     name: 'Cocoa Foundry',
     blurb: 'Belts, presses and pools of molten metal. Mind the timing, and mind the belts.',
     track: 'foundry',
+    room: 'foundry',
     cleared:
       'The presses thump on without him. Ben dusts the soot off his helmet. The Citadel needs both the Spire and the Foundry.',
   },
@@ -207,6 +224,7 @@ export const LEVELS: LevelInfo[] = [
     name: 'Gumdrop Isle',
     blurb: 'A secret island, covered in snacks. Nobody was supposed to find this place.',
     track: 'secret',
+    room: 'outdoor',
     cleared:
       'Ben leaves the island with a few more lives than he came with, and a very full pocket.',
   },
@@ -214,6 +232,7 @@ export const LEVELS: LevelInfo[] = [
     name: 'Whisper Hollow',
     blurb: 'A cave for climbers: a vine rope over fudge, a chimney to kick up, and hanging vines.',
     track: 'caves',
+    room: 'cave',
     cleared:
       'Ben’s arms ache and his boots are scuffed. The old paintings never mentioned the climb, but somebody grew those vines on purpose.',
   },
@@ -221,6 +240,7 @@ export const LEVELS: LevelInfo[] = [
     name: 'The Saucer',
     blurb: 'Ben’s own flying saucer, parked and steaming. Nothing to clear; just a look around.',
     track: 'secret',
+    room: 'tower',
     cleared: '',
   },
 ];

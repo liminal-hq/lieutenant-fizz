@@ -6,7 +6,9 @@
 import { CreditsRoll, creditsPageCount } from '@lieutenant-fizz/engine/credits';
 import { buildAtlas, type Atlas } from '@lieutenant-fizz/engine/atlas';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
+import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
+import { placeSound, resolveAudioMode, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
 import {
   Input as Bits,
@@ -21,7 +23,10 @@ import { frameView, type FrameView } from '@lieutenant-fizz/engine/view-scale';
 import { HeldRepeat } from '@lieutenant-fizz/engine/repeat';
 import { TouchControls } from '@lieutenant-fizz/engine/touch-ui';
 import simUrl from './wasm/sim.wasm?url';
-import { PATTERNS } from './audio/patterns';
+import { captureState, labItems } from './audio/lab';
+import { MIX, mixFor, mixNameFor, type MixName } from './audio/mix';
+import { MUSIC, PATTERNS, SFX } from './audio/patterns';
+import { ROOMS, roomFor, roomProfile, type RoomName } from './audio/rooms';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { backAction, backEnabled } from './back';
 import { Cinematic, CINE_TALL } from './cine';
@@ -64,6 +69,7 @@ import {
   type SlotSummary,
 } from './slots';
 import { thumbDataUrl } from './thumb';
+import { SoundLab } from './ui/sound-lab';
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
 import { Sim } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
@@ -95,6 +101,11 @@ export interface GameOptions {
    * devices (and `touch`) are Sharp and everything else is Soft.
    */
   pixels?: 'sharp' | 'soft';
+  /**
+   * `classic` is the sound as it has always been; `enhanced` places sound effects in the stereo
+   * field by where they happen on screen. Left out, the game plays `AUDIO_DEFAULT` (Enhanced).
+   */
+  audio?: AudioMode;
   /** `split` tries the phone title with the logo and the menu on opposite sides; the default is one column. */
   title?: TitleLayout;
   /** Takes the browser's Back button in an ordinary tab too (`?back`), to try it without fullscreen. */
@@ -157,6 +168,16 @@ export class Game {
   private readonly forcedBack: boolean;
   private unwatchBack: () => void = () => {};
   private readonly audio: GameAudio;
+  /** Whether `GameOptions.audio` chose the audio mode, rather than the default applying. */
+  private readonly audioForced: boolean;
+  /** The room the sound is in, and whether the speaker is a phone's (shorter rooms, lower sends). */
+  private roomName: RoomName = 'neutral';
+  /** What the sound lab holds in place of the game's choice; null follows the game. */
+  private labRoom: RoomName | null = null;
+  private labMix: MixName | null = null;
+  private labMusic = false;
+  private lab: SoundLab | null = null;
+  private coarseSpeaker = false;
   private readonly ui: Ui;
   private readonly cine = new Cinematic();
   private readonly writer: InstanceWriter;
@@ -243,7 +264,10 @@ export class Game {
     this.touchUi = new TouchControls(ui.touchLayer, this.input, {
       labels: { dpad: 'Move', jump: 'Jump', pogo: 'Pogo', fire: 'Fizz', pause: 'Pause' },
     });
-    this.audio = new GameAudio(PATTERNS);
+    this.audio = new GameAudio({ ...PATTERNS, mix: MIX });
+    this.audioForced = options.audio !== undefined;
+    this.audio.setMode(resolveAudioMode(options.audio));
+    this.coarseSpeaker = !!window.matchMedia?.('(pointer: coarse)').matches;
     this.settings = readOptions(this.store);
     this.applySettings();
     this.input.onDevice(() => this.syncHints());
@@ -662,7 +686,12 @@ export class Game {
   private caption(x: number, y: number, id: number): void {
     const text = this.captionNames[id];
     if (!text) return;
-    this.audio.caption(text);
+    // Only Enhanced places a sound; Classic gets no position at all, so it cannot change.
+    const at =
+      this.audio.mode === 'enhanced'
+        ? placeSound(x, y, this.sim.camera, { w: this.halfW, h: this.halfH })
+        : undefined;
+    this.audio.caption(text, at);
     const colour = this.sim.captionColour(id);
     if (!this.opts.captions || colour === 0) return;
     const now = performance.now();
@@ -1690,8 +1719,27 @@ export class Game {
           }
         : null,
     );
+    this.syncMix();
     this.updateMusic();
     this.syncBack();
+    this.updateRoom();
+  }
+
+  /** Moves the sound to the room of the screen or level it is now on (Enhanced; Classic only remembers it). */
+  private updateRoom(force = false): void {
+    const mode = this.sim.x.mode();
+    const level = this.sim.get(State.LEVEL_ID);
+    const name = this.labRoom ?? roomFor(this.screen, mode, level);
+    if (name === this.roomName && !force) return;
+    this.roomName = name;
+    this.audio.setRoom(roomProfile(name, this.coarseSpeaker));
+  }
+
+  /** Tells the audio how the music should be heard on this screen (muffled on pause, ducked under speech). */
+  private syncMix(): void {
+    this.audio.setMix(
+      this.labMix ? { ...MIX[this.labMix] } : mixFor(this.screen, this.sub, this.coarseSpeaker),
+    );
   }
 
   private musicFor(): string | null {
@@ -1712,6 +1760,7 @@ export class Game {
   }
 
   private updateMusic(): void {
+    if (this.labMusic) return;
     const t = this.musicFor();
     if (t !== null || this.screen !== 'pause') this.audio.playMusic(t);
   }
@@ -1731,6 +1780,111 @@ export class Game {
     this.sim.x.game_new();
     this.sim.x.enter_level(id);
     this.handleEvents();
+  }
+
+  /**
+   * Test hook: reads (and, given a mode, sets) the audio mode, so Classic and Enhanced can be
+   * compared by ear on a phone. `emitters` counts the sounds placed since the page loaded, and
+   * `room` is the room the sound is in (see `audio/rooms.ts`).
+   */
+  debugAudio(mode?: AudioMode): {
+    room: RoomName;
+    mode: AudioMode;
+    forced: boolean;
+    backend: string;
+    emitters: number;
+    masterBuilt: boolean;
+    ctxState: string;
+    mix: { lpf: number; gain: number; applied: boolean };
+  } {
+    if (mode) this.audio.setMode(mode);
+    return {
+      room: this.roomName,
+      mode: this.audio.mode,
+      forced: this.audioForced,
+      backend: this.audio.backend,
+      emitters: this.audio.emitters,
+      masterBuilt: this.audio.masterBuilt,
+      ctxState: this.audio.ctxState,
+      mix: this.audio.mixState,
+    };
+  }
+
+  /**
+   * Test hook: tunes the Enhanced sound live, so it can be set by ear on a phone or headphones. Any
+   * part of `MASTER` (`master`), `FIELD` (`field`) and `PART_PAN` (`partPan`) can change, for example
+   * `__lf.debugAudioTune({ master: { trim: 0.7, comp: { ratio: 3 } }, partPan: { bell: 0.2 } })`.
+   * `mix` changes the mix states by name (`open`, `pause`, `pauseCoarse`, `card`, `dialogue`, `cine`),
+   * for example `{ mix: { pause: { lpf: 700, gain: 0.6 } } }`; the current screen takes the change
+   * at once. `rooms` changes a room by name, for example `{ rooms: { cave: { sfxSend: 0.15, seconds: 2.2 } } }`.
+   * Returns which values were set and which were refused. See `AudioTune`.
+   */
+  debugAudioTune(tune: AudioTune): TuneReport {
+    const report = this.audio.tune(tune, ROOMS);
+    if (tune.mix) this.syncMix();
+    if (tune.rooms) this.updateRoom(true);
+    return report;
+  }
+
+  /**
+   * Test hook: adds the sound lab (a "Lab" button and its overlay) and opens it if asked, for
+   * `?debug` and `?debug&lab`. Auditioning never touches the saved options: it plays through the
+   * audio directly and holds a room, a mix state or a track only until "Follow" is chosen again.
+   */
+  debugLab(open = false): void {
+    if (!this.lab) {
+      this.lab = new SoundLab({
+        sfx: labItems(Object.keys(SFX)),
+        music: labItems(Object.keys(MUSIC)),
+        rooms: labItems(Object.keys(ROOMS)),
+        mixes: labItems(Object.keys(MIX)),
+        playSfx: (name, at) => this.audio.play(name, at),
+        playMusic: (name) => {
+          this.labMusic = true;
+          this.audio.playMusic(name, true);
+        },
+        followGame: () => {
+          this.labMusic = false;
+          this.updateMusic();
+        },
+        mode: () => this.audio.mode,
+        setMode: (m) => this.audio.setMode(m),
+        room: () => ({ held: this.labRoom, current: this.roomName }),
+        setRoom: (name) => {
+          this.labRoom = name as RoomName | null;
+          this.updateRoom(true);
+        },
+        mix: () => ({
+          held: this.labMix,
+          current: mixNameFor(this.screen, this.coarseSpeaker),
+        }),
+        setMix: (name) => {
+          this.labMix = name as MixName | null;
+          this.syncMix();
+        },
+        tune: (patch) => void this.debugAudioTune(patch),
+        state: () => captureState(),
+        status: () => {
+          const a = this.audio;
+          const ctx = a.ctxState === 'none' ? 'tap anywhere to start audio' : a.ctxState;
+          const off = [
+            a.music ? '' : 'music is off in Options',
+            a.sfx ? '' : 'sound is off in Options',
+          ];
+          return [ctx, a.mode, ...off].filter(Boolean).join(' · ');
+        },
+        copy: async (text) => {
+          try {
+            await navigator.clipboard.writeText(text);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      });
+      this.ui.mount(this.lab.button, this.lab.root);
+    }
+    if (open) this.lab.open();
   }
 
   /** Test hook: switches the phone title between its two layouts. */

@@ -3,7 +3,10 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { evalMini, parseMini, type MiniEvent } from '@lieutenant-fizz/engine/audio';
+import { buildVoice, evalMini, parseMini, type MiniEvent } from '@lieutenant-fizz/engine/audio';
+import { PART_PAN, partPanAt, undertonePan } from '@lieutenant-fizz/engine/sound-field';
+import * as Undertone from '@liminal-hq/undertone';
+import { Fraction, hasOnset } from '@liminal-hq/undertone';
 import { describe, expect, it } from 'vitest';
 import { CAPTION_SFX, MUSIC, SFX } from './patterns';
 import { CINE_TRACK, LEVELS } from '../story';
@@ -46,6 +49,47 @@ describe('audio patterns', () => {
             expect(e.t0).toBeGreaterThanOrEqual(0);
             expect(e.t1).toBeLessThanOrEqual(1.0000001);
           }
+        }
+      }
+    }
+  });
+
+  it('gives every music part a role', () => {
+    for (const [name, track] of Object.entries(MUSIC)) {
+      for (const part of track.parts) {
+        expect(part.role, `${name}: ${part.notes.slice(0, 24)}`).toBeDefined();
+        expect(Object.keys(PART_PAN)).toContain(part.role);
+      }
+    }
+  });
+
+  it('places each Undertone event where partPanAt says, and leaves centred parts without a pan', () => {
+    for (const [name, track] of Object.entries(MUSIC)) {
+      for (const part of track.parts) {
+        const v = buildVoice(Undertone, part, 1, true, true);
+        const haps = v
+          .query({ begin: new Fraction(0), end: new Fraction(8) })
+          .filter((h) => hasOnset(h));
+        expect(haps.length, name).toBeGreaterThan(0);
+        for (const h of haps) {
+          const pos = h.part.begin.toNumber() % 1;
+          if (undertonePan(part.role) === undefined) {
+            expect(h.value, `${name} ${part.role}`).not.toHaveProperty('pan');
+          } else {
+            expect(h.value.pan, `${name} ${part.role} at ${pos}`).toBe(partPanAt(part.role!, pos));
+          }
+        }
+      }
+    }
+  });
+
+  it('does not touch a part’s pan or gain when it is not placed', () => {
+    for (const track of Object.values(MUSIC)) {
+      for (const part of track.parts) {
+        const v = buildVoice(Undertone, part, 1, true);
+        for (const h of v.query({ begin: new Fraction(0), end: new Fraction(1) })) {
+          expect(h.value).not.toHaveProperty('pan');
+          expect(h.value.gainLevel).toBe(part.g);
         }
       }
     }

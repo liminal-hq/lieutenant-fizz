@@ -651,6 +651,11 @@ export class Ui {
     this.toggles.get(k)?.classList.toggle('on', on);
   }
 
+  /** Adds debug overlays (the sound lab) to the overlay layer. */
+  mount(...nodes: HTMLElement[]): void {
+    this.root.append(...nodes);
+  }
+
   togglePanel(): void {
     this.panelOpen = !this.panelOpen;
     this.syncPanel();

@@ -188,15 +188,36 @@ const P = (notes: string, o: Partial<MusicPart> = {}): MusicPart => ({
   ...o,
 });
 const kick = (pat: string, g = 0.7): MusicPart =>
-  P(pat, { w: 'sine', d: 0.12, s: 0, r: 0.06, g, slide: 0.09 });
+  P(pat, { role: 'kick', w: 'sine', d: 0.12, s: 0, r: 0.06, g, slide: 0.09 });
 const hats = (pat: string, g = 0.1): MusicPart =>
-  P(pat, { noise: true, d: 0.03, s: 0, r: 0.01, g, hpf: 6000 });
+  P(pat, { role: 'hats', noise: true, d: 0.03, s: 0, r: 0.01, g, hpf: 6000 });
 const snare = (pat: string, g = 0.28): MusicPart =>
-  P(pat, { noise: true, d: 0.09, s: 0, r: 0.05, g, hpf: 1600 });
+  P(pat, { role: 'snare', noise: true, d: 0.09, s: 0, r: 0.05, g, hpf: 1600 });
 const pad = (notes: string, o: Partial<MusicPart> = {}): MusicPart =>
-  P(notes, { w: 'sine', a: 0.6, d: 0.5, s: 0.7, r: 1.1, g: 0.07, lpf: 1400, room: 0.5, ...o });
+  P(notes, {
+    role: 'pad',
+    w: 'sine',
+    a: 0.6,
+    d: 0.5,
+    s: 0.7,
+    r: 1.1,
+    g: 0.07,
+    lpf: 1400,
+    room: 0.5,
+    ...o,
+  });
 const bell = (notes: string, o: Partial<MusicPart> = {}): MusicPart =>
-  P(notes, { w: 'sine', a: 0.002, d: 0.35, s: 0.05, r: 0.4, g: 0.07, delay: 0.4, ...o });
+  P(notes, {
+    role: 'bell',
+    w: 'sine',
+    a: 0.002,
+    d: 0.35,
+    s: 0.05,
+    r: 0.4,
+    g: 0.07,
+    delay: 0.4,
+    ...o,
+  });
 export const MUSIC: Record<string, MusicTrack> = {
   // Title: bright C-major theme, eight bars, call-and-answer between lead and bass.
   title: {
@@ -204,7 +225,7 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       P(
         '<[c5 ~ g4 c5 e5 g5 e5 c5] [a4 ~ e4 a4 c5 e5 c5 a4] [f4 a4 c5 f5 e5 c5 a4 c5] [g4 b4 d5 g5 f5 d5 b4 d5] [e5 ~ e5 g5 c6 ~ b5 g5] [a5 ~ g5 e5 c5 ~ e5 a5] [f5 e5 d5 c5 d5 ~ b4 d5] [c5 ~ g4 ~ c5 ~ ~ ~]>',
-        { w: 'square', g: 0.075, lpf: 2600, d: 0.1 },
+        { role: 'lead', w: 'square', g: 0.075, lpf: 2600, d: 0.1 },
       ),
       pad(
         '<[c4,e4,g4] [a3,c4,e4] [f3,a3,c4] [g3,b3,d4] [c4,e4,g4] [a3,c4,e4] [f3,a3,d4] [c4,e4,g4]>',
@@ -212,7 +233,7 @@ export const MUSIC: Record<string, MusicTrack> = {
       ),
       P(
         '<[c2 c3 g2 c3] [a1 a2 e2 a2] [f1 f2 c2 f2] [g1 g2 d2 g2] [c2 c3 g2 c3] [a1 a2 e2 a2] [f2 f2 g2 g2] [c2 g1 c2 ~]>',
-        { g: 0.3, s: 0.45 },
+        { role: 'bass', g: 0.3, s: 0.45 },
       ),
       kick('c1 ~ ~ c1 c1 ~ ~ ~', 0.6),
       snare('~ white ~ white', 0.24),
@@ -225,8 +246,9 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       bell('<[a5 e5 c5 e5] [b5 e5 c5 e5] [c6 f5 a5 f5] [b5 e5 g#5 e5]>'),
       pad('<[a3,c4,e4] [g3,b3,e4] [f3,a3,c4] [e3,g#3,b3]>'),
-      P('<a1 e1 f1 e1>', { g: 0.16, s: 0.8, r: 0.6 }),
+      P('<a1 e1 f1 e1>', { role: 'bass', g: 0.16, s: 0.8, r: 0.6 }),
       P('[white ~ white ~ ~ ~ ~ ~ white white ~ ~ ~ ~ ~ ~]', {
+        role: 'perc',
         noise: true,
         d: 0.015,
         s: 0,
@@ -242,10 +264,14 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       P(
         '<[d4 a4 d5 a4 f5 a4 d5 a4] [c4 g4 c5 g4 e5 g4 c5 g4] [a#3 f4 a#4 f4 d5 f4 a#4 f4] [c4 g4 c5 g4 e5 g4 e5 g5]>',
-        { w: 'square', g: 0.045, lpf: 1700, d: 0.08 },
+        { role: 'arp', w: 'square', g: 0.045, lpf: 1700, d: 0.08 },
       ),
       bell('~ <d6 a5 f6 e6> ~ ~ ~ ~ <a6 c6> ~', { g: 0.05, d: 0.06, delay: 0.5 }),
-      P('<[d2 ~ d2 a1] [c2 ~ c2 g1] [a#1 ~ a#1 f1] [c2 ~ c2 g1]>', { g: 0.28, s: 0.5 }),
+      P('<[d2 ~ d2 a1] [c2 ~ c2 g1] [a#1 ~ a#1 f1] [c2 ~ c2 g1]>', {
+        role: 'bass',
+        g: 0.28,
+        s: 0.5,
+      }),
       kick('c1 ~ ~ ~ c1 ~ ~ ~', 0.45),
       hats('~ white ~ white', 0.05),
     ],
@@ -255,12 +281,14 @@ export const MUSIC: Record<string, MusicTrack> = {
     bpm: 128,
     parts: [
       P('<[c5 e5 g5 c6]*2 [d5 f#5 a5 d6]*2 [e5 g#5 b5 e6]*2 [f5 a5 c6 f6]*2>', {
+        role: 'arp',
         w: 'square',
         g: 0.06,
         lpf: 2400,
         d: 0.07,
       }),
       P('<[c3,g3,c4,e4] [d3,a3,d4,f#4] [e3,b3,e4,g#4] [f3,c4,f4,a4]>', {
+        role: 'pad',
         w: 'sawtooth',
         a: 0.2,
         s: 0.7,
@@ -268,7 +296,11 @@ export const MUSIC: Record<string, MusicTrack> = {
         g: 0.04,
         lpf: 1000,
       }),
-      P('<[c2 c2 c3 c2] [d2 d2 d3 d2] [e2 e2 e3 e2] [f2 f2 f3 g2]>', { g: 0.3, s: 0.4 }),
+      P('<[c2 c2 c3 c2] [d2 d2 d3 d2] [e2 e2 e3 e2] [f2 f2 f3 g2]>', {
+        role: 'bass',
+        g: 0.3,
+        s: 0.4,
+      }),
       kick('c1*4', 0.6),
       snare(
         '<[~ white ~ white] [~ white ~ white] [~ white ~ white] [~ white [white white] [white white white white]]>',
@@ -283,6 +315,7 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       pad('<[f3,a3,c4,e4] [g3,b3,d4,e4] [a3,c4,e4,g4] [d3,f3,a3,c4]>', { g: 0.08 }),
       P('<[c5 ~ e5 ~ g5 ~ ~ ~] [b4 ~ d5 ~ e5 ~ ~ ~] [c5 ~ e5 ~ a5 ~ g5 ~] [a4 ~ c5 ~ f5 ~ e5 ~]>', {
+        role: 'counter',
         w: 'triangle',
         a: 0.02,
         d: 0.3,
@@ -297,7 +330,7 @@ export const MUSIC: Record<string, MusicTrack> = {
         s: 0,
         delay: 0.3,
       }),
-      P('<f1 g1 a1 d2>', { w: 'sawtooth', a: 1, s: 0.6, r: 1.5, g: 0.06, lpf: 350 }),
+      P('<f1 g1 a1 d2>', { role: 'drone', w: 'sawtooth', a: 1, s: 0.6, r: 1.5, g: 0.06, lpf: 350 }),
       kick('c1 ~ ~ ~', 0.3),
     ],
   },
@@ -307,15 +340,15 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       P(
         '<[a4 c5 ~ a4 g4 ~ f4 ~] [g4 a#4 ~ g4 f4 ~ e4 ~] [f4 a4 c5 f5 e5 c5 a4 c5] [d5 ~ c5 ~ a#4 ~ g4 ~] [a4 c5 ~ a4 g4 ~ f4 ~] [g4 a#4 ~ d5 c5 ~ a4 ~] [a#4 d5 f5 d5 c5 a4 g4 e4] [f4 ~ c4 ~ f4 ~ ~ ~]>',
-        { g: 0.13, d: 0.16, s: 0.3 },
+        { role: 'lead', g: 0.13, d: 0.16, s: 0.3 },
       ),
       P(
         '<[~ [a3,c4,f4] ~ [a3,c4,f4]] [~ [g3,c4,e4] ~ [g3,c4,e4]] [~ [a3,c4,f4] ~ [a3,c4,f4]] [~ [a#3,d4,f4] ~ [a#3,d4,f4]] [~ [a3,c4,f4] ~ [a3,c4,f4]] [~ [g3,c4,e4] ~ [g3,c4,e4]] [~ [a#3,d4,f4] ~ [g3,c4,e4]] [~ [a3,c4,f4] ~ ~]>',
-        { w: 'square', g: 0.03, lpf: 1400, d: 0.08, s: 0 },
+        { role: 'counter', w: 'square', g: 0.03, lpf: 1400, d: 0.08, s: 0 },
       ),
       P(
         '<[f2 ~ c3 ~] [c2 ~ g2 ~] [f2 ~ c3 ~] [a#1 ~ f2 ~] [f2 ~ c3 ~] [c2 ~ g2 ~] [a#1 ~ c2 ~] [f2 c2 f2 ~]>',
-        { g: 0.3, s: 0.5 },
+        { role: 'bass', g: 0.3, s: 0.5 },
       ),
       hats('~ white ~ white', 0.06),
       kick('c1 ~ c1 ~', 0.4),
@@ -327,13 +360,20 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       P(
         '<[a4 ~ c5 e5 a5 ~ g5 e5] [f5 ~ e5 c5 a4 ~ c5 e5] [d5 ~ f5 a5 g5 f5 e5 d5] [e5 ~ b4 ~ g#4 ~ b4 ~] [a4 ~ c5 e5 a5 ~ b5 c6] [b5 ~ a5 g5 f5 ~ e5 f5] [d5 e5 f5 g5 a5 g5 f5 d5] [e5 ~ ~ ~ e4 ~ ~ ~]>',
-        { w: 'square', g: 0.07, lpf: 2300, d: 0.09 },
+        { role: 'lead', w: 'square', g: 0.07, lpf: 2300, d: 0.09 },
       ),
       P(
         '<[a2 a2 a3 a2 a2 a2 a3 g2] [f2 f2 f3 f2 f2 f2 f3 e2] [d2 d2 d3 d2 d2 d2 d3 c2] [e2 e2 e3 e2 e2 e2 e3 g#2]>',
-        { g: 0.3, s: 0.35, d: 0.08 },
+        { role: 'bass', g: 0.3, s: 0.35, d: 0.08 },
       ),
-      P('<[c4,e4] [a3,c4] [f3,a3] [g#3,b3]>', { w: 'square', a: 0.05, s: 0.6, g: 0.025, lpf: 900 }),
+      P('<[c4,e4] [a3,c4] [f3,a3] [g#3,b3]>', {
+        role: 'pad',
+        w: 'square',
+        a: 0.05,
+        s: 0.6,
+        g: 0.025,
+        lpf: 900,
+      }),
       kick('c1 ~ ~ c1 c1 ~ ~ ~'),
       snare('~ white ~ white'),
       hats('white*8'),
@@ -350,13 +390,14 @@ export const MUSIC: Record<string, MusicTrack> = {
         delay: 0.55,
       }),
       P('<[d5 ~ ~ e5 f5 ~ e5 ~] [d5 ~ ~ ~ a4 ~ ~ ~] [a#4 ~ ~ c5 d5 ~ f5 ~] [e5 ~ ~ ~ c#5 ~ ~ ~]>', {
+        role: 'lead',
         w: 'triangle',
         g: 0.07,
         d: 0.3,
         s: 0.3,
         delay: 0.3,
       }),
-      P('<d2 a#1 g1 a1>', { g: 0.24, s: 0.8, r: 0.3 }),
+      P('<d2 a#1 g1 a1>', { role: 'bass', g: 0.24, s: 0.8, r: 0.3 }),
       kick('c1 ~ ~ ~ ~ ~ c1 ~', 0.4),
       hats('~ ~ white ~', 0.04),
     ],
@@ -367,7 +408,7 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       P(
         '<[e5 g5 c6 g5 e5 g5 a5 g5] [d5 f5 b5 f5 d5 f5 g5 f5] [c5 e5 a5 e5 c5 e5 f5 e5] [d5 g5 b5 g5 a5 g5 f5 d5] [e5 g5 c6 g5 e6 c6 g5 e5] [f5 a5 c6 a5 f6 c6 a5 f5] [d5 f5 b5 d6 b5 g5 f5 d5] [c5 ~ e5 ~ g5 ~ c6 ~]>',
-        { w: 'square', g: 0.06, lpf: 2600, d: 0.09 },
+        { role: 'lead', w: 'square', g: 0.06, lpf: 2600, d: 0.09 },
       ),
       bell(
         '<[c6 ~ e6 ~ g6 ~ e6 ~] [b5 ~ d6 ~ g6 ~ d6 ~] [a5 ~ c6 ~ e6 ~ c6 ~] [a5 ~ c6 ~ f6 ~ c6 ~]>',
@@ -385,10 +426,7 @@ export const MUSIC: Record<string, MusicTrack> = {
       ),
       P(
         '<[c2 ~ g2 ~] [g1 ~ d2 ~] [a1 ~ e2 ~] [f1 ~ c2 ~] [c2 ~ g2 ~] [f1 ~ c2 ~] [g1 ~ d2 ~] [c2 g1 c2 ~]>',
-        {
-          g: 0.3,
-          s: 0.5,
-        },
+        { role: 'bass', g: 0.3, s: 0.5 },
       ),
       kick('c1 ~ c1 ~', 0.5),
       hats('~ white ~ white', 0.06),
@@ -400,9 +438,10 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       P(
         '<[d4 f4 a4 d5 a4 f4 d4 f4] [d4 f4 a4 d5 a4 f4 d4 f4] [e4 g4 b4 e5 b4 g4 e4 g4] [f4 a4 c5 f5 c5 a4 f4 a4] [g4 b4 d5 g5 d5 b4 g4 b4] [a4 c#5 e5 a5 e5 c#5 a4 c#5] [d5 f5 a5 d6 a5 f5 d5 f5] [e5 g5 b5 e6 b5 g5 e5 g5]>',
-        { w: 'square', g: 0.055, lpf: 2200, d: 0.08 },
+        { role: 'arp', w: 'square', g: 0.055, lpf: 2200, d: 0.08 },
       ),
       P('<[a5 ~ ~ f5 ~ ~ d5 ~] [a5 ~ ~ f5 ~ ~ d5 ~] [b5 ~ ~ g5 ~ ~ e5 ~] [c6 ~ ~ a5 ~ ~ f5 ~]>', {
+        role: 'counter',
         w: 'triangle',
         g: 0.05,
         d: 0.12,
@@ -416,10 +455,7 @@ export const MUSIC: Record<string, MusicTrack> = {
       ),
       P(
         '<[d2 d2 d3 d2] [d2 d2 d3 d2] [e2 e2 e3 e2] [f2 f2 f3 f2] [g2 g2 g3 g2] [a1 a1 a2 a1] [d2 d2 d3 d2] [e2 e2 e3 e2]>',
-        {
-          g: 0.28,
-          s: 0.45,
-        },
+        { role: 'bass', g: 0.28, s: 0.45 },
       ),
       kick('c1 ~ c1 ~', 0.5),
       snare('~ white ~ white', 0.2),
@@ -432,13 +468,17 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       P(
         '<[e5 ~ g5 e5 c5 ~] [d5 ~ f5 d5 b4 ~] [c5 ~ e5 c5 a4 ~] [d5 ~ g5 f5 d5 ~] [e5 ~ g5 c6 g5 e5] [f5 ~ a5 c6 a5 f5] [g5 ~ b5 d6 b5 g5] [c6 ~ ~ g5 ~ ~]>',
-        { w: 'sawtooth', g: 0.05, lpf: 1800, a: 0.02, d: 0.14, s: 0.4 },
+        { role: 'lead', w: 'sawtooth', g: 0.05, lpf: 1800, a: 0.02, d: 0.14, s: 0.4 },
       ),
       P(
         '<[~ ~ [c4,e4,g4] ~ [c4,e4,g4] ~] [~ ~ [g3,b3,d4] ~ [g3,b3,d4] ~] [~ ~ [a3,c4,e4] ~ [a3,c4,e4] ~] [~ ~ [g3,b3,d4] ~ [g3,b3,d4] ~]>',
-        { w: 'square', g: 0.035, lpf: 1500, d: 0.08, s: 0 },
+        { role: 'counter', w: 'square', g: 0.035, lpf: 1500, d: 0.08, s: 0 },
       ),
-      P('<[c2 ~ ~ ~ ~ ~] [g1 ~ ~ ~ ~ ~] [a1 ~ ~ ~ ~ ~] [g1 ~ ~ ~ ~ ~]>', { g: 0.3, s: 0.5 }),
+      P('<[c2 ~ ~ ~ ~ ~] [g1 ~ ~ ~ ~ ~] [a1 ~ ~ ~ ~ ~] [g1 ~ ~ ~ ~ ~]>', {
+        role: 'bass',
+        g: 0.3,
+        s: 0.5,
+      }),
       hats('[white ~ white white ~ white]', 0.05),
       kick('c1 ~ ~ ~ ~ ~', 0.4),
     ],
@@ -449,14 +489,10 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       P(
         '<[e1 e1 ~ e1 e1 ~ g1 ~] [e1 e1 ~ e1 e1 ~ b1 ~] [c2 c2 ~ c2 c2 ~ e2 ~] [d2 d2 ~ d2 d2 ~ b1 ~]>',
-        {
-          w: 'sawtooth',
-          g: 0.2,
-          lpf: 600,
-          s: 0.5,
-        },
+        { role: 'bass', w: 'sawtooth', g: 0.2, lpf: 600, s: 0.5 },
       ),
       P('<[~ e5 ~ ~ ~ e5 ~ ~] [~ g5 ~ ~ ~ g5 ~ ~] [~ e5 ~ ~ ~ a5 ~ ~] [~ f#5 ~ ~ ~ b5 ~ ~]>', {
+        role: 'counter',
         w: 'square',
         g: 0.045,
         lpf: 3200,
@@ -465,6 +501,7 @@ export const MUSIC: Record<string, MusicTrack> = {
         delay: 0.15,
       }),
       P('<[e3,g3,b3] [e3,g3,b3] [c3,e3,g3] [d3,f#3,a3]>', {
+        role: 'pad',
         w: 'sawtooth',
         g: 0.035,
         lpf: 900,
@@ -475,6 +512,7 @@ export const MUSIC: Record<string, MusicTrack> = {
       snare('~ ~ white ~ ~ ~ white white', 0.26),
       hats('[white white]*4', 0.07),
       P('[white ~ ~ ~ ~ ~ white ~]', {
+        role: 'perc',
         noise: true,
         d: 0.18,
         s: 0,
@@ -497,16 +535,10 @@ export const MUSIC: Record<string, MusicTrack> = {
           delay: 0.25,
         },
       ),
-      P('<[c3 ~ g3 ~] [f2 ~ c3 ~] [c3 ~ g3 ~] [g2 ~ d3 ~]>', { g: 0.22, s: 0.4 }),
+      P('<[c3 ~ g3 ~] [f2 ~ c3 ~] [c3 ~ g3 ~] [g2 ~ d3 ~]>', { role: 'bass', g: 0.22, s: 0.4 }),
       P(
         '<[~ [c4,e4,g4] ~ [c4,e4,g4]] [~ [a3,c4,f4] ~ [a3,c4,f4]] [~ [c4,e4,g4] ~ [c4,e4,g4]] [~ [g3,b3,d4] ~ [g3,b3,d4]]>',
-        {
-          w: 'square',
-          g: 0.03,
-          lpf: 1800,
-          d: 0.06,
-          s: 0,
-        },
+        { role: 'counter', w: 'square', g: 0.03, lpf: 1800, d: 0.06, s: 0 },
       ),
       kick('c1 ~ ~ ~', 0.3),
       hats('~ white ~ white', 0.04),
@@ -518,15 +550,15 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       P(
         '<[g4 ~ g4 a#4 d5 ~ c5 a#4] [a4 ~ a4 c5 d5 ~ f5 d5] [d#5 ~ d5 c5 a#4 ~ a4 g4] [f#4 ~ a4 c5 d5 ~ ~ ~] [g5 ~ f5 d#5 d5 ~ c5 a#4] [c5 ~ a#4 a4 g4 ~ a4 a#4] [d#5 d5 c5 a#4 a4 g4 f#4 a4] [g4 ~ d4 ~ g4 ~ ~ ~]>',
-        { w: 'square', g: 0.07, lpf: 2000 },
+        { role: 'lead', w: 'square', g: 0.07, lpf: 2000 },
       ),
       P(
         '<[g3,a#3,d4] [f3,a3,d4] [d#3,g3,a#3] [d3,f#3,a3] [g3,a#3,d4] [d#3,g3,c4] [c3,d#3,g3] [d3,f#3,a3]>',
-        { w: 'sine', a: 0.05, s: 0.6, g: 0.05 },
+        { role: 'pad', w: 'sine', a: 0.05, s: 0.6, g: 0.05 },
       ),
       P(
         '<[g2 d3 g2 d3] [f2 c3 f2 c3] [d#2 a#2 d#2 a#2] [d2 a2 d2 f#2] [g2 d3 g2 d3] [d#2 a#2 d#2 a#2] [c2 g2 c2 g2] [d2 a2 d2 ~]>',
-        { g: 0.3, s: 0.4 },
+        { role: 'bass', g: 0.3, s: 0.4 },
       ),
       kick('c1 ~ c1 ~'),
       snare('~ white ~ [white white]', 0.24),
@@ -539,11 +571,11 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       P(
         '<[e5 e5 g5 e5 a5 g5 f#5 d5] [e5 e5 g5 e5 b5 a5 g5 f#5] [c6 b5 a5 g5 a5 g5 f#5 e5] [d#5 ~ f#5 ~ b5 ~ a5 f#5]>',
-        { w: 'sawtooth', g: 0.055, lpf: 1900, d: 0.08 },
+        { role: 'lead', w: 'sawtooth', g: 0.055, lpf: 1900, d: 0.08 },
       ),
       P(
         '<[e2 e2 e3 e2 e2 e3 d3 e2] [e2 e2 e3 e2 e2 e3 d3 e2] [c2 c2 c3 c2 c2 c3 b2 c2] [b1 b1 b2 b1 b1 b2 a2 d#2]>',
-        { w: 'square', g: 0.12, lpf: 600, s: 0.3 },
+        { role: 'bass', w: 'square', g: 0.12, lpf: 600, s: 0.3 },
       ),
       kick('c1*4', 0.65),
       hats('white*8', 0.09),
@@ -556,7 +588,7 @@ export const MUSIC: Record<string, MusicTrack> = {
     parts: [
       P(
         '<[c5 ~ g4 c5 e5 ~ d5 c5] [f5 ~ e5 d5 c5 ~ a4 c5] [d5 ~ b4 d5 g5 ~ f5 e5] [e5 ~ d5 ~ c5 ~ ~ ~] [e5 ~ f5 g5 a5 ~ g5 f5] [e5 ~ d5 c5 a4 ~ c5 e5] [f5 e5 d5 c5 b4 c5 d5 b4] [c5 g4 c5 e5 g5 c6 ~ ~]>',
-        { w: 'square', g: 0.08, lpf: 2600 },
+        { role: 'lead', w: 'square', g: 0.08, lpf: 2600 },
       ),
       pad(
         '<[c4,e4,g4] [f3,a3,c4] [g3,b3,d4] [c4,e4,g4] [a3,c4,f4] [a3,c4,e4] [f3,g3,b3,d4] [c4,e4,g4]>',
@@ -564,7 +596,7 @@ export const MUSIC: Record<string, MusicTrack> = {
       ),
       P(
         '<[c2 g2 c3 g2] [f2 c3 f2 c3] [g2 d3 g2 d3] [c2 g2 c2 g2] [f2 c3 f2 c3] [a1 e2 a2 e2] [g1 d2 g2 d2] [c2 g2 c3 ~]>',
-        { g: 0.3, s: 0.4 },
+        { role: 'bass', g: 0.3, s: 0.4 },
       ),
       kick('c1 ~ c1 ~'),
       hats('white*8', 0.08),
