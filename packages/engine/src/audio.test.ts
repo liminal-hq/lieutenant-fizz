@@ -308,7 +308,7 @@ describe('GameAudio Enhanced path', () => {
   const voicesInto = (ctx: FakeContext, to: unknown) =>
     ctx.all('gain').filter((g) => g.out.includes(to as never));
 
-  it('is Classic until it is told otherwise (the engine's own default; the game asks for `AUDIO_DEFAULT`), and plays unplaced Enhanced sounds at the centre', async () => {
+  it('is Classic until it is told otherwise, and plays unplaced Enhanced sounds at the centre', async () => {
     const audio = new GameAudio(patterns, async () => Undertone);
     await flush();
     expect(audio.mode).toBe('classic');
