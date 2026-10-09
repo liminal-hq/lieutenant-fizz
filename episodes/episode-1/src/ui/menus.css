@@ -116,21 +116,23 @@
 .menu[data-scroll]::-webkit-scrollbar {
   display: none;
 }
-/* The "more rows" chevrons sit over the top and bottom edge of a scrolling menu, centred on it. */
+/* A scrolling menu has a thin strip above and another below it (`Ui.layoutScroll` reserves them as the
+   menu's margins), and the "more rows" chevrons stand centred in those strips, clear of every row. The
+   shell sets each strip's height and `--lf-cue`, the chevron's size in CSS pixels per art pixel. */
 .screen .more {
   position: absolute;
   z-index: 1;
   display: flex;
+  align-items: center;
   justify-content: center;
-  padding: calc(var(--lf-n) * 1px) 0;
   pointer-events: none;
 }
 .screen .more[hidden] {
   display: none;
 }
 .screen .more img {
-  width: calc(var(--lf-n) * 11px);
-  height: calc(var(--lf-n) * 7px);
+  width: calc(var(--lf-cue, 1) * 11px);
+  height: calc(var(--lf-cue, 1) * 7px);
   image-rendering: pixelated;
   animation: lf-more 1.26s step-end infinite;
 }
@@ -144,7 +146,7 @@
     transform: translateY(0);
   }
   50% {
-    transform: translateY(calc(var(--lf-n) * 1px));
+    transform: translateY(calc(var(--lf-cue, 1) * 1px));
   }
 }
 @keyframes lf-more-up {
@@ -153,7 +155,7 @@
     transform: scaleY(-1) translateY(0);
   }
   50% {
-    transform: scaleY(-1) translateY(calc(var(--lf-n) * 1px));
+    transform: scaleY(-1) translateY(calc(var(--lf-cue, 1) * 1px));
   }
 }
 .menu[hidden],

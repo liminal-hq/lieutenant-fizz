@@ -33,6 +33,14 @@
     var(--lf-keys-bottom) + var(--lf-n-hint) * var(--lf-line) + 8px + var(--lf-safe-bottom)
   );
 }
+/* The one-column overlay screens keep their rows above the hint bar even when it wraps to a second line
+   (`--lf-keys-h`, measured by the shell), so a menu and its cue strip never run under it. */
+#stage[data-touch] #overlay {
+  padding-bottom: max(
+    calc(var(--lf-pad-y) + 40px + var(--lf-safe-bottom)),
+    calc(var(--lf-keys-bottom) + var(--lf-keys-h, 0px) + 8px + var(--lf-safe-bottom))
+  );
+}
 #stage[data-touch] #title > .menu {
   align-self: stretch;
 }

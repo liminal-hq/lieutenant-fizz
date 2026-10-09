@@ -6,15 +6,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   CHEVRON_SIZE,
+  chevronScale,
   chevronSvg,
   isTap,
   maxScroll,
   menuViewport,
+  MIN_STRIP,
   rowVisible,
   scrollCues,
   revealRow,
   snapScroll,
   snapViewport,
+  stripLayout,
   type RowBox,
   TAP_SLOP,
   visibleWindow,
@@ -218,5 +221,59 @@ describe('chevronSvg', () => {
       expect(Number(m[2])).toBeLessThan(CHEVRON_SIZE.height);
     }
     expect(svg.lastIndexOf('fill="#fff"')).toBeGreaterThan(svg.lastIndexOf('fill="#050507"'));
+  });
+});
+
+const rowsOf = (n: number, h: number): RowBox[] =>
+  Array.from({ length: n }, (_, i) => ({ top: i * h, height: h }));
+
+describe('stripLayout', () => {
+  const rows = rowsOf(9, 40);
+  it('spends the pixels snapping frees on the strips, losing no row', () => {
+    // 170 px holds four rows (160) with 10 left over: 5 each is under the minimum, so a row goes...
+    expect(stripLayout(rows, 170, 20)).toEqual({ view: 120, strip: 20 });
+    // ...but 180 holds four rows with 20 left, which is exactly two minimum strips.
+    expect(stripLayout(rows, 180, 20)).toEqual({ view: 160, strip: 10 });
+    expect(stripLayout(rows, 200, 20)).toEqual({ view: 160, strip: 20 });
+  });
+  it('gives each strip at most half the spare and at most the wanted height', () => {
+    expect(stripLayout(rows, 190, 20)).toEqual({ view: 160, strip: 15 });
+    expect(stripLayout(rows, 230, 20)).toEqual({ view: 200, strip: 15 });
+    expect(stripLayout(rows, 239, 12)).toEqual({ view: 200, strip: 12 });
+  });
+  it('keeps the strips within the height given', () => {
+    for (let avail = 100; avail < 360; avail++) {
+      const l = stripLayout(rows, avail, 20);
+      expect(l.view + 2 * l.strip).toBeLessThanOrEqual(avail);
+      expect(l.view % 40).toBe(0);
+      expect(l.strip).toBeGreaterThanOrEqual(MIN_STRIP);
+    }
+  });
+  it('never shows fewer than two rows, even when the strips then overrun', () => {
+    expect(stripLayout(rows, 90, 20)).toEqual({ view: 80, strip: MIN_STRIP });
+  });
+  it('reserves no strip for a list that fits', () => {
+    expect(stripLayout(rowsOf(3, 40), 130, 20)).toEqual({ view: 130, strip: 0 });
+  });
+  it('works on uniform rows of any height and has nothing for an empty list', () => {
+    expect(stripLayout(rowsOf(6, 44), 200, 22)).toEqual({ view: 176, strip: 12 });
+    expect(stripLayout([], 200, 20)).toEqual({ view: 0, strip: 0 });
+  });
+});
+
+describe('chevronScale', () => {
+  it('draws the chevron as large as the strip holds with room to step, up to the menu pixel size', () => {
+    expect(CHEVRON_SIZE.height).toBe(7);
+    expect(chevronScale(10, 3)).toBe(1);
+    expect(chevronScale(17, 3)).toBe(1);
+    expect(chevronScale(18, 3)).toBe(2);
+    expect(chevronScale(26, 3)).toBe(2);
+    expect(chevronScale(27, 3)).toBe(3);
+    expect(chevronScale(40, 3)).toBe(3);
+    expect(chevronScale(40, 2)).toBe(2);
+  });
+  it('is never under one', () => {
+    expect(chevronScale(4, 3)).toBe(1);
+    expect(chevronScale(30, 0)).toBe(1);
   });
 });

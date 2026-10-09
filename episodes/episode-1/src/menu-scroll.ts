@@ -87,6 +87,58 @@ export function snapViewport(rows: readonly RowBox[], view: number, minRows = MI
   return shown >= rows.length ? view : end(shown - 1);
 }
 
+/** The least height of a cue strip, in CSS pixels: room for the chevron drawn at one CSS pixel per art pixel. */
+export const MIN_STRIP = 10;
+
+/** How a scrolling list sits in the height it is given: the list's own height and the strip above and below it. */
+export interface StripLayout {
+  /** The list's height: a whole number of rows. */
+  view: number;
+  /** The height of the cue strip reserved above the list and again below it. */
+  strip: number;
+}
+
+/**
+ * Lays a scrolling list out in `avail` px, reserving a cue strip of `want` px above and below it (about
+ * half a row). The pixels whole-row snapping already frees pay for the strips first, so they cost no
+ * row where the leftover can hold them; a strip shrinks towards `minStrip` before a row is dropped, and a
+ * row is dropped only when even two minimum strips do not fit beside the rows left. Never fewer than
+ * `minRows` rows. Returns `view` as `avail` and no strip for a list that already fits.
+ */
+export function stripLayout(
+  rows: readonly RowBox[],
+  avail: number,
+  want: number,
+  minStrip = MIN_STRIP,
+  minRows = MIN_ROWS,
+): StripLayout {
+  const first = rows[0];
+  if (!first) return { view: 0, strip: 0 };
+  const end = (n: number): number => rows[n - 1]!.top + rows[n - 1]!.height - first.top;
+  let fit = 0;
+  while (fit < rows.length && end(fit + 1) <= avail + 0.01) fit++;
+  if (fit >= rows.length) return { view: avail, strip: 0 };
+  const least = Math.min(minRows, rows.length);
+  for (let n = Math.max(fit, least); n > least; n--) {
+    const strip = Math.min(want, Math.floor((avail - end(n)) / 2));
+    if (strip >= minStrip) return { view: end(n), strip };
+  }
+  return {
+    view: end(least),
+    strip: Math.max(minStrip, Math.min(want, Math.floor((avail - end(least)) / 2))),
+  };
+}
+
+/**
+ * The size, in CSS pixels per art pixel, to draw the chevron in a strip `strip` px tall: the largest
+ * whole scale up to `max` (the menu's own pixel size) at which the chevron and the art pixel it steps
+ * outward while it moves both stay inside the strip, and never under one.
+ */
+export function chevronScale(strip: number, max: number): number {
+  const art = CHEVRON_SIZE.height + 2;
+  return Math.max(1, Math.min(Math.floor(max), Math.floor(strip / art)));
+}
+
 /**
  * The scroll offset that puts a whole row at the top edge, nearest to `scrollTop`: a row top, or the
  * furthest the list scrolls (`limit`) when that is nearer. An exact tie goes to the earlier offset.
