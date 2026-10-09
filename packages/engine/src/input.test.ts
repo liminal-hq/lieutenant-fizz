@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { Input, inputBits, keysToBits, nextDevice, padToBits, touchToBits } from './input';
+import { Input, inputBits, keysToBits, nextDevice, padToBits, pickPad, touchToBits } from './input';
 import { NO_TOUCH } from './touch';
 
 describe('nextDevice', () => {
@@ -100,5 +100,23 @@ describe('touch and the combined bits', () => {
   it('silences every source when blocked', () => {
     const src = { keys: Input.LEFT, pad: Input.FIRE, touch: Input.JUMP };
     expect(inputBits(src, { touchEnabled: true, blocked: true })).toBe(0);
+  });
+});
+
+describe('pickPad', () => {
+  it('prefers the pad that was last used', () => {
+    expect(pickPad(['a', 'b', 'c'], 1)).toBe('b');
+    expect(pickPad([null, 'b', 'c'], 2)).toBe('c');
+  });
+
+  it('falls back to the first connected pad', () => {
+    expect(pickPad([null, 'b', 'c'], 0)).toBe('b');
+    expect(pickPad(['a', 'b'], -1)).toBe('a');
+    expect(pickPad(['a'], 5)).toBe('a');
+  });
+
+  it('returns null with no pad', () => {
+    expect(pickPad([], -1)).toBeNull();
+    expect(pickPad([null, null], 0)).toBeNull();
   });
 });
