@@ -20,7 +20,7 @@ export const PREDICTIVE_BACK_EVENT = 'predictive-back:event';
  * Tells the native side whether there's anywhere in-app for a back gesture to go.
  * When `true`, Android's predictive-back callback is registered and gesture frames start
  * flowing as `predictive-back:event`. When `false`, the callback is unregistered and the
- * system falls through to its own default behaviour (app-minimize / cross-task animation).
+ * system falls through to its own default behaviour (app-minimise / cross-task animation).
  */
 export async function setCanGoBack(canGoBack: boolean): Promise<void> {
   // Tauri matches invoke() args by the Rust command's parameter name -- our `set_can_go_back`

@@ -10,7 +10,7 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[cfg(mobile)]
-    #[error("Mobile plugin not initialized")]
+    #[error("Mobile plugin not initialised")]
     PluginInvoke(#[from] tauri::plugin::mobile::PluginInvokeError),
 }
 
