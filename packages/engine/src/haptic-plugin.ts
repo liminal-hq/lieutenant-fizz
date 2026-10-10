@@ -364,11 +364,42 @@ function amplitudeWaveform(
   return { effect: { type: 'waveform', timingsMs: timings, amplitudes: amps }, ms, compiled };
 }
 
+/**
+ * A copy of the pattern with every strength run through the perceptual curve, for the on and off compiler,
+ * which takes one linear `scale`. Taps and hum slices under the floor (before the curve) are dropped, and a hum
+ * becomes a curve sampled where `compileVibrate` samples it.
+ */
+function shapeForVibrate(p: HapticPattern, scale: number, c: PluginCompile): HapticPattern {
+  const events: HapticEvent[] = [];
+  for (const e of p.events) {
+    if (e.kind === 'transient') {
+      const raw = e.intensity * scale;
+      if (raw < c.floor) continue;
+      events.push({ ...e, intensity: shapeStrength(raw, c) });
+      continue;
+    }
+    const pts: { t: number; v: number }[] = [];
+    for (let off = 0; off < e.duration; off += VIBRATE_COMPILE.period) {
+      const len = Math.min(VIBRATE_COMPILE.period, e.duration - off);
+      const t = off + len / 2;
+      const raw = sampleCurve(e.intensity, t) * scale;
+      pts.push({ t, v: raw < c.floor ? 0 : shapeStrength(raw, c) });
+    }
+    if (pts.length > 0) events.push({ ...e, intensity: pts });
+  }
+  return { events };
+}
+
 /** Tier 1: on and off, from the same compiler `navigator.vibrate` uses. */
 function onOff(p: HapticPattern, scale: number, caps: PluginCaps, c: PluginCompile): Attempt {
   if (!caps.hasVibrator) return { effect: null, ms: 0, why: 'no vibrator' };
   const maxMs = Math.min(c.maxMs, caps.limits?.maxDurationMs ?? c.maxMs);
-  const arr = compileVibrate(p, scale, { ...VIBRATE_COMPILE, floor: c.floor, maxMs });
+  const arr = compileVibrate(shapeForVibrate(p, scale, c), 1, {
+    ...VIBRATE_COMPILE,
+    // The strength floor is applied to the raw strength in `shapeForVibrate`; what is left is already shaped.
+    floor: 1e-9,
+    maxMs,
+  });
   if (arr.length === 0) return { effect: null, ms: 0, why: 'below the strength floor' };
   const ms = arr.reduce((a, b) => a + b, 0);
   if (arr.length === 1)

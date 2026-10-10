@@ -74,6 +74,32 @@ const effectOf = (plan: ReturnType<typeof compilePluginPattern>) =>
   plan.call && 'req' in plan.call.args ? plan.call.args.req.effect : null;
 
 describe('compilePluginPattern', () => {
+  it('applies the perceptual curve at tier 1 too', () => {
+    const half: HapticPattern = { events: [tap(0, 0.5, 0.2)] };
+    const at = (gamma: number, gain = 1) =>
+      effectOf(
+        compilePluginPattern(half, 1, caps(1), { compile: { ...PLUGIN_COMPILE, gamma, gain } }),
+      );
+    expect(at(0.2)).not.toEqual(at(1.5));
+    const strong = at(0.2, 2) as { durationMs: number };
+    const weak = at(1.5, 0.5) as { durationMs: number };
+    expect(strong.durationMs).toBeGreaterThan(weak.durationMs);
+    // A hum is shaped along its curve as well.
+    const humAt = (gamma: number) =>
+      effectOf(
+        compilePluginPattern(hum, 1, caps(1), { compile: { ...PLUGIN_COMPILE, gamma, gain: 1 } }),
+      );
+    expect(humAt(0.2)).not.toEqual(humAt(1.5));
+  });
+
+  it('keeps the strength floor on the raw strength at tier 1', () => {
+    const quiet: HapticPattern = { events: [tap(0, 0.05, 0.2)] };
+    const plan = compilePluginPattern(quiet, 1, caps(1));
+    expect(plan.call).toBeNull();
+    const hair: HapticPattern = { events: [tap(0, 0.09, 0.2)] };
+    expect(compilePluginPattern(hair, 1, caps(1)).call).not.toBeNull();
+  });
+
   it('plays taps as primitives where the motor has them', () => {
     const plan = compilePluginPattern(double, 1, caps(3));
     expect(plan.tier).toBe(3);
@@ -226,7 +252,8 @@ describe('compilePluginPattern', () => {
 
   it('falls back to on and off, as a oneshot for one pulse and a waveform for more', () => {
     const one = compilePluginPattern(bonk, 1, caps(1));
-    expect(effectOf(one)).toEqual({ type: 'oneshot', durationMs: 21 });
+    // 0.7 is curved to full strength by the defaults (gain 1.3, gamma 0.6), a 26 ms pulse.
+    expect(effectOf(one)).toEqual({ type: 'oneshot', durationMs: 26 });
     expect(one.tier).toBe(1);
     const two = compilePluginPattern(double, 1, caps(1));
     const e = effectOf(two) as { timingsMs: number[] };
