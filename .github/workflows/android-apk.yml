@@ -1,0 +1,134 @@
+# Builds an installable debug APK of the Tauri player for on-device testing.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+# Android builds run only here, never on a development machine. The Android project is tracked in
+# `apps/player/src-tauri/gen/android` and is built as it stands, never regenerated.
+# Run it against any branch: gh workflow run android-apk.yml --ref <branch>
+# It also runs on pushes to feat/tauri-player* branches, so it can run before it exists on main.
+
+name: Android Debug APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_draft_release:
+        description: Also attach the APK to a draft pre-release for a direct phone download
+        type: boolean
+        default: false
+  push:
+    branches:
+      - 'feat/tauri-player*'
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build debug APK (arm64)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/liminal-hq/tauri-ci-mobile:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
+      # Gradle reads debug.keystore from here, independent of the container's HOME.
+      ANDROID_USER_HOME: /tmp/android-user-home
+      # The side-by-side dev build: `app/build.gradle.kts` reads these Gradle properties, so the tracked
+      # project gets the `.dev` application id and label without being regenerated.
+      ORG_GRADLE_PROJECT_fizzIdSuffix: .dev
+      ORG_GRADLE_PROJECT_fizzAppLabel: Lieutenant Fizz Dev
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Restore stable debug keystore
+        if: env.DEBUG_KEYSTORE_BASE64 != ''
+        run: |
+          mkdir -p "$ANDROID_USER_HOME"
+          printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 -d > "$ANDROID_USER_HOME/debug.keystore"
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            apps/player/src-tauri
+
+      # `rust-toolchain.toml` pins the toolchain and lists only the WASM target.
+      - name: Add the Android target
+        run: rustup target add aarch64-linux-android
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the WASM and the app frontend
+        run: |
+          bun run build:wasm
+          bun run build:app
+
+      - name: Build debug APK
+        run: bun run android:build --debug --target aarch64 --apk --config src-tauri/tauri.conf.dev.json
+
+      - name: Locate APK
+        id: apk
+        run: |
+          apk="$(find apps/player/src-tauri/gen/android/app/build/outputs/apk -name '*.apk' | head -n 1)"
+          test -n "$apk"
+          echo "path=$apk" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: fizz-player-debug-apk
+          path: ${{ steps.apk.outputs.path }}
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Summarise
+        run: |
+          cert="$(apksigner verify --print-certs '${{ steps.apk.outputs.path }}' | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          {
+            echo "## Android debug APK"
+            echo "- **Ref:** \`${GITHUB_REF_NAME}\` at \`${GITHUB_SHA}\`"
+            echo "- **File:** \`$(basename '${{ steps.apk.outputs.path }}')\`"
+            echo "- **Signing certificate (SHA-256):** \`${cert}\`"
+            if [ -z "$DEBUG_KEYSTORE_BASE64" ]; then
+              echo "- **Signing:** throwaway debug key — uninstall the previous build before installing this one, or set the \`ANDROID_DEBUG_KEYSTORE_BASE64\` secret for in-place updates"
+            else
+              echo "- **Signing:** stable debug key — installs over the previous build"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-draft-release:
+    name: Attach APK to draft pre-release
+    if: inputs.publish_draft_release
+    needs: build-apk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download APK
+        uses: actions/download-artifact@v6
+        with:
+          name: fizz-player-debug-apk
+          path: apk
+
+      - name: Create draft pre-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          gh release create "android-debug-${GITHUB_RUN_NUMBER}" apk/*.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --draft --prerelease \
+            --title "Android debug build ${GITHUB_RUN_NUMBER} (${REF_NAME})" \
+            --notes "Debug APK built from \`${REF_NAME}\` at \`${GITHUB_SHA}\`. Signed with a debug key; for on-device testing only."
