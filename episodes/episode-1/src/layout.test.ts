@@ -16,6 +16,7 @@ import {
   promptClear,
   titleCandidates,
   TOUCH_WORD_GLYPHS,
+  touchCount,
   touchWordCap,
   watchResize,
   type TouchGutters,
@@ -327,5 +328,20 @@ describe('touchWordCap', () => {
 
   it('gives the largest scale for a word with no width', () => {
     expect(touchWordCap(80, 0)).toBe(6);
+  });
+});
+
+describe('touchCount', () => {
+  it('shows the count as it is up to three digits', () => {
+    expect(touchCount(0)).toBe('0');
+    expect(touchCount(42)).toBe('42');
+    expect(touchCount(999)).toBe('999');
+  });
+
+  it('stops at 999, so the count fits the width the Fizz face is sized for', () => {
+    for (const n of [1000, 99999, 1e9, Infinity]) expect(touchCount(n)).toBe('999');
+    for (const n of [-3, NaN]) expect(touchCount(n)).toBe('0');
+    // Three digits of 7 glyph px is the 21 in TOUCH_WORD_GLYPHS.fire, which touchWordCap sizes for.
+    expect(touchCount(99999).length * 7).toBe(TOUCH_WORD_GLYPHS.fire);
   });
 });

@@ -174,6 +174,17 @@ export function watchResize(
  */
 export const TOUCH_WORD_GLYPHS = { jump: 29, pogo: 20, fire: 21 } as const;
 
+/** The most the Fizz face shows: three digits, the width `TOUCH_WORD_GLYPHS.fire` is sized for. */
+export const TOUCH_COUNT_MAX = 999;
+
+/**
+ * The Fizz count as the touch face shows it: the real count up to {@link TOUCH_COUNT_MAX}, then 999.
+ * Soda adds ammo on every level load and nothing caps it, so a longer count would outgrow the round
+ * face; the sim and the saves keep the real value, and the desktop HUD shows all of it.
+ */
+export const touchCount = (ammo: number): string =>
+  String(Math.min(TOUCH_COUNT_MAX, Math.max(0, Math.trunc(ammo) || 0)));
+
 /** The room a word keeps from the edge of its face, on each side, in CSS pixels. */
 export const TOUCH_WORD_MARGIN = 4;
 

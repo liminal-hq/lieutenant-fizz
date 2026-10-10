@@ -78,6 +78,7 @@ import { viewPoint } from './map-panel';
 import {
   isPortrait,
   TOUCH_WORD_GLYPHS,
+  touchCount,
   touchWordCap,
   watchResize,
   type TouchGutters,
@@ -1062,7 +1063,7 @@ export class Game {
       usb: s.get(State.HAS_USB) === 1,
     };
     this.hud = hud;
-    this.touchUi.setCount(String(hud.ammo));
+    this.touchUi.setCount(touchCount(hud.ammo));
     this.syncUi();
   }
   private hud: HudState | null = null;
@@ -1491,7 +1492,7 @@ export class Game {
     if (on === this.touchMode) return;
     this.touchMode = on;
     this.ui.setTouchMode(on);
-    if (this.hud) this.touchUi.setCount(String(this.hud.ammo));
+    if (this.hud) this.touchUi.setCount(touchCount(this.hud.ammo));
     this.onViewport();
     this.syncUi();
   }
