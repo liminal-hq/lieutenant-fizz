@@ -148,6 +148,19 @@ describe('openTauriStorage', () => {
     expect(log).toHaveBeenCalledTimes(1);
   });
 
+  it('reports whether the flush reached the file', async () => {
+    const file = fakeFile();
+    file.fail = true;
+    const s = await openTauriStorage({ load: async () => file, log: () => {} });
+    s.setItem('lf-a', '1');
+    expect(await s.flush()).toBe(false);
+    expect(file.data.has('lf-a')).toBe(false);
+    file.fail = false;
+    expect(await s.flush()).toBe(true);
+    expect(file.data.get('lf-a')).toBe('1');
+    expect(await s.flush()).toBe(true);
+  });
+
   it('retries what failed on the next flush', async () => {
     const file = fakeFile();
     file.fail = true;

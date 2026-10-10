@@ -70,13 +70,14 @@ export async function openTauriStorage(options: TauriStorageOptions): Promise<Fl
   let chain: Promise<void> = Promise.resolve();
   let logged = false;
 
-  const write = async (batch: Map<string, string | null>): Promise<void> => {
+  const write = async (batch: Map<string, string | null>): Promise<boolean> => {
     try {
       for (const [key, value] of batch) {
         if (value === null) await file.delete(key);
         else await file.set(key, value);
       }
       await file.save();
+      return true;
     } catch (error) {
       // Keep what did not reach the file for the next flush, unless a newer write has replaced it.
       for (const [key, value] of batch) if (!pending.has(key)) pending.set(key, value);
@@ -84,21 +85,23 @@ export async function openTauriStorage(options: TauriStorageOptions): Promise<Fl
         logged = true;
         log('Saving to the app store failed; carrying on from memory', error);
       }
+      return false;
     }
   };
 
-  const flush = (): Promise<void> => {
+  const flush = (): Promise<boolean> => {
     if (timer !== undefined) {
       clearTimeout(timer);
       timer = undefined;
     }
-    chain = chain.then(() => {
-      if (pending.size === 0) return;
+    const result = chain.then((): boolean | Promise<boolean> => {
+      if (pending.size === 0) return true;
       const batch = pending;
       pending = new Map();
       return write(batch);
     });
-    return chain;
+    chain = result.then(() => undefined);
+    return result;
   };
 
   const queue = (key: string, value: string | null): void => {

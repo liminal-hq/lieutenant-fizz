@@ -149,6 +149,7 @@ import { firstEnabled, type HapticsUrl, type UrlLocks, type WakeUrl } from './ur
 import {
   applyProgress,
   captureProgress,
+  confirmWrite,
   newestSlot,
   readSlot,
   readSlots,
@@ -2465,6 +2466,9 @@ export class Game {
     this.stepper.reset();
     if (writeProgress(this.store, captureProgress(this.sim, Math.floor(this.played)))) {
       this.hasSave = true;
+      void confirmWrite(this.store)?.then((done) => {
+        if (!done) this.ui.toast("Couldn't save: storage is full or blocked");
+      });
     }
     this.syncUi();
   }
@@ -2654,7 +2658,14 @@ export class Game {
   private saveToSlot(id: SlotId): boolean {
     const ok = writeSlot(this.store, id, captureProgress(this.sim, Math.floor(this.played)));
     this.hasSave ||= ok;
-    this.ui.toast(ok ? `Saved to ${slotName(id)}` : "Couldn't save: storage is full or blocked");
+    const failed = "Couldn't save: storage is full or blocked";
+    // Where the write finishes later (the app's store file), say "Saved" only once it has.
+    const settled = ok ? confirmWrite(this.store) : null;
+    if (settled) {
+      void settled.then((done) => this.ui.toast(done ? `Saved to ${slotName(id)}` : failed));
+    } else {
+      this.ui.toast(ok ? `Saved to ${slotName(id)}` : failed);
+    }
     return ok;
   }
 
