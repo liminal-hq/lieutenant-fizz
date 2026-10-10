@@ -3093,3 +3093,54 @@ fn passing_a_stunned_enemy_sparks_once_and_runs_identically_twice() {
     assert_eq!(s1, 1, "one spark for the one pass");
     assert_eq!((s1, &st1, n1), (s2, &st2, n2));
 }
+
+fn camera_x_after_render(w: &mut World) -> f32 {
+    w.render(1.0, 0);
+    w.out[crate::render::out::CAM_X]
+}
+
+#[test]
+fn entering_the_map_clears_any_leftover_shake() {
+    let mut w = level(CRATER);
+    w.shake = 0.8;
+    w.enter_map();
+    assert_eq!(w.shake, 0.0);
+}
+
+#[test]
+fn shake_fades_out_on_the_map_and_the_camera_settles() {
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    w.step(0);
+    w.shake = 0.8;
+    // 0.8 fades at 2 per second: 0.4 s, so 24 ticks, plus slack.
+    run(&mut w, 40, 0);
+    assert_eq!(w.shake, 0.0);
+    let cam = w.cam_x as f32;
+    assert_eq!(camera_x_after_render(&mut w), cam);
+}
+
+#[test]
+fn shake_fades_out_in_the_attract_loop() {
+    let mut w = World::new();
+    w.game_new();
+    w.load_attract(0, true);
+    assert_eq!(w.mode, Mode::Attract);
+    w.shake = 0.8;
+    run(&mut w, 40, 0);
+    assert_eq!(w.shake, 0.0);
+    let cam = w.cam_x as f32;
+    assert_eq!(camera_x_after_render(&mut w), cam);
+}
+
+#[test]
+fn shake_in_a_level_fades_at_two_per_second() {
+    let mut w = level(CRATER);
+    w.shake = 0.6;
+    run(&mut w, 15, 0);
+    let expected = 0.6 - 15.0 * lf_sim::STEP * 2.0;
+    assert!((w.shake - expected).abs() < 1e-9, "shake {}", w.shake);
+    run(&mut w, 60, 0);
+    assert_eq!(w.shake, 0.0);
+}
