@@ -56,6 +56,9 @@ pub const WALL_KICK_UP: f64 = 19.0;
 pub const WALL_KICK_AWAY: f64 = 6.0;
 pub const WALL_KICK_COOLDOWN: f64 = 0.25;
 
+/// How fast Ben must be rising (tiles per second) when his head meets a ceiling for it to clunk.
+pub const HEAD_BUMP_MIN_SPEED: f64 = 1.0;
+
 /// Ladder climbing speed in tiles per second.
 pub const CLIMB_SPEED: f64 = 4.5;
 
@@ -1148,9 +1151,17 @@ impl World {
         if e & FIRE != 0 {
             self.fire();
         }
+        let rising = self.p.b.vy;
         self.p.b.phys(&self.map, &self.plats, dt);
         if self.p.b.bonk && self.p.pogo {
             self.p.b.vy = 0.0;
+        }
+        // Ben's head meets a ceiling while he was rising: one clunk for the bump. The hit zeroes his
+        // upward speed, so a held jump or a fall under the same ceiling does not repeat it. Climbing
+        // sets his speed every tick, so a ladder or vine against a ceiling stays quiet.
+        if self.p.b.bonk && rising > HEAD_BUMP_MIN_SPEED && !self.p.climb {
+            let (x, y) = (self.p.b.x + self.p.b.w / 2.0, self.p.b.y + self.p.b.h);
+            self.cap(x, y, Cap::Clunk);
         }
         self.p.anim += if self.p.climb {
             self.p.b.vy.abs() + self.p.b.vx.abs()

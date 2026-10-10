@@ -3144,3 +3144,90 @@ fn shake_in_a_level_fades_at_two_per_second() {
     run(&mut w, 60, 0);
     assert_eq!(w.shake, 0.0);
 }
+
+/// The head-bump clunks raised so far: caption events carrying `Cap::Clunk`.
+fn clunks(w: &World) -> usize {
+    events_of(w, ev::CAPTION)
+        .iter()
+        .filter(|e| e.c == f32::from(Cap::Clunk as u16))
+        .count()
+}
+
+#[test]
+fn hitting_a_ceiling_while_rising_clunks_once() {
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 5, FILL);
+    }
+    w.events.clear();
+    w.step(JUMP);
+    // Hold Jump and keep pressing up under the ceiling long after the bump.
+    run(&mut w, 120, JUMP | UP);
+    assert_eq!(clunks(&w), 1);
+}
+
+#[test]
+fn walking_under_a_low_ceiling_does_not_clunk() {
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 4, FILL);
+    }
+    w.events.clear();
+    run(&mut w, 60, RIGHT | UP);
+    assert!(w.p.b.on_ground);
+    assert_eq!(clunks(&w), 0);
+}
+
+#[test]
+fn falling_or_standing_against_a_ceiling_does_not_clunk() {
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 5, FILL);
+    }
+    // Starts with his head hard against the ceiling and no upward speed: he drops without a sound.
+    w.p.b.y = 5.0 - w.p.b.h - 1e-6;
+    w.p.b.vy = 0.0;
+    w.p.b.on_ground = false;
+    w.events.clear();
+    run(&mut w, 60, UP);
+    assert_eq!(clunks(&w), 0);
+}
+
+#[test]
+fn every_jump_into_a_ceiling_clunks_once() {
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 5, FILL);
+    }
+    w.events.clear();
+    for n in 1..=3 {
+        run(&mut w, 60, 0);
+        assert!(w.p.b.on_ground);
+        w.step(JUMP);
+        run(&mut w, 30, JUMP);
+        assert_eq!(clunks(&w), n, "after jump {n}");
+    }
+}
+
+#[test]
+fn climbing_into_a_ceiling_does_not_clunk() {
+    let mut w = arena();
+    for y in 2..5 {
+        w.map.set(4, y, VINE);
+    }
+    for x in 0..40 {
+        w.map.set(x, 5, FILL);
+    }
+    w.events.clear();
+    run(&mut w, 60, UP);
+    assert_eq!(clunks(&w), 0);
+}
+
+#[test]
+fn head_bump_raises_no_clunk_on_the_overworld_map() {
+    let mut w = World::new();
+    w.game_new();
+    w.events.clear();
+    run(&mut w, 120, UP | JUMP);
+    assert_eq!(clunks(&w), 0);
+}
