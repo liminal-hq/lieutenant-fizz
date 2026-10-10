@@ -1329,6 +1329,11 @@ export class Game {
     return this.fs.kind === 'native' || (this.caps.fullscreen && this.caps.host === 'web');
   }
 
+  /** Whether the on-screen Fullscreen button exists: a browser page has it, the desktop app hides it and uses `F` and `F11`. */
+  private fullscreenButtonOffered(): boolean {
+    return this.fs.kind !== 'native' && this.caps.fullscreen && this.caps.host === 'web';
+  }
+
   /** What the Display screen can offer here: fullscreen in a browser page, and anything that can hold the screen on. */
   private displayCaps(): DisplayCaps {
     return {
@@ -1387,6 +1392,7 @@ export class Game {
       device,
       layout: this.settings.layout,
       fullscreen: this.fullscreenOffered(),
+      fullscreenButton: this.fullscreenButtonOffered(),
       escExitsFullscreen:
         this.escLeavesFullscreen() && (this.screen === 'title' || this.screen === 'pause'),
     });

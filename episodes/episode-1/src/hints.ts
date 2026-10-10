@@ -9,8 +9,10 @@ import type { InputDevice } from '@lieutenant-fizz/engine/input';
 export interface HintContext {
   device: InputDevice;
   layout: number;
-  /** The page can go fullscreen on request, so the `F` shortcut and the Fullscreen button exist. */
+  /** The game can go fullscreen on request, so the `F` shortcut exists. */
   fullscreen?: boolean;
+  /** The on-screen Fullscreen button exists: a browser page can offer it, the desktop app's native window does not. */
+  fullscreenButton?: boolean;
   /**
    * The page is fullscreen with Esc locked, on a screen whose top level Esc then leaves fullscreen from
    * (the title and the pause menu): the Esc hint reads "Exit fullscreen" and replaces the `F` hint, and
@@ -161,7 +163,7 @@ export function controlsTable(c: HintContext, onTouch: boolean): ControlsTable {
         ['Pause', touchCap(TOUCH_LABELS.pause)],
         ['Menus', `${dpad} ${touchCap(TOUCH_LABELS.select)} ${touchCap(TOUCH_LABELS.back)}`],
         ['Save / Load', 'Pause menu'],
-        ...(c.fullscreen ? [['Fullscreen', 'Fullscreen button']] : []),
+        ...(c.fullscreenButton ? [['Fullscreen', 'Fullscreen button']] : []),
       ],
       on: 1,
       note: `Hold Jump while pogoing for a high bounce. Aim Fizz up or down with the ${dpad}.`,

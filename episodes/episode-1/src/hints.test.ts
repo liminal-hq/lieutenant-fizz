@@ -284,9 +284,13 @@ describe('the fullscreen shortcut in the hints', () => {
   });
 
   it('names the button on touch, with no key glyph', () => {
-    const t = controlsTable(can(touch), true);
+    const t = controlsTable({ ...can(touch), fullscreenButton: true }, true);
     expect(t.rows.at(-1)).toEqual(['Fullscreen', 'Fullscreen button']);
     for (const c of [...t.head, ...t.rows.flat(), t.note]) expect(c, c).not.toMatch(KEYS);
     expect(controlsTable(touch, true).rows.map((r) => r[0])).not.toContain('Fullscreen');
+  });
+
+  it('leaves the touch table without the row where only the keys can go fullscreen', () => {
+    expect(controlsTable(can(touch), true).rows.map((r) => r[0])).not.toContain('Fullscreen');
   });
 });

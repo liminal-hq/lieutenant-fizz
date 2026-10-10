@@ -94,6 +94,17 @@ test('a direct tap on another pause row disarms Quit game', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
+test('the touch Controls table does not point at a Fullscreen button the app hides', async ({
+  page,
+}) => {
+  const errors = await open(page, 'controls', '&host=fake-desktop');
+  await expect(page.locator('#fsBtn')).toBeHidden();
+  const cells = await page.locator('#controls td').allInnerTexts();
+  expect(cells).not.toContain('Fullscreen button');
+  expect(cells).not.toContain('Fullscreen');
+  expect(errors).toEqual([]);
+});
+
 test('the web build has no Quit game on touch either', async ({ page }) => {
   await open(page, 'title', '');
   await expect(row(page, '#title > .menu')).toHaveCount(0);
