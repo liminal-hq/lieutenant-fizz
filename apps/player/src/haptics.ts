@@ -5,6 +5,7 @@
 
 // Imported first: ES modules evaluate in import order, so the log bridge is up before any other module loads.
 import './haptics-log-boot';
+import { mountGamepadSection } from './gamepad-section';
 import { isAppHost } from '@lieutenant-fizz/engine/lifecycle-policy';
 import { STRENGTH_NAMES, STRENGTH_SCALE } from '@lieutenant-fizz/engine/haptic-strength';
 import {
@@ -332,6 +333,22 @@ function buildMain(): void {
   smoke.grid.append(
     button('9. Registered patterns', () => void runGuest(), 'JS guest: window.__TAURI__.haptics'),
   );
+
+  // The gamepad plugin's own section, with the game's cues on the controller target.
+  const pad = document.createElement('section');
+  pad.id = 'gamepad';
+  $('main').append(pad);
+  mountGamepadSection(pad, {
+    strength: () => STRENGTH_SCALE[strength] ?? 1,
+    cues: hapticLabItems(lanes).map((g) => ({
+      title: g.title,
+      items: g.items.flatMap((item) => {
+        const cue = FIZZ_HAPTICS.cues[item.id];
+        return cue ? [{ id: item.id, label: item.label, pattern: cue.pattern }] : [];
+      }),
+    })),
+    debug: import.meta.env.DEV || new URLSearchParams(location.search).has('debug'),
+  });
 }
 
 function describeCaps(c: PluginCaps | null, why?: string): void {
