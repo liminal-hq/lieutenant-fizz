@@ -1,4 +1,4 @@
-// Browser checks for Quit game with touch (a touch laptop running the desktop app): a tap on the pause menu's row asks twice, the title's quits on one tap, and the menus keep their layout with the extra row at both phone sizes.
+// Browser checks for Quit to launcher and Quit game with touch (a touch laptop running the desktop app): a tap on the pause menu's row asks twice, the title's quits on one tap, and the menus keep their layout with the extra row at both phone sizes.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -30,8 +30,14 @@ async function open(page: Page, screen: string, query: string): Promise<string[]
 
 const quits = (page: Page): Promise<number> =>
   page.evaluate(() => (window as unknown as { __lfQuits?: number }).__lfQuits ?? 0);
+const leaves = (page: Page): Promise<number> =>
+  page.evaluate(
+    () => (window as unknown as { __lfLauncherLeaves?: number }).__lfLauncherLeaves ?? 0,
+  );
 const row = (page: Page, root: '#title > .menu' | '#overlay .menu') =>
   page.locator(`${root} button`, { hasText: 'Quit game' });
+const launcherRow = (page: Page, root: '#title > .menu' | '#overlay .menu') =>
+  page.locator(`${root} button`, { hasText: 'Quit to launcher' });
 
 const LAYOUTS = [
   ['column', ''],
@@ -103,6 +109,67 @@ test('the touch Controls table does not point at a Fullscreen button the app hid
   expect(cells).not.toContain('Fullscreen button');
   expect(cells).not.toContain('Fullscreen');
   expect(errors).toEqual([]);
+});
+
+test("a tap on the title's Quit to launcher leaves on one tap", async ({ page }) => {
+  const errors = await open(page, 'title', '&host=fake-desktop');
+  await launcherRow(page, '#title > .menu').scrollIntoViewIfNeeded();
+  await launcherRow(page, '#title > .menu').tap();
+  await expect.poll(() => leaves(page)).toBe(1);
+  expect(await quits(page)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test("the pause menu's Quit to launcher arms on the first tap and leaves on the second", async ({
+  page,
+}) => {
+  const errors = await open(page, 'pause', '&host=fake-android');
+  await expect(row(page, '#overlay .menu')).toHaveCount(0);
+  await launcherRow(page, '#overlay .menu').scrollIntoViewIfNeeded();
+  await launcherRow(page, '#overlay .menu').tap();
+  await expect(launcherRow(page, '#overlay .menu').locator('.val')).toHaveText('Tap again');
+  expect(await leaves(page)).toBe(0);
+  await launcherRow(page, '#overlay .menu').tap();
+  await expect.poll(() => leaves(page)).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('Quit to launcher stays unarmed after Resume and a reopened pause menu', async ({ page }) => {
+  const errors = await open(page, 'pause', '&host=fake-desktop');
+  await launcherRow(page, '#overlay .menu').scrollIntoViewIfNeeded();
+  await launcherRow(page, '#overlay .menu').tap();
+  await expect(launcherRow(page, '#overlay .menu').locator('.val')).toHaveText('Tap again');
+  await page.locator('#overlay .menu button', { hasText: 'Resume' }).tap();
+  await expect(launcherRow(page, '#overlay .menu')).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(launcherRow(page, '#overlay .menu')).toBeVisible();
+  await launcherRow(page, '#overlay .menu').scrollIntoViewIfNeeded();
+  await launcherRow(page, '#overlay .menu').tap();
+  expect(await leaves(page)).toBe(0);
+  await expect(launcherRow(page, '#overlay .menu').locator('.val')).toHaveText('Tap again');
+  expect(errors).toEqual([]);
+});
+
+test('a tap on Quit game after arming Quit to launcher arms Quit game and leaves nothing', async ({
+  page,
+}) => {
+  await open(page, 'pause', '&host=fake-desktop');
+  await launcherRow(page, '#overlay .menu').scrollIntoViewIfNeeded();
+  await launcherRow(page, '#overlay .menu').tap();
+  await row(page, '#overlay .menu').scrollIntoViewIfNeeded();
+  await row(page, '#overlay .menu').tap();
+  expect(await quits(page)).toBe(0);
+  expect(await leaves(page)).toBe(0);
+  await expect(row(page, '#overlay .menu').locator('.val')).toHaveText('Tap again');
+  await expect(launcherRow(page, '#overlay .menu').locator('.val')).toHaveCount(0);
+});
+
+test('the web build has no Quit to launcher on touch', async ({ page }) => {
+  await open(page, 'title', '');
+  await expect(launcherRow(page, '#title > .menu')).toHaveCount(0);
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('pause'));
+  await settle(page);
+  await expect(launcherRow(page, '#overlay .menu')).toHaveCount(0);
 });
 
 test('the web build has no Quit game on touch either', async ({ page }) => {
