@@ -4,13 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it, vi } from 'vitest';
-import {
-  QUIT_ARMED_VALUE,
-  QUIT_GAME_ID,
-  QUIT_LAUNCHER_ID,
-  closeApp,
-  withQuitRows,
-} from './quit';
+import { QUIT_ARMED_VALUE, QUIT_GAME_ID, QUIT_LAUNCHER_ID, closeApp, withQuitRows } from './quit';
 import { RESET_ARM_MS, resetArmed } from './two-tap';
 
 const ROWS = [
