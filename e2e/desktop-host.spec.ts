@@ -149,6 +149,26 @@ test('the title menu has Quit to launcher, which leaves on one Enter without qui
   expect(errors).toEqual([]);
 });
 
+test('Quit to launcher stays in the game with a message when the store cannot be written', async ({
+  page,
+}) => {
+  const errors = await open(page, 'title');
+  // The Tauri store adapter resolves `flush()` to false, rather than rejecting, when the file cannot be written.
+  await page.evaluate(() => {
+    const game = (window as unknown as { __lf: { store: { flush?: () => Promise<boolean> } } })
+      .__lf;
+    game.store.flush = async () => false;
+  });
+  await toLastRow(page, TITLE, 'Quit to launcher');
+  await pressUntil(page, 'Enter', () => true);
+  await expect(page.locator('#toast')).toContainText("Couldn't save");
+  expect(await leaves(page)).toBe(0);
+  expect(await quits(page)).toBe(0);
+  // The game is still running: the title menu answers.
+  await expect(page.locator(`${TITLE} button`).first()).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('the pause menu has Quit to launcher, which asks twice and then leaves', async ({ page }) => {
   const errors = await open(page, 'pause');
   await toLastRow(page, OVERLAY, 'Quit to launcher');

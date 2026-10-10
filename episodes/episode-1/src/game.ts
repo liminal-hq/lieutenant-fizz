@@ -2135,10 +2135,19 @@ export class Game {
     if (!host?.quitToLauncher) return;
     const store = this.store as Partial<FlushableStorage> | null;
     void (async () => {
+      // `flush()` resolves false, rather than rejecting, when the store file cannot be written, and the pending
+      // data then lives only in this page's memory. Leaving would lose it, so stay in the game and say so.
+      let saved: boolean;
       try {
-        await store?.flush?.();
+        saved = (await store?.flush?.()) !== false;
       } catch (error) {
         console.warn('Writing the store before leaving failed', error);
+        saved = false;
+      }
+      if (!saved) {
+        this.disarmReset();
+        this.ui.toast("Couldn't save your changes, so staying here");
+        return;
       }
       this.dispose();
       host.quitToLauncher?.();
