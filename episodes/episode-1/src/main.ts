@@ -6,6 +6,7 @@
 // Imported first: ES modules evaluate in import order, so the log bridge is up before any other module loads.
 import './log-boot';
 import { createHostBackend, type HostBackend } from '@lieutenant-fizz/engine/host';
+import { createPredictiveBack } from '@lieutenant-fizz/engine/predictive-back';
 import {
   fakeNativeWindow,
   nativeFullscreenBackend,
@@ -70,6 +71,8 @@ const hostBackend: HostBackend = fakeDesktop
   : fakeAndroid
     ? { kind: 'tauri-android', quitToLauncher: () => count('__lfLauncherLeaves') }
     : createHostBackend();
+// The Android app hands Back to the game through the predictive-back plugin; no other host has it.
+const predictiveBack = createPredictiveBack(hostBackend.kind);
 const fullscreenBackend =
   hostBackend.kind === 'tauri-desktop'
     ? await nativeFullscreenBackend(fakeDesktop ? fakeNativeWindow() : undefined)
@@ -86,6 +89,7 @@ const storage = await createStorage({
 Game.start(stage, {
   storage,
   hostBackend,
+  ...(predictiveBack ? { predictiveBack } : {}),
   ...(fullscreenBackend ? { fullscreenBackend } : {}),
   previewStinger: query.has('previewStinger'),
   touch: query.has('touch'),

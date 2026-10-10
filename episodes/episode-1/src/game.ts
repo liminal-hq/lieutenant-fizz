@@ -14,6 +14,7 @@ import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-b
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import type { HostBackend } from '@lieutenant-fizz/engine/host';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
+import type { PredictiveBackBackend } from '@lieutenant-fizz/engine/predictive-back';
 import {
   webFullscreenBackend,
   type FullscreenBackend,
@@ -257,6 +258,8 @@ export interface GameOptions {
   fullscreenBackend?: FullscreenBackend;
   /** What the host can do beyond the page: `quit` (the desktop app) adds Quit game and `quitToLauncher` (the desktop and Android apps) adds Quit to launcher, both to the title and pause menus. */
   hostBackend?: HostBackend;
+  /** The Android Back gesture, given by the app on Android only: Back calls `back()` and the system keeps it where Back has nowhere to go. */
+  predictiveBack?: PredictiveBackBackend;
   /** Where saves and settings are kept, chosen at boot by `createStorage`; left out, the browser's `localStorage`. */
   storage?: KeyValueStorage;
 }
@@ -340,6 +343,12 @@ export class Game {
   private readonly fs: FullscreenBackend;
   /** The host's extras: Quit game exists when it has `quit`. */
   private readonly hostBackend: HostBackend | undefined;
+  /** The Android Back gesture, when the app gives one. */
+  private readonly predictiveBack: PredictiveBackBackend | undefined;
+  /** What the system was last told about Back, so it hears only changes. */
+  private canGoBackSent: boolean | null = null;
+  /** Stops listening to the Back gesture. */
+  private stopPredictiveBack: (() => void) | null = null;
   /** The Touch controls rows. */
   private readonly touchRowList: TouchRow[] = touchRows();
   /** What `?haptics` asked for, which wins over the saved strength and is never saved. */
@@ -531,6 +540,13 @@ export class Game {
         touch: () => this.touchCapable,
       });
     this.hostBackend = options.hostBackend;
+    this.predictiveBack = options.predictiveBack;
+    void this.predictiveBack
+      ?.onInvoked(() => this.back())
+      .then((stop) => {
+        if (this.disposed) stop();
+        else this.stopPredictiveBack = stop;
+      });
     this.wakeUrl = options.wake;
     this.keepAwake =
       this.caps.host === 'app'
@@ -694,6 +710,8 @@ export class Game {
     this.unwatchBack();
     this.fs.dispose();
     this.backGuard.dispose();
+    this.stopPredictiveBack?.();
+    this.stopPredictiveBack = null;
     this.touchUi.dispose();
     window.clearTimeout(this.titleAction);
     window.clearTimeout(this.resetTimer);
@@ -2320,7 +2338,7 @@ export class Game {
   }
 
   /**
-   * The browser's Back button, or a native one (a Tauri predictive-back plugin will call this): does
+   * The browser's Back button, or the Android Back gesture (the predictive-back plugin calls this): does
    * what Back means on the screen showing, as `backAction` says.
    */
   back(): void {
@@ -2493,6 +2511,18 @@ export class Game {
     this.backGuard.set(
       backGuardAllowed(this.caps) && this.backOn() && backAction(this.screen, this.sub) !== null,
     );
+    this.syncPredictiveBack();
+  }
+
+  /**
+   * Tells the system whether Back has an answer here (anything but the bare title and loading), so the
+   * gesture reaches `back()` there and, at the title, the system backgrounds the app.
+   */
+  private syncPredictiveBack(): void {
+    const can = backAction(this.screen, this.sub) !== null;
+    if (!this.predictiveBack || can === this.canGoBackSent) return;
+    this.canGoBackSent = can;
+    void this.predictiveBack.setCanGoBack(can);
   }
 
   /** Re-checks Back when the game enters or leaves fullscreen or an installed display mode. */
