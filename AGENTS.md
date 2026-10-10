@@ -142,7 +142,7 @@ bun run build        # production build (WASM + TypeScript + Vite)
 bun run test         # TypeScript tests
 bun run check:headers  # verify the licence header on every source, workflow and shell file
 bun run test:rust   # Rust tests across the Cargo workspace (same as `cargo test --workspace`)
-bun run test:e2e    # Browser checks of the overlay layout (Playwright; separate from validate)
+bun run test:e2e    # Browser checks of the overlay layout (Playwright; separate from validate); LF_E2E_FLAKY=1 also runs the disabled flaky specs
 cargo test -p lf-sim # Rust simulation core tests only
 ```
 
