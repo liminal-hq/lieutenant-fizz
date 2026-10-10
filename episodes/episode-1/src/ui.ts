@@ -889,6 +889,15 @@ export class Ui {
     ghost.setAttribute('aria-hidden', 'true');
     ghost.inert = true;
     ghost.dataset.peek = 'drag';
+    // `cloneNode` copies the DOM but not scroll offsets, so remember where the screen and everything
+    // scrollable inside it has been scrolled to and give the copy the same, once it is laid out.
+    const scrolled: [HTMLElement, number, number][] = [];
+    const sources = [source, ...source.querySelectorAll<HTMLElement>('*')];
+    const copies = [ghost, ...ghost.querySelectorAll<HTMLElement>('*')];
+    sources.forEach((e, i) => {
+      const copy = copies[i];
+      if (copy && (e.scrollTop || e.scrollLeft)) scrolled.push([copy, e.scrollTop, e.scrollLeft]);
+    });
     if (!this.backBtn.hidden) {
       const back = this.backBtn.cloneNode(true) as HTMLElement;
       back.removeAttribute('id');
@@ -897,6 +906,10 @@ export class Ui {
       ghost.append(back);
     }
     source.after(ghost);
+    for (const [e, top, left] of scrolled) {
+      e.scrollTop = top;
+      e.scrollLeft = left;
+    }
     this.peekGhost = ghost;
     this.backBtn.dataset.peekParent = '';
   }

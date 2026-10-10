@@ -417,3 +417,29 @@ test('a gesture that never ends lets go by itself', async ({ page }) => {
   expect(await heading(page)).toBe('Paused');
   expect(await visible(page, '#overlay')).toBe(true);
 });
+
+test('the copy starts at the scroll position of the screen it replaces', async ({ page }) => {
+  await open(page, 'title');
+  await show(page, 'options');
+  // Scroll whatever scrolls on the screen (the screen itself or something inside it) before the peek.
+  const set = await page.evaluate(() => {
+    const root = document.querySelector<HTMLElement>('#overlay:not(.peek-ghost)')!;
+    const all = [root, ...root.querySelectorAll<HTMLElement>('*')];
+    let n = 0;
+    for (const e of all) {
+      if (e.scrollHeight > e.clientHeight + 4 && getComputedStyle(e).overflowY !== 'visible') {
+        e.scrollTop = 40;
+        n++;
+      }
+    }
+    return { n, tops: all.map((e) => e.scrollTop) };
+  });
+  expect(set.n).toBeGreaterThan(0);
+  await emit(page, { type: 'started', swipeEdge: 'left' });
+  const copy = await page.evaluate(() => {
+    const g = document.querySelector<HTMLElement>('.peek-ghost')!;
+    return [g, ...g.querySelectorAll<HTMLElement>('*')].map((e) => e.scrollTop);
+  });
+  // The copy also holds a clone of the Back button at the end, which does not scroll.
+  expect(copy.slice(0, set.tops.length)).toEqual(set.tops);
+});
