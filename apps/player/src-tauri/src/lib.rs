@@ -65,12 +65,18 @@ fn log_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             }),
         ])
         .format(|out, message, record| {
+            // A WebView record carries the page's call site (file and line) in the record, not the target.
+            let site = match (record.file(), record.line()) {
+                (Some(file), Some(line)) => format!(" ({file}:{line})"),
+                _ => String::new(),
+            };
             out.finish(format_args!(
-                "[{}][{}][{}] {}",
+                "[{}][{}][{}] {}{}",
                 chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f %:z"),
                 record.level(),
                 record.target(),
-                message
+                message,
+                site
             ))
         })
         .build()

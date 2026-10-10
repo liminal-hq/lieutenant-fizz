@@ -9,7 +9,6 @@
     "core:window:allow-is-fullscreen",
     "mcp-bridge:default",
     "store:default",
-    "haptics:default",
-    "log:default"
+    "haptics:default"
   ]
 }
