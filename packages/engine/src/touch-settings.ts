@@ -7,6 +7,7 @@
 // settings belong to the device and every episode shares them, so they live in the engine.
 
 import { DEFAULT_STRENGTH, isStrength } from './haptic-strength';
+import type { KeyValueStorage } from './storage';
 import {
   CHROMELESS_LIFT,
   DEFAULT_TOUCH_SPEC,
@@ -121,8 +122,8 @@ export function serialiseTouchSettings(s: TouchSettings): string {
   });
 }
 
-type Reader = Pick<Storage, 'getItem'>;
-type Writer = Pick<Storage, 'setItem'>;
+type Reader = Pick<KeyValueStorage, 'getItem'>;
+type Writer = Pick<KeyValueStorage, 'setItem'>;
 
 /** Reads the settings from storage; a missing, unreadable or invalid entry gives the defaults. Never writes. */
 export function readTouchSettings(store: Reader | null): TouchSettings {
