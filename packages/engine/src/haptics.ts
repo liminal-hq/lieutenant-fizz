@@ -91,6 +91,11 @@ const COALESCE_STEP = 0.15;
 const COALESCE_MAX = 3;
 /** A calm cue never plays stronger than this. */
 const CALM_STRENGTH = 0.7;
+/**
+ * Menu cues are played through the game lane's patterns (never the OS's own view haptics, which ignore the
+ * Strength setting), and at this multiple of it so a menu step is as present as a jump.
+ */
+export const UI_BOOST = 1.5;
 
 /** Whether a point in the world is inside the view (with `margin` world units to spare). */
 export function onScreen(
@@ -399,7 +404,7 @@ export class GameHaptics {
     const ch = this.ch[target];
     const soft = this.calm && c.cue.calm === true;
     const pattern = soft ? calmPattern(c.cue.pattern) : c.cue.pattern;
-    const strength = c.scale * ch.master;
+    const strength = c.scale * ch.master * (c.cue.lane === 'ui' ? UI_BOOST : 1);
     const r = ch.backend.play(pattern, soft ? Math.min(strength, CALM_STRENGTH) : strength);
     if (r.ok) {
       this.lastPlay.set(c.id, now);

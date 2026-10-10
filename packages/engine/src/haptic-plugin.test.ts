@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { onTime, totalTime, type HapticPattern } from './haptic-pattern';
+import { onTime, totalTime, type HapticPattern, type HapticTable } from './haptic-pattern';
+import { GameHaptics } from './haptics';
 import {
   adoptPlugin,
   compilePluginPattern,
@@ -399,5 +400,47 @@ describe('adoptPlugin', () => {
       expect(await adoptPlugin(h, pluginBackend({ invoke: fake(c).invoke }), true)).toBe(false);
       expect(h.set).toEqual([]);
     }
+  });
+});
+
+describe('menu cues through GameHaptics', () => {
+  it('reach the phone as game-lane plays at the Strength setting, never the OS view haptics', async () => {
+    const f = fake(caps(3));
+    const b = pluginBackend({ invoke: f.invoke });
+    await b.ready;
+    const table: HapticTable = {
+      cues: {
+        'ui.select': {
+          pattern: { events: [tap(0, 0.5, 0.8)] },
+          priority: 1,
+          cooldownMs: 0,
+          policy: 'interrupt',
+          lane: 'ui',
+        },
+      },
+      captions: {},
+    };
+    let t = 0;
+    const h = new GameHaptics(table, { now: () => t });
+    h.setBackends({ device: b });
+    h.setScale(1);
+    h.ui('select');
+    h.flush();
+    t += 500;
+    h.setScale(0.5);
+    h.ui('select');
+    h.flush();
+    expect(f.calls.map((c) => c.cmd).filter((c) => c !== 'plugin:haptics|capabilities')).toEqual([
+      'plugin:haptics|play',
+      'plugin:haptics|play',
+    ]);
+    const scales = f.calls
+      .filter((c) => c.cmd === 'plugin:haptics|play')
+      .map((c) => {
+        const req = (c.args as { req: { effect: { steps: { scale: number }[] } } }).req;
+        return req.effect.steps[0]?.scale ?? 0;
+      });
+    // Light is quieter than Strong, so the setting reaches menus.
+    expect(scales[0]).toBeGreaterThan(scales[1] ?? 1);
   });
 });

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBackend, noneBackend, type FakeBackend } from './haptic-backends';
 import { RUMBLE_COMPILE, VIBRATE_COMPILE } from './haptic-pattern';
 import type { HapticCue, HapticTable } from './haptic-pattern';
-import { GameHaptics, onScreen, routeFor } from './haptics';
+import { GameHaptics, UI_BOOST, onScreen, routeFor } from './haptics';
 
 const cue = (over: Partial<HapticCue> = {}): HapticCue => ({
   pattern: { events: [{ kind: 'transient', at: 0, intensity: 0.7, sharpness: 0.2 }] },
@@ -58,6 +58,18 @@ describe('GameHaptics', () => {
     h.cue('light', 1.5);
     h.flush();
     expect(fake.plays[0]?.scale).toBeCloseTo(0.75);
+  });
+
+  it('plays menu cues boosted, following the Strength setting, and silent at Off', () => {
+    h.setScale(0.5);
+    h.ui('select');
+    h.flush();
+    expect(fake.plays[0]?.scale).toBeCloseTo(0.5 * UI_BOOST);
+    h.setScale(0);
+    t += 500;
+    h.ui('select');
+    h.flush();
+    expect(fake.plays).toHaveLength(1);
   });
 
   it('plays nothing at a master of 0', () => {
@@ -484,7 +496,7 @@ describe('GameHaptics routing', () => {
     h.cue('menu');
     h.flush();
     expect(pad.plays[0]?.scale).toBe(1);
-    expect(fake.plays[0]?.scale).toBe(0.5);
+    expect(fake.plays[0]?.scale).toBe(0.5 * UI_BOOST);
     h.setScale(1, 0);
     t += 1000;
     h.cue('light');
