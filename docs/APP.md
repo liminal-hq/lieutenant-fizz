@@ -103,7 +103,7 @@ The launcher navigates the WebView to the episode's own page with a launch contr
 ## Phasing
 The mobile experience on the web comes first, because it is an extension of the game as it is today and needs no new app. It is planned in slices in [MOBILE_PLAN.md](MOBILE_PLAN.md). The app work follows.
 1. **Touch controls, the phone layout and basic haptics on the web** (MOBILE_PLAN.md, slices 0 to 9). They are web UI, so the website and phone browsers get them, and everything below reuses them.
-2. **Spike (scaffolded, not yet run on a device):** `apps/player` runs the existing episode build in the Tauri WebView, and a probe page reports how WebGL2, WASM, audio, the gamepad and the rest behave. Findings go in [TAURI_SPIKE.md](TAURI_SPIKE.md).
+2. **Spike (built and run on a Pixel device once; measurements still to do):** `apps/player` runs the existing episode build in the Tauri WebView, and a probe page reports how WebGL2, WASM, audio, the gamepad and the rest behave. Findings go in [TAURI_SPIKE.md](TAURI_SPIKE.md).
 3. **Shared options and the launch contract:** the shared options key with per-episode overrides, `parseLaunch()`, and embedded mode in Episode 1.
 4. **The launcher:** the carousel, App settings, Saves export and import, and the demo-strip art.
 5. **Android lifecycle and release:** orientation and fullscreen, the Back button, pausing on background, the icon set, signing, the heavy CI job and the dev-build script.
