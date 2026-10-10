@@ -76,6 +76,51 @@ describe('GameHaptics', () => {
     expect(fake.plays).toHaveLength(1);
   });
 
+  describe('menu cues with a controller', () => {
+    it('stay on the phone when it can play, whatever the route', () => {
+      const pad = fakeBackend({ target: 'controller' });
+      h.setBackends({ controller: pad });
+      h.setRoute('controller');
+      h.ui('select');
+      h.flush();
+      expect(fake.plays).toHaveLength(1);
+      expect(pad.plays).toHaveLength(0);
+    });
+
+    it('go to the controller, boosted, when the phone cannot play and a pad is in use', () => {
+      const pad = fakeBackend({ target: 'controller' });
+      h.setBackends({ device: fakeBackend({ available: false }), controller: pad });
+      h.setRoute('controller');
+      h.setScale(0, 0.5);
+      h.ui('select');
+      h.flush();
+      expect(pad.plays).toHaveLength(1);
+      expect(pad.plays[0]?.scale).toBeCloseTo(0.5 * UI_BOOST);
+    });
+
+    it('are dropped when the phone cannot play and no pad is in use', () => {
+      const pad = fakeBackend({ target: 'controller' });
+      h.setBackends({ device: fakeBackend({ available: false }), controller: pad });
+      for (const route of ['device', 'none'] as const) {
+        h.setRoute(route);
+        t += 500;
+        h.ui('select');
+        h.flush();
+      }
+      expect(pad.plays).toHaveLength(0);
+    });
+
+    it('follow the controller strength, so Off keeps them silent', () => {
+      const pad = fakeBackend({ target: 'controller' });
+      h.setBackends({ device: fakeBackend({ available: false }), controller: pad });
+      h.setRoute('controller');
+      h.setScale(1, 0);
+      h.ui('select');
+      h.flush();
+      expect(pad.plays).toHaveLength(0);
+    });
+  });
+
   it('plays nothing at a master of 0', () => {
     h.setScale(0);
     h.cue('light');

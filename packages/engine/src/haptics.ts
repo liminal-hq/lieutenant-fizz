@@ -160,8 +160,8 @@ class Channel {
  * nothing plays or keeps running while the page is hidden.
  *
  * Where: there are two targets, the phone's vibrator (`device`) and a controller's motors
- * (`controller`). `setRoute` picks where the `game` lane goes (see `routeFor`); the `ui` lane always
- * stays on the phone. Each target has its own backend, strength, running pattern and queue, and gets at
+ * (`controller`). `setRoute` picks where the `game` lane goes (see `routeFor`); the `ui` lane stays on
+ * the phone, and goes to the controller only when the phone cannot play and a controller is the device in use. Each target has its own backend, strength, running pattern and queue, and gets at
  * most one backend call a frame.
  *
  * Who plays: each cue has a priority and a policy. A cue never cuts off a higher priority that is still
@@ -389,8 +389,7 @@ export class GameHaptics {
     for (const w of this.pending.values()) {
       const cue = this.table.cues[w.id];
       if (!cue) continue;
-      const target: Target | null =
-        cue.lane === 'ui' ? 'device' : this.route === 'none' ? null : this.route;
+      const target: Target | null = cue.lane === 'ui' ? this.uiTarget() : this.gameTarget();
       if (target === null || this.ch[target].master <= 0) continue;
       const last = this.lastPlay.get(w.id);
       if (last !== undefined && now - last < Math.max(cue.cooldownMs, coalesceMs(cue.policy))) {
@@ -411,6 +410,20 @@ export class GameHaptics {
     this.pending.clear();
     for (const target of ['device', 'controller'] as const)
       this.flushTarget(target, by[target], now);
+  }
+
+  private gameTarget(): Target | null {
+    return this.route === 'none' ? null : this.route;
+  }
+
+  /**
+   * Where a menu cue goes: the phone, unless the phone cannot play (a desktop has no vibrator) and a controller
+   * is the device in use, then the controller. With neither it stays on the phone, where it is dropped.
+   */
+  private uiTarget(): Target {
+    if (this.route === 'controller' && !this.ch.device.backend.caps().available)
+      return 'controller';
+    return 'device';
   }
 
   private flushTarget(target: Target, cands: Candidate[], now: number): void {
