@@ -150,7 +150,7 @@ import {
   styleName,
   type SoundRow,
 } from './sound-options';
-import { QUIT_GAME_ID, withQuitRow } from './quit';
+import { QUIT_GAME_ID, closeApp, withQuitRow } from './quit';
 import { RESET_ARM_MS, resetArmed } from './two-tap';
 import { firstEnabled, type HapticsUrl, type UrlLocks, type WakeUrl } from './url-lock';
 import {
@@ -2069,15 +2069,19 @@ export class Game {
     this.armReset();
   }
 
-  /** Leaves fullscreen, writes the settings out and closes the app. Only reached where the host has `quit`. */
+  /** Leaves fullscreen, writes the settings out and closes the app, or stays open with a message when the write fails. Only reached where the host has `quit`. */
   private quitApp(): void {
     const host = this.hostBackend;
     if (!host?.quit) return;
     const store = this.store as Partial<FlushableStorage> | null;
     void (async () => {
-      await this.fs.exit();
-      await store?.flush?.();
-      await host.quit?.();
+      const closed = await closeApp({
+        exitFullscreen: () => this.fs.exit(),
+        flush: store?.flush ? () => store.flush!() : undefined,
+        quit: () => host.quit!(),
+      });
+      if (!closed)
+        this.ui.toast("Couldn't save: storage is full or blocked, so the game stays open");
     })();
   }
 
