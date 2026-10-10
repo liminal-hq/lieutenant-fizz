@@ -10,6 +10,9 @@ const LINUX = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0 S
 const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/130.0 Mobile';
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15';
 
+const IPAD_DESKTOP =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15';
+
 describe('hostEnvOf', () => {
   it('sees Tauri through the internals or the public flag', () => {
     expect(hostEnvOf({ __TAURI_INTERNALS__: {} }, { userAgent: LINUX }).tauri).toBe(true);
@@ -19,7 +22,11 @@ describe('hostEnvOf', () => {
   });
 
   it('copes with no window or navigator', () => {
-    expect(hostEnvOf(null, null)).toEqual({ tauri: false, userAgent: '' });
+    expect(hostEnvOf(null, null)).toEqual({ tauri: false, userAgent: '', maxTouchPoints: 0 });
+  });
+
+  it('reads the touch points', () => {
+    expect(hostEnvOf({}, { userAgent: LINUX, maxTouchPoints: 5 }).maxTouchPoints).toBe(5);
   });
 });
 
@@ -33,6 +40,16 @@ describe('detectHostKind', () => {
     expect(detectHostKind({ tauri: true, userAgent: LINUX })).toBe('tauri-desktop');
     expect(detectHostKind({ tauri: true, userAgent: ANDROID })).toBe('tauri-android');
     expect(detectHostKind({ tauri: true, userAgent: IPHONE })).toBe('tauri-ios');
+  });
+
+  it('takes a desktop-mode iPad (a Macintosh user agent with a touch screen) for iOS, and a Mac for a desktop', () => {
+    expect(detectHostKind({ tauri: true, userAgent: IPAD_DESKTOP, maxTouchPoints: 5 })).toBe(
+      'tauri-ios',
+    );
+    expect(detectHostKind({ tauri: true, userAgent: IPAD_DESKTOP, maxTouchPoints: 0 })).toBe(
+      'tauri-desktop',
+    );
+    expect(detectHostKind({ tauri: true, userAgent: IPAD_DESKTOP })).toBe('tauri-desktop');
   });
 });
 

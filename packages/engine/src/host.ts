@@ -22,25 +22,34 @@ export interface HostEnv {
   tauri: boolean;
   /** `navigator.userAgent`. */
   userAgent: string;
+  /** `navigator.maxTouchPoints`; absent counts as 0. A Mac has none, while an iPad has several. */
+  maxTouchPoints?: number;
 }
 
 /** Reads the environment from `window` and `navigator`; pass `null` for one that is missing (tests, workers). */
 export function hostEnvOf(
   win: object | null = typeof window === 'undefined' ? null : window,
-  nav: { userAgent?: string } | null = typeof navigator === 'undefined' ? null : navigator,
+  nav: { userAgent?: string; maxTouchPoints?: number } | null = typeof navigator === 'undefined'
+    ? null
+    : navigator,
 ): HostEnv {
   return {
     tauri:
       !!win && ('__TAURI_INTERNALS__' in win || (win as { isTauri?: unknown }).isTauri === true),
     userAgent: nav?.userAgent ?? '',
+    maxTouchPoints: nav?.maxTouchPoints ?? 0,
   };
 }
 
-/** Which host this is. Inside Tauri the user agent tells Android and iOS from a desktop; anything else is the web. */
+/**
+ * Which host this is. Inside Tauri the user agent tells Android and iOS from a desktop; anything else is the web.
+ * An iPad in desktop content mode reports a Macintosh user agent, so a Macintosh agent with a touch screen is iOS.
+ */
 export function detectHostKind(env: HostEnv): HostKind {
   if (!env.tauri) return 'web';
   if (/\bAndroid\b/i.test(env.userAgent)) return 'tauri-android';
   if (/\b(iPhone|iPad|iPod)\b/.test(env.userAgent)) return 'tauri-ios';
+  if (/\bMacintosh\b/.test(env.userAgent) && (env.maxTouchPoints ?? 0) > 1) return 'tauri-ios';
   return 'tauri-desktop';
 }
 
