@@ -464,7 +464,7 @@ export class GameAudio {
   private readonly unlock = (): void => {
     if (this.disposed) return;
     this.ensure();
-    if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
+    if (this.ctx && this.ctx.state === 'suspended' && !this.hidden) void this.ctx.resume();
   };
 
   constructor(
@@ -473,6 +473,8 @@ export class GameAudio {
     options: { unlockAtBoot?: boolean } = {},
   ) {
     this.waitForUndertone = !!options.unlockAtBoot;
+    // A page that went to the background before this was built missed the visibility event.
+    this.hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
     window.addEventListener('pointerdown', this.unlock);
     // Chrome does not count a touch's pointerdown as a user gesture, but its pointerup is one.
     window.addEventListener('pointerup', this.unlock);
@@ -525,6 +527,8 @@ export class GameAudio {
     if (!AC) return null;
     this.ctx = new AC();
     this.mini = new MiniSynth(this.ctx, this.ctx.destination);
+    // A context created while hidden (some WebViews start it running) stays quiet until the page returns.
+    if (this.hidden && this.ctx.state === 'running') void this.ctx.suspend();
     this.flushPending();
     return this.ctx;
   }

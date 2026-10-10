@@ -108,6 +108,20 @@ describe('GameAudio with Undertone', () => {
     audio.dispose();
   });
 
+  it('leaves the boot context suspended when the page is already hidden, resuming on return', async () => {
+    vi.stubGlobal('document', { visibilityState: 'hidden' });
+    const audio = new GameAudio(patterns, async () => Undertone, { unlockAtBoot: true });
+    await flush();
+    const ctx = FakeContext.instances[0]!;
+    expect(ctx.resume).not.toHaveBeenCalled();
+    expect(ctx.state).toBe('suspended');
+    listeners.get('pointerdown')!();
+    expect(ctx.resume).not.toHaveBeenCalled();
+    audio.setActive(true);
+    expect(ctx.resume).toHaveBeenCalledTimes(1);
+    audio.dispose();
+  });
+
   it('starts music requested after a boot unlock without waiting for a gesture', async () => {
     const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
     const audio = new GameAudio(patterns, async () => Undertone, { unlockAtBoot: true });
