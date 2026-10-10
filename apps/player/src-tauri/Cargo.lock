@@ -1756,6 +1756,7 @@ version = "0.1.0"
 dependencies = [
  "tauri",
  "tauri-build",
+ "tauri-plugin-haptics",
  "tauri-plugin-mcp-bridge",
  "tauri-plugin-store",
 ]
@@ -3494,6 +3495,18 @@ dependencies = [
  "serde_json",
  "tauri-utils",
  "walkdir",
+]
+
+[[package]]
+name = "tauri-plugin-haptics"
+version = "0.0.0"
+source = "git+https://github.com/liminal-hq/tauri-plugins-workspace?rev=939a103174f3eecb414af693380db92d17ce1f54#939a103174f3eecb414af693380db92d17ce1f54"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

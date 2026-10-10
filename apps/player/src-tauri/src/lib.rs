@@ -50,6 +50,7 @@ pub fn run() {
     builder
         // The game's saves and settings are kept in a store file (`lf-data.json`) in the app data directory.
         .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_haptics::init())
         .invoke_handler(tauri::generate_handler![write_store, quit])
         .run(tauri::generate_context!())
         .expect("error while running the Lieutenant Fizz player");
