@@ -41,17 +41,10 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     env:
-      DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
       # Gradle reads debug.keystore from here, independent of the container's HOME.
       ANDROID_USER_HOME: /tmp/android-user-home
     steps:
       - uses: actions/checkout@v7
-
-      - name: Restore stable debug keystore
-        if: env.DEBUG_KEYSTORE_BASE64 != ''
-        run: |
-          mkdir -p "$ANDROID_USER_HOME"
-          printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 -d > "$ANDROID_USER_HOME/debug.keystore"
 
       - name: Restore Rust cache
         uses: Swatinem/rust-cache@v2
@@ -75,8 +68,27 @@ jobs:
       - name: Regenerate the project as the dev app
         run: bash scripts/prepare-android-dev.sh
 
+      # The signing key exists only between this step and the removal after the build, so
+      # dependency installs, the Rust cache and the artifact upload never see it.
+      - name: Restore stable debug keystore
+        id: keystore
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
+            mkdir -p "$ANDROID_USER_HOME"
+            printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 -d > "$ANDROID_USER_HOME/debug.keystore"
+            echo "stable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "stable=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build debug APK
         run: bun run android:build --debug --target aarch64 --apk --config src-tauri/tauri.conf.dev.json
+
+      - name: Remove the debug keystore
+        if: always()
+        run: rm -f "$ANDROID_USER_HOME/debug.keystore"
 
       - name: Locate APK
         id: apk
@@ -101,7 +113,7 @@ jobs:
             echo "- **Ref:** \`${GITHUB_REF_NAME}\` at \`${GITHUB_SHA}\`"
             echo "- **File:** \`$(basename '${{ steps.apk.outputs.path }}')\`"
             echo "- **Signing certificate (SHA-256):** \`${cert}\`"
-            if [ -z "$DEBUG_KEYSTORE_BASE64" ]; then
+            if [ "${{ steps.keystore.outputs.stable }}" != "true" ]; then
               echo "- **Signing:** throwaway debug key — uninstall the previous build before installing this one, or set the \`ANDROID_DEBUG_KEYSTORE_BASE64\` secret for in-place updates"
             else
               echo "- **Signing:** stable debug key — installs over the previous build"
