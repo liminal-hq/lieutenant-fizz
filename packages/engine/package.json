@@ -14,6 +14,8 @@
     "./font/scale": "./src/font/scale.ts",
     "./font/tokens": "./src/font/tokens.ts",
     "./fullscreen-backend": "./src/fullscreen-backend.ts",
+    "./native-fullscreen": "./src/native-fullscreen.ts",
+    "./host": "./src/host.ts",
     "./haptic-backends": "./src/haptic-backends.ts",
     "./haptic-pattern": "./src/haptic-pattern.ts",
     "./haptic-strength": "./src/haptic-strength.ts",
