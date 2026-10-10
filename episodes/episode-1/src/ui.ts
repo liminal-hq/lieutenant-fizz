@@ -912,6 +912,7 @@ export class Ui {
     }
     this.peekGhost = ghost;
     this.backBtn.dataset.peekParent = '';
+    this.backBtn.inert = true;
   }
 
   /**
@@ -974,6 +975,7 @@ export class Ui {
     this.root.style.removeProperty('--lf-peek-w');
     delete this.root.dataset.peeking;
     delete this.backBtn.dataset.peekParent;
+    this.backBtn.inert = false;
     this.root.style.removeProperty('--lf-peek-parent-a');
     this.root.style.removeProperty('--lf-peek-parent-v');
   }

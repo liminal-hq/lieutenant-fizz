@@ -418,6 +418,22 @@ test('a gesture that never ends lets go by itself', async ({ page }) => {
   expect(await visible(page, '#overlay')).toBe(true);
 });
 
+test('the real Back button takes no taps while a peek is on', async ({ page }) => {
+  await open(page, 'pause');
+  await tapRow(page, '#overlay .menu', 'Options');
+  await emit(page, { type: 'started', swipeEdge: 'left' });
+  await emit(page, { type: 'progress', progress: 0.6, swipeEdge: 'left' });
+  const read = () =>
+    page.evaluate(() => {
+      const b = document.querySelector<HTMLElement>('#backBtn')!;
+      return { pointerEvents: getComputedStyle(b).pointerEvents, inert: b.inert };
+    });
+  expect(await read()).toEqual({ pointerEvents: 'none', inert: true });
+  await emit(page, { type: 'cancelled' });
+  await expect.poll(() => ghost(page)).toBeNull();
+  expect(await read()).toEqual({ pointerEvents: 'auto', inert: false });
+});
+
 test('the copy starts at the scroll position of the screen it replaces', async ({ page }) => {
   await open(page, 'title');
   await show(page, 'options');

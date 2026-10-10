@@ -156,7 +156,8 @@
     transform 200ms ease-out,
     opacity 200ms ease-out;
 }
-#ui[data-peeking] .screen:not(.peek-ghost) {
+#ui[data-peeking] .screen:not(.peek-ghost),
+#ui[data-peeking] #backBtn {
   pointer-events: none;
 }
 
