@@ -119,6 +119,8 @@ export interface PluginPlan {
   call: PluginCall | null;
   /** Estimated length of the effect, in ms. */
   ms: number;
+  /** The effect as on and off times (on first, as `navigator.vibrate` takes them): its sum is `ms`, the even entries are the motor time. */
+  compiled?: number[];
   /** Less than the pattern asked for: the device or the tier cap stepped it down. */
   downgraded: boolean;
   reasons: string[];
@@ -161,12 +163,29 @@ function pickPrimitive(wanted: PrimitiveId, caps: PluginCaps): PrimitiveId | nul
   return null;
 }
 
+/** Joins runs of on and off time into one on, off, on array; a leading gap becomes a zero on. */
+function onOffRuns(runs: readonly (readonly [ms: number, on: boolean])[]): number[] {
+  const out: number[] = [];
+  for (const [ms, on] of runs) {
+    if (ms <= 0) continue;
+    // Even indices are on: a run of the same kind adds to the last entry, otherwise a new one starts.
+    const lastOn = out.length > 0 && out.length % 2 === 1;
+    if (out.length === 0 && !on) out.push(0, ms);
+    else if (out.length > 0 && lastOn === on)
+      out[out.length - 1] = (out[out.length - 1] as number) + ms;
+    else out.push(ms);
+  }
+  return out;
+}
+
 const primitiveMs = (id: PrimitiveId, caps: PluginCaps): number =>
   caps.primitives[id]?.durationMs ?? PRIMITIVE_MS[id];
 
 interface Attempt {
   effect: PluginEffect | null;
   ms: number;
+  /** The effect as on and off times, on first. */
+  compiled?: number[];
   /** Why this tier could not play the pattern; set when `effect` is null. */
   why?: string;
   note?: string;
@@ -181,6 +200,7 @@ function composition(p: HapticPattern, scale: number, caps: PluginCaps, c: Plugi
     .filter((e): e is Extract<HapticEvent, { kind: 'transient' }> => e.kind === 'transient')
     .sort((a, b) => a.at - b.at);
   const steps: Extract<PluginEffect, { type: 'composition' }>['steps'] = [];
+  const runs: [number, boolean][] = [];
   let end = 0;
   let notes = 0;
   for (const t of taps) {
@@ -197,6 +217,8 @@ function composition(p: HapticPattern, scale: number, caps: PluginCaps, c: Plugi
       scale: Math.round(i * 100) / 100,
       ...(delay > 0 ? { delayMs: delay } : {}),
     });
+    if (delay > 0) runs.push([delay, false]);
+    runs.push([primitiveMs(id, caps), true]);
     end = Math.max(end, t.at) + primitiveMs(id, caps);
     if (delay === 0 && t.at < end - primitiveMs(id, caps)) notes++;
   }
@@ -204,6 +226,7 @@ function composition(p: HapticPattern, scale: number, caps: PluginCaps, c: Plugi
   return {
     effect: { type: 'composition', steps },
     ms: Math.round(end),
+    compiled: onOffRuns(runs),
     ...(notes > 0 ? { note: 'Some taps use a neighbouring primitive or start late' } : {}),
   };
 }
@@ -263,7 +286,8 @@ function amplitudeWaveform(
   }
   if (amps.length === 0) return { effect: null, ms: 0, why: 'below the strength floor' };
   const ms = timings.reduce((a, b) => a + b, 0);
-  return { effect: { type: 'waveform', timingsMs: timings, amplitudes: amps }, ms };
+  const compiled = onOffRuns(timings.map((t, i) => [t, (amps[i] ?? 0) > 0] as const));
+  return { effect: { type: 'waveform', timingsMs: timings, amplitudes: amps }, ms, compiled };
 }
 
 /** Tier 1: on and off, from the same compiler `navigator.vibrate` uses. */
@@ -273,9 +297,10 @@ function onOff(p: HapticPattern, scale: number, caps: PluginCaps, c: PluginCompi
   const arr = compileVibrate(p, scale, { ...VIBRATE_COMPILE, floor: c.floor, maxMs });
   if (arr.length === 0) return { effect: null, ms: 0, why: 'below the strength floor' };
   const ms = arr.reduce((a, b) => a + b, 0);
-  if (arr.length === 1) return { effect: { type: 'oneshot', durationMs: arr[0] as number }, ms };
+  if (arr.length === 1)
+    return { effect: { type: 'oneshot', durationMs: arr[0] as number }, ms, compiled: arr };
   // `navigator.vibrate` starts with on; the plugin's waveform starts with off.
-  return { effect: { type: 'waveform', timingsMs: [0, ...arr] }, ms };
+  return { effect: { type: 'waveform', timingsMs: [0, ...arr] }, ms, compiled: arr };
 }
 
 /** Tier 4: an envelope of control points, for patterns with hums. */
@@ -367,6 +392,7 @@ function envelope(p: HapticPattern, scale: number, caps: PluginCaps, c: PluginCo
         controlPoints: r.pts,
       },
       ms: r.ms,
+      compiled: onOffRuns(r.pts.map((pt) => [pt.durationMs, pt.amplitude > 0] as const)),
     };
   }
   return { effect: null, ms: 0, why: 'too long or too many points for the envelope limits' };
@@ -432,7 +458,14 @@ export function compilePluginPattern(
         ...(opts.maxTier !== undefined && opts.maxTier !== null ? { maxTier: opts.maxTier } : {}),
       },
     };
-    return { tier, call, ms: a.ms, downgraded: tier < ideal, reasons };
+    return {
+      tier,
+      call,
+      ms: a.ms,
+      ...(a.compiled ? { compiled: a.compiled } : {}),
+      downgraded: tier < ideal,
+      reasons,
+    };
   }
   return {
     tier: 0,
@@ -582,6 +615,7 @@ export function pluginBackend(
         downgraded: plan.downgraded,
         target: 'device',
         ...(reason ? { reason } : {}),
+        ...(plan.compiled ? { compiled: plan.compiled } : {}),
         ms: plan.ms,
       };
       const record: PluginRecord = { at: now(), plan, estimate };

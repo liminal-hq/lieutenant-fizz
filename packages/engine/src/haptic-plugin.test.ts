@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import type { HapticPattern } from './haptic-pattern';
+import { onTime, totalTime, type HapticPattern } from './haptic-pattern';
 import {
   adoptPlugin,
   compilePluginPattern,
@@ -247,6 +247,38 @@ describe('pluginBackend', () => {
     await settle();
     expect(b.lastResult()).toMatchObject({ at: 5, result: { tier: 3, policy: 'played' } });
     expect(seen).toHaveLength(1);
+  });
+
+  it('reports the on and off times so the budget counts only motor time', async () => {
+    const sparse: HapticPattern = { events: [tap(0, 0.8, 0.2), tap(90, 0.8, 0.2)] };
+    for (const [tier, extra] of [
+      [4, { envelopeSupported: false }],
+      [3, {}],
+      [2, { compositionSupported: false }],
+      [1, {}],
+    ] as const) {
+      const f = fake(caps(tier, extra));
+      const b = pluginBackend({ invoke: f.invoke });
+      await b.ready;
+      const r = b.play(sparse, 1);
+      expect(r.ok).toBe(true);
+      const compiled = r.compiled as number[] | undefined;
+      expect(compiled, `tier ${tier}`).toBeDefined();
+      expect(onTime(compiled as number[]), `tier ${tier}`).toBeGreaterThan(0);
+      expect(onTime(compiled as number[]), `tier ${tier}`).toBeLessThan(r.ms * 0.7);
+      expect(totalTime(compiled as number[]), `tier ${tier}`).toBe(r.ms);
+    }
+  });
+
+  it('reports on and off times for a hum at the envelope tier', async () => {
+    const f = fake(caps(4));
+    const b = pluginBackend({ invoke: f.invoke });
+    await b.ready;
+    const r = b.play(hum, 1);
+    expect(r.tier).toBe(4);
+    const compiled = r.compiled as number[];
+    expect(onTime(compiled)).toBeGreaterThan(0);
+    expect(totalTime(compiled)).toBe(r.ms);
   });
 
   it('sends the tier cap to the plugin', async () => {
