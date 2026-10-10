@@ -128,14 +128,31 @@ async function wasmFetch(): Promise<ProbeReport> {
   const fetchMs = performance.now() - started;
   const compiled = performance.now();
   await WebAssembly.compile(bytes);
+  const compileMs = Math.round(performance.now() - compiled);
+  // Run the engine's own streaming call on a fresh response; a WebView or protocol handler that
+  // rejects it (for example over the content type) shows up here instead of as a feature flag.
+  const streamStarted = performance.now();
+  let streaming: ProbeReport;
+  try {
+    await WebAssembly.instantiateStreaming(await fetch(`episode-1/${wasm}`), {});
+    streaming = { ok: true, ms: Math.round(performance.now() - streamStarted) };
+  } catch (error) {
+    // The sim module imports nothing, so an instantiation error here is not a streaming failure.
+    streaming = {
+      ok: error instanceof WebAssembly.LinkError,
+      ms: Math.round(performance.now() - streamStarted),
+      error: String(error),
+    };
+  }
   return {
     url: wasm,
     status: response.status,
     contentType: response.headers.get('content-type'),
     bytes: bytes.byteLength,
     fetchMs: Math.round(fetchMs),
-    compileMs: Math.round(performance.now() - compiled),
-    instantiateStreaming: typeof WebAssembly.instantiateStreaming === 'function',
+    compileMs,
+    instantiateStreamingApi: typeof WebAssembly.instantiateStreaming === 'function',
+    instantiateStreaming: streaming,
   };
 }
 
