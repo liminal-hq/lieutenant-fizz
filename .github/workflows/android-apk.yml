@@ -3,8 +3,10 @@
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
-# Android builds run only here, never on a development machine. The Android project is tracked in
-# `apps/player/src-tauri/gen/android` and is built as it stands, never regenerated.
+# GitHub Actions is the default place to build Android (the one sanctioned local path is
+# scripts/build-android-dev.sh). The tracked `apps/player/src-tauri/gen/android` is the real app, so this
+# builds the side-by-side dev app like the local script does: it regenerates the project for the `.dev`
+# identifier, re-applies the Android settings and stamps the dev icon (scripts/prepare-android-dev.sh).
 # Run it against any branch: gh workflow run android-apk.yml --ref <branch>
 # It also runs on pushes to feat/tauri-player* branches, so it can run before it exists on main.
 
@@ -42,10 +44,6 @@ jobs:
       DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
       # Gradle reads debug.keystore from here, independent of the container's HOME.
       ANDROID_USER_HOME: /tmp/android-user-home
-      # The side-by-side dev build: `app/build.gradle.kts` reads these Gradle properties, so the tracked
-      # project gets the `.dev` application id and label without being regenerated.
-      ORG_GRADLE_PROJECT_fizzIdSuffix: .dev
-      ORG_GRADLE_PROJECT_fizzAppLabel: Lieutenant Fizz Dev
     steps:
       - uses: actions/checkout@v7
 
@@ -73,6 +71,9 @@ jobs:
         run: |
           bun run build:wasm
           bun run build:app
+
+      - name: Regenerate the project as the dev app
+        run: bash scripts/prepare-android-dev.sh
 
       - name: Build debug APK
         run: bun run android:build --debug --target aarch64 --apk --config src-tauri/tauri.conf.dev.json
