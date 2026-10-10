@@ -347,6 +347,8 @@ export class Game {
   private readonly predictiveBack: PredictiveBackBackend | undefined;
   /** What the system was last told about Back, so it hears only changes. */
   private canGoBackSent: boolean | null = null;
+  /** The game is leaving: Back has been handed back to the system and stays there. */
+  private backReleased = false;
   /** Stops listening to the Back gesture. */
   private stopPredictiveBack: (() => void) | null = null;
   /** The Touch controls rows. */
@@ -710,6 +712,7 @@ export class Game {
     this.unwatchBack();
     this.fs.dispose();
     this.backGuard.dispose();
+    void this.releaseBack();
     this.stopPredictiveBack?.();
     this.stopPredictiveBack = null;
     this.touchUi.dispose();
@@ -2167,6 +2170,9 @@ export class Game {
         this.ui.toast("Couldn't save: storage is full or blocked, so the game stays open");
         return;
       }
+      // The native callback outlives this page's listener, so hand Back to the system before leaving: the
+      // launcher has no listener of its own and would otherwise have every Back gesture swallowed.
+      await this.releaseBack();
       this.dispose();
       host.quitToLauncher?.();
     })();
@@ -2520,9 +2526,17 @@ export class Game {
    */
   private syncPredictiveBack(): void {
     const can = backAction(this.screen, this.sub) !== null;
-    if (!this.predictiveBack || can === this.canGoBackSent) return;
+    if (this.backReleased || !this.predictiveBack || can === this.canGoBackSent) return;
     this.canGoBackSent = can;
     void this.predictiveBack.setCanGoBack(can);
+  }
+
+  /** Tells the system Back has nowhere to go in this game, for good: used on the way out, so the app backgrounds on Back again. Resolves once the plugin has the answer. */
+  private releaseBack(): Promise<void> {
+    this.backReleased = true;
+    if (!this.predictiveBack || this.canGoBackSent === false) return Promise.resolve();
+    this.canGoBackSent = false;
+    return this.predictiveBack.setCanGoBack(false);
   }
 
   /** Re-checks Back when the game enters or leaves fullscreen or an installed display mode. */

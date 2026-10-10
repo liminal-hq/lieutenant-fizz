@@ -6,7 +6,10 @@
 // Imported first: ES modules evaluate in import order, so the log bridge is up before any other module loads.
 import './log-boot';
 import { createHostBackend, type HostBackend } from '@lieutenant-fizz/engine/host';
-import { createPredictiveBack } from '@lieutenant-fizz/engine/predictive-back';
+import {
+  createPredictiveBack,
+  type PredictiveBackBackend,
+} from '@lieutenant-fizz/engine/predictive-back';
 import {
   fakeNativeWindow,
   nativeFullscreenBackend,
@@ -58,6 +61,11 @@ const wake = parseWakeParam(query.get('wake'));
 // The desktop app has Quit to launcher, Quit game and a native window to take fullscreen; Android has Quit to
 // launcher; the web has none of them. `?debug&host=fake-android` is the Android app, which has no Quit game.
 // The fakes count the quits in `window.__lfQuits` and `window.__lfLauncherLeaves` instead of leaving the page.
+// `window.__lfBackLog` records, in order, each `setCanGoBack` the fake Android host is told and each launcher leave.
+const logBack = (entry: string): void => {
+  const w = window as unknown as { __lfBackLog?: string[] };
+  (w.__lfBackLog ??= []).push(entry);
+};
 const count = (key: '__lfQuits' | '__lfLauncherLeaves'): void => {
   const w = window as unknown as Record<string, number | undefined>;
   w[key] = (w[key] ?? 0) + 1;
@@ -69,10 +77,20 @@ const hostBackend: HostBackend = fakeDesktop
       quitToLauncher: () => count('__lfLauncherLeaves'),
     }
   : fakeAndroid
-    ? { kind: 'tauri-android', quitToLauncher: () => count('__lfLauncherLeaves') }
+    ? {
+        kind: 'tauri-android',
+        quitToLauncher: () => {
+          logBack('leave');
+          count('__lfLauncherLeaves');
+        },
+      }
     : createHostBackend();
 // The Android app hands Back to the game through the predictive-back plugin; no other host has it.
-const predictiveBack = createPredictiveBack(hostBackend.kind);
+const fakePredictiveBack: PredictiveBackBackend = {
+  setCanGoBack: async (can) => logBack(`canGoBack:${can}`),
+  onInvoked: async () => () => {},
+};
+const predictiveBack = fakeAndroid ? fakePredictiveBack : createPredictiveBack(hostBackend.kind);
 const fullscreenBackend =
   hostBackend.kind === 'tauri-desktop'
     ? await nativeFullscreenBackend(fakeDesktop ? fakeNativeWindow() : undefined)
