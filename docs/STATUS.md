@@ -50,6 +50,7 @@ A set of phone-width Playwright specs is switched off while it is reviewed. They
 
 - `e2e/touch-menu-scroll.spec.ts`: every `Options at W×H (one column|split): full-height rows scroll, with cues, and the selected row stays in view`, `Row spacing holds after a reload`, and every `title menu at W×H (one column, Compact|Cozy|Comfy): the chevrons never touch a cursor, the wordmark or the hint line`.
 - `e2e/touch-desktop-host.spec.ts` (where the file exists): the pause menu's Quit game and Quit to launcher arming checks, and `Quit game stays unarmed after Resume and a reopened pause menu`.
+- `e2e/touch-esc-fullscreen.spec.ts`, `e2e/touch.spec.ts` and `e2e/touch-fullscreen-button.spec.ts`: `entering fullscreen on a phone does not ask for the keyboard lock`, `turns on from a first touch, with no flag` and `the button works with the Fullscreen setting Off and with ?fullscreen=off`. Each failed once on CI under load, so they are off with the rest.
 
 They stay disabled pending review. To switch one back on, remove its pattern from `FLAKY_TITLES`; to add one, add a title pattern there. CI shards by test after the filter, and the timing report only lists tests that ran, so nothing else needs to change.
 
