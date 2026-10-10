@@ -611,3 +611,31 @@ export function pluginBackend(
     },
   };
 }
+
+/** The part of `GameHaptics` that `adoptPlugin` uses. */
+export interface DeviceBackendHost {
+  setBackends(b: { device?: HapticBackend }): void;
+}
+
+/**
+ * Makes the plugin the phone's backend when the page runs inside the Tauri app and the plugin reports a
+ * working vibrator; anywhere else, or when the plugin is missing, denied or reports no vibrator, the
+ * backend in place stays. Resolves with whether the plugin was adopted. Never rejects.
+ */
+export async function adoptPlugin(
+  host: DeviceBackendHost,
+  plugin: PluginBackend,
+  inApp: boolean,
+): Promise<boolean> {
+  if (!inApp) {
+    plugin.dispose();
+    return false;
+  }
+  await plugin.ready;
+  if (!plugin.caps().available) {
+    plugin.dispose();
+    return false;
+  }
+  host.setBackends({ device: plugin });
+  return true;
+}

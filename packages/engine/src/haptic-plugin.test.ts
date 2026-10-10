@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import type { HapticPattern } from './haptic-pattern';
 import {
+  adoptPlugin,
   compilePluginPattern,
   pluginBackend,
   primitiveFor,
@@ -315,5 +316,35 @@ describe('pluginBackend', () => {
 describe('tauriInvoke', () => {
   it('rejects, not throws, outside Tauri', async () => {
     await expect(tauriInvoke('plugin:haptics|stop')).rejects.toThrow('Tauri is not available');
+  });
+});
+
+describe('adoptPlugin', () => {
+  const host = () => {
+    const set: unknown[] = [];
+    return { set, setBackends: (b: unknown) => void set.push(b) };
+  };
+
+  it('makes the plugin the phone backend inside the app when it has a vibrator', async () => {
+    const h = host();
+    const b = pluginBackend({ invoke: fake(caps(3)).invoke });
+    expect(await adoptPlugin(h, b, true)).toBe(true);
+    expect(h.set).toEqual([{ device: b }]);
+  });
+
+  it('leaves the web backend alone outside the app, without calling the plugin', async () => {
+    const h = host();
+    const f = fake(caps(3));
+    const b = pluginBackend({ invoke: f.invoke });
+    expect(await adoptPlugin(h, b, false)).toBe(false);
+    expect(h.set).toEqual([]);
+  });
+
+  it('leaves it alone when the plugin has no vibrator or fails', async () => {
+    for (const c of [caps(0), new Error('denied')]) {
+      const h = host();
+      expect(await adoptPlugin(h, pluginBackend({ invoke: fake(c).invoke }), true)).toBe(false);
+      expect(h.set).toEqual([]);
+    }
   });
 });

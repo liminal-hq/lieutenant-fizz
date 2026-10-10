@@ -11,6 +11,7 @@ import { FrameStats } from '@lieutenant-fizz/engine/frame-stats';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
+import { adoptPlugin, pluginBackend } from '@lieutenant-fizz/engine/haptic-plugin';
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import type { HostBackend } from '@lieutenant-fizz/engine/host';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
@@ -343,6 +344,8 @@ export class Game {
    * Rumble row never shifts the Haptics screen while it is open.
    */
   private padSeen = false;
+  /** The Tauri haptics plugin reported a vibrator and is the phone's backend. */
+  private pluginVibrator = false;
   /** When Reset had its first tap (in `performance.now()` milliseconds), or null. */
   private resetAt: number | null = null;
   /** The screen and sub-screen that Reset (or Quit game) was armed on: leaving them disarms it. */
@@ -548,6 +551,13 @@ export class Game {
       device: vibrateBackend(navigator),
       controller: gamepadBackend(() => this.input.activePad()),
     });
+    // Inside the app the plugin's vibrator (amplitudes, primitives, envelopes) replaces `navigator.vibrate`
+    // once it reports one. The web never creates it.
+    if (isAppHost(window)) {
+      void adoptPlugin(this.haptics, pluginBackend(), true).then((adopted) => {
+        if (adopted) this.keepRow(() => (this.pluginVibrator = true));
+      });
+    }
     this.haptics.setRoute(routeFor(this.input.device));
     this.input.onDevice((d) => this.haptics.setRoute(routeFor(d)));
     this.settings = readOptions(this.store);
@@ -1359,7 +1369,9 @@ export class Game {
 
   /** Whether the Haptics screen has anything to offer: a vibrator, a pad that rumbles, or a link asking for it. */
   private hapticsShown(): boolean {
-    return this.vibratorLikely() || this.padSeen || this.hapticsUrl !== undefined;
+    return (
+      this.vibratorLikely() || this.pluginVibrator || this.padSeen || this.hapticsUrl !== undefined
+    );
   }
 
   /** The rows of the Haptics screen. */
