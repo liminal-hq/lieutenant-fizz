@@ -9,3 +9,7 @@ test-results/
 *.tsbuildinfo
 .playwright-mcp/
 playwright-report/
+
+# Android release signing: written by the release workflow (or by hand for a local signed build), never committed
+keystore.properties
+.ci/

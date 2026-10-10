@@ -15,6 +15,8 @@
 #   - WebView settings: `MainActivity.onWebViewCreate` pins `textZoom` to 100 (the game owns its text
 #     size, so the system font scale must not apply) and lets media play without a user gesture
 #   - `compileSdk` and `targetSdk` 36 rather than the template's 37, to match the CI images
+#   - release signing: a `release` signing config reading `keystore.properties` from the Gradle root, set on
+#     the release build type only when that file exists (the release workflow writes it)
 #
 # `android.permission.VIBRATE` is not added here: the haptics plugin's `build.rs` adds it.
 #
@@ -105,4 +107,42 @@ sed -i 's/^\( *\)compileSdk = 37$/\1compileSdk = 36/; s/^\( *\)targetSdk = 37$/\
 grep -q 'compileSdk = 36' "$GRADLE" || die "compileSdk is not 36 in $GRADLE"
 grep -q 'targetSdk = 36' "$GRADLE" || die "targetSdk is not 36 in $GRADLE"
 
+# Release signing: a `release` signing config that reads keystore.properties from the Gradle root, set on the
+# release build type only when that file exists. A dev or debug build has no such file, so it is unaffected.
+if ! grep -q 'signingConfigs {' "$GRADLE"; then
+  grep -q '^    buildTypes {$' "$GRADLE" || die "anchor 'buildTypes {' missing in $GRADLE"
+  grep -q '^        getByName("release") {$' "$GRADLE" || die "anchor 'getByName(\"release\")' missing in $GRADLE"
+  SIGNING="$(mktemp)"
+  cat > "$SIGNING" <<'EOF'
+    // Release signing reads `keystore.properties` (keyAlias, password, storeFile) from the Gradle root. The file
+    // exists only in a release build (the release workflow writes it, and removes it afterwards), so debug and
+    // dev builds, and a release build without it, carry no signing config.
+    signingConfigs {
+        create("release") {
+            val keystorePropertiesFile = rootProject.file("keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                val keystoreProperties = Properties().apply {
+                    keystorePropertiesFile.inputStream().use { load(it) }
+                }
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["password"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["password"] as String
+            }
+        }
+    }
+EOF
+  awk -v block="$SIGNING" '
+    /^    buildTypes \{$/ { while ((getline line < block) > 0) print line }
+    { print }
+    /^        getByName\("release"\) \{$/ {
+      print "            if (rootProject.file(\"keystore.properties\").exists()) {"
+      print "                signingConfig = signingConfigs.getByName(\"release\")"
+      print "            }"
+    }
+  ' "$GRADLE" > "$GRADLE.new"
+  mv "$GRADLE.new" "$GRADLE"
+  rm -f "$SIGNING"
+  grep -q 'signingConfig = signingConfigs.getByName("release")' "$GRADLE" || die "release signing not applied to $GRADLE"
+fi
 echo "android settings applied to $GEN"
