@@ -220,7 +220,7 @@ describe('policy', () => {
 });
 
 describe('sliders', () => {
-  it('cover PERIOD, MIN_ON, MIN_OFF, FLOOR, T_BASE, T_SPAN, the pad minimum and segment and the budget', () => {
+  it('cover PERIOD, MIN_ON, MIN_OFF, FLOOR, T_BASE, T_SPAN, the pad minimum and segment, the plugin curve and the budget', () => {
     expect(COMPILE_SLIDERS.map((s) => s.path.join('.'))).toEqual([
       'compile.period',
       'compile.minOn',
@@ -231,6 +231,15 @@ describe('sliders', () => {
       'rumble.tapBase',
       'rumble.tapSpan',
       'rumble.slice',
+      'plugin.floor',
+      'plugin.gamma',
+      'plugin.gain',
+      'plugin.primMin',
+      'plugin.ampMin',
+      'plugin.tickAt',
+      'plugin.clickAt',
+      'plugin.lowAt',
+      'plugin.doubleAt',
       'budget.onMs',
       'budget.windowMs',
     ]);
@@ -420,10 +429,16 @@ describe('hapticTuneDiff', () => {
     const s = live();
     s.compile.floor = 0.2;
     s.rumble.tapBase = 60;
+    s.plugin.gamma = 0.8;
     s.budget.onMs = 300;
     const d = hapticTuneDiff(HAPTICS_DEFAULTS, s);
-    expect(d).toEqual({ compile: { floor: 0.2 }, rumble: { tapBase: 60 }, budget: { onMs: 300 } });
-    expect(countHapticChanges(d)).toBe(3);
+    expect(d).toEqual({
+      compile: { floor: 0.2 },
+      rumble: { tapBase: 60 },
+      plugin: { gamma: 0.8 },
+      budget: { onMs: 300 },
+    });
+    expect(countHapticChanges(d)).toBe(4);
   });
 
   it('turns back into the defaults when run the other way', () => {
@@ -464,6 +479,7 @@ describe('hapticTuneDiff', () => {
     target.cues['bonk']!.cooldownMs = 120;
     target.compile.floor = 0.2;
     target.rumble.slice = 60;
+    target.plugin.gain = 1.6;
     target.budget.onMs = 300;
 
     const json = hapticTuneJson(hapticTuneDiff(HAPTICS_DEFAULTS, target));
@@ -481,6 +497,7 @@ describe('hapticTuneDiff', () => {
     expect(got.cues['whoa']?.pattern.events).toHaveLength(3);
     expect(got.compile.floor).toBe(0.2);
     expect(got.rumble.slice).toBe(60);
+    expect(got.plugin.gain).toBe(1.6);
     expect(got.budget.onMs).toBe(300);
   });
 });

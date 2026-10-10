@@ -20,6 +20,7 @@ import {
   type RumbleSegment,
   type VibrateCompile,
 } from '@lieutenant-fizz/engine/haptic-pattern';
+import { PLUGIN_COMPILE, type PluginCompile } from '@lieutenant-fizz/engine/haptic-plugin';
 import type { PlayRecord, Route, Target } from '@lieutenant-fizz/engine/haptics';
 import type { LabItem, SliderSpec } from '../audio/lab';
 import { FIZZ_HAPTICS } from './fizz-haptics';
@@ -31,6 +32,7 @@ export interface HapticsLabState {
   cues: Record<string, HapticCue>;
   compile: VibrateCompile;
   rumble: RumbleCompile;
+  plugin: PluginCompile;
   budget: { onMs: number; windowMs: number };
 }
 
@@ -43,6 +45,7 @@ export const HAPTICS_DEFAULTS: HapticsLabState = captureHapticsState({
   cues: FIZZ_HAPTICS.cues,
   compile: { ...VIBRATE_COMPILE },
   rumble: { ...RUMBLE_COMPILE },
+  plugin: { ...PLUGIN_COMPILE },
   budget: { onMs: 400, windowMs: 1000 },
 });
 
@@ -320,7 +323,7 @@ const S = (
   unit: SliderSpec['unit'] = '',
 ): SliderSpec => ({ id: path.join('.'), group, label, path, min, max, step, unit });
 
-/** The sliders of the Compile tab: the vibrate compiler, the rumble compiler and the budget. */
+/** The sliders of the Compile tab: the vibrate compiler, the rumble compiler, the plugin's strength curve and the budget. */
 export const COMPILE_SLIDERS: readonly SliderSpec[] = [
   S('Phone (vibrate)', 'PERIOD: slice of a hum', ['compile', 'period'], 10, 100, 1, 'ms'),
   S('Phone (vibrate)', 'MIN_ON: shortest pulse', ['compile', 'minOn'], 1, 50, 1, 'ms'),
@@ -331,6 +334,22 @@ export const COMPILE_SLIDERS: readonly SliderSpec[] = [
   S('Pad (rumble)', 'Pad minimum: weakest tap', ['rumble', 'tapBase'], 10, 200, 5, 'ms'),
   S('Pad (rumble)', 'Pad tap extra', ['rumble', 'tapSpan'], 0, 200, 5, 'ms'),
   S('Pad (rumble)', 'Segment length', ['rumble', 'slice'], 20, 200, 5, 'ms'),
+  S('Phone (app plugin)', 'FLOOR: quietest played', ['plugin', 'floor'], 0, 1, 0.01),
+  S(
+    'Phone (app plugin)',
+    'Curve: lifts quiet taps (1 is linear)',
+    ['plugin', 'gamma'],
+    0.2,
+    1.5,
+    0.05,
+  ),
+  S('Phone (app plugin)', 'Gain: after the curve', ['plugin', 'gain'], 0.5, 3, 0.05),
+  S('Phone (app plugin)', 'Primitive floor: quietest tap sent', ['plugin', 'primMin'], 0, 1, 0.05),
+  S('Phone (app plugin)', 'Amplitude floor: quietest wave sent', ['plugin', 'ampMin'], 0, 1, 0.05),
+  S('Phone (app plugin)', 'Tick above this sharpness', ['plugin', 'tickAt'], 0, 1, 0.05),
+  S('Phone (app plugin)', 'Click above this sharpness', ['plugin', 'clickAt'], 0, 1, 0.05),
+  S('Phone (app plugin)', 'Low tick above this sharpness', ['plugin', 'lowAt'], 0, 1, 0.05),
+  S('Phone (app plugin)', 'Add a thud from this strength', ['plugin', 'doubleAt'], 0, 1, 0.05),
   S('Budget', 'Vibration allowed per window', ['budget', 'onMs'], 0, 1000, 10, 'ms'),
   S('Budget', 'Window', ['budget', 'windowMs'], 100, 5000, 100, 'ms'),
 ];
@@ -374,6 +393,7 @@ export interface HapticsTunePatch {
   >;
   compile?: Partial<VibrateCompile>;
   rumble?: Partial<RumbleCompile>;
+  plugin?: Partial<PluginCompile>;
   budget?: { onMs?: number; windowMs?: number };
 }
 
@@ -418,6 +438,8 @@ export function hapticTuneDiff(from: HapticsLabState, to: HapticsLabState): Hapt
   if (compile) out.compile = compile;
   const rumble = numbersDiff(from.rumble, to.rumble);
   if (rumble) out.rumble = rumble;
+  const plugin = numbersDiff(from.plugin, to.plugin);
+  if (plugin) out.plugin = plugin;
   const budget = numbersDiff(from.budget, to.budget);
   if (budget) out.budget = budget;
   return out;
@@ -432,6 +454,7 @@ export function countHapticChanges(diff: HapticsTunePatch): number {
     Object.keys(diff.cues ?? {}).length +
     Object.keys(diff.compile ?? {}).length +
     Object.keys(diff.rumble ?? {}).length +
+    Object.keys(diff.plugin ?? {}).length +
     Object.keys(diff.budget ?? {}).length
   );
 }

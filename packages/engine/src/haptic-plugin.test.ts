@@ -8,6 +8,8 @@ import { onTime, totalTime, type HapticPattern, type HapticTable } from './hapti
 import { GameHaptics } from './haptics';
 import {
   adoptPlugin,
+  PLUGIN_COMPILE,
+  PLUGIN_LIMITS,
   compilePluginPattern,
   pluginBackend,
   primitiveFor,
@@ -79,14 +81,19 @@ describe('compilePluginPattern', () => {
     expect(effectOf(plan)).toEqual({
       type: 'composition',
       steps: [
-        { kind: 'primitive', primitive: 'thud', scale: 0.45 },
-        { kind: 'primitive', primitive: 'thud', scale: 0.45, delayMs: 40 },
+        { kind: 'primitive', primitive: 'thud', scale: 0.81 },
+        { kind: 'primitive', primitive: 'thud', scale: 0.81, delayMs: 40 },
       ],
     });
   });
 
   it('picks the primitive by sharpness', () => {
-    expect([0.9, 0.6, 0.3, 0.1].map(primitiveFor)).toEqual(['tick', 'click', 'low_tick', 'thud']);
+    expect([0.9, 0.6, 0.3, 0.1].map((v) => primitiveFor(v))).toEqual([
+      'tick',
+      'click',
+      'low_tick',
+      'thud',
+    ]);
   });
 
   it('swaps a missing primitive for a neighbour and says so', () => {
@@ -98,10 +105,84 @@ describe('compilePluginPattern', () => {
 
   it('scales the intensity and drops a tap under the floor', () => {
     const half = compilePluginPattern(bonk, 0.5, caps(3));
-    expect(effectOf(half)).toMatchObject({ steps: [{ scale: 0.35 }] });
+    expect(effectOf(half)).toMatchObject({ steps: [{ scale: 0.69 }] });
     const quiet = compilePluginPattern(bonk, 0.1, caps(3));
     expect(quiet.call).toBeNull();
     expect(quiet.reasons).toEqual(['Below the strength floor']);
+  });
+
+  it('lifts a tap with a perceptual curve and a floor, keeping Light, Medium and Strong apart', () => {
+    // Jump is a tap of 0.5 at sharpness 0.7 (a click); the Strength settings scale it by 0.5, 0.75 and 1.
+    const jump: HapticPattern = { events: [tap(0, 0.5, 0.7)] };
+    const at = (master: number) =>
+      (
+        effectOf(compilePluginPattern(jump, master, caps(3))) as {
+          steps: { primitive: string; scale: number }[];
+        }
+      ).steps[0];
+    expect(at(1)).toEqual({ kind: 'primitive', primitive: 'click', scale: 0.86 });
+    expect(at(0.75)).toMatchObject({ primitive: 'click', scale: 0.72 });
+    expect(at(0.5)).toMatchObject({ primitive: 'click', scale: 0.57 });
+    // Linear, the old compile sent 0.5, 0.38 and 0.25.
+  });
+
+  it('never sends a primitive below the primitive floor', () => {
+    const faint: HapticPattern = { events: [tap(0, 0.08, 0.7)] };
+    expect(effectOf(compilePluginPattern(faint, 1, caps(3)))).toMatchObject({
+      steps: [{ scale: 0.3 }],
+    });
+    const tuned = { ...PLUGIN_COMPILE, primMin: 0.6 };
+    expect(effectOf(compilePluginPattern(faint, 1, caps(3), { compile: tuned }))).toMatchObject({
+      steps: [{ scale: 0.6 }],
+    });
+  });
+
+  it('is the old linear compile when the curve is flat', () => {
+    const flat = { ...PLUGIN_COMPILE, gamma: 1, gain: 1, primMin: 0, doubleAt: 2 };
+    expect(effectOf(compilePluginPattern(bonk, 0.5, caps(3), { compile: flat }))).toMatchObject({
+      steps: [{ scale: 0.35 }],
+    });
+  });
+
+  it('maps sharpness to heavier primitives when dull and crisp ones when sharp, tunably', () => {
+    expect([1, 0.85, 0.7, 0.5, 0.4, 0.3, 0.29, 0].map((v) => primitiveFor(v))).toEqual([
+      'tick',
+      'tick',
+      'click',
+      'click',
+      'low_tick',
+      'low_tick',
+      'thud',
+      'thud',
+    ]);
+    expect(primitiveFor(0.7, { ...PLUGIN_COMPILE, tickAt: 0.6 })).toBe('tick');
+  });
+
+  it('follows the strongest taps with a thud, and not the others, a thud, or one crowded by the next tap', () => {
+    const steps = (p: HapticPattern, master = 1) =>
+      (
+        effectOf(compilePluginPattern(p, master, caps(3))) as { steps: { primitive: string }[] }
+      ).steps.map((x) => x.primitive);
+    expect(steps({ events: [tap(0, 1, 0.6)] })).toEqual(['click', 'thud']);
+    expect(steps({ events: [tap(0, 0.5, 0.6)] })).toEqual(['click']);
+    expect(steps({ events: [tap(0, 1, 0.6)] }, 0.5)).toEqual(['click']);
+    expect(steps({ events: [tap(0, 0.9, 0.1)] })).toEqual(['thud']);
+    expect(steps({ events: [tap(0, 1, 0.6), tap(20, 1, 0.6)] })).toEqual([
+      'click',
+      'click',
+      'thud',
+    ]);
+  });
+
+  it('shapes the amplitude waveform with the same curve and a floor', () => {
+    const c = caps(2);
+    const wave = (compile?: typeof PLUGIN_COMPILE) =>
+      effectOf(compilePluginPattern(bonk, 0.5, c, compile ? { compile } : {})) as {
+        amplitudes: number[];
+      };
+    // 0.35 raw becomes 0.35^0.6 * 1.3 = 0.69, which is 177 of 255.
+    expect(wave().amplitudes[0]).toBe(177);
+    expect(wave({ ...PLUGIN_COMPILE, gamma: 1, gain: 1 }).amplitudes[0]).toBe(89);
   });
 
   it('plays a hum as an envelope on the top tier, with the sharpness as frequency', () => {
@@ -442,5 +523,26 @@ describe('menu cues through GameHaptics', () => {
       });
     // Light is quieter than Strong, so the setting reaches menus.
     expect(scales[0]).toBeGreaterThan(scales[1] ?? 1);
+  });
+});
+
+describe('pluginBackend tuning', () => {
+  it('changes what the next play compiles to', async () => {
+    const f = fake(caps(3));
+    const b = pluginBackend({ invoke: f.invoke });
+    await b.ready;
+    const jump: HapticPattern = { events: [tap(0, 0.5, 0.7)] };
+    const scale = () =>
+      (f.calls.at(-1)?.args as { req: { effect: { steps: { scale: number }[] } } }).req.effect
+        .steps[0]?.scale;
+    b.play(jump, 1);
+    expect(scale()).toBe(0.86);
+    b.tunePlugin({ gamma: 1, gain: 1 });
+    b.play(jump, 1);
+    expect(scale()).toBe(0.5);
+  });
+
+  it('has a limit for every constant', () => {
+    expect(Object.keys(PLUGIN_LIMITS).sort()).toEqual(Object.keys(PLUGIN_COMPILE).sort());
   });
 });

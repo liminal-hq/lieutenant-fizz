@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBackend, noneBackend, type FakeBackend } from './haptic-backends';
 import { RUMBLE_COMPILE, VIBRATE_COMPILE } from './haptic-pattern';
+import { PLUGIN_COMPILE } from './haptic-plugin';
 import type { HapticCue, HapticTable } from './haptic-pattern';
 import { ATTRACT_SCALE, GameHaptics, UI_BOOST, onScreen, routeFor } from './haptics';
 
@@ -650,11 +651,24 @@ describe('GameHaptics.cues and tuning', () => {
     expect(h.tuning()).toEqual({
       compile: VIBRATE_COMPILE,
       rumble: RUMBLE_COMPILE,
+      plugin: PLUGIN_COMPILE,
       budget: { onMs: 400, windowMs: 1000 },
     });
     h.tune({ compile: { floor: 0.3 }, budget: { onMs: 250 } });
     expect(h.tuning().compile.floor).toBe(0.3);
     expect(h.tuning().budget.onMs).toBe(250);
+  });
+
+  it('tunes the plugin compiler through a backend that has one, and refuses it otherwise', () => {
+    h.setBackends({ device: noneBackend });
+    expect(h.tune({ plugin: { gamma: 0.8 } })).toEqual({ applied: [], refused: ['plugin.gamma'] });
+    const dev = fakeBackend();
+    h.setBackends({ device: dev });
+    const r = h.tune({ plugin: { gamma: 0.8, gain: 9, bogus: 1 } as never });
+    expect(r.applied).toEqual(['plugin.gamma']);
+    expect(r.refused.sort()).toEqual(['plugin.bogus', 'plugin.gain']);
+    expect(dev.tunedPlugin).toEqual([{ gamma: 0.8 }]);
+    expect(h.tuning().plugin.gamma).toBe(0.8);
   });
 
   it('tunes the rumble compiler through the controller backend and refuses it without one', () => {

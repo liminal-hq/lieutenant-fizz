@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { noneBackend, type HapticBackend, type PlayResult } from './haptic-backends';
+import { PLUGIN_COMPILE, PLUGIN_LIMITS, type PluginCompile } from './haptic-plugin';
 import type { InputDevice } from './input';
 import {
   COMPILE_LIMITS,
@@ -64,6 +65,7 @@ export interface HapticTune {
   >;
   compile?: Partial<VibrateCompile>;
   rumble?: Partial<RumbleCompile>;
+  plugin?: Partial<PluginCompile>;
   budget?: { onMs?: number; windowMs?: number };
 }
 
@@ -181,7 +183,11 @@ export class GameHaptics {
   private readonly pending = new Map<string, Waiting>();
   private readonly lastPlay = new Map<string, number>();
   private budget = { onMs: 400, windowMs: 1000 };
-  private readonly compiler = { compile: { ...VIBRATE_COMPILE }, rumble: { ...RUMBLE_COMPILE } };
+  private readonly compiler = {
+    compile: { ...VIBRATE_COMPILE },
+    rumble: { ...RUMBLE_COMPILE },
+    plugin: { ...PLUGIN_COMPILE },
+  };
   private readonly log: PlayRecord[] = [];
   private readonly dropped: Record<string, number> = {};
 
@@ -288,7 +294,13 @@ export class GameHaptics {
       w.scale = Math.max(w.scale, scale);
       w.count++;
     } else
-      this.pending.set(id, { id, scale, count: 1, order: this.order++, ...(ambient ? { ambient } : {}) });
+      this.pending.set(id, {
+        id,
+        scale,
+        count: 1,
+        order: this.order++,
+        ...(ambient ? { ambient } : {}),
+      });
   }
 
   /** Raises the cue a caption maps to, if it has one. */
@@ -341,11 +353,13 @@ export class GameHaptics {
   tuning(): {
     compile: VibrateCompile;
     rumble: RumbleCompile;
+    plugin: PluginCompile;
     budget: { onMs: number; windowMs: number };
   } {
     return {
       compile: { ...this.compiler.compile },
       rumble: { ...this.compiler.rumble },
+      plugin: { ...this.compiler.plugin },
       budget: { ...this.budget },
     };
   }
@@ -585,6 +599,24 @@ export class GameHaptics {
     if (Object.keys(rumble).length > 0) {
       this.ch.controller.backend.tuneRumble?.(rumble);
       Object.assign(this.compiler.rumble, rumble);
+    }
+    const plugin: Partial<PluginCompile> = {};
+    for (const [key, v] of Object.entries(p.plugin ?? {})) {
+      const lim = (PLUGIN_LIMITS as Record<string, readonly [number, number] | undefined>)[key];
+      if (
+        lim &&
+        typeof v === 'number' &&
+        v >= lim[0] &&
+        v <= lim[1] &&
+        this.ch.device.backend.tunePlugin
+      ) {
+        (plugin as Record<string, number>)[key] = v;
+        applied.push(`plugin.${key}`);
+      } else refused.push(`plugin.${key}`);
+    }
+    if (Object.keys(plugin).length > 0) {
+      this.ch.device.backend.tunePlugin?.(plugin);
+      Object.assign(this.compiler.plugin, plugin);
     }
     for (const [key, v] of Object.entries(p.budget ?? {})) {
       const ok =

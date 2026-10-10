@@ -109,9 +109,63 @@ export interface PluginCompile {
   slice: number;
   /** The longest effect sent, in ms. */
   maxMs: number;
+  /** Perceptual curve: the strength sent is `gain * intensity ^ gamma`, so a quiet cue is still felt. 1 is linear. */
+  gamma: number;
+  /** Multiplies the curved strength (it is clamped to 1 after, so full strength stays full). */
+  gain: number;
+  /** The quietest primitive scale sent for a tap that passes the floor. */
+  primMin: number;
+  /** The quietest amplitude sent (0 to 1 of the motor's range) for a tap or a hum slice that passes the floor. */
+  ampMin: number;
+  /** A tap sharper than this is a tick (the lightest primitive). */
+  tickAt: number;
+  /** A tap sharper than this (and less than `tickAt`) is a click. */
+  clickAt: number;
+  /** A tap sharper than this (and less than `clickAt`) is a low tick; duller than it is a thud. */
+  lowAt: number;
+  /** A tap at or above this strength (before the curve) gets a thud after its primitive; above 1 never. */
+  doubleAt: number;
 }
 
-export const PLUGIN_COMPILE: Readonly<PluginCompile> = { floor: 0.08, slice: 20, maxMs: 1000 };
+/**
+ * The plugin compiler's defaults, tuned from a Pixel 8 Pro's first feedback: the curve (`0.6`) and gain
+ * (`1.3`) lift a half-strength tap to 0.86 at Strong, 0.72 at Medium and 0.57 at Light, and no primitive is
+ * sent below 0.3.
+ */
+export const PLUGIN_COMPILE: Readonly<PluginCompile> = {
+  floor: 0.08,
+  slice: 20,
+  maxMs: 1000,
+  gamma: 0.6,
+  gain: 1.3,
+  primMin: 0.3,
+  ampMin: 0.25,
+  tickAt: 0.85,
+  clickAt: 0.5,
+  lowAt: 0.3,
+  doubleAt: 0.7,
+};
+
+/** The range each plugin compile constant may take when tuned. */
+export const PLUGIN_LIMITS: Readonly<Record<keyof PluginCompile, readonly [number, number]>> = {
+  floor: [0, 1],
+  slice: [5, 100],
+  maxMs: [50, 3000],
+  gamma: [0.2, 1.5],
+  gain: [0.5, 3],
+  primMin: [0, 1],
+  ampMin: [0, 1],
+  tickAt: [0, 1],
+  clickAt: [0, 1],
+  lowAt: [0, 1],
+  doubleAt: [0, 1.01],
+};
+
+/** The strength sent for a raw strength (already scaled): curved, boosted, lifted to `min` and clamped. Zero stays zero. */
+export function shapeStrength(raw: number, c: Readonly<PluginCompile>, min = 0): number {
+  if (raw <= 0) return 0;
+  return Math.min(1, Math.max(min, c.gain * Math.pow(Math.min(1, raw), c.gamma)));
+}
 
 /** What the compiler decided: the call (null when nothing plays), the tier used and why it was not higher. */
 export interface PluginPlan {
@@ -150,11 +204,14 @@ const PRIMITIVE_MS: Record<PrimitiveId, number> = {
   slow_rise: 150,
 };
 
-/** The primitive a tap of this sharpness wants: crisp is a tick, dull is a thud. */
-export function primitiveFor(sharpness: number): PrimitiveId {
-  if (sharpness >= 0.75) return 'tick';
-  if (sharpness >= 0.45) return 'click';
-  if (sharpness >= 0.25) return 'low_tick';
+/** The primitive a tap of this sharpness wants: crisp is a tick, dull is a thud, and between them the clicks carry the most. */
+export function primitiveFor(
+  sharpness: number,
+  c: Readonly<PluginCompile> = PLUGIN_COMPILE,
+): PrimitiveId {
+  if (sharpness >= c.tickAt) return 'tick';
+  if (sharpness >= c.clickAt) return 'click';
+  if (sharpness >= c.lowAt) return 'low_tick';
   return 'thud';
 }
 
@@ -204,9 +261,10 @@ function composition(p: HapticPattern, scale: number, caps: PluginCaps, c: Plugi
   let end = 0;
   let notes = 0;
   for (const t of taps) {
-    const i = clamp01(t.intensity * scale);
-    if (i < c.floor) continue;
-    const want = primitiveFor(t.sharpness);
+    const raw = clamp01(t.intensity * scale);
+    if (raw < c.floor) continue;
+    const i = shapeStrength(raw, c, c.primMin);
+    const want = primitiveFor(t.sharpness, c);
     const id = pickPrimitive(want, caps);
     if (!id) return { effect: null, ms: 0, why: 'no primitive is supported' };
     if (id !== want) notes++;
@@ -221,6 +279,21 @@ function composition(p: HapticPattern, scale: number, caps: PluginCaps, c: Plugi
     runs.push([primitiveMs(id, caps), true]);
     end = Math.max(end, t.at) + primitiveMs(id, caps);
     if (delay === 0 && t.at < end - primitiveMs(id, caps)) notes++;
+    // The strongest taps get a thud right behind the primitive, so they land with some weight.
+    const next = taps[taps.indexOf(t) + 1];
+    if (
+      raw >= c.doubleAt &&
+      id !== 'thud' &&
+      caps.primitives['thud']?.supported &&
+      (!next || next.at >= end + primitiveMs('thud', caps))
+    ) {
+      steps.push({
+        kind: 'primitive',
+        primitive: 'thud',
+        scale: Math.round(i * 0.8 * 100) / 100,
+      });
+      end += primitiveMs('thud', caps);
+    }
   }
   if (steps.length === 0) return { effect: null, ms: 0, why: 'below the strength floor' };
   return {
@@ -253,8 +326,9 @@ function amplitudeWaveform(
     Math.min(maxAmp, Math.max(1, Math.round(clamp01(i) * 255)));
   for (const e of p.events) {
     if (e.kind === 'transient') {
-      const i = clamp01(e.intensity * scale);
-      if (i < c.floor) continue;
+      const raw = clamp01(e.intensity * scale);
+      if (raw < c.floor) continue;
+      const i = shapeStrength(raw, c, c.ampMin);
       const len = Math.max(
         VIBRATE_COMPILE.minOn,
         round((VIBRATE_COMPILE.tBase + VIBRATE_COMPILE.tSpan * i) * (1.15 - 0.3 * e.sharpness)),
@@ -264,9 +338,9 @@ function amplitudeWaveform(
     }
     for (let off = 0; off < e.duration; off += c.slice) {
       const len = Math.min(c.slice, e.duration - off);
-      const i = clamp01(sampleCurve(e.intensity, off + len / 2) * scale);
-      if (i < c.floor) continue;
-      paint(e.at + off, e.at + off + len, amplitudeOf(i));
+      const raw = clamp01(sampleCurve(e.intensity, off + len / 2) * scale);
+      if (raw < c.floor) continue;
+      paint(e.at + off, e.at + off + len, amplitudeOf(shapeStrength(raw, c, c.ampMin)));
     }
   }
   const timings: number[] = [];
@@ -342,10 +416,10 @@ function envelope(p: HapticPattern, scale: number, caps: PluginCaps, c: PluginCo
     for (const e of events) {
       silence(e.at);
       if (e.kind === 'transient') {
-        const i = clamp01(e.intensity * scale);
-        if (i < c.floor) continue;
+        const raw = clamp01(e.intensity * scale);
+        if (raw < c.floor) continue;
         const f = freqOf(e.sharpness);
-        push(i, f, minCp);
+        push(shapeStrength(raw, c, c.ampMin), f, minCp);
         push(0, f, minCp);
         continue;
       }
@@ -355,10 +429,14 @@ function envelope(p: HapticPattern, scale: number, caps: PluginCaps, c: PluginCo
       for (let off = 0; off < e.duration; off += sliceMs) {
         const len = Math.min(sliceMs, e.duration - off);
         if (len < minCp && off > 0) break;
-        const i = clamp01(sampleCurve(e.intensity, off + len) * scale);
-        if (i >= c.floor) any = true;
+        const raw = clamp01(sampleCurve(e.intensity, off + len) * scale);
+        if (raw >= c.floor) any = true;
         const f = freqOf(sampleCurve(e.sharpness, off + len / 2));
-        push(i >= c.floor ? i : 0, f, Math.min(maxCp, Math.max(minCp, len)));
+        push(
+          raw >= c.floor ? shapeStrength(raw, c, c.ampMin) : 0,
+          f,
+          Math.min(maxCp, Math.max(minCp, len)),
+        );
       }
       if (!any) {
         // Nothing to feel in this hum: take it back out.
@@ -508,6 +586,8 @@ export interface PluginBackend extends HapticBackend {
   lastResult(): PluginRecord | null;
   /** Calls `fn` each time a play settles (the plugin answered or failed). Returns an unsubscribe. */
   onResult(fn: (r: PluginRecord) => void): () => void;
+  /** Changes the compiler's constants (`PLUGIN_COMPILE`) for the plays that follow. */
+  tunePlugin(patch: Partial<PluginCompile>): void;
   /** Plays a UI-lane kind through the system's view haptics (`plugin:haptics|ui`). */
   ui(kind: 'confirm' | 'reject' | 'tick' | 'toggle-on' | 'toggle-off' | 'drag-start'): void;
 }
@@ -600,6 +680,9 @@ export function pluginBackend(
     setMaxTier(tier) {
       maxTier = tier;
     },
+    tunePlugin(patch) {
+      Object.assign(compile, patch);
+    },
     lastResult: () => last,
     onResult(fn) {
       listeners.add(fn);
@@ -638,6 +721,7 @@ export function pluginBackend(
       return estimate;
     },
     ui(kind) {
+      // Not used by `GameHaptics`: the OS's view haptics ignore Strength, so menus play as game patterns.
       void call('plugin:haptics|ui', { kind }).catch(() => {});
     },
     stop() {
