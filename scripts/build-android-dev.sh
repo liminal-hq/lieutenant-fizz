@@ -115,7 +115,7 @@ if [ -n "$SCRATCH" ]; then
     # directory would start empty and hide the image's SDK and NDK.
     -v fizz-android-sdk-extras:/home/vscode/Android/Sdk
   )
-  # Only the Android build moves: `build:wasm` copies from the repository's own target directory.
+  # The WASM build and the Android build both write their Rust output to this directory.
   BUILD_ENV="CARGO_TARGET_DIR=/scratch/cargo-target"
 else
   CACHE_ARGS+=(
@@ -135,7 +135,7 @@ docker run --rm \
     set -e
     rustup target add $RUST_TARGETS
     bun install --frozen-lockfile
-    bun run build:wasm
+    $BUILD_ENV bun run build:wasm
     bun run build:app
     bash scripts/prepare-android-dev.sh
     $BUILD_ENV bun run android:build --debug $BUILD_TARGET_ARG --apk --config src-tauri/tauri.conf.dev.json
