@@ -48,12 +48,6 @@ android {
             isDebuggable = true
             isJniDebuggable = true
             isMinifyEnabled = false
-            packaging {
-                jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
-                jniLibs.keepDebugSymbols.add("*/armeabi-v7a/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86_64/*.so")
-            }
         }
         getByName("release") {
             if (rootProject.file("keystore.properties").exists()) {
@@ -81,6 +75,18 @@ android {
     }
     buildFeatures {
         buildConfig = true
+    }
+}
+
+// The template put `packaging { jniLibs.keepDebugSymbols ... }` inside the debug build type, but there it resolved to
+// the module-wide packaging options, so the release build kept its native libraries unstripped too (and AGP, finding
+// nothing to strip, extracted no debug symbols). Scoping it to the debug variants leaves the release build stripped
+// and its symbols in the bundle's metadata.
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        variant.packaging.jniLibs.keepDebugSymbols.addAll(
+            listOf("*/arm64-v8a/*.so", "*/armeabi-v7a/*.so", "*/x86/*.so", "*/x86_64/*.so")
+        )
     }
 }
 

@@ -17,6 +17,7 @@
 #   - `compileSdk` and `targetSdk` 36 rather than the template's 37, to match the CI images
 #   - release signing: a `release` signing config reading `keystore.properties` from the Gradle root, set on
 #     the release build type only when that file exists (the release workflow writes it)
+#   - the template's `keepDebugSymbols` moved from the (module-wide, in effect) debug packaging block to the debug variants
 #   - native debug symbols: `ndk { debugSymbolLevel = "FULL" }` on the release build type, so the bundle carries
 #     the symbols Play uses to symbolicate native crashes (the libraries must be built unstripped; see docs/APP.md)
 #
@@ -147,6 +148,39 @@ EOF
   rm -f "$SIGNING"
   grep -q 'signingConfig = signingConfigs.getByName("release")' "$GRADLE" || die "release signing not applied to $GRADLE"
 fi
+# The template's `packaging { jniLibs.keepDebugSymbols ... }` sits inside the debug build type but resolves to the
+# module-wide packaging options, so the release build would keep its libraries unstripped too, and AGP then extracts
+# no native debug symbols (it finds nothing to strip). Move it to the debug variants only.
+if ! grep -q 'androidComponents {' "$GRADLE"; then
+  grep -q '^            packaging {$' "$GRADLE" || die "anchor 'packaging {' missing in $GRADLE"
+  grep -q '^kotlin {$' "$GRADLE" || die "anchor 'kotlin {' missing in $GRADLE"
+  VARIANTS="$(mktemp)"
+  cat > "$VARIANTS" <<'EOF'
+// The template put `packaging { jniLibs.keepDebugSymbols ... }` inside the debug build type, but there it resolved to
+// the module-wide packaging options, so the release build kept its native libraries unstripped too (and AGP, finding
+// nothing to strip, extracted no debug symbols). Scoping it to the debug variants leaves the release build stripped
+// and its symbols in the bundle's metadata.
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        variant.packaging.jniLibs.keepDebugSymbols.addAll(
+            listOf("*/arm64-v8a/*.so", "*/armeabi-v7a/*.so", "*/x86/*.so", "*/x86_64/*.so")
+        )
+    }
+}
+
+EOF
+  awk -v block="$VARIANTS" '
+    /^            packaging \{$/ { skipping = 1 }
+    skipping { if ($0 ~ /^            \}$/) skipping = 0; next }
+    /^kotlin \{$/ { while ((getline line < block) > 0) print line }
+    { print }
+  ' "$GRADLE" > "$GRADLE.new"
+  mv "$GRADLE.new" "$GRADLE"
+  rm -f "$VARIANTS"
+  grep -q 'androidComponents {' "$GRADLE" || die "debug symbol packaging not scoped in $GRADLE"
+  if grep -q '^            packaging {$' "$GRADLE"; then die "template packaging block still in $GRADLE"; fi
+fi
+
 # Native debug symbols: the release build type packs FULL symbols into the bundle's metadata.
 if ! grep -q 'debugSymbolLevel' "$GRADLE"; then
   grep -q '^            optimization {$' "$GRADLE" || die "anchor 'optimization {' missing in $GRADLE"
