@@ -87,14 +87,21 @@ fn log_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // `mut` is only needed when the debug-only plugin below is compiled in.
-    #[cfg_attr(not(debug_assertions), allow(unused_mut))]
+    // `mut` is only needed when a debug-only or desktop-only plugin below is compiled in.
+    #[cfg_attr(all(not(debug_assertions), not(desktop)), allow(unused_mut))]
     let mut builder = tauri::Builder::default();
 
     // The MCP bridge lets tooling drive the WebView (screenshots, scripts, logs) in debug builds.
     #[cfg(debug_assertions)]
     {
         builder = builder.plugin(tauri_plugin_mcp_bridge::init());
+    }
+
+    // Gamepad rumble is desktop only: the plugin's Linux backend drives the pad's force feedback directly, which
+    // the WebKitGTK WebView cannot (it has no `vibrationActuator`). See `docs/APP.md`, "Gamepad rumble".
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_gamepad_haptics::init());
     }
 
     builder
