@@ -8,7 +8,6 @@ import {
   BackPeek,
   PEEK_FEATHER_FRACTION,
   PEEK_PARENT_HIDDEN_BELOW,
-  PEEK_SCRIM_ALPHA,
   PEEK_SETTLE_MS,
   PEEK_SLIDE_PERCENT,
   PEEK_TIMEOUT_MS,
@@ -27,6 +26,7 @@ describe('peekStyle', () => {
         feather: 0,
         featherEdge: edge,
         parentOpacity: 0,
+        backdrop: 0,
       });
       expect(Object.is(peekStyle(0, edge, false).translateXPercent, 0)).toBe(true);
     }
@@ -50,6 +50,7 @@ describe('peekStyle', () => {
       feather: PEEK_FEATHER_FRACTION,
       featherEdge: 'left',
       parentOpacity: 1,
+      backdrop: 1,
     });
     expect(peekStyle(1, 'right', false).translateXPercent).toBe(-PEEK_SLIDE_PERCENT);
   });
@@ -96,14 +97,35 @@ describe('peekStyle', () => {
     expect(peekStyle(0.4, 'left', false).parentOpacity).toBeGreaterThan(0);
   });
 
-  it('keeps the two scrims together near one scrim all through the gesture', () => {
-    const rest = PEEK_SCRIM_ALPHA;
+  it('keeps the darkness constant when the screen and the one Back goes to share a scrim', () => {
+    // The one backdrop dissolves from the leaving screen's scrim to the destination's, whatever they are.
+    const scrim = 0.74;
     for (let p = 0; p <= 1; p += 0.02) {
-      const { opacity: a, parentOpacity: b } = peekStyle(p, 'left', false);
-      const total = 1 - (1 - rest * a) * (1 - rest * b);
-      expect(Math.abs(total - rest)).toBeLessThan(0.1);
-      // Once the screen has been given up on, the parent carries the whole scrim.
-      if (p >= 0.35) expect(total).toBeCloseTo(rest, 2);
+      const w = peekStyle(p, 'left', false).backdrop;
+      const darkness = (1 - w) * scrim + w * scrim;
+      expect(darkness).toBeCloseTo(scrim, 10);
+    }
+  });
+
+  it('fades the backdrop to nothing when Back goes to the game, with no dip on the way', () => {
+    const scrim = 0.74;
+    let last = scrim;
+    for (let p = 0; p <= 1; p += 0.02) {
+      const darkness = (1 - peekStyle(p, 'left', false).backdrop) * scrim;
+      expect(darkness).toBeLessThanOrEqual(last + 1e-9);
+      last = darkness;
+    }
+    expect(peekStyle(0, 'left', false).backdrop).toBe(0);
+    expect(last).toBe(0);
+  });
+
+  it('runs the backdrop in step with the screen fading, from the start', () => {
+    expect(peekStyle(0, 'left', false).backdrop).toBe(0);
+    expect(peekStyle(0.05, 'left', false).backdrop).toBeGreaterThan(0);
+    expect(peekStyle(PEEK_PARENT_HIDDEN_BELOW + 0.75, 'left', false).backdrop).toBe(1);
+    for (let p = 0; p <= 1; p += 0.05) {
+      const s = peekStyle(p, 'right', false);
+      expect(s.backdrop).toBeCloseTo(1 - s.opacity, 10);
     }
   });
 
@@ -122,6 +144,7 @@ describe('peekStyle', () => {
       const full = peekStyle(p, 'left', false);
       const reduced = peekStyle(p, 'left', true);
       expect(reduced.parentOpacity).toBe(full.parentOpacity);
+      expect(reduced.backdrop).toBe(full.backdrop);
       expect(reduced.translateXPercent).toBe(0);
     }
   });

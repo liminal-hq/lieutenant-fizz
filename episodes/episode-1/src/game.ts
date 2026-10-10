@@ -3107,6 +3107,7 @@ export class Game {
       ? { game: true, sub: null, idx: 0 }
       : { game: false, sub: plan.parent.sub, idx: under?.idx ?? 0 };
     this.drawMenus();
+    this.ui.peekDress();
     return true;
   }
 

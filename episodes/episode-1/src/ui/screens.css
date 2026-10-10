@@ -171,9 +171,41 @@
   align-items: center;
   justify-content: center;
 }
-/* The screen Back goes to is drawn behind the copy, crossfading against it so the two scrims together stay
-   about one scrim (`--lf-peek-parent-a`, from `peekStyle`) and none of it shows through the copy while the copy
-   is nearly whole (`--lf-peek-parent-v`). After a cancelled gesture it fades out as the copy returns. */
+/* The scrim is one layer for the whole peek: it does not slide with the copy (which would leave the strip
+   it vacates undimmed) and is not stacked with the scrim of the screen Back goes to. The two screens give
+   up their own for its length, and `.peek-backdrop` dissolves from the one the screen being left had to the
+   one the screen Back goes to has (`--lf-peek-w`, from `peekStyle`); both are the screens' own backgrounds,
+   read when the peek starts. `plus-lighter` adds the two layers' alphas, which are the same colour, so the
+   dissolve is exact and the darkness stays constant where the two are alike. */
+#ui[data-peeking] #title,
+#ui[data-peeking] #overlay,
+#ui[data-peeking] .peek-ghost {
+  background: none !important;
+}
+.peek-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  isolation: isolate;
+}
+.peek-backdrop > div {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: plus-lighter;
+}
+.peek-backdrop > .from {
+  opacity: calc(1 - var(--lf-peek-w, 0));
+}
+.peek-backdrop > .to {
+  opacity: var(--lf-peek-w, 0);
+}
+#ui[data-peeking='settle'] .peek-backdrop > div {
+  transition: opacity 200ms ease-out;
+}
+
+/* The screen Back goes to is drawn behind the copy and crossfades against it (`--lf-peek-parent-a`), and
+   none of it is drawn while the copy is nearly whole (`--lf-peek-parent-v`), so its text cannot show
+   through. After a cancelled gesture it fades out as the copy returns. */
 #ui[data-peeking] .screen:not(.peek-ghost),
 #ui[data-peeking] #backBtn[data-peek-parent] {
   opacity: var(--lf-peek-parent-a, 0);

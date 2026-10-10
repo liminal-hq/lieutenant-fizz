@@ -211,6 +211,8 @@ export class Ui {
   private readonly overlayNote: HTMLElement;
   /** The copy of the title or overlay that slides away during a Back-gesture peek. */
   private peekGhost: HTMLElement | null = null;
+  /** The one scrim behind the copy and the screen Back goes to during a peek; it does not slide. */
+  private peekBackdrop: HTMLElement | null = null;
   private readonly letterbox: HTMLElement;
   private readonly dialogue: HTMLElement;
   private readonly panel: HTMLElement;
@@ -897,9 +899,37 @@ export class Ui {
     source.after(ghost);
     this.peekGhost = ghost;
     this.backBtn.dataset.peekParent = '';
+  }
+
+  /**
+   * Puts the peek's one backdrop in, once the screen Back goes to has been drawn: a full-screen layer under
+   * the copy and that screen, dissolving from the scrim of the screen being left to the scrim of the one
+   * Back goes to (none for the game). Both are read as the screens draw them (their own backgrounds, so
+   * a side gradient stays a gradient), and then the screens' own scrims are switched off for the peek, so
+   * the scrim does not slide away with the copy and is not stacked with the other screen's.
+   */
+  peekDress(): void {
+    const ghost = this.peekGhost;
+    if (!ghost) return;
+    const behind = [this.title, this.overlay].find((e) => !e.hidden);
+    const layer = (source: HTMLElement | undefined, name: string): HTMLElement => {
+      const d = el('div', { class: name });
+      if (source) {
+        const cs = getComputedStyle(source);
+        d.style.backgroundImage = cs.backgroundImage;
+        d.style.backgroundColor = cs.backgroundColor;
+      }
+      return d;
+    };
+    const backdrop = el('div', { class: 'peek-backdrop' });
+    backdrop.setAttribute('aria-hidden', 'true');
+    backdrop.append(layer(ghost, 'from'), layer(behind, 'to'));
+    this.title.before(backdrop);
+    this.peekBackdrop = backdrop;
     this.root.dataset.peeking = 'drag';
     this.root.style.setProperty('--lf-peek-parent-a', '0');
     this.root.style.setProperty('--lf-peek-parent-v', 'hidden');
+    this.root.style.setProperty('--lf-peek-w', '0');
   }
 
   /** Puts the copy in a look; `settle` animates the change (the glide back after a cancelled gesture). */
@@ -915,6 +945,7 @@ export class Ui {
     // while it glides away after a cancel it stays drawn so the fade can be seen.
     this.root.dataset.peeking = settle ? 'settle' : 'drag';
     this.root.style.setProperty('--lf-peek-parent-a', String(style.parentOpacity));
+    this.root.style.setProperty('--lf-peek-w', String(style.backdrop));
     this.root.style.setProperty(
       '--lf-peek-parent-v',
       style.parentOpacity > 0 || settle ? 'visible' : 'hidden',
@@ -925,6 +956,9 @@ export class Ui {
   peekEnd(): void {
     this.peekGhost?.remove();
     this.peekGhost = null;
+    this.peekBackdrop?.remove();
+    this.peekBackdrop = null;
+    this.root.style.removeProperty('--lf-peek-w');
     delete this.root.dataset.peeking;
     delete this.backBtn.dataset.peekParent;
     this.root.style.removeProperty('--lf-peek-parent-a');
