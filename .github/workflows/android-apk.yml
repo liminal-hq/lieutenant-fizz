@@ -139,9 +139,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          gh release create "android-debug-${GITHUB_RUN_NUMBER}" apk/*.apk \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --draft --prerelease \
-            --title "Android debug build ${GITHUB_RUN_NUMBER} (${REF_NAME})" \
-            --notes "Debug APK built from \`${REF_NAME}\` at \`${GITHUB_SHA}\`. Signed with a debug key; for on-device testing only."
+          # GITHUB_RUN_NUMBER is unchanged by a re-run, so the attempt is part of the tag. A tag that
+          # already exists (the step re-running in the same attempt) gets its APK replaced instead.
+          TAG="android-debug-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" apk/*.apk --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" apk/*.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --draft --prerelease \
+              --title "Android debug build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT} (${REF_NAME})" \
+              --notes "Debug APK built from \`${REF_NAME}\` at \`${GITHUB_SHA}\`. Signed with a debug key; for on-device testing only."
+          fi
