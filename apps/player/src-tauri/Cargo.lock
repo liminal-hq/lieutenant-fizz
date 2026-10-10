@@ -1337,7 +1337,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
@@ -3500,7 +3500,7 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-haptics"
 version = "0.0.0"
-source = "git+https://github.com/liminal-hq/tauri-plugins-workspace?rev=77808a4414094128a0eecf9a3fc9f0ba8d751472#77808a4414094128a0eecf9a3fc9f0ba8d751472"
+source = "git+https://github.com/liminal-hq/tauri-plugins-workspace?rev=82a166fbe878d6647b9dbe4a7e46f0967a8d861a#82a166fbe878d6647b9dbe4a7e46f0967a8d861a"
 dependencies = [
  "serde",
  "serde_json",
