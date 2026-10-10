@@ -2146,7 +2146,7 @@ export class Game {
       }
       if (!saved) {
         this.disarmReset();
-        this.ui.toast("Couldn't save your changes, so staying here");
+        this.ui.toast("Couldn't save: storage is full or blocked, so the game stays open");
         return;
       }
       this.dispose();
