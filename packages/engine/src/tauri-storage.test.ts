@@ -22,16 +22,12 @@ function fakeFile(initial: Record<string, unknown> = {}) {
     saves: 0,
     fail: false,
     entries: async (): Promise<[string, unknown][]> => [...data.entries()],
-    set: async (k: string, v: unknown): Promise<void> => {
+    write: async (batch: [string, string | null][]): Promise<void> => {
       if (file.fail) throw new Error('disk full');
-      data.set(k, v);
-    },
-    delete: async (k: string): Promise<boolean> => {
-      if (file.fail) throw new Error('disk full');
-      return data.delete(k);
-    },
-    save: async (): Promise<void> => {
-      if (file.fail) throw new Error('disk full');
+      for (const [k, v] of batch) {
+        if (v === null) data.delete(k);
+        else data.set(k, v);
+      }
       file.saves++;
     },
   };
@@ -183,6 +179,33 @@ describe('openTauriStorage', () => {
     file.fail = false;
     await s.flush();
     expect(file.data.get('lf-a')).toBe('new');
+  });
+});
+
+describe('background flush', () => {
+  it('hands the whole batch over in one call, before any response comes back', async () => {
+    // A store whose call never answers: a page that Android suspends never sees an answer either.
+    const batches: [string, string | null][][] = [];
+    const slow = {
+      entries: async (): Promise<[string, unknown][]> => [],
+      write: (batch: [string, string | null][]): Promise<void> => (
+        batches.push(batch),
+        new Promise<void>(() => {})
+      ),
+    } satisfies StoreFile;
+    const doc = fakeDoc();
+    const s = await openTauriStorage({ load: async () => slow, doc });
+    s.setItem('lf-a', '1');
+    s.setItem('lf-b', '2');
+    doc.visibilityState = 'hidden';
+    doc.fire();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(batches).toEqual([
+      [
+        ['lf-a', '1'],
+        ['lf-b', '2'],
+      ],
+    ]);
   });
 });
 

@@ -11,12 +11,16 @@ export const STORE_FILE = 'lf-data.json';
 /** How long writes are gathered before the file is saved. */
 export const SAVE_DELAY_MS = 250;
 
-/** The part of `@tauri-apps/plugin-store`'s `Store` the adapter uses. Tests pass a fake. */
+/** The command in the app's Rust that applies a batch to the store file and saves it. */
+export const WRITE_COMMAND = 'write_store';
+
+/**
+ * What the adapter needs from the store file. Tests pass a fake. `write` applies a whole batch (a null value
+ * removes the key) and saves, as one call, so it does not rely on the page staying alive between steps.
+ */
 export interface StoreFile {
   entries(): Promise<[string, unknown][]>;
-  set(key: string, value: unknown): Promise<void>;
-  delete(key: string): Promise<boolean | void>;
-  save(): Promise<void>;
+  write(batch: [string, string | null][]): Promise<void>;
 }
 
 /** The part of `document` that says the page went to the background. */
@@ -43,10 +47,19 @@ export interface TauriStorageOptions {
   delayMs?: number;
 }
 
-/** The store as the plugin gives it: it opens `lf-data.json` with no automatic saving, so the adapter decides when. */
+/**
+ * The store as the plugin gives it for reading (`lf-data.json`, no automatic saving), with writes sent to the
+ * app's own `write_store` command: one native call that sets, removes and saves, so a page that Android
+ * suspends right after the call still has its batch written.
+ */
 async function loadPluginStore(): Promise<StoreFile> {
   const { load } = await import('@tauri-apps/plugin-store');
-  return load(STORE_FILE, { defaults: {}, autoSave: false });
+  const { invoke } = await import('@tauri-apps/api/core');
+  const store = await load(STORE_FILE, { defaults: {}, autoSave: false });
+  return {
+    entries: () => store.entries(),
+    write: (batch) => invoke<void>(WRITE_COMMAND, { batch }),
+  };
 }
 
 /**
@@ -72,11 +85,7 @@ export async function openTauriStorage(options: TauriStorageOptions): Promise<Fl
 
   const write = async (batch: Map<string, string | null>): Promise<boolean> => {
     try {
-      for (const [key, value] of batch) {
-        if (value === null) await file.delete(key);
-        else await file.set(key, value);
-      }
-      await file.save();
+      await file.write([...batch]);
       return true;
     } catch (error) {
       // Keep what did not reach the file for the next flush, unless a newer write has replaced it.
