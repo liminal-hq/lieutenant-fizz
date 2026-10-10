@@ -11,6 +11,7 @@ import { FrameStats } from '@lieutenant-fizz/engine/frame-stats';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
+import { padDisplayName, padModelKey, parseGamepadId } from '@lieutenant-fizz/engine/pad-model';
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import type { HostBackend } from '@lieutenant-fizz/engine/host';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
@@ -123,6 +124,10 @@ import {
   hapticsRowOf,
   hapticsRows,
   hapticsSettings,
+  resetRumblePads,
+  rumbleLevel,
+  withRumble,
+  type PadInUse,
   isHapticsStepRow,
   resetHaptics,
   stepHaptics,
@@ -362,6 +367,12 @@ export class Game {
   private padSeen = false;
   /** The desktop's gamepad plugin lists a pad that can rumble, which the WebView's Gamepad API cannot say. */
   private nativePad = false;
+  /** The gamepad plugin's backend once adopted, which knows the native pad in use. */
+  private padBackend: {
+    choice(): { kind: string; pad?: { vendorId: number; productId: number; name: string } };
+  } | null = null;
+  /** The pad model the Rumble strength was last applied for. */
+  private padModelSeen: string | null = null;
   /** The Tauri haptics plugin reported a vibrator and is the phone's backend. */
   private pluginVibrator = false;
   /** When Reset had its first tap (in `performance.now()` milliseconds), or null. */
@@ -588,6 +599,7 @@ export class Game {
             () => this.input.activePad(),
             true,
           );
+          this.padBackend = native;
           native?.onPads((pads) => {
             const rumbles = pads.some((p) => p.topTier > 0);
             if (rumbles && !this.nativePad) this.keepRow(() => (this.nativePad = true));
@@ -805,6 +817,7 @@ export class Game {
     sim.x.set_view(this.halfW, this.halfH);
 
     this.watchPad();
+    this.watchPadModel();
     const bits = this.input.peek();
     this.menuInput(bits);
     this.lastBits = bits;
@@ -1378,13 +1391,34 @@ export class Game {
     const phone = this.touchCapable || url === 'on';
     this.haptics.setScale(
       phone ? effectiveScale(url, this.touchSettings.hapticStrength) : 0,
-      effectiveScale(url, this.settings.rumble),
+      effectiveScale(url, rumbleLevel(this.settings, this.padInUse()?.key ?? null)),
     );
+  }
+
+  /** The pad Rumble is for: the native twin of the pad in use, else the webview's pad when its id names a model. Null with none. */
+  private padInUse(): PadInUse | null {
+    const c = this.padBackend?.choice();
+    if (c?.kind === 'native' && c.pad)
+      return { key: padModelKey(c.pad.vendorId, c.pad.productId), name: c.pad.name };
+    const web = this.input.activePad();
+    const ids = web ? parseGamepadId(web.id) : undefined;
+    return web && ids
+      ? { key: padModelKey(ids.vendorId, ids.productId), name: padDisplayName(web.id) }
+      : null;
+  }
+
+  /** Puts the Rumble strength of the pad in use to work when the pad in use changes to another model. */
+  private watchPadModel(): void {
+    const key = this.padInUse()?.key ?? null;
+    if (key === this.padModelSeen) return;
+    this.padModelSeen = key;
+    this.applyHaptics();
+    if (this.sub === 'haptics') this.syncUi();
   }
 
   /** The haptics settings, wherever each one is kept. */
   private hapticsNow(): HapticsSettings {
-    return hapticsSettings(this.touchSettings, this.settings);
+    return hapticsSettings(this.touchSettings, this.settings, this.padInUse());
   }
 
   /** What the address fixes this session. */
@@ -2071,7 +2105,10 @@ export class Game {
       this.touchSettings = { ...this.touchSettings, hapticStrength: h.strength };
       writeTouchSettings(this.store, this.touchSettings);
     }
-    this.settings = { ...this.settings, rumble: h.rumble, hapticsLab: h.lab };
+    this.settings = {
+      ...withRumble(this.settings, h.padKey ?? null, h.rumble),
+      hapticsLab: h.lab,
+    };
     this.applySettings();
   }
 
@@ -2079,7 +2116,9 @@ export class Game {
   private tapHapticsReset(): void {
     if (resetArmed(this.resetAt, performance.now())) {
       this.disarmReset();
-      this.setHaptics(resetHaptics());
+      this.setHaptics({ ...resetHaptics(), padKey: null });
+      this.settings = resetRumblePads(this.settings);
+      this.applySettings();
       this.syncUi();
       return;
     }
@@ -3288,7 +3327,7 @@ export class Game {
       {
         groups: hapticLabItems(Object.keys(this.haptics.cues())),
         state: () => ({ cues: this.haptics.cues(), ...this.haptics.tuning() }),
-        padBoost: () => this.haptics.controllerBoost(),
+        padProfile: () => this.haptics.controllerProfile(),
         tune: (patch) => this.haptics.tune(patch),
         audition: (p, target, scale) => this.haptics.audition(p, target, scale),
         caps: () => {
