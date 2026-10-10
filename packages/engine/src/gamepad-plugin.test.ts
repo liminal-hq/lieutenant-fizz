@@ -608,7 +608,7 @@ describe('the plain profile', () => {
       { at: 40, duration: 40, strong: 0.2, weak: 0 },
       { at: 200, duration: 100, strong: 0.2, weak: 0 },
     ]);
-    expect(out.map((s) => s.duration)).toEqual([40, 70, 100]);
+    expect(out.map((s) => s.duration)).toEqual([40, 90, 100]);
   });
 
   it('is what a DualShock 4 plays for every cue: same starts and levels, nothing under the minimum unless boxed in', () => {

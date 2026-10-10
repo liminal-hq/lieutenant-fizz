@@ -394,7 +394,7 @@ export interface RumbleBoost {
 
 export const RUMBLE_BOOST: Readonly<RumbleBoost> = {
   minMs: 90,
-  heavyFloor: 0.5,
+  heavyFloor: 0.35,
   gamma: 0.6,
   gain: 1,
   lightFoldGain: 0.9,
@@ -494,7 +494,7 @@ export interface RumblePlain {
   minMs: number;
 }
 
-export const RUMBLE_PLAIN: Readonly<RumblePlain> = { minMs: 70 };
+export const RUMBLE_PLAIN: Readonly<RumblePlain> = { minMs: 90 };
 
 /** The range each plain constant may take when tuned. */
 export const RUMBLE_PLAIN_LIMITS: Readonly<Record<keyof RumblePlain, readonly [number, number]>> = {
@@ -533,7 +533,7 @@ export function compilePlainRumble(
  * `cap × relative × master`, where `relative` is the cue's strongest intensity over `reference` (the loudest
  * menu cue), but at least `floor` while it plays so the quietest cue is still felt.
  */
-export const MENU_BOOST = { cap: 0.8, floor: 0.45, reference: 0.5 } as const;
+export const MENU_BOOST = { cap: 0.8, floor: 0.35, reference: 0.5 } as const;
 
 /** The strongest intensity in a pattern. */
 export function patternPeak(p: HapticPattern): number {
