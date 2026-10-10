@@ -360,6 +360,8 @@ export class Game {
    * Rumble row never shifts the Haptics screen while it is open.
    */
   private padSeen = false;
+  /** The desktop's gamepad plugin lists a pad that can rumble, which the WebView's Gamepad API cannot say. */
+  private nativePad = false;
   /** The Tauri haptics plugin reported a vibrator and is the phone's backend. */
   private pluginVibrator = false;
   /** When Reset had its first tap (in `performance.now()` milliseconds), or null. */
@@ -572,10 +574,31 @@ export class Game {
     this.coarseSpeaker = !!window.matchMedia?.('(pointer: coarse)').matches;
     this.hapticsUrl = options.haptics;
     this.haptics = new GameHaptics(FIZZ_HAPTICS, performance);
-    this.haptics.setBackends({
-      device: vibrateBackend(navigator),
-      controller: gamepadBackend(() => this.input.activePad()),
-    });
+    const webPad = gamepadBackend(() => this.input.activePad());
+    this.haptics.setBackends({ device: vibrateBackend(navigator), controller: webPad });
+    // On the desktop the WebView has no `vibrationActuator`, so the gamepad plugin rumbles the pad natively. It
+    // keeps the web backend for a pad it cannot reach and plays no pad both ways. Its own chunk, loaded only here.
+    if (options.hostBackend?.kind === 'tauri-desktop') {
+      void import('@lieutenant-fizz/engine/gamepad-plugin')
+        .then(({ adoptGamepadPlugin }) => {
+          if (this.disposed) return;
+          const native = adoptGamepadPlugin(
+            this.haptics,
+            webPad,
+            () => this.input.activePad(),
+            true,
+          );
+          native?.onPads((pads) => {
+            const rumbles = pads.some((p) => p.topTier > 0);
+            if (rumbles && !this.nativePad) this.keepRow(() => (this.nativePad = true));
+          });
+          void native?.ready.then((pads) => {
+            if (pads.some((p) => p.topTier > 0) && !this.nativePad)
+              this.keepRow(() => (this.nativePad = true));
+          });
+        })
+        .catch(() => {});
+    }
     // Inside the app the plugin's vibrator (amplitudes, primitives, envelopes) replaces `navigator.vibrate`
     // once it reports one. The web never creates it, and never downloads its compiler: it is its own chunk,
     // imported only here. Until it has loaded and adopted, cues take the `navigator.vibrate` backend above.
@@ -1414,13 +1437,17 @@ export class Game {
   /** Whether the Haptics screen has anything to offer: a vibrator, a pad that rumbles, or a link asking for it. */
   private hapticsShown(): boolean {
     return (
-      this.vibratorLikely() || this.pluginVibrator || this.padSeen || this.hapticsUrl !== undefined
+      this.vibratorLikely() ||
+      this.pluginVibrator ||
+      this.padSeen ||
+      this.nativePad ||
+      this.hapticsUrl !== undefined
     );
   }
 
   /** The rows of the Haptics screen. */
   private hapticsRowList(): HapticsRow[] {
-    return hapticsRows({ pad: this.padSeen });
+    return hapticsRows({ pad: this.padSeen || this.nativePad });
   }
 
   /**
