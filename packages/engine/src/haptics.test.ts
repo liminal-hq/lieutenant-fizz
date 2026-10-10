@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBackend, noneBackend, type FakeBackend } from './haptic-backends';
-import { RUMBLE_COMPILE, VIBRATE_COMPILE } from './haptic-pattern';
+import { RUMBLE_BOOST, RUMBLE_COMPILE, VIBRATE_COMPILE } from './haptic-pattern';
 import { PLUGIN_COMPILE } from './haptic-plugin-compile';
 import type { HapticCue, HapticTable } from './haptic-pattern';
 import { ATTRACT_SCALE, GameHaptics, UI_BOOST, onScreen, routeFor } from './haptics';
@@ -651,6 +651,7 @@ describe('GameHaptics.cues and tuning', () => {
     expect(h.tuning()).toEqual({
       compile: VIBRATE_COMPILE,
       rumble: RUMBLE_COMPILE,
+      boost: RUMBLE_BOOST,
       plugin: PLUGIN_COMPILE,
       budget: { onMs: 400, windowMs: 1000 },
     });
@@ -669,6 +670,18 @@ describe('GameHaptics.cues and tuning', () => {
     expect(r.refused.sort()).toEqual(['plugin.bogus', 'plugin.gain']);
     expect(dev.tunedPlugin).toEqual([{ gamma: 0.8 }]);
     expect(h.tuning().plugin.gamma).toBe(0.8);
+  });
+
+  it('tunes the rumble boost through the controller backend and refuses it without one', () => {
+    expect(h.tune({ boost: { minMs: 100 } })).toEqual({ applied: [], refused: ['boost.minMs'] });
+    const pad = fakeBackend({ target: 'controller' });
+    h.setBackends({ controller: pad });
+    expect(h.controllerBoost()).toBe(true);
+    const r = h.tune({ boost: { minMs: 100, heavyFloor: 2, bogus: 1 } as never });
+    expect(r.applied).toEqual(['boost.minMs']);
+    expect(r.refused.sort()).toEqual(['boost.bogus', 'boost.heavyFloor']);
+    expect(pad.tunedBoost).toEqual([{ minMs: 100 }]);
+    expect(h.tuning().boost.minMs).toBe(100);
   });
 
   it('tunes the rumble compiler through the controller backend and refuses it without one', () => {

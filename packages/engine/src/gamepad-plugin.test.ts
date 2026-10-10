@@ -5,12 +5,22 @@
 
 import { describe, expect, it } from 'vitest';
 import { fakeBackend, type HapticBackend, type RumblePad } from './haptic-backends';
-import type { HapticPattern } from './haptic-pattern';
+import {
+  BOOST_MAX_MS,
+  LIGHT_ON,
+  RUMBLE_BOOST,
+  boostRumble,
+  compileBoostedRumble,
+  compileRumble,
+  type HapticPattern,
+} from './haptic-pattern';
+import { FIZZ_HAPTICS } from '../../../episodes/episode-1/src/haptics/fizz-haptics';
 import {
   adoptGamepadPlugin,
   choosePad,
   framesOf,
   gamepadPluginBackend,
+  isOnOffLightPad,
   matchPads,
   parseGamepadId,
   pluginPadApi,
@@ -344,5 +354,132 @@ describe('pluginPadApi', () => {
       'gamepad-haptics://changed',
       'gamepad-haptics://disconnected',
     ]);
+  });
+});
+
+const cue = (id: string): HapticPattern =>
+  (FIZZ_HAPTICS.cues[id] as { pattern: HapticPattern }).pattern;
+
+describe('boostRumble', () => {
+  it('lifts a quiet tap to the heavy floor and the shortest length', () => {
+    for (const id of ['jump', 'kick', 'bonk', 'click']) {
+      const segs = compileBoostedRumble(cue(id), 1);
+      expect(segs.length).toBeGreaterThan(0);
+      for (const s of segs) {
+        expect(s.strong).toBeGreaterThanOrEqual(RUMBLE_BOOST.heavyFloor);
+        expect(s.duration).toBeGreaterThanOrEqual(RUMBLE_BOOST.minMs);
+      }
+    }
+  });
+
+  it('keeps level start a recognisable two-part pattern with a gap between', () => {
+    const [a, b, ...rest] = compileBoostedRumble(cue('levelStart'), 1);
+    expect(rest).toHaveLength(0);
+    expect(a && b).toBeTruthy();
+    expect((b?.at ?? 0) - ((a?.at ?? 0) + (a?.duration ?? 0))).toBeGreaterThanOrEqual(
+      RUMBLE_BOOST.gapMs,
+    );
+    expect(a?.strong).toBeGreaterThan(b?.strong ?? 1);
+  });
+
+  it('folds a light level under the on threshold into the heavy motor', () => {
+    const [s] = boostRumble([{ at: 0, duration: 100, strong: 0, weak: 0.3 }], 1);
+    expect(s?.weak).toBe(0);
+    expect(s?.strong).toBeGreaterThanOrEqual(RUMBLE_BOOST.heavyFloor);
+  });
+
+  it('keeps a light level at or over the threshold as the light kick', () => {
+    const [s] = boostRumble([{ at: 0, duration: 100, strong: 0.1, weak: 0.6 }], 1);
+    expect(s?.weak).toBe(0.6);
+  });
+
+  it('leaves the light motor alone when the fold is off', () => {
+    const b = { ...RUMBLE_BOOST, lightFoldGain: 0 };
+    const [s] = boostRumble([{ at: 0, duration: 100, strong: 0, weak: 0.3 }], 1, b);
+    expect(s).toMatchObject({ strong: 0, weak: 0.3 });
+  });
+
+  it('applies the strength after boosting, and folds a light kick the strength turns off', () => {
+    const seg = [{ at: 0, duration: 100, strong: 0.5, weak: 0.6 }];
+    const full = boostRumble(seg, 1)[0];
+    const half = boostRumble(seg, 0.5)[0];
+    expect(half?.strong).toBeCloseTo((full?.strong ?? 0) / 2, 1);
+    expect(full?.weak).toBe(0.6);
+    expect(half?.weak).toBe(0);
+    expect(boostRumble(seg, 0)).toEqual([]);
+  });
+
+  it('keeps taps apart and every cue inside the plugin limits', () => {
+    for (const id of Object.keys(FIZZ_HAPTICS.cues)) {
+      for (const scale of [0.5, 1, 1.5]) {
+        const segs = compileBoostedRumble(cue(id), scale);
+        let end = 0;
+        for (const [i, s] of segs.entries()) {
+          if (i > 0) expect(s.at - end).toBeGreaterThanOrEqual(RUMBLE_BOOST.gapMs);
+          expect(Number.isInteger(s.at) && Number.isInteger(s.duration)).toBe(true);
+          expect(s.strong).toBeLessThanOrEqual(1);
+          expect(s.weak).toBeLessThanOrEqual(1);
+          end = s.at + s.duration;
+        }
+        expect(end).toBeLessThanOrEqual(BOOST_MAX_MS);
+        expect(framesOf(segs).length).toBeLessThanOrEqual(512);
+        expect(segs.every((s) => s.duration <= 2000)).toBe(true);
+      }
+    }
+  });
+
+  it('cuts a long pattern at the cap', () => {
+    const long = Array.from({ length: 8 }, (_, i) => ({
+      at: i * 400,
+      duration: 300,
+      strong: 1,
+      weak: 0,
+    }));
+    const segs = boostRumble(long, 1);
+    const last = segs[segs.length - 1];
+    expect((last?.at ?? 0) + (last?.duration ?? 0)).toBeLessThanOrEqual(BOOST_MAX_MS);
+  });
+
+  it('stays silent when the strength is under the compiler floor', () => {
+    expect(compileBoostedRumble(cue('jump'), 0.01)).toEqual([]);
+  });
+
+  it('only lights the light motor at or over the plugin threshold', () => {
+    for (const id of Object.keys(FIZZ_HAPTICS.cues))
+      for (const s of compileBoostedRumble(cue(id), 1))
+        expect(s.weak === 0 || s.weak >= LIGHT_ON).toBe(true);
+  });
+});
+
+describe('the backend boost', () => {
+  it('plays boosted frames on a DualShock 3, and takes tuning', async () => {
+    const { api, backend } = setup([ds3]);
+    await backend.ready;
+    const r = backend.play(cue('bonk'), 1);
+    const [f] = api.plays[0]?.frames ?? [];
+    expect(f?.durationMs).toBeGreaterThanOrEqual(RUMBLE_BOOST.minMs);
+    expect(f?.heavy).toBeGreaterThanOrEqual(RUMBLE_BOOST.heavyFloor);
+    expect(r.ms).toBeGreaterThanOrEqual(RUMBLE_BOOST.minMs);
+    backend.tuneBoost?.({ minMs: 200 });
+    backend.play(cue('bonk'), 1);
+    expect(api.plays[1]?.frames[0]?.durationMs).toBe(200);
+  });
+
+  it('plays the plain compile with the boost off', async () => {
+    const api = fakeApi([ds3]);
+    const backend = gamepadPluginBackend(fakeBackend({ target: 'controller' }), () => null, {
+      api,
+      useBoost: false,
+    });
+    await backend.ready;
+    backend.play(cue('bonk'), 1);
+    const plain = framesOf(compileRumble(cue('bonk'), 1));
+    expect(api.plays[0]?.frames).toEqual(plain);
+  });
+
+  it('treats a DualShock 3 and any pad of tier 2 or lower as on/off light pads', () => {
+    expect(isOnOffLightPad({ vendorId: 0x054c, productId: 0x0268, topTier: 3 })).toBe(true);
+    expect(isOnOffLightPad({ vendorId: 1, productId: 2, topTier: 2 })).toBe(true);
+    expect(isOnOffLightPad({ vendorId: 1, productId: 2, topTier: 3 })).toBe(false);
   });
 });

@@ -4,9 +4,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import {
+  RUMBLE_BOOST,
   RUMBLE_COMPILE,
+  compileBoostedRumble,
   compileRumble,
   type HapticPattern,
+  type RumbleBoost,
   type RumbleCompile,
   type RumbleSegment,
 } from './haptic-pattern';
@@ -101,6 +104,18 @@ export function pluginPadApi(opts: { invoke?: Invoke; listen?: Listen } = {}): P
 }
 
 // ---------- Choosing a pad ----------
+
+/**
+ * Whether a pad needs the rumble boost: its heavy motor has a dead zone and its light motor is on or off.
+ * A DualShock 3 (`hid-sony`) is the one known case. The plugin does not report which motors are on/off, so
+ * every pad of tier 2 or lower is treated alike for now.
+ * TODO: say so per pad (a pad family or a plugin flag) so a pad with true dual rumble plays unboosted.
+ */
+export function isOnOffLightPad(
+  pad: Pick<NativePad, 'vendorId' | 'productId' | 'topTier'>,
+): boolean {
+  return (pad.vendorId === 0x054c && pad.productId === 0x0268) || pad.topTier <= 2;
+}
 
 const hex = (s: string): number => Number.parseInt(s, 16);
 
@@ -216,10 +231,18 @@ const message = (e: unknown): string => (e instanceof Error ? e.message : String
 export function gamepadPluginBackend(
   fallback: HapticBackend,
   getWebPad: () => RumblePad | null,
-  opts: { api?: PadApi; compile?: Readonly<RumbleCompile> } = {},
+  opts: {
+    api?: PadApi;
+    compile?: Readonly<RumbleCompile>;
+    boost?: Readonly<RumbleBoost>;
+    /** `false` plays the compiled segments as they are on every pad (for a pad with real dual rumble). */
+    useBoost?: boolean;
+  } = {},
 ): GamepadPluginBackend {
   const api = opts.api ?? pluginPadApi();
   const compile: RumbleCompile = { ...(opts.compile ?? RUMBLE_COMPILE) };
+  const boost: RumbleBoost = { ...(opts.boost ?? RUMBLE_BOOST) };
+  const useBoost = opts.useBoost ?? true;
   let pads: NativePad[] = [];
   let off: (() => void) | null = null;
   let disposed = false;
@@ -326,7 +349,10 @@ export function gamepadPluginBackend(
         webPlaying = false;
         fallback.stop();
       }
-      const compiled = compileRumble(p, scale, compile);
+      const boosted = useBoost && isOnOffLightPad(c.pad);
+      const compiled = boosted
+        ? compileBoostedRumble(p, scale, compile, boost)
+        : compileRumble(p, scale, compile);
       const tier = c.pad.topTier >= 2 ? 2 : 1;
       const frames = framesOf(compiled);
       if (frames.length === 0)
@@ -355,6 +381,9 @@ export function gamepadPluginBackend(
     tuneRumble(patch) {
       Object.assign(compile, patch);
       fallback.tuneRumble?.(patch);
+    },
+    tuneBoost(patch) {
+      Object.assign(boost, patch);
     },
     dispose() {
       this.stop();

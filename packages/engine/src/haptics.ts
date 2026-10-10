@@ -8,6 +8,8 @@ import { PLUGIN_COMPILE, PLUGIN_LIMITS, type PluginCompile } from './haptic-plug
 import type { InputDevice } from './input';
 import {
   COMPILE_LIMITS,
+  RUMBLE_BOOST,
+  RUMBLE_BOOST_LIMITS,
   RUMBLE_COMPILE,
   RUMBLE_LIMITS,
   VIBRATE_COMPILE,
@@ -19,6 +21,7 @@ import {
   type HapticPattern,
   type HapticTable,
   type Policy,
+  type RumbleBoost,
   type RumbleCompile,
   type VibrateCompile,
 } from './haptic-pattern';
@@ -65,6 +68,7 @@ export interface HapticTune {
   >;
   compile?: Partial<VibrateCompile>;
   rumble?: Partial<RumbleCompile>;
+  boost?: Partial<RumbleBoost>;
   plugin?: Partial<PluginCompile>;
   budget?: { onMs?: number; windowMs?: number };
 }
@@ -186,6 +190,7 @@ export class GameHaptics {
   private readonly compiler = {
     compile: { ...VIBRATE_COMPILE },
     rumble: { ...RUMBLE_COMPILE },
+    boost: { ...RUMBLE_BOOST },
     plugin: { ...PLUGIN_COMPILE },
   };
   private readonly log: PlayRecord[] = [];
@@ -353,15 +358,22 @@ export class GameHaptics {
   tuning(): {
     compile: VibrateCompile;
     rumble: RumbleCompile;
+    boost: RumbleBoost;
     plugin: PluginCompile;
     budget: { onMs: number; windowMs: number };
   } {
     return {
       compile: { ...this.compiler.compile },
       rumble: { ...this.compiler.rumble },
+      boost: { ...this.compiler.boost },
       plugin: { ...this.compiler.plugin },
       budget: { ...this.budget },
     };
+  }
+
+  /** Whether the controller's backend reshapes rumble for the pad (the desktop's gamepad plugin does), so the lab shows what the pad plays. */
+  controllerBoost(): boolean {
+    return this.ch.controller.backend.tuneBoost !== undefined;
   }
 
   private drop(reason: string): void {
@@ -599,6 +611,26 @@ export class GameHaptics {
     if (Object.keys(rumble).length > 0) {
       this.ch.controller.backend.tuneRumble?.(rumble);
       Object.assign(this.compiler.rumble, rumble);
+    }
+    const boost: Partial<RumbleBoost> = {};
+    for (const [key, v] of Object.entries(p.boost ?? {})) {
+      const lim = (RUMBLE_BOOST_LIMITS as Record<string, readonly [number, number] | undefined>)[
+        key
+      ];
+      if (
+        lim &&
+        typeof v === 'number' &&
+        v >= lim[0] &&
+        v <= lim[1] &&
+        this.ch.controller.backend.tuneBoost
+      ) {
+        (boost as Record<string, number>)[key] = v;
+        applied.push(`boost.${key}`);
+      } else refused.push(`boost.${key}`);
+    }
+    if (Object.keys(boost).length > 0) {
+      this.ch.controller.backend.tuneBoost?.(boost);
+      Object.assign(this.compiler.boost, boost);
     }
     const plugin: Partial<PluginCompile> = {};
     for (const [key, v] of Object.entries(p.plugin ?? {})) {

@@ -10,6 +10,7 @@ import {
   compileVibrate,
   totalTime,
   type HapticPattern,
+  type RumbleBoost,
   type RumbleCompile,
   type RumbleSegment,
   type VibrateCompile,
@@ -49,6 +50,8 @@ export interface HapticBackend {
   tune?(patch: Partial<VibrateCompile>): void;
   /** Changes the rumble compiler constants while running; absent where nothing rumbles. */
   tuneRumble?(patch: Partial<RumbleCompile>): void;
+  /** Changes the pad rumble boost's constants while running; absent where nothing boosts (the web's `vibrationActuator`). */
+  tuneBoost?(patch: Partial<RumbleBoost>): void;
   /** Changes the plugin compiler's constants, for the Tauri plugin backend. */
   tunePlugin?(patch: Partial<PluginCompile>): void;
   dispose(): void;
@@ -311,6 +314,8 @@ export interface FakeBackend extends HapticBackend {
   readonly tuned: Partial<VibrateCompile>[];
   /** The rumble compiler patches it was given. */
   readonly tunedRumble: Partial<RumbleCompile>[];
+  /** The rumble boost patches it was given. */
+  readonly tunedBoost: Partial<RumbleBoost>[];
   /** The plugin compiler patches it was given. */
   readonly tunedPlugin: Partial<PluginCompile>[];
   stops: number;
@@ -327,6 +332,7 @@ export function fakeBackend(
     plays,
     tuned: [],
     tunedRumble: [],
+    tunedBoost: [],
     tunedPlugin: [],
     stops: 0,
     caps: () => ({
@@ -366,6 +372,9 @@ export function fakeBackend(
     },
     tuneRumble(patch) {
       b.tunedRumble.push(patch);
+    },
+    tuneBoost(patch) {
+      b.tunedBoost.push(patch);
     },
     tunePlugin(patch) {
       b.tunedPlugin.push(patch);
