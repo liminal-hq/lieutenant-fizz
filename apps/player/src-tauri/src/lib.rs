@@ -39,7 +39,7 @@ fn quit(app: tauri::AppHandle) {
 /// logcat), a rotated file in the app's log directory and the WebView's devtools console. The format
 /// matches Threshold's (local time with its UTC offset) so entries line up across the apps.
 fn log_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
-    use tauri_plugin_log::{Target, TargetKind};
+    use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 
     let level = if cfg!(debug_assertions) {
         log::LevelFilter::Debug
@@ -49,6 +49,9 @@ fn log_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 
     tauri_plugin_log::Builder::default()
         .level(level)
+        // The plugin's default, `KeepOne`, deletes the active file at its size limit and keeps nothing; keep
+        // the previous file (renamed with its date) beside the new one.
+        .rotation_strategy(RotationStrategy::KeepSome(1))
         .level_for("jni", log::LevelFilter::Warn)
         .level_for("tao", log::LevelFilter::Info)
         // The debug MCP bridge's websocket internals are very chatty at Trace.
