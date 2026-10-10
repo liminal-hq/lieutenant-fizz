@@ -3288,6 +3288,7 @@ export class Game {
       {
         groups: hapticLabItems(Object.keys(this.haptics.cues())),
         state: () => ({ cues: this.haptics.cues(), ...this.haptics.tuning() }),
+        padBoost: () => this.haptics.controllerBoost(),
         tune: (patch) => this.haptics.tune(patch),
         audition: (p, target, scale) => this.haptics.audition(p, target, scale),
         caps: () => {

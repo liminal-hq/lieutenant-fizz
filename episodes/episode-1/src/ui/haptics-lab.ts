@@ -50,6 +50,8 @@ export interface HapticsLabHost {
   groups: CueGroup[];
   /** The cues, compiler constants and budget as they are now. */
   state(): HapticsLabState;
+  /** Whether the controller's backend boosts rumble, so the pad's compiled segments are the boosted ones. */
+  padBoost?(): boolean;
   tune(patch: HapticsTunePatch): { applied: string[]; refused: string[] };
   audition(p: HapticPattern, target: Target, scale: number): PlayResult | null;
   caps(): BackendCaps;
@@ -97,6 +99,11 @@ function compileValue(state: HapticsLabState, spec: SliderSpec): number {
  * layout and styles, and is reached from the shell's Lab button or the Sound | Haptics switch.
  */
 export class HapticsLab {
+  /** The boost constants to compile the pad's segments with, or undefined when the controller's backend does not boost. */
+  private padBoost(state: HapticsLabState): HapticsLabState['boost'] | undefined {
+    return this.h.padBoost?.() ? state.boost : undefined;
+  }
+
   readonly root: HTMLElement;
   private readonly switcher: HTMLElement;
   private readonly body: HTMLElement;
@@ -353,7 +360,13 @@ export class HapticsLab {
       const sub = b.querySelector('.lab-sub');
       if (cue && sub) {
         sub.textContent = compiledLabel(
-          compileBoth(cue.pattern, this.strength, state.compile, state.rumble),
+          compileBoth(
+            cue.pattern,
+            this.strength,
+            state.compile,
+            state.rumble,
+            this.padBoost(state),
+          ),
         );
       }
       b.setAttribute('aria-pressed', String(id === this.picked));
@@ -449,7 +462,13 @@ export class HapticsLab {
       const state = this.h.state();
       const now = state.cues[this.picked];
       if (!now) return;
-      const c = compileBoth(now.pattern, this.strength, state.compile, state.rumble);
+      const c = compileBoth(
+        now.pattern,
+        this.strength,
+        state.compile,
+        state.rumble,
+        this.padBoost(state),
+      );
       const t = timeline(c);
       preview.replaceChildren(
         el('div', { class: 'lab-status' }, `phone ${phoneArrayText(c.phone)}`),
@@ -696,7 +715,7 @@ export class HapticsLab {
       const state = this.h.state();
       const cue = state.cues[this.picked];
       note.textContent = cue
-        ? `${this.picked}: ${compiledLabel(compileBoth(cue.pattern, this.strength, state.compile, state.rumble))}`
+        ? `${this.picked}: ${compiledLabel(compileBoth(cue.pattern, this.strength, state.compile, state.rumble, this.padBoost(state)))}`
         : '';
     };
     this.compileSyncs.push(redraw);

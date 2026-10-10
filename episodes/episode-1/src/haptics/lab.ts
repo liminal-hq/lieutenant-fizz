@@ -5,8 +5,10 @@
 
 import type { HapticCaps } from '@lieutenant-fizz/engine/haptic-backends';
 import {
+  RUMBLE_BOOST,
   RUMBLE_COMPILE,
   VIBRATE_COMPILE,
+  compileBoostedRumble,
   compileRumble,
   compileVibrate,
   patternLength,
@@ -16,6 +18,7 @@ import {
   type HapticEvent,
   type HapticPattern,
   type Policy,
+  type RumbleBoost,
   type RumbleCompile,
   type RumbleSegment,
   type VibrateCompile,
@@ -32,6 +35,7 @@ export interface HapticsLabState {
   cues: Record<string, HapticCue>;
   compile: VibrateCompile;
   rumble: RumbleCompile;
+  boost: RumbleBoost;
   plugin: PluginCompile;
   budget: { onMs: number; windowMs: number };
 }
@@ -45,6 +49,7 @@ export const HAPTICS_DEFAULTS: HapticsLabState = captureHapticsState({
   cues: FIZZ_HAPTICS.cues,
   compile: { ...VIBRATE_COMPILE },
   rumble: { ...RUMBLE_COMPILE },
+  boost: { ...RUMBLE_BOOST },
   plugin: { ...PLUGIN_COMPILE },
   budget: { onMs: 400, windowMs: 1000 },
 });
@@ -135,9 +140,13 @@ export function compileBoth(
   scale: number,
   compile: Readonly<VibrateCompile>,
   rumble: Readonly<RumbleCompile>,
+  boost?: Readonly<RumbleBoost>,
 ): Compiled {
   const phone = compileVibrate(p, scale, compile);
-  const pad = compileRumble(p, scale, rumble);
+  // With a boost, the pad's segments are what the desktop's gamepad plugin sends; without, what `vibrationActuator` plays.
+  const pad = boost
+    ? compileBoostedRumble(p, scale, rumble, boost)
+    : compileRumble(p, scale, rumble);
   const last = pad[pad.length - 1];
   return {
     phone,
@@ -334,6 +343,19 @@ export const COMPILE_SLIDERS: readonly SliderSpec[] = [
   S('Pad (rumble)', 'Pad minimum: weakest tap', ['rumble', 'tapBase'], 10, 200, 5, 'ms'),
   S('Pad (rumble)', 'Pad tap extra', ['rumble', 'tapSpan'], 0, 200, 5, 'ms'),
   S('Pad (rumble)', 'Segment length', ['rumble', 'slice'], 20, 200, 5, 'ms'),
+  S('Pad (boost)', 'Shortest segment', ['boost', 'minMs'], 10, 300, 5, 'ms'),
+  S('Pad (boost)', 'Heavy floor: weakest heavy motor', ['boost', 'heavyFloor'], 0, 1, 0.05),
+  S('Pad (boost)', 'Curve on the heavy motor (1 is linear)', ['boost', 'gamma'], 0.2, 1.5, 0.05),
+  S('Pad (boost)', 'Gain: after the curve', ['boost', 'gain'], 0.5, 2, 0.05),
+  S(
+    'Pad (boost)',
+    'Light fold: weak light into heavy (0 is off)',
+    ['boost', 'lightFoldGain'],
+    0,
+    1.5,
+    0.05,
+  ),
+  S('Pad (boost)', 'Gap between segments', ['boost', 'gapMs'], 0, 100, 5, 'ms'),
   S('Phone (app plugin)', 'FLOOR: quietest played', ['plugin', 'floor'], 0, 1, 0.01),
   S(
     'Phone (app plugin)',
@@ -393,6 +415,7 @@ export interface HapticsTunePatch {
   >;
   compile?: Partial<VibrateCompile>;
   rumble?: Partial<RumbleCompile>;
+  boost?: Partial<RumbleBoost>;
   plugin?: Partial<PluginCompile>;
   budget?: { onMs?: number; windowMs?: number };
 }
@@ -438,6 +461,8 @@ export function hapticTuneDiff(from: HapticsLabState, to: HapticsLabState): Hapt
   if (compile) out.compile = compile;
   const rumble = numbersDiff(from.rumble, to.rumble);
   if (rumble) out.rumble = rumble;
+  const boost = numbersDiff(from.boost, to.boost);
+  if (boost) out.boost = boost;
   const plugin = numbersDiff(from.plugin, to.plugin);
   if (plugin) out.plugin = plugin;
   const budget = numbersDiff(from.budget, to.budget);
@@ -454,6 +479,7 @@ export function countHapticChanges(diff: HapticsTunePatch): number {
     Object.keys(diff.cues ?? {}).length +
     Object.keys(diff.compile ?? {}).length +
     Object.keys(diff.rumble ?? {}).length +
+    Object.keys(diff.boost ?? {}).length +
     Object.keys(diff.plugin ?? {}).length +
     Object.keys(diff.budget ?? {}).length
   );
