@@ -7,6 +7,9 @@ import { describe, expect, it } from 'vitest';
 import {
   initialPadState,
   nextFocus,
+  pickFocus,
+  stepValue,
+  type Box,
   pollPads,
   stepPad,
   type PadIntent,
@@ -14,9 +17,9 @@ import {
   type PadState,
 } from './menu-pad';
 
-const pad = (pressed: number[] = [], y = 0): PadSnapshot => ({
+const pad = (pressed: number[] = [], y = 0, x = 0): PadSnapshot => ({
   buttons: Array.from({ length: 17 }, (_, i) => pressed.includes(i)),
-  axes: [0, y, 0, 0],
+  axes: [x, y, 0, 0],
 });
 
 const awake = (): PadState => ({ ...initialPadState(), awake: true });
@@ -36,6 +39,20 @@ describe('stepPad', () => {
     expect(stepPad(awake(), pad([], -0.7), 0).intent).toBe('up');
     expect(stepPad(awake(), pad([], 0.7), 0).intent).toBe('down');
     expect(stepPad(awake(), pad([], 0.5), 0).intent).toBeNull();
+  });
+
+  it('maps the D-pad and the stick to left and right', () => {
+    expect(stepPad(awake(), pad([14]), 0).intent).toBe('left');
+    expect(stepPad(awake(), pad([15]), 0).intent).toBe('right');
+    expect(stepPad(awake(), pad([], 0, -0.9), 0).intent).toBe('left');
+    expect(stepPad(awake(), pad([], 0, 0.9), 0).intent).toBe('right');
+  });
+
+  it('prefers vertical when both axes are held, and restarts the delay on a new direction', () => {
+    expect(stepPad(awake(), pad([13, 15]), 0).intent).toBe('down');
+    const s = stepPad(awake(), pad([15]), 0).state;
+    expect(stepPad(s, pad([14]), 100).intent).toBe('left');
+    expect(stepPad(s, pad([15]), 100).intent).toBeNull();
   });
 
   it('ignores opposing directions held together', () => {
@@ -92,5 +109,58 @@ describe('nextFocus', () => {
     expect(nextFocus(4, 5, 1)).toBe(0);
     expect(nextFocus(0, 5, -1)).toBe(4);
     expect(nextFocus(0, 0, 1)).toBe(-1);
+  });
+});
+
+// Two rows of three controls, then a wide one below.
+const box = (left: number, top: number, w = 100): Box => ({
+  left,
+  top,
+  right: left + w,
+  bottom: top + 40,
+});
+const grid: Box[] = [
+  box(0, 0),
+  box(110, 0),
+  box(220, 0),
+  box(0, 50),
+  box(110, 50),
+  box(220, 50),
+  box(0, 100, 320),
+];
+
+describe('pickFocus', () => {
+  it('moves along rows and between rows', () => {
+    expect(pickFocus(grid, 0, 'right')).toBe(1);
+    expect(pickFocus(grid, 1, 'left')).toBe(0);
+    expect(pickFocus(grid, 1, 'down')).toBe(4);
+    expect(pickFocus(grid, 4, 'up')).toBe(1);
+    expect(pickFocus(grid, 5, 'down')).toBe(6);
+  });
+
+  it('stays put at a row end', () => {
+    expect(pickFocus(grid, 2, 'right')).toBe(-1);
+    expect(pickFocus(grid, 3, 'left')).toBe(-1);
+  });
+
+  it('wraps up and down through the list', () => {
+    expect(pickFocus(grid, 6, 'down')).toBe(0);
+    expect(pickFocus(grid, 0, 'up')).toBe(6);
+  });
+
+  it('starts at the ends when nothing is focused', () => {
+    expect(pickFocus(grid, -1, 'down')).toBe(0);
+    expect(pickFocus(grid, -1, 'up')).toBe(6);
+    expect(pickFocus([], -1, 'down')).toBe(-1);
+  });
+});
+
+describe('stepValue', () => {
+  it('steps, clamps and snaps', () => {
+    expect(stepValue(5, 0, 10, 1, 'right')).toBe(6);
+    expect(stepValue(10, 0, 10, 1, 'right')).toBe(10);
+    expect(stepValue(0, 0, 10, 1, 'left')).toBe(0);
+    expect(stepValue(0.1, 0, 1, 0.1, 'right')).toBeCloseTo(0.2);
+    expect(stepValue(7, 5, 100, 10, 'right')).toBe(15);
   });
 });
