@@ -4,6 +4,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { createStorage } from '@lieutenant-fizz/engine/storage';
+import { initTauriLogging } from '@lieutenant-fizz/engine/tauri-log';
+
+// Inside the app, console output and uncaught errors join the native log (a no-op on the web).
+void initTauriLogging({ prefix: 'probe' });
 
 type ProbeReport = Record<string, unknown>;
 

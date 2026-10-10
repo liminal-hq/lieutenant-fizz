@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { isAppHost } from '@lieutenant-fizz/engine/lifecycle-policy';
+import { initTauriLogging } from '@lieutenant-fizz/engine/tauri-log';
 import { STRENGTH_NAMES, STRENGTH_SCALE } from '@lieutenant-fizz/engine/haptic-strength';
 import {
   pluginBackend,
@@ -29,6 +30,9 @@ import {
 } from './haptics-cases';
 
 declare const __HAPTICS_PLUGIN_REV__: string;
+
+// Inside the app, console output and uncaught errors join the native log (a no-op on the web).
+void initTauriLogging({ prefix: 'haptics' });
 
 const UI_KINDS = ['confirm', 'reject', 'tick', 'toggle-on', 'toggle-off', 'drag-start'] as const;
 
