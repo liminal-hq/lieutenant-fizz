@@ -35,8 +35,5 @@
     "android": {
       "minSdkVersion": 26
     }
-  },
-  "plugins": {
-    "haptics": {}
   }
 }
