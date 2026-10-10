@@ -45,6 +45,7 @@
   "license": "Apache-2.0 OR MIT",
   "dependencies": {
     "@liminal-hq/undertone": "^0.2.0",
+    "@tauri-apps/plugin-store": "^2",
     "three": "^0.184.0"
   },
   "devDependencies": {

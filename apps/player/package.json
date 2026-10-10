@@ -9,6 +9,9 @@
     "build": "tsc --noEmit && vite build",
     "tauri": "tauri"
   },
+  "dependencies": {
+    "@lieutenant-fizz/engine": "workspace:*"
+  },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
     "vite": "^8.0.0"
