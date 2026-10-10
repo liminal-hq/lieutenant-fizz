@@ -46,6 +46,23 @@ import {
   type Host,
   type Want,
 } from '@lieutenant-fizz/engine/lifecycle-policy';
+import {
+  readPadBindings,
+  resetPadBindings,
+  writePadBindings,
+  type PadAction,
+  type PadBindings,
+} from '@lieutenant-fizz/engine/gamepad-bindings';
+import { padFamily, type PadFamily } from '@lieutenant-fizz/engine/gamepad-labels';
+import {
+  IDLE,
+  cancelRemap,
+  remapMessage,
+  startListening,
+  stepRemap,
+  type CancelReason,
+  type RemapState,
+} from '@lieutenant-fizz/engine/gamepad-remap';
 import { placeSound, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
 import {
@@ -124,6 +141,12 @@ import {
   type DisplayCaps,
   type DisplayRow,
 } from './display-options';
+import {
+  controllerAction,
+  controllerItems,
+  controllerLinkValue,
+  controllerRowOf,
+} from './controller-options';
 import {
   effectiveScale,
   hapticsFeel,
@@ -391,6 +414,12 @@ export class Game {
   private padModelSeen: string | null = null;
   /** The Tauri haptics plugin reported a vibrator and is the phone's backend. */
   private pluginVibrator = false;
+  /** Whether any gamepad has been seen this session. It only ever turns on, so the Controller row never goes away once shown. */
+  private anyPadSeen = false;
+  /** The gamepad's button bindings, saved on this device. */
+  private padBindings: PadBindings;
+  /** The Controller screen's listening state. */
+  private remap: RemapState = IDLE;
   /** When Reset had its first tap (in `performance.now()` milliseconds), or null. */
   private resetAt: number | null = null;
   /** Which quit row the armed confirm belongs to (Quit to launcher or Quit game). */
@@ -676,6 +705,8 @@ export class Game {
     }
     this.haptics.setRoute(routeFor(this.input.device));
     this.input.onDevice((d) => this.haptics.setRoute(routeFor(d)));
+    this.padBindings = readPadBindings(this.store);
+    this.input.setPadBindings(this.padBindings);
     this.settings = readOptions(this.store);
     this.applySettings();
     this.input.onDevice(() => this.syncHints());
@@ -864,6 +895,7 @@ export class Game {
 
     this.watchPad();
     this.watchPadModel();
+    this.tickRemap(performance.now());
     const bits = this.input.peek();
     this.menuInput(bits);
     this.lastBits = bits;
@@ -1538,6 +1570,10 @@ export class Game {
    * a row at that moment, so the selection follows the row it was on.
    */
   private watchPad(): void {
+    if (!this.anyPadSeen && this.input.padConnected) {
+      this.keepRow(() => (this.anyPadSeen = true));
+      this.syncHints();
+    }
     if (this.padSeen || !this.input.activePad()?.vibrationActuator) return;
     this.keepRow(() => (this.padSeen = true));
   }
@@ -1549,7 +1585,8 @@ export class Game {
     const items = this.menuItems();
     const at = id === undefined ? -1 : items.findIndex((i) => i.id === id);
     if (at >= 0) this.menuIdx = at;
-    if (this.sub === 'options' || this.sub === 'haptics') this.syncUi();
+    if (this.sub === 'options' || this.sub === 'haptics' || this.sub === 'controller')
+      this.syncUi();
   }
 
   private syncHints(): void {
@@ -1561,6 +1598,7 @@ export class Game {
       fullscreenButton: this.fullscreenButtonOffered(),
       escExitsFullscreen:
         this.escLeavesFullscreen() && (this.screen === 'title' || this.screen === 'pause'),
+      pad: { bindings: this.padBindings, family: this.padFamily() },
     });
   }
 
@@ -1779,6 +1817,7 @@ export class Game {
     return [
       { id: 'sound', label: 'Sound' },
       ...(this.hapticsShown() ? [{ id: 'haptics', label: 'Haptics' }] : []),
+      ...(this.anyPadSeen ? [{ id: 'controller', label: 'Controller' }] : []),
       ...(displayShown(this.displayCaps()) ? [{ id: 'display', label: 'Display' }] : []),
       row('Captions', 'captions'),
       row('Controls', 'layout'),
@@ -1809,6 +1848,7 @@ export class Game {
           label,
           value: hapticsLinkValue(this.urlLocks(), this.touchSettings.hapticStrength),
         };
+      if (id === 'controller') return { id, label, value: controllerLinkValue(this.padBindings) };
       if (id === 'display') return { id, label, value: displayLinkValue(this.urlLocks(), o) };
       return key ? { id, label, kind: 'choice', value: text(key) } : { id, label };
     });
@@ -1852,6 +1892,13 @@ export class Game {
         this.hapticsNow(),
         this.urlLocks(),
         this.hapticsRowList(),
+        resetArmed(this.resetAt, performance.now()),
+      );
+    if (this.sub === 'controller')
+      return controllerItems(
+        this.padBindings,
+        this.padFamily(),
+        this.remap,
         resetArmed(this.resetAt, performance.now()),
       );
     if (this.sub === 'display')
@@ -1904,6 +1951,8 @@ export class Game {
   }
 
   private nav(d: number): void {
+    // While a button is awaited the rows stay where they are.
+    if (this.remap.kind === 'listening') return;
     const items = this.menuItems();
     const n = items.length;
     if (!n) return;
@@ -1939,6 +1988,12 @@ export class Game {
   /** Closes the screen opened over a menu and puts the selection back on the row that opened it. */
   private closeSub(): void {
     if (!this.sub) return;
+    // Back, Esc or Pause while a button is awaited only stops the wait; the screen stays.
+    if (this.sub === 'controller' && this.remap.kind === 'listening') {
+      this.cancelListening('key');
+      return;
+    }
+    this.endRemap();
     this.audio.play('click');
     this.haptics.ui('back');
     this.disarmReset();
@@ -1955,6 +2010,7 @@ export class Game {
    */
   private leaveSubs(): void {
     if (!this.sub) return;
+    this.endRemap();
     this.audio.play('click');
     this.haptics.ui('select');
     this.disarmReset();
@@ -2100,6 +2156,90 @@ export class Game {
       'haptics',
       firstEnabled(hapticsItems(this.hapticsNow(), this.urlLocks(), this.hapticsRowList(), false)),
     );
+  }
+
+  /** Opens the Controller screen, on the first action. */
+  private openController(): void {
+    this.remap = IDLE;
+    this.openSub('controller', 0);
+  }
+
+  /** The controller family of the pad in use, for naming its buttons. A keyboard with no pad reads as the standard mapping's names. */
+  private padFamily(): PadFamily {
+    return padFamily(this.input.activePad()?.id);
+  }
+
+  /** Starts waiting for a button for `action`. The buttons held now are ignored until they come up. */
+  private startListen(action: PadAction): void {
+    this.disarmReset();
+    this.remap = startListening(action, performance.now(), this.input.padButtons());
+    this.input.setPadListening(true);
+    this.haptics.ui('select');
+    this.ui.toast(remapMessage(this.remap, this.padFamily()));
+    this.syncUi();
+  }
+
+  /** Stops waiting for a button, and says so. */
+  private cancelListening(reason: Exclude<CancelReason, 'timeout'>): void {
+    if (this.remap.kind !== 'listening') return;
+    this.remap = cancelRemap(this.remap, performance.now(), reason);
+    this.input.setPadListening(false);
+    this.ui.toast(remapMessage(this.remap, this.padFamily()));
+    this.audio.play('click');
+    this.haptics.ui('back');
+    this.syncUi();
+  }
+
+  /** Drops the Controller screen's state when it closes: nothing is awaited and the pad drives the game again. */
+  private endRemap(): void {
+    if (this.remap.kind === 'listening') this.input.setPadListening(false);
+    this.remap = IDLE;
+  }
+
+  /**
+   * Once a frame: feeds the pad's pressed buttons to the listening state machine. A bound button is
+   * saved and takes effect at once (the hints too); a timeout or a Start held down ends the wait; a result
+   * clears after a moment. Off the Controller screen nothing is awaited.
+   */
+  private tickRemap(now: number): void {
+    if (this.remap.kind === 'idle') return;
+    if (this.sub !== 'controller') {
+      this.endRemap();
+      return;
+    }
+    const was = this.remap;
+    const step = stepRemap(was, this.padBindings, now, this.input.padButtons());
+    this.remap = step.state;
+    if (was.kind === 'listening' && step.state.kind === 'result') {
+      this.input.setPadListening(false);
+      if (step.changed) {
+        this.padBindings = step.bindings;
+        writePadBindings(this.store, this.padBindings);
+        this.input.setPadBindings(this.padBindings);
+        this.syncHints();
+        this.audio.play('click');
+        this.haptics.ui('select');
+      } else {
+        this.audio.play('click');
+        this.haptics.ui('back');
+      }
+      this.ui.toast(remapMessage(step.state, this.padFamily()));
+    }
+    if (step.state !== was) this.syncUi();
+  }
+
+  /** Reset to defaults asks twice, then puts every action back on its standard buttons. */
+  private tapControllerReset(): void {
+    if (resetArmed(this.resetAt, performance.now())) {
+      this.disarmReset();
+      this.padBindings = resetPadBindings();
+      writePadBindings(this.store, this.padBindings);
+      this.input.setPadBindings(this.padBindings);
+      this.syncHints();
+      this.syncUi();
+      return;
+    }
+    this.armReset();
   }
 
   /** Opens the Display screen, on the first row the address has not fixed. */
@@ -2315,7 +2455,8 @@ export class Game {
       this.sub === 'touchEdit' ||
       this.sub === 'sound' ||
       this.sub === 'haptics' ||
-      (this.screen === 'pause' && !this.sub)
+      (this.screen === 'pause' && !this.sub) ||
+      this.sub === 'controller'
     )
       this.syncUi();
   }
@@ -2392,6 +2533,19 @@ export class Game {
       else this.stepHapticsRow(row, 1, true);
       return;
     }
+    if (this.sub === 'controller') {
+      // A press or tap while a button is awaited cancels the wait.
+      if (this.remap.kind === 'listening') {
+        this.cancelListening('touch');
+        return;
+      }
+      const row = controllerRowOf(id);
+      const action = controllerAction(row);
+      if (row === 'back') this.closeSub();
+      else if (row === 'reset') this.tapControllerReset();
+      else if (action) this.startListen(action);
+      return;
+    }
     if (this.sub === 'display') {
       const row = displayRowOf(id);
       if (row === 'back') this.closeSub();
@@ -2402,6 +2556,7 @@ export class Game {
       if (id === 'back') this.closeSub();
       else if (id === 'sound') this.openSound();
       else if (id === 'haptics') this.openHaptics();
+      else if (id === 'controller') this.openController();
       else if (id === 'display') this.openDisplay();
       else if (id === 'touch') this.openSub('touch');
       else if (id.startsWith('opt:')) {
@@ -3169,6 +3324,7 @@ export class Game {
       this.sub === 'saves' ||
       this.sub === 'sound' ||
       this.sub === 'haptics' ||
+      this.sub === 'controller' ||
       this.sub === 'display' ||
       this.sub === 'touch';
     ui.showTitle(onTitle && !this.sub ? items : null, sel, onTitle && this.sub === 'controls');
@@ -3192,13 +3348,15 @@ export class Game {
               ? 'Sound'
               : this.sub === 'haptics'
                 ? 'Haptics'
-                : this.sub === 'display'
-                  ? 'Display'
-                  : 'Options',
+                : this.sub === 'controller'
+                  ? 'Controller'
+                  : this.sub === 'display'
+                    ? 'Display'
+                    : 'Options',
         text: '',
         items,
         sel,
-        screen: saves ? 'saves' : 'options',
+        screen: saves ? 'saves' : this.remap.kind === 'listening' ? 'listen' : 'options',
         side: true,
       });
     } else {
@@ -3546,6 +3704,7 @@ export class Game {
       | 'options'
       | 'sound'
       | 'haptics'
+      | 'controller'
       | 'display'
       | 'touch'
       | 'touchEdit'
@@ -3634,6 +3793,17 @@ export class Game {
         this.optionRows().findIndex((r) => r.id === 'haptics'),
       );
       return this.openHaptics();
+    }
+    if (what === 'controller') {
+      // Title, then Options on its Controller row, then the screen, as a player gets there. The row
+      // appears once a pad has been seen, so a desktop test gets it by asking.
+      this.anyPadSeen = true;
+      this.openSub('options');
+      this.menuIdx = Math.max(
+        0,
+        this.optionRows().findIndex((r) => r.id === 'controller'),
+      );
+      return this.openController();
     }
     if (what === 'display') {
       // Title, then Options on its Display row, then the screen, as a player gets there.

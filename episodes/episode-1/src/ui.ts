@@ -448,7 +448,9 @@ export class Ui {
       ctx.device === this.ctx.device &&
       ctx.layout === this.ctx.layout &&
       ctx.fullscreen === this.ctx.fullscreen &&
-      ctx.escExitsFullscreen === this.ctx.escExitsFullscreen
+      ctx.escExitsFullscreen === this.ctx.escExitsFullscreen &&
+      ctx.pad?.bindings === this.ctx.pad?.bindings &&
+      ctx.pad?.family === this.ctx.pad?.family
     )
       return;
     this.ctx = ctx;
