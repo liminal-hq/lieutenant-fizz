@@ -96,6 +96,8 @@ const CALM_STRENGTH = 0.7;
  * Strength setting), and at this multiple of it so a menu step is as present as a jump.
  */
 export const UI_BOOST = 1.5;
+/** World cues felt from the title's attract loop play at this fraction of their strength. */
+export const ATTRACT_SCALE = 0.6;
 
 /** Whether a point in the world is inside the view (with `margin` world units to spare). */
 export function onScreen(
@@ -114,6 +116,8 @@ interface Waiting {
   scale: number;
   count: number;
   order: number;
+  /** From the title's attract loop: it never takes anything from a menu cue. */
+  ambient?: boolean;
 }
 
 type Candidate = Waiting & { cue: HapticCue; queued: boolean };
@@ -127,6 +131,8 @@ class Channel {
   master = 1;
   busyUntil = 0;
   runPriority = 0;
+  /** What runs now is attract ambience, which a menu cue may cut off. */
+  runAmbient = false;
   queued: Waiting[] = [];
   spent: { t: number; ms: number }[] = [];
 
@@ -137,6 +143,7 @@ class Channel {
     this.backend.stop();
     this.busyUntil = 0;
     this.runPriority = 0;
+    this.runAmbient = false;
   }
 }
 
@@ -167,6 +174,7 @@ export class GameHaptics {
   private readonly table: HapticTable;
   private route: Route = 'device';
   private gameplay = false;
+  private attract = false;
   private active = true;
   private calm = false;
   private order = 0;
@@ -217,12 +225,33 @@ export class GameHaptics {
   setGameplay(on: boolean): void {
     if (on === this.gameplay) return;
     this.gameplay = on;
-    if (on) return;
+    if (on) {
+      this.forgetAmbient();
+      return;
+    }
     for (const id of [...this.pending.keys()])
       if (this.table.cues[id]?.lane === 'game') this.pending.delete(id);
     for (const c of Object.values(this.ch))
       c.queued = c.queued.filter((q) => this.table.cues[q.id]?.lane !== 'game');
     this.stopAll();
+  }
+
+  /**
+   * Lets the title's attract loop be felt: while it is on and no level is being played, world cues whose
+   * source is on screen play at `ATTRACT_SCALE`, and nothing else from the loop does. The game turns it off
+   * while a screen is open over the title or the page is hidden. Turning it off drops what it had raised.
+   */
+  setAttract(on: boolean): void {
+    if (on === this.attract) return;
+    this.attract = on;
+    if (on) return;
+    this.forgetAmbient();
+    if (!this.gameplay) this.stopAll();
+  }
+
+  private forgetAmbient(): void {
+    for (const [id, w] of [...this.pending]) if (w.ambient) this.pending.delete(id);
+    for (const c of Object.values(this.ch)) c.queued = c.queued.filter((q) => !q.ambient);
   }
 
   /** Whether the page is visible. Hiding stops everything and forgets what was waiting. */
@@ -246,13 +275,20 @@ export class GameHaptics {
   cue(id: string, scale = 1, onScreen = true): void {
     const cue = this.table.cues[id];
     if (!cue || !this.active) return;
-    if (cue.lane === 'game' && !this.gameplay) return;
+    let ambient = false;
+    if (cue.lane === 'game' && !this.gameplay) {
+      // Outside a level only the attract loop's on-screen world cues get through, quietly.
+      if (!(this.attract && cue.world === true && onScreen)) return;
+      ambient = true;
+      scale *= ATTRACT_SCALE;
+    }
     if (cue.world && !onScreen) return;
     const w = this.pending.get(id);
     if (w) {
       w.scale = Math.max(w.scale, scale);
       w.count++;
-    } else this.pending.set(id, { id, scale, count: 1, order: this.order++ });
+    } else
+      this.pending.set(id, { id, scale, count: 1, order: this.order++, ...(ambient ? { ambient } : {}) });
   }
 
   /** Raises the cue a caption maps to, if it has one. */
@@ -357,6 +393,7 @@ export class GameHaptics {
     const len = (c: HapticCue): number => patternLength(c.pattern);
     cands.sort(
       (a, b) =>
+        Number(a.ambient === true) - Number(b.ambient === true) ||
         b.cue.priority - a.cue.priority ||
         len(b.cue) - len(a.cue) ||
         (a.queued === b.queued ? a.order - b.order : a.queued ? -1 : 1),
@@ -368,10 +405,11 @@ export class GameHaptics {
         later.push(c);
         continue;
       }
-      const wait = ch.busyUntil - now;
+      // Attract ambience never holds a menu cue back: it is cut off instead.
+      const wait = ch.runAmbient && !c.ambient ? 0 : ch.busyUntil - now;
       if (wait > 0) {
         const policy = c.cue.policy;
-        const outranked = c.cue.priority < ch.runPriority;
+        const outranked = c.cue.priority < ch.runPriority || c.ambient === true;
         if (outranked || policy === 'drop-if-busy' || policy === 'queue') {
           if (policy === 'queue' && wait <= QUEUE_WAIT) this.hold(ch, c);
           else this.drop('busy');
@@ -393,7 +431,13 @@ export class GameHaptics {
 
   private hold(ch: Channel, c: Waiting): void {
     if (ch.queued.length < QUEUE_MAX)
-      ch.queued.push({ id: c.id, scale: c.scale, count: c.count, order: c.order });
+      ch.queued.push({
+        id: c.id,
+        scale: c.scale,
+        count: c.count,
+        order: c.order,
+        ...(c.ambient ? { ambient: true } : {}),
+      });
   }
 
   private spentMs(ch: Channel): number {
@@ -410,6 +454,7 @@ export class GameHaptics {
       this.lastPlay.set(c.id, now);
       ch.busyUntil = now + r.ms;
       ch.runPriority = c.cue.priority;
+      ch.runAmbient = c.ambient === true;
       const first = r.compiled?.[0];
       const on = typeof first === 'number' ? onTime(r.compiled as number[]) : r.ms;
       if (ch.budgeted && on > 0) ch.spent.push({ t: now, ms: on });

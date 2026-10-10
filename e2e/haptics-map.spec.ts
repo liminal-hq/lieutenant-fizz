@@ -56,4 +56,28 @@ test.describe('haptics on the map', () => {
     await settle(page, 30);
     expect((await cues(page)).filter((c) => c === 'levelStart')).toHaveLength(1);
   });
+
+  test('the title attract loop is felt for on-screen world cues only, never under a sub-screen', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    // Slow: the loop has to reach its first bump.
+    await open(page);
+    // The Citadel's boulder (the third level of the loop) bumps the wall and raises KRUNCH.
+    await page.evaluate(() =>
+      (window as unknown as { __lf: { loadAttract(i: number): void } }).__lf.loadAttract(2),
+    );
+    const world = ['thunk', 'krunch', 'crumble', 'clang', 'thoom'];
+    // The loop's rock bumps within its first passes; nothing but world cues may come out of it.
+    await expect
+      .poll(async () => (await cues(page)).some((c) => world.includes(c)), { timeout: 40_000 })
+      .toBe(true);
+    expect((await cues(page)).every((c) => world.includes(c))).toBe(true);
+    // With Options open over the title, the loop goes quiet.
+    await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('options'));
+    await settle(page, 5);
+    const n = (await cues(page)).length;
+    await page.waitForTimeout(8_000);
+    expect((await cues(page)).slice(n).filter((c) => !c.startsWith('ui.'))).toEqual([]);
+  });
 });

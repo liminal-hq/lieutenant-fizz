@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBackend, noneBackend, type FakeBackend } from './haptic-backends';
 import { RUMBLE_COMPILE, VIBRATE_COMPILE } from './haptic-pattern';
 import type { HapticCue, HapticTable } from './haptic-pattern';
-import { GameHaptics, UI_BOOST, onScreen, routeFor } from './haptics';
+import { ATTRACT_SCALE, GameHaptics, UI_BOOST, onScreen, routeFor } from './haptics';
 
 const cue = (over: Partial<HapticCue> = {}): HapticCue => ({
   pattern: { events: [{ kind: 'transient', at: 0, intensity: 0.7, sharpness: 0.2 }] },
@@ -24,6 +24,9 @@ const table: HapticTable = {
     heavy: cue({ priority: 4, cooldownMs: 300 }),
     menu: cue({ priority: 0, cooldownMs: 40, lane: 'ui' }),
     'ui.select': cue({ priority: 1, cooldownMs: 0, lane: 'ui' }),
+    'ui.move': cue({ priority: 0, cooldownMs: 0, policy: 'drop-if-busy', lane: 'ui' }),
+    rock: cue({ priority: 4, cooldownMs: 100, world: true }),
+    pebble: cue({ priority: 1, cooldownMs: 0, world: true, policy: 'drop-if-busy' }),
   },
   captions: { 'light!': 'light', quiet: null },
 };
@@ -666,5 +669,87 @@ describe('GameHaptics.cues and tuning', () => {
     expect(r.refused.sort()).toEqual(['rumble.bogus', 'rumble.slice']);
     expect(pad.tunedRumble).toEqual([{ tapBase: 60 }]);
     expect(h.tuning().rumble.tapBase).toBe(60);
+  });
+});
+
+describe('the title attract loop', () => {
+  beforeEach(() => {
+    h.setGameplay(false);
+    h.setAttract(true);
+  });
+
+  it('plays an on-screen world cue at the named fraction, and nothing else the loop raises', () => {
+    h.cue('rock', 1, true);
+    h.cue('light');
+    h.flush();
+    expect(fake.plays).toHaveLength(1);
+    expect(fake.plays[0]?.scale).toBeCloseTo(ATTRACT_SCALE);
+    expect(ATTRACT_SCALE).toBe(0.6);
+  });
+
+  it('ignores a world cue that is off screen', () => {
+    h.cue('rock', 1, false);
+    h.flush();
+    expect(fake.plays).toHaveLength(0);
+  });
+
+  it('plays nothing with a sub-screen open or the page hidden, and stops what runs', () => {
+    h.cue('rock');
+    h.flush();
+    const stops = fake.stops;
+    h.setAttract(false);
+    expect(fake.stops).toBeGreaterThan(stops);
+    t += 500;
+    h.cue('rock');
+    h.flush();
+    expect(fake.plays).toHaveLength(1);
+    h.setAttract(true);
+    h.setActive(false);
+    h.cue('rock');
+    h.setActive(true);
+    h.flush();
+    expect(fake.plays).toHaveLength(1);
+  });
+
+  it('is silent at Strength Off', () => {
+    h.setScale(0);
+    h.cue('rock');
+    h.flush();
+    expect(fake.plays).toHaveLength(0);
+  });
+
+  it('lets a menu cue win the frame and never doubles up with it', () => {
+    h.cue('rock');
+    h.ui('select');
+    h.flush();
+    expect(h.report().plays.map((p) => p.cue)).toEqual(['ui.select']);
+  });
+
+  it('lets a menu cue play over running ambience, even a drop-if-busy one', () => {
+    h.cue('pebble');
+    h.flush();
+    t += 16;
+    h.ui('move');
+    h.flush();
+    expect(h.report().plays.map((p) => p.cue)).toEqual(['pebble', 'ui.move']);
+  });
+
+  it('never cuts off a menu cue that is running, whatever its priority', () => {
+    h.ui('select');
+    h.flush();
+    t += 16;
+    h.cue('rock');
+    h.flush();
+    expect(h.report().plays.map((p) => p.cue)).toEqual(['ui.select']);
+  });
+
+  it('gives the level its full strength once play starts', () => {
+    h.cue('rock');
+    h.setGameplay(true);
+    h.flush();
+    expect(fake.plays).toHaveLength(0);
+    h.cue('rock');
+    h.flush();
+    expect(fake.plays[0]?.scale).toBe(1);
   });
 });

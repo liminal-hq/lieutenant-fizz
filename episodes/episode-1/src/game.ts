@@ -762,8 +762,10 @@ export class Game {
     // The sim samples touch presses in play; a menu has no step, so it marks them seen itself.
     if (screen !== 'play') this.input.markTouchSeen();
 
-    // Gameplay haptics follow the level only: the title's attract loop raises captions too.
+    // Gameplay haptics follow the level only; the title's attract loop raises captions too and gets its own rule below.
     this.haptics.setGameplay(screen === 'play');
+    // The attract loop is felt, quietly, only where it is on show: the bare title, not behind a sub-screen.
+    this.haptics.setAttract(screen === 'title' && !this.sub && this.visible);
     if (screen === 'play' || screen === 'title') {
       this.alpha = this.stepper.advance(dt, () => {
         sim.step(screen === 'play' ? this.input.poll() : 0);
