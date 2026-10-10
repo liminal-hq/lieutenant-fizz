@@ -171,11 +171,26 @@ async function startAudio(): Promise<ProbeReport> {
   };
 }
 
-function persistence(): ProbeReport {
+// Counted once when the page loads, so a re-run reports the same launch instead of a new one.
+const launchCount = countLaunch();
+
+function countLaunch(): number | null {
   try {
     const count = Number(localStorage.getItem('lf-probe-launches') ?? '0') + 1;
     localStorage.setItem('lf-probe-launches', String(count));
-    return { launches: count, firstSeen: localStorage.getItem('lf-probe-first') ?? setFirst() };
+    return count;
+  } catch {
+    return null;
+  }
+}
+
+function persistence(): ProbeReport {
+  try {
+    if (launchCount === null) throw new Error('localStorage is unavailable');
+    return {
+      launches: launchCount,
+      firstSeen: localStorage.getItem('lf-probe-first') ?? setFirst(),
+    };
   } catch (error) {
     return { error: String(error) };
   }
