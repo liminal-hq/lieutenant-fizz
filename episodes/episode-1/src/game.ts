@@ -712,6 +712,8 @@ export class Game {
     this.settings = readOptions(this.store);
     this.applySettings();
     this.input.onDevice(() => this.syncHints());
+    // A second pad of another family can take over while the device stays the gamepad.
+    this.input.onPadChange(() => this.syncHints());
     // Touch mode follows the device in use: a touch turns it on, a key or a gamepad turns it off.
     this.input.onDevice((d) => this.setTouchMode(this.forcedTouch || d === 'touch'));
     window.addEventListener('pointerdown', this.onTouchPointer, { capture: true, passive: true });

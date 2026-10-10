@@ -395,3 +395,52 @@ test('a Pogo shared with the only Jump button goes back once and stays back', as
   expect(await title(page)).toBe('Options');
   expect(errors).toEqual([]);
 });
+
+test('using a second controller of another family renames the buttons in the Controls table', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(() => {
+    const make = (index: number, id: string) => ({
+      index,
+      id,
+      connected: true,
+      mapping: 'standard',
+      axes: [0, 0, 0, 0],
+      buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0, touched: false })),
+    });
+    const pads = [
+      make(0, 'Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)'),
+      make(1, 'Xbox 360 Controller (STANDARD GAMEPAD Vendor: 045e Product: 028e)'),
+    ];
+    Object.assign(window, { __pads: pads });
+    navigator.getGamepads = () => pads as unknown as Gamepad[];
+  });
+  await page.goto('/?debug');
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+    timeout: 20_000,
+  });
+  await show(page, 'controls');
+  const hold = (pad: number, on: boolean): Promise<void> =>
+    page.evaluate(
+      ([p, v]) => {
+        (window as unknown as { __pads: { buttons: { pressed: boolean }[] }[] }).__pads[
+          p as number
+        ]!.buttons[14]!.pressed = !!v;
+      },
+      [pad, on] as const,
+    );
+  const text = (): Promise<string> => page.locator('#controls').innerText();
+  await settle(page, 4);
+  await hold(0, true);
+  await settle(page, 6);
+  const playstation = await text();
+  await hold(0, false);
+  await settle(page, 6);
+  // The Xbox pad is the one in use now; the device is still the gamepad, so no device change fires.
+  await hold(1, true);
+  await expect.poll(text).not.toBe(playstation);
+  await hold(1, false);
+  expect(errors).toEqual([]);
+});

@@ -221,6 +221,7 @@ export class InputManager {
   device: InputDevice = 'keyboard';
   private readonly deviceHandlers = new Set<(d: InputDevice) => void>();
   private readonly padLostHandlers = new Set<() => void>();
+  private readonly padChangeHandlers = new Set<() => void>();
   /** When true, held bits are suppressed (menus, dialogue) but commands still fire. */
   blocked = false;
   /** The touch controls' state. A DOM controller feeds it; its bits count only while touch is enabled. */
@@ -324,6 +325,12 @@ export class InputManager {
     return () => this.deviceHandlers.delete(fn);
   }
 
+  /** Calls `fn` when a different pad becomes the one in use (the device can stay the gamepad, so `onDevice` does not fire). Returns an unsubscribe function. */
+  onPadChange(fn: () => void): () => void {
+    this.padChangeHandlers.add(fn);
+    return () => this.padChangeHandlers.delete(fn);
+  }
+
   /** Calls `fn` when the pad the player was using is unplugged. Returns an unsubscribe function. */
   onPadLost(fn: () => void): () => void {
     this.padLostHandlers.add(fn);
@@ -425,8 +432,10 @@ export class InputManager {
       padBits |= r.bits;
       start ||= r.start;
       if (r.bits || r.start) {
+        const changed = this.lastPad !== gp.index;
         this.lastPad = gp.index;
         this.setDevice('pad-input');
+        if (changed) for (const h of this.padChangeHandlers) h();
       }
     }
     this.padConnected = pad;
