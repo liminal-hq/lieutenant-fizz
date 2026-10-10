@@ -1,4 +1,4 @@
-// Desktop stub — predictive back is an Android-only gesture
+// Desktop stub — predictive back is an Android-only gesture.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

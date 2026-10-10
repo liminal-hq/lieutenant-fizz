@@ -1,4 +1,4 @@
-// Plugin entry point and cross-platform extension trait
+// Plugin entry point and cross-platform extension trait.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

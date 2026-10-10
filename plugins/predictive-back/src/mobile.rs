@@ -1,4 +1,4 @@
-// Android bridge: forwards native back-gesture frames and setCanGoBack toggles to/from Kotlin
+// Android bridge: forwards native back-gesture frames and setCanGoBack toggles to/from Kotlin.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

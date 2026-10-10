@@ -1,4 +1,4 @@
-// Wire models for the predictive-back plugin's command and event payloads
+// Wire models for the predictive-back plugin's command and event payloads.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
