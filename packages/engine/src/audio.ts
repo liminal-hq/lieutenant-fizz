@@ -492,7 +492,10 @@ export class GameAudio {
           this.ut = m;
           this.backend = 'Undertone 0.2';
         } else this.backend = 'Built-in synth';
-        this.flushPending();
+        // On the web the built-in loop may already be playing (the first gesture came before the import
+        // settled); hand it over to Undertone, as the build did before the boot path began to wait.
+        if (this.ut && this.handle && this.track) this.playMusic(this.track, true);
+        else this.flushPending();
       },
       (e: unknown) => {
         console.warn('Undertone unavailable, using the built-in synth', e);

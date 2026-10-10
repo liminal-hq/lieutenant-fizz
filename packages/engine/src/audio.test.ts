@@ -278,6 +278,32 @@ describe('GameAudio music while Undertone loads at boot', () => {
     audio.dispose();
   });
 
+  it('on the web switches the running built-in loop to Undertone once it arrives', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const c = controlledLoad();
+    const audio = new GameAudio(patterns, c.load);
+    audio.playMusic('title');
+    listeners.get('pointerdown')!();
+    expect(loop).not.toHaveBeenCalled();
+    c.resolve();
+    await flush();
+    expect(loop).toHaveBeenCalledTimes(1);
+    audio.dispose();
+  });
+
+  it('on the web leaves a silent or stopped track alone when Undertone arrives', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const c = controlledLoad();
+    const audio = new GameAudio(patterns, c.load);
+    audio.playMusic('title');
+    audio.setMusic(false);
+    listeners.get('pointerdown')!();
+    c.resolve();
+    await flush();
+    expect(loop).not.toHaveBeenCalled();
+    audio.dispose();
+  });
+
   it('starts the built-in loop once, after the load fails', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
