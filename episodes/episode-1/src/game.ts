@@ -11,7 +11,6 @@ import { FrameStats } from '@lieutenant-fizz/engine/frame-stats';
 import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
-import { adoptPlugin, pluginBackend } from '@lieutenant-fizz/engine/haptic-plugin';
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import type { HostBackend } from '@lieutenant-fizz/engine/host';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
@@ -552,11 +551,22 @@ export class Game {
       controller: gamepadBackend(() => this.input.activePad()),
     });
     // Inside the app the plugin's vibrator (amplitudes, primitives, envelopes) replaces `navigator.vibrate`
-    // once it reports one. The web never creates it.
+    // once it reports one. The web never creates it, and never downloads its compiler: it is its own chunk,
+    // imported only here. Until it has loaded and adopted, cues take the `navigator.vibrate` backend above.
     if (isAppHost(window)) {
-      void adoptPlugin(this.haptics, pluginBackend(), true).then((adopted) => {
-        if (adopted) this.keepRow(() => (this.pluginVibrator = true));
-      });
+      void import('@lieutenant-fizz/engine/haptic-plugin')
+        .then(({ adoptPlugin, pluginBackend }) => {
+          const plugin = pluginBackend();
+          if (this.disposed) {
+            plugin.dispose();
+            return false;
+          }
+          return adoptPlugin(this.haptics, plugin, true);
+        })
+        .then((adopted) => {
+          if (adopted) this.keepRow(() => (this.pluginVibrator = true));
+        })
+        .catch(() => {});
     }
     this.haptics.setRoute(routeFor(this.input.device));
     this.input.onDevice((d) => this.haptics.setRoute(routeFor(d)));
