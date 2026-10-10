@@ -773,8 +773,10 @@ export class Game {
         this.played += dt;
         // Toggling pogo raises no event, so the lit state is read each frame (it writes on a change only).
         if (this.touchMode) this.touchUi.setLit(sim.get(State.POGO_ON) === 1);
+        // Only Ben in a level pogoes: coming back to the map resets the flag without a pogo being toggled.
         const pogo = sim.get(State.POGO_ON) === 1;
-        if (pogo !== this.pogoOn) this.haptics.cue(pogo ? 'pogoOn' : 'pogoOff');
+        if (pogo !== this.pogoOn && sim.x.mode() === Mode.LEVEL)
+          this.haptics.cue(pogo ? 'pogoOn' : 'pogoOff');
         this.pogoOn = pogo;
       } else this.pogoOn = sim.get(State.POGO_ON) === 1;
       this.handleEvents();
