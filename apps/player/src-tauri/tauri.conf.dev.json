@@ -1,0 +1,7 @@
+{
+  "identifier": "ca.liminalhq.lieutenantfizz.dev",
+  "productName": "Lieutenant Fizz Dev",
+  "app": {
+    "withGlobalTauri": true
+  }
+}
