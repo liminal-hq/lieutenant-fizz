@@ -3,8 +3,9 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// Imported first: ES modules evaluate in import order, so the log bridge is up before any other module loads.
+import './haptics-log-boot';
 import { isAppHost } from '@lieutenant-fizz/engine/lifecycle-policy';
-import { initTauriLogging } from '@lieutenant-fizz/engine/tauri-log';
 import { STRENGTH_NAMES, STRENGTH_SCALE } from '@lieutenant-fizz/engine/haptic-strength';
 import {
   pluginBackend,
@@ -30,9 +31,6 @@ import {
 } from './haptics-cases';
 
 declare const __HAPTICS_PLUGIN_REV__: string;
-
-// Inside the app, console output and uncaught errors join the native log (a no-op on the web).
-void initTauriLogging({ prefix: 'haptics' });
 
 const UI_KINDS = ['confirm', 'reject', 'tick', 'toggle-on', 'toggle-off', 'drag-start'] as const;
 

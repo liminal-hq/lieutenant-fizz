@@ -3,7 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { initTauriLogging } from '@lieutenant-fizz/engine/tauri-log';
+// Imported first: ES modules evaluate in import order, so the log bridge is up before any other module loads.
+import './log-boot';
 import { createHostBackend, type HostBackend } from '@lieutenant-fizz/engine/host';
 import {
   fakeNativeWindow,
@@ -18,9 +19,6 @@ import { parseAudioParam } from '@lieutenant-fizz/engine/sound-field';
 import { createStorage } from '@lieutenant-fizz/engine/storage';
 import { Game } from './game';
 import { parseHapticsParam, parsePixelsParam } from './url-lock';
-
-// Inside the app, console output and uncaught errors join the native log (a no-op on the web).
-void initTauriLogging({ prefix: 'episode-1' });
 
 const stage = document.getElementById('stage');
 if (!stage) throw new Error('missing #stage');
