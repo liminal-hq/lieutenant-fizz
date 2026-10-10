@@ -6,9 +6,11 @@
 import type { HapticCaps } from '@lieutenant-fizz/engine/haptic-backends';
 import {
   RUMBLE_BOOST,
+  RUMBLE_PLAIN,
   RUMBLE_COMPILE,
   VIBRATE_COMPILE,
   compileBoostedRumble,
+  compilePlainRumble,
   compileRumble,
   compileVibrate,
   patternLength,
@@ -20,6 +22,7 @@ import {
   type Policy,
   type RumbleBoost,
   type RumbleCompile,
+  type RumblePlain,
   type RumbleSegment,
   type VibrateCompile,
 } from '@lieutenant-fizz/engine/haptic-pattern';
@@ -36,6 +39,7 @@ export interface HapticsLabState {
   compile: VibrateCompile;
   rumble: RumbleCompile;
   boost: RumbleBoost;
+  plain: RumblePlain;
   plugin: PluginCompile;
   budget: { onMs: number; windowMs: number };
 }
@@ -50,6 +54,7 @@ export const HAPTICS_DEFAULTS: HapticsLabState = captureHapticsState({
   compile: { ...VIBRATE_COMPILE },
   rumble: { ...RUMBLE_COMPILE },
   boost: { ...RUMBLE_BOOST },
+  plain: { ...RUMBLE_PLAIN },
   plugin: { ...PLUGIN_COMPILE },
   budget: { onMs: 400, windowMs: 1000 },
 });
@@ -134,19 +139,27 @@ export interface Compiled {
   padMs: number;
 }
 
+/** How the pad in use plays rumble: boosted, lengthened (plain) or as compiled. */
+export type RumbleProfile =
+  { kind: 'boost'; boost: Readonly<RumbleBoost> } | { kind: 'plain'; plain: Readonly<RumblePlain> };
+
 /** Compiles a pattern for the phone's vibrator and for a controller with the given constants. */
 export function compileBoth(
   p: HapticPattern,
   scale: number,
   compile: Readonly<VibrateCompile>,
   rumble: Readonly<RumbleCompile>,
-  boost?: Readonly<RumbleBoost>,
+  profile?: RumbleProfile,
 ): Compiled {
   const phone = compileVibrate(p, scale, compile);
-  // With a boost, the pad's segments are what the desktop's gamepad plugin sends; without, what `vibrationActuator` plays.
-  const pad = boost
-    ? compileBoostedRumble(p, scale, rumble, boost)
-    : compileRumble(p, scale, rumble);
+  // The pad's segments are what the desktop's gamepad plugin sends for the pad in use: boosted for a DualShock 3,
+  // lengthened for any other native pad, and the plain compile where `vibrationActuator` plays.
+  const pad =
+    profile?.kind === 'boost'
+      ? compileBoostedRumble(p, scale, rumble, profile.boost)
+      : profile?.kind === 'plain'
+        ? compilePlainRumble(p, scale, rumble, profile.plain)
+        : compileRumble(p, scale, rumble);
   const last = pad[pad.length - 1];
   return {
     phone,
@@ -356,6 +369,15 @@ export const COMPILE_SLIDERS: readonly SliderSpec[] = [
     0.05,
   ),
   S('Pad (boost)', 'Gap between segments', ['boost', 'gapMs'], 0, 100, 5, 'ms'),
+  S(
+    'Pad (plain)',
+    'Shortest segment (pads that are not a DualShock 3)',
+    ['plain', 'minMs'],
+    10,
+    300,
+    5,
+    'ms',
+  ),
   S('Phone (app plugin)', 'FLOOR: quietest played', ['plugin', 'floor'], 0, 1, 0.01),
   S(
     'Phone (app plugin)',
@@ -416,6 +438,7 @@ export interface HapticsTunePatch {
   compile?: Partial<VibrateCompile>;
   rumble?: Partial<RumbleCompile>;
   boost?: Partial<RumbleBoost>;
+  plain?: Partial<RumblePlain>;
   plugin?: Partial<PluginCompile>;
   budget?: { onMs?: number; windowMs?: number };
 }
@@ -463,6 +486,8 @@ export function hapticTuneDiff(from: HapticsLabState, to: HapticsLabState): Hapt
   if (rumble) out.rumble = rumble;
   const boost = numbersDiff(from.boost, to.boost);
   if (boost) out.boost = boost;
+  const plain = numbersDiff(from.plain, to.plain);
+  if (plain) out.plain = plain;
   const plugin = numbersDiff(from.plugin, to.plugin);
   if (plugin) out.plugin = plugin;
   const budget = numbersDiff(from.budget, to.budget);
@@ -480,6 +505,7 @@ export function countHapticChanges(diff: HapticsTunePatch): number {
     Object.keys(diff.compile ?? {}).length +
     Object.keys(diff.rumble ?? {}).length +
     Object.keys(diff.boost ?? {}).length +
+    Object.keys(diff.plain ?? {}).length +
     Object.keys(diff.plugin ?? {}).length +
     Object.keys(diff.budget ?? {}).length
   );

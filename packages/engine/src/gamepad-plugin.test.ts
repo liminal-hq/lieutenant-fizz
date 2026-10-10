@@ -11,10 +11,16 @@ import {
   RUMBLE_BOOST,
   boostRumble,
   compileBoostedRumble,
+  compileMenuRumble,
+  compilePlainRumble,
+  lengthenRumble,
+  MENU_BOOST,
+  RUMBLE_PLAIN,
   compileRumble,
   type HapticPattern,
 } from './haptic-pattern';
 import { FIZZ_HAPTICS } from '../../../episodes/episode-1/src/haptics/fizz-haptics';
+import { parseGamepadId } from './pad-model';
 import {
   adoptGamepadPlugin,
   choosePad,
@@ -23,7 +29,6 @@ import {
   isOnOffLightPad,
   padLabel,
   matchPads,
-  parseGamepadId,
   pluginPadApi,
   type MotorFrame,
   type NativePad,
@@ -517,7 +522,7 @@ describe('the backend boost', () => {
     const { api, backend } = setup([ds4]);
     await backend.ready;
     backend.play(cue('bonk'), 1);
-    expect(api.plays[0]?.frames).toEqual(framesOf(compileRumble(cue('bonk'), 1)));
+    expect(api.plays[0]?.frames).toEqual(framesOf(compilePlainRumble(cue('bonk'), 1)));
   });
 });
 
@@ -567,7 +572,7 @@ describe('two pads at once', () => {
     backend.play(cue('bonk'), 1);
     setWeb({ id: 'PLAYSTATION(R)3 Controller' });
     backend.play(cue('bonk'), 1);
-    expect(api.plays[0]?.frames).toEqual(framesOf(compileRumble(cue('bonk'), 1)));
+    expect(api.plays[0]?.frames).toEqual(framesOf(compilePlainRumble(cue('bonk'), 1)));
     expect(api.plays[1]?.frames[0]?.durationMs).toBeGreaterThanOrEqual(RUMBLE_BOOST.minMs);
   });
 });
@@ -588,5 +593,87 @@ describe('padLabel and caps', () => {
       target: 'controller',
       name: 'Wireless Controller, bluetooth (gamepad:0)',
     });
+  });
+});
+
+describe('the plain profile', () => {
+  it('lengthens a short segment to the minimum and keeps its levels', () => {
+    const [s] = lengthenRumble([{ at: 0, duration: 52, strong: 0.2, weak: 0.3 }]);
+    expect(s).toEqual({ at: 0, duration: RUMBLE_PLAIN.minMs, strong: 0.2, weak: 0.3 });
+  });
+
+  it('never lengthens into the next segment, or shortens one', () => {
+    const out = lengthenRumble([
+      { at: 0, duration: 40, strong: 0.5, weak: 0 },
+      { at: 40, duration: 40, strong: 0.2, weak: 0 },
+      { at: 200, duration: 100, strong: 0.2, weak: 0 },
+    ]);
+    expect(out.map((s) => s.duration)).toEqual([40, 70, 100]);
+  });
+
+  it('is what a DualShock 4 plays for every cue: same starts and levels, nothing under the minimum unless boxed in', () => {
+    for (const id of Object.keys(FIZZ_HAPTICS.cues)) {
+      const plain = compileRumble(cue(id), 1);
+      const out = compilePlainRumble(cue(id), 1);
+      expect(out.map((s) => [s.at, s.strong, s.weak])).toEqual(
+        plain.map((s) => [s.at, s.strong, s.weak]),
+      );
+      out.forEach((s, i) => {
+        const next = out[i + 1];
+        expect(
+          s.duration >= RUMBLE_PLAIN.minMs || (next && s.at + s.duration >= next.at),
+        ).toBeTruthy();
+      });
+    }
+  });
+
+  it('tunes live through the backend', async () => {
+    const { api, backend } = setup([ds4]);
+    await backend.ready;
+    backend.tunePlain?.({ minMs: 120 });
+    backend.play(cue('click'), 1);
+    expect(api.plays[0]?.frames[0]?.durationMs).toBe(120);
+    expect(backend.rumbleProfile?.()).toBe('plain');
+  });
+});
+
+describe('menu cues on a DualShock 3', () => {
+  const menu = ['ui.move', 'ui.select', 'ui.back', 'ui.reject', 'ui.toggleOn', 'ui.toggleOff'];
+
+  it('stay at or under the cap, with move quieter than select', () => {
+    for (const id of menu) {
+      for (const s of compileMenuRumble(cue(id), 1))
+        expect(s.strong).toBeLessThanOrEqual(MENU_BOOST.cap);
+    }
+    const level = (id: string): number => compileMenuRumble(cue(id), 1)[0]?.strong ?? 0;
+    expect(level('ui.move')).toBeLessThan(level('ui.select'));
+    expect(level('ui.select')).toBe(MENU_BOOST.cap);
+  });
+
+  it('follow the Rumble strength, keep a felt minimum and are silent at Off', () => {
+    expect(compileMenuRumble(cue('ui.select'), 0.5)[0]?.strong).toBeCloseTo(
+      0.4 < MENU_BOOST.floor ? MENU_BOOST.floor : 0.4,
+      2,
+    );
+    expect(compileMenuRumble(cue('ui.move'), 0.5)[0]?.strong).toBe(MENU_BOOST.floor);
+    expect(compileMenuRumble(cue('ui.select'), 0)).toEqual([]);
+  });
+
+  it('keep the two taps of a reject apart', () => {
+    const [a, b] = compileMenuRumble(cue('ui.reject'), 1);
+    expect((b?.at ?? 0) - ((a?.at ?? 0) + (a?.duration ?? 0))).toBeGreaterThanOrEqual(
+      RUMBLE_BOOST.gapMs,
+    );
+  });
+
+  it('are what the backend plays for a menu cue on a DualShock 3, and the plain profile on a DualShock 4', async () => {
+    const dual = setup([ds3]);
+    await dual.backend.ready;
+    dual.backend.play(cue('ui.select'), 1.5, { ui: { master: 1 } });
+    expect(dual.api.plays[0]?.frames[0]).toMatchObject({ heavy: MENU_BOOST.cap });
+    const four = setup([ds4]);
+    await four.backend.ready;
+    four.backend.play(cue('ui.select'), 1.5, { ui: { master: 1 } });
+    expect(four.api.plays[0]?.frames).toEqual(framesOf(compilePlainRumble(cue('ui.select'), 1.5)));
   });
 });

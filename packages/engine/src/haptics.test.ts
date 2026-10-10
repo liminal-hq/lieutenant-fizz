@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBackend, noneBackend, type FakeBackend } from './haptic-backends';
-import { RUMBLE_BOOST, RUMBLE_COMPILE, VIBRATE_COMPILE } from './haptic-pattern';
+import { RUMBLE_BOOST, RUMBLE_COMPILE, RUMBLE_PLAIN, VIBRATE_COMPILE } from './haptic-pattern';
 import { PLUGIN_COMPILE } from './haptic-plugin-compile';
 import type { HapticCue, HapticTable } from './haptic-pattern';
 import { ATTRACT_SCALE, GameHaptics, UI_BOOST, onScreen, routeFor } from './haptics';
@@ -697,6 +697,7 @@ describe('GameHaptics.cues and tuning', () => {
       compile: VIBRATE_COMPILE,
       rumble: RUMBLE_COMPILE,
       boost: RUMBLE_BOOST,
+      plain: RUMBLE_PLAIN,
       plugin: PLUGIN_COMPILE,
       budget: { onMs: 400, windowMs: 1000 },
     });
@@ -727,6 +728,32 @@ describe('GameHaptics.cues and tuning', () => {
     expect(r.refused.sort()).toEqual(['boost.bogus', 'boost.heavyFloor']);
     expect(pad.tunedBoost).toEqual([{ minMs: 100 }]);
     expect(h.tuning().boost.minMs).toBe(100);
+  });
+
+  it('tunes the plain rumble profile through the controller backend and refuses it without one', () => {
+    expect(h.tune({ plain: { minMs: 100 } })).toEqual({ applied: [], refused: ['plain.minMs'] });
+    const pad = fakeBackend({ target: 'controller' });
+    h.setBackends({ controller: pad });
+    const r = h.tune({ plain: { minMs: 100, bogus: 1 } as never });
+    expect(r.applied).toEqual(['plain.minMs']);
+    expect(r.refused).toEqual(['plain.bogus']);
+    expect(pad.tunedPlain).toEqual([{ minMs: 100 }]);
+  });
+
+  it('tells the backend a menu cue is a menu cue, with the strength it was set to', () => {
+    const plays: (unknown | undefined)[] = [];
+    const pad = fakeBackend({ target: 'controller' });
+    const play = pad.play.bind(pad);
+    pad.play = (p, scale, ctx) => (plays.push(ctx), play(p, scale, ctx));
+    h.setBackends({ device: fakeBackend({ available: false }), controller: pad });
+    h.setRoute('controller');
+    h.setScale(0, 0.75);
+    h.ui('select');
+    h.flush();
+    t += 500;
+    h.cue('light');
+    h.flush();
+    expect(plays).toEqual([{ ui: { master: 0.75 } }, undefined]);
   });
 
   it('tunes the rumble compiler through the controller backend and refuses it without one', () => {

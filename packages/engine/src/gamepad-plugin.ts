@@ -7,14 +7,25 @@ import {
   RUMBLE_BOOST,
   RUMBLE_COMPILE,
   compileBoostedRumble,
+  compileMenuRumble,
+  compilePlainRumble,
+  RUMBLE_PLAIN,
+  type RumblePlain,
   compileRumble,
   type HapticPattern,
   type RumbleBoost,
   type RumbleCompile,
   type RumbleSegment,
 } from './haptic-pattern';
-import type { HapticBackend, HapticCaps, PlayResult, RumblePad } from './haptic-backends';
+import type {
+  HapticBackend,
+  HapticCaps,
+  PlayContext,
+  PlayResult,
+  RumblePad,
+} from './haptic-backends';
 import { tauriInvoke, type Invoke } from './haptic-plugin';
+import { parseGamepadId } from './pad-model';
 
 // ---------- The plugin's shapes (camelCase on the wire) ----------
 
@@ -117,21 +128,6 @@ export function pluginPadApi(opts: { invoke?: Invoke; listen?: Listen } = {}): P
  */
 export function isOnOffLightPad(pad: Pick<NativePad, 'vendorId' | 'productId'>): boolean {
   return pad.vendorId === 0x054c && pad.productId === 0x0268;
-}
-
-const hex = (s: string): number => Number.parseInt(s, 16);
-
-/**
- * The vendor and product out of a Web `Gamepad.id`: Chromium writes `Name (… Vendor: 054c Product: 0268)`
- * and Firefox `054c-0268-Name`. WebKitGTK writes the Firefox form; Safari writes neither (name only).
- */
-export function parseGamepadId(id: string): { vendorId: number; productId: number } | undefined {
-  const chromium = /Vendor:\s*([0-9a-f]{4})\s+Product:\s*([0-9a-f]{4})/i.exec(id);
-  if (chromium)
-    return { vendorId: hex(chromium[1] as string), productId: hex(chromium[2] as string) };
-  const firefox = /^([0-9a-f]{4})-([0-9a-f]{4})-/i.exec(id);
-  if (firefox) return { vendorId: hex(firefox[1] as string), productId: hex(firefox[2] as string) };
-  return undefined;
 }
 
 const plain = (s: string): string =>
@@ -250,6 +246,7 @@ export function gamepadPluginBackend(
     api?: PadApi;
     compile?: Readonly<RumbleCompile>;
     boost?: Readonly<RumbleBoost>;
+    plain?: Readonly<RumblePlain>;
     /** `false` plays the compiled segments as they are on every pad (for a pad with real dual rumble). */
     useBoost?: boolean;
   } = {},
@@ -257,6 +254,7 @@ export function gamepadPluginBackend(
   const api = opts.api ?? pluginPadApi();
   const compile: RumbleCompile = { ...(opts.compile ?? RUMBLE_COMPILE) };
   const boost: RumbleBoost = { ...(opts.boost ?? RUMBLE_BOOST) };
+  const plain: RumblePlain = { ...(opts.plain ?? RUMBLE_PLAIN) };
   const useBoost = opts.useBoost ?? true;
   let pads: NativePad[] = [];
   let off: (() => void) | null = null;
@@ -349,7 +347,7 @@ export function gamepadPluginBackend(
         target: 'controller',
       };
     },
-    play(p: HapticPattern, scale: number): PlayResult {
+    play(p: HapticPattern, scale: number, ctx?: PlayContext): PlayResult {
       const c = choice();
       if (c.kind === 'web') {
         webPlaying = true;
@@ -366,8 +364,12 @@ export function gamepadPluginBackend(
       }
       const boosted = useBoost && isOnOffLightPad(c.pad);
       const compiled = boosted
-        ? compileBoostedRumble(p, scale, compile, boost)
-        : compileRumble(p, scale, compile);
+        ? ctx?.ui
+          ? compileMenuRumble(p, ctx.ui.master, compile, boost)
+          : compileBoostedRumble(p, scale, compile, boost)
+        : useBoost
+          ? compilePlainRumble(p, scale, compile, plain)
+          : compileRumble(p, scale, compile);
       const tier = c.pad.topTier >= 2 ? 2 : 1;
       const frames = framesOf(compiled);
       if (frames.length === 0)
@@ -399,6 +401,14 @@ export function gamepadPluginBackend(
     },
     tuneBoost(patch) {
       Object.assign(boost, patch);
+    },
+    tunePlain(patch) {
+      Object.assign(plain, patch);
+    },
+    rumbleProfile() {
+      const c = choice();
+      if (c.kind !== 'native' || !useBoost) return null;
+      return isOnOffLightPad(c.pad) ? 'boost' : 'plain';
     },
     dispose() {
       this.stop();

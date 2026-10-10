@@ -3,7 +3,12 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { noneBackend, type HapticBackend, type PlayResult } from './haptic-backends';
+import {
+  noneBackend,
+  type HapticBackend,
+  type PlayContext,
+  type PlayResult,
+} from './haptic-backends';
 import { PLUGIN_COMPILE, PLUGIN_LIMITS, type PluginCompile } from './haptic-plugin-compile';
 import type { InputDevice } from './input';
 import {
@@ -12,6 +17,8 @@ import {
   RUMBLE_BOOST_LIMITS,
   RUMBLE_COMPILE,
   RUMBLE_LIMITS,
+  RUMBLE_PLAIN,
+  RUMBLE_PLAIN_LIMITS,
   VIBRATE_COMPILE,
   calmPattern,
   onTime,
@@ -23,6 +30,7 @@ import {
   type Policy,
   type RumbleBoost,
   type RumbleCompile,
+  type RumblePlain,
   type VibrateCompile,
 } from './haptic-pattern';
 
@@ -69,6 +77,7 @@ export interface HapticTune {
   compile?: Partial<VibrateCompile>;
   rumble?: Partial<RumbleCompile>;
   boost?: Partial<RumbleBoost>;
+  plain?: Partial<RumblePlain>;
   plugin?: Partial<PluginCompile>;
   budget?: { onMs?: number; windowMs?: number };
 }
@@ -191,6 +200,7 @@ export class GameHaptics {
     compile: { ...VIBRATE_COMPILE },
     rumble: { ...RUMBLE_COMPILE },
     boost: { ...RUMBLE_BOOST },
+    plain: { ...RUMBLE_PLAIN },
     plugin: { ...PLUGIN_COMPILE },
   };
   private readonly log: PlayRecord[] = [];
@@ -359,6 +369,7 @@ export class GameHaptics {
     compile: VibrateCompile;
     rumble: RumbleCompile;
     boost: RumbleBoost;
+    plain: RumblePlain;
     plugin: PluginCompile;
     budget: { onMs: number; windowMs: number };
   } {
@@ -366,6 +377,7 @@ export class GameHaptics {
       compile: { ...this.compiler.compile },
       rumble: { ...this.compiler.rumble },
       boost: { ...this.compiler.boost },
+      plain: { ...this.compiler.plain },
       plugin: { ...this.compiler.plugin },
       budget: { ...this.budget },
     };
@@ -374,6 +386,11 @@ export class GameHaptics {
   /** Whether the controller's backend reshapes rumble for the pad (the desktop's gamepad plugin does), so the lab shows what the pad plays. */
   controllerBoost(): boolean {
     return this.ch.controller.backend.tuneBoost !== undefined;
+  }
+
+  /** Which rumble profile the controller's backend plays on the pad in use (`boost` or `plain`), or null when it has none. */
+  controllerProfile(): 'boost' | 'plain' | null {
+    return this.ch.controller.backend.rumbleProfile?.() ?? null;
   }
 
   private drop(reason: string): void {
@@ -488,7 +505,9 @@ export class GameHaptics {
     const soft = this.calm && c.cue.calm === true;
     const pattern = soft ? calmPattern(c.cue.pattern) : c.cue.pattern;
     const strength = c.scale * ch.master * (c.cue.lane === 'ui' ? UI_BOOST : 1);
-    const r = ch.backend.play(pattern, soft ? Math.min(strength, CALM_STRENGTH) : strength);
+    const ctx: PlayContext | undefined =
+      c.cue.lane === 'ui' ? { ui: { master: Math.min(1, c.scale * ch.master) } } : undefined;
+    const r = ch.backend.play(pattern, soft ? Math.min(strength, CALM_STRENGTH) : strength, ctx);
     if (r.ok) {
       this.lastPlay.set(c.id, now);
       ch.busyUntil = now + r.ms;
@@ -644,6 +663,26 @@ export class GameHaptics {
     if (Object.keys(boost).length > 0) {
       this.ch.controller.backend.tuneBoost?.(boost);
       Object.assign(this.compiler.boost, boost);
+    }
+    const plain: Partial<RumblePlain> = {};
+    for (const [key, v] of Object.entries(p.plain ?? {})) {
+      const lim = (RUMBLE_PLAIN_LIMITS as Record<string, readonly [number, number] | undefined>)[
+        key
+      ];
+      if (
+        lim &&
+        typeof v === 'number' &&
+        v >= lim[0] &&
+        v <= lim[1] &&
+        this.ch.controller.backend.tunePlain
+      ) {
+        (plain as Record<string, number>)[key] = v;
+        applied.push(`plain.${key}`);
+      } else refused.push(`plain.${key}`);
+    }
+    if (Object.keys(plain).length > 0) {
+      this.ch.controller.backend.tunePlain?.(plain);
+      Object.assign(this.compiler.plain, plain);
     }
     const plugin: Partial<PluginCompile> = {};
     for (const [key, v] of Object.entries(p.plugin ?? {})) {

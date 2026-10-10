@@ -25,6 +25,7 @@ import {
   hapticTuneDiff,
   hapticTuneJson,
   labStatus,
+  type RumbleProfile,
   newDraft,
   patternOf,
   phoneArrayText,
@@ -50,8 +51,8 @@ export interface HapticsLabHost {
   groups: CueGroup[];
   /** The cues, compiler constants and budget as they are now. */
   state(): HapticsLabState;
-  /** Whether the controller's backend boosts rumble, so the pad's compiled segments are the boosted ones. */
-  padBoost?(): boolean;
+  /** Which rumble profile the pad in use plays (`boost` or `plain`), or null when it plays the plain compile. */
+  padProfile?(): 'boost' | 'plain' | null;
   tune(patch: HapticsTunePatch): { applied: string[]; refused: string[] };
   audition(p: HapticPattern, target: Target, scale: number): PlayResult | null;
   caps(): BackendCaps;
@@ -99,9 +100,14 @@ function compileValue(state: HapticsLabState, spec: SliderSpec): number {
  * layout and styles, and is reached from the shell's Lab button or the Sound | Haptics switch.
  */
 export class HapticsLab {
-  /** The boost constants to compile the pad's segments with, or undefined when the controller's backend does not boost. */
-  private padBoost(state: HapticsLabState): HapticsLabState['boost'] | undefined {
-    return this.h.padBoost?.() ? state.boost : undefined;
+  /** The profile to compile the pad's segments with: the one the pad in use plays, with the lab's constants. */
+  private padProfile(state: HapticsLabState): RumbleProfile | undefined {
+    const kind = this.h.padProfile?.();
+    return kind === 'boost'
+      ? { kind, boost: state.boost }
+      : kind === 'plain'
+        ? { kind, plain: state.plain }
+        : undefined;
   }
 
   readonly root: HTMLElement;
@@ -366,7 +372,7 @@ export class HapticsLab {
             this.strength,
             state.compile,
             state.rumble,
-            this.padBoost(state),
+            this.padProfile(state),
           ),
         );
       }
@@ -468,7 +474,7 @@ export class HapticsLab {
         this.strength,
         state.compile,
         state.rumble,
-        this.padBoost(state),
+        this.padProfile(state),
       );
       const t = timeline(c);
       preview.replaceChildren(
@@ -716,7 +722,7 @@ export class HapticsLab {
       const state = this.h.state();
       const cue = state.cues[this.picked];
       note.textContent = cue
-        ? `${this.picked}: ${compiledLabel(compileBoth(cue.pattern, this.strength, state.compile, state.rumble, this.padBoost(state)))}`
+        ? `${this.picked}: ${compiledLabel(compileBoth(cue.pattern, this.strength, state.compile, state.rumble, this.padProfile(state)))}`
         : '';
     };
     this.compileSyncs.push(redraw);

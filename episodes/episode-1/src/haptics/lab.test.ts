@@ -238,6 +238,7 @@ describe('sliders', () => {
       'boost.gain',
       'boost.lightFoldGain',
       'boost.gapMs',
+      'plain.minMs',
       'plugin.floor',
       'plugin.gamma',
       'plugin.gain',
