@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { PeekStyle } from '@lieutenant-fizz/engine/back-peek';
 import type { CreditsContent } from '@lieutenant-fizz/engine/credits';
 import { pixelScale, scaleSteps } from '@lieutenant-fizz/engine/font/scale';
 import { hintText } from '@lieutenant-fizz/engine/font/tokens';
@@ -10,6 +11,7 @@ import { EGA } from '@lieutenant-fizz/engine/palette';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import type { StingerContent, StingerPhase } from '@lieutenant-fizz/engine/stinger';
 import type { Rect, Shape } from '@lieutenant-fizz/engine/touch';
+import type { PeekLayer } from './back';
 import {
   controlsTable,
   creditsHints,
@@ -207,6 +209,8 @@ export class Ui {
   private readonly overlay: HTMLElement;
   private readonly overlayMenu: HTMLElement;
   private readonly overlayNote: HTMLElement;
+  /** The copy of the title or overlay that slides away during a Back-gesture peek. */
+  private peekGhost: HTMLElement | null = null;
   private readonly letterbox: HTMLElement;
   private readonly dialogue: HTMLElement;
   private readonly panel: HTMLElement;
@@ -865,6 +869,41 @@ export class Ui {
   setTextLarge(large: boolean): void {
     this.large = large;
     this.relayout();
+  }
+
+  /**
+   * Starts a Back-gesture peek: a copy of the screen being left (`layer`) is laid over it, to slide away
+   * while the real element is redrawn as the screen Back goes to. The copy cannot be focused or read out,
+   * and the real screens ignore taps until the peek ends.
+   */
+  peekBegin(layer: PeekLayer): void {
+    this.peekEnd();
+    const source = layer === 'title' ? this.title : this.overlay;
+    const ghost = source.cloneNode(true) as HTMLElement;
+    ghost.hidden = false;
+    ghost.classList.add('peek-ghost');
+    ghost.setAttribute('aria-hidden', 'true');
+    ghost.inert = true;
+    ghost.dataset.peek = 'drag';
+    source.after(ghost);
+    this.peekGhost = ghost;
+    this.root.dataset.peeking = '';
+  }
+
+  /** Puts the copy in a look; `settle` animates the change (the glide back after a cancelled gesture). */
+  peekApply(style: PeekStyle, settle: boolean): void {
+    const ghost = this.peekGhost;
+    if (!ghost) return;
+    ghost.dataset.peek = settle ? 'settle' : 'drag';
+    ghost.style.setProperty('--lf-peek-x', `${style.translateXPercent}%`);
+    ghost.style.setProperty('--lf-peek-a', String(style.opacity));
+  }
+
+  /** Ends the peek: the copy goes and the real screens take taps again. */
+  peekEnd(): void {
+    this.peekGhost?.remove();
+    this.peekGhost = null;
+    delete this.root.dataset.peeking;
   }
 
   /** Freezes the menu plate cycle and bullet bob, for reduced motion. */

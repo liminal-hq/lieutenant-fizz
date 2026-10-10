@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { backAction, backEnabled, escAction, pauseAction } from './back';
+import { backAction, backEnabled, escAction, pauseAction, peekPlan } from './back';
 import type { ShellScreen } from './touch-menus';
 
 describe('backAction', () => {
@@ -199,5 +199,58 @@ describe('escAction', () => {
     expect(escAction('dialogue', null, CAPTURED)).toBeNull();
     expect(escAction('ending', null, CAPTURED)).toBeNull();
     expect(escAction('loading', null, CAPTURED)).toBeNull();
+  });
+});
+
+describe('peekPlan', () => {
+  it('peeks the pause menu onto the game', () => {
+    expect(peekPlan('pause', null, null)).toEqual({ layer: 'overlay', parent: { game: true } });
+  });
+
+  it('has no peek on the title menu, where Back backgrounds the app', () => {
+    expect(peekPlan('title', null, null)).toBeNull();
+  });
+
+  it('peeks a screen over the title or the pause menu onto the menu under it', () => {
+    for (const screen of ['title', 'pause'] as const) {
+      for (const sub of ['options', 'saves'] as const) {
+        expect(peekPlan(screen, sub, null)).toEqual({
+          layer: 'overlay',
+          parent: { game: false, sub: null },
+        });
+      }
+    }
+  });
+
+  it('peeks a nested Options screen onto the one under it', () => {
+    for (const sub of ['sound', 'haptics', 'display', 'touch'] as const) {
+      expect(peekPlan('pause', sub, 'options')).toEqual({
+        layer: 'overlay',
+        parent: { game: false, sub: 'options' },
+      });
+    }
+  });
+
+  it('draws the Controls table in the title itself', () => {
+    expect(peekPlan('title', 'controls', null)).toEqual({
+      layer: 'title',
+      parent: { game: false, sub: null },
+    });
+  });
+
+  it('has no peek for the touch editor or the story and play screens', () => {
+    expect(peekPlan('title', 'touchEdit', 'touch')).toBeNull();
+    expect(peekPlan('pause', 'touchEdit', 'touch')).toBeNull();
+    const others: ShellScreen[] = [
+      'play',
+      'cine',
+      'dialogue',
+      'ending',
+      'card',
+      'credits',
+      'stinger',
+      'loading',
+    ];
+    for (const screen of others) expect(peekPlan(screen, null, null)).toBeNull();
   });
 });

@@ -130,3 +130,22 @@
   color: var(--lf-muted);
   text-shadow: 0 calc(var(--n) * 1px) 0 #000;
 }
+
+/* A Back-gesture peek: a copy of the screen being left slides away and fades over the screen Back goes to,
+   which is drawn behind it and takes no taps until the peek ends. The look comes from the shell as
+   `--lf-peek-x` and `--lf-peek-a`; it follows the finger with no transition and glides back over 200 ms
+   when the gesture is cancelled. */
+.peek-ghost {
+  pointer-events: none;
+  transform: translateX(var(--lf-peek-x, 0%));
+  opacity: var(--lf-peek-a, 1);
+  will-change: transform, opacity;
+}
+.peek-ghost[data-peek='settle'] {
+  transition:
+    transform 200ms ease-out,
+    opacity 200ms ease-out;
+}
+#ui[data-peeking] .screen:not(.peek-ghost) {
+  pointer-events: none;
+}

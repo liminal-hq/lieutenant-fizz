@@ -15,6 +15,7 @@ import { padDisplayName, padModelKey, parseGamepadId } from '@lieutenant-fizz/en
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
 import type { HostBackend } from '@lieutenant-fizz/engine/host';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
+import { BackPeek } from '@lieutenant-fizz/engine/back-peek';
 import type { PredictiveBackBackend } from '@lieutenant-fizz/engine/predictive-back';
 import {
   webFullscreenBackend,
@@ -79,7 +80,7 @@ import { MUSIC, PATTERNS, SFX } from './audio/patterns';
 import { ROOMS, roomFor, roomProfile, type RoomName } from './audio/rooms';
 import { FIZZ_HAPTICS } from './haptics/fizz-haptics';
 import { attractFade, attractLabel, nextAttract } from './attract';
-import { backAction, backEnabled, escAction, pauseAction } from './back';
+import { backAction, backEnabled, escAction, pauseAction, peekPlan } from './back';
 import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
 import { gestureFor, isLive } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
@@ -356,6 +357,14 @@ export class Game {
   private backReleased = false;
   /** Stops listening to the Back gesture. */
   private stopPredictiveBack: (() => void) | null = null;
+  /** The peek of a Back gesture in progress: the screen being left slides away over the one Back goes to. */
+  private readonly peek: BackPeek;
+  /**
+   * While a peek is on, the screen the menus are drawn as (what Back goes to), and the screen and
+   * sub-screen the gesture started on, which a change of ends the peek.
+   */
+  private peekView: { game: boolean; sub: SubScreen; idx: number } | null = null;
+  private peekKey: string | null = null;
   /** The Touch controls rows. */
   private readonly touchRowList: TouchRow[] = touchRows();
   /** What `?haptics` asked for, which wins over the saved strength and is never saved. */
@@ -556,8 +565,30 @@ export class Game {
       });
     this.hostBackend = options.hostBackend;
     this.predictiveBack = options.predictiveBack;
+    this.peek = new BackPeek(
+      {
+        begin: () => this.peekBegin(),
+        apply: (style, settle) => this.ui.peekApply(style, settle),
+        end: () => this.peekEnd(),
+      },
+      {
+        setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+        clearTimeout: (id) => window.clearTimeout(id),
+        frame: (fn) => requestAnimationFrame(fn),
+        cancelFrame: (id) => cancelAnimationFrame(id),
+      },
+      () => this.reducedMotion,
+    );
     void this.predictiveBack
-      ?.onInvoked(() => this.back())
+      ?.onGesture({
+        started: (edge) => this.peek.started(edge),
+        progress: (progress, edge) => this.peek.progress(progress, edge),
+        cancelled: () => this.peek.cancelled(),
+        invoked: () => {
+          this.back();
+          this.peek.end();
+        },
+      })
       .then((stop) => {
         if (this.disposed) stop();
         else this.stopPredictiveBack = stop;
@@ -750,6 +781,7 @@ export class Game {
     void this.releaseBack();
     this.stopPredictiveBack?.();
     this.stopPredictiveBack = null;
+    this.peek.end();
     this.touchUi.dispose();
     window.clearTimeout(this.titleAction);
     window.clearTimeout(this.resetTimer);
@@ -1229,6 +1261,8 @@ export class Game {
    * it is pressed again); a held direction moves once, then repeats after a delay.
    */
   private menuInput(bits: number): void {
+    // The screen is half gone under a Back gesture: it takes no selection until the gesture ends.
+    if (this.peek.active) return;
     const edge = bits & ~this.lastBits;
     const s = this.screen;
     const key = `${s}:${this.sub ?? ''}`;
@@ -1270,6 +1304,7 @@ export class Game {
   }
 
   private onCommand(c: Command): void {
+    if (this.peek.active) return;
     switch (c.type) {
       case 'confirm':
         if (this.screen !== 'play') this.input.discardLatched();
@@ -1528,7 +1563,10 @@ export class Game {
     this.visible = document.visibilityState === 'visible';
     this.audio.setActive(this.visible);
     this.haptics.setActive(this.visible);
-    if (!this.visible) this.autoPause();
+    if (!this.visible) {
+      this.peek.end();
+      this.autoPause();
+    }
     this.syncLifecycle();
   };
 
@@ -3018,6 +3056,95 @@ export class Game {
 
     // Before the menus are drawn, so they are laid out around the controls this screen shows.
     this.syncTouch();
+    this.drawMenus();
+
+    const text = this.curText();
+    const typed = Math.min(text.length, Math.floor(this.typed));
+    if (s === 'cine' || s === 'ending') {
+      const v = this.story.view();
+      ui.showLetterbox({
+        place: v.place,
+        shown: v.shown,
+        hidden: v.hidden,
+        pips: v.pips,
+        done: v.done,
+        last: v.last,
+        skip: s === 'cine',
+        announce: v.announcement,
+      });
+    } else ui.showLetterbox(null);
+    const line = this.dlg?.[this.dlgI];
+    ui.showDialogue(
+      s === 'dialogue' && line
+        ? {
+            who: line[0],
+            shown: text.slice(0, typed),
+            hidden: text.slice(typed),
+            done: typed >= text.length,
+          }
+        : null,
+    );
+    this.syncMix();
+    this.updateMusic();
+    this.syncBack();
+    this.syncLifecycle();
+    this.syncFullscreenButton();
+    this.updateRoom();
+    if (this.peekKey !== null && this.peekKey !== `${this.screen}/${this.sub}`) this.peek.end();
+  }
+
+  /**
+   * Starts the peek of a Back gesture on the screen showing, if it has one: lays a copy of it over itself
+   * and draws the real menus as the screen Back goes to, so it is already there when the copy has gone.
+   */
+  private peekBegin(): boolean {
+    const under = this.subStack[this.subStack.length - 1];
+    const plan = peekPlan(this.screen, this.sub, under?.sub ?? null);
+    if (!plan) return false;
+    this.peekKey = `${this.screen}/${this.sub}`;
+    this.ui.peekBegin(plan.layer);
+    this.peekView = plan.parent.game
+      ? { game: true, sub: null, idx: 0 }
+      : { game: false, sub: plan.parent.sub, idx: under?.idx ?? 0 };
+    this.drawMenus();
+    return true;
+  }
+
+  /** Ends the peek: the copy goes and the menus are drawn as the screen now showing. */
+  private peekEnd(): void {
+    this.peekView = null;
+    this.peekKey = null;
+    this.ui.peekEnd();
+    this.drawMenus();
+  }
+
+  /**
+   * Draws the title menu and the overlay for the screen showing, or, while a Back-gesture peek is in
+   * progress, for the screen Back goes to (the one the peek reveals).
+   */
+  private drawMenus(): void {
+    const view = this.peekView;
+    const real = { sub: this.sub, idx: this.menuIdx };
+    if (view) {
+      this.sub = view.sub;
+      this.menuIdx = view.idx;
+    }
+    try {
+      this.drawMenusFor(view?.game ?? false);
+    } finally {
+      this.sub = real.sub;
+      this.menuIdx = real.idx;
+    }
+  }
+
+  private drawMenusFor(game: boolean): void {
+    const s = this.screen;
+    const ui = this.ui;
+    if (game) {
+      ui.showTitle(null, 0, false);
+      ui.showOverlay(null);
+      return;
+    }
     const items = this.menuItems();
     const sel = Math.min(this.menuIdx, Math.max(0, items.length - 1));
     const onTitle = s === 'title';
@@ -3067,39 +3194,6 @@ export class Game {
             : null,
       );
     }
-
-    const text = this.curText();
-    const typed = Math.min(text.length, Math.floor(this.typed));
-    if (s === 'cine' || s === 'ending') {
-      const v = this.story.view();
-      ui.showLetterbox({
-        place: v.place,
-        shown: v.shown,
-        hidden: v.hidden,
-        pips: v.pips,
-        done: v.done,
-        last: v.last,
-        skip: s === 'cine',
-        announce: v.announcement,
-      });
-    } else ui.showLetterbox(null);
-    const line = this.dlg?.[this.dlgI];
-    ui.showDialogue(
-      s === 'dialogue' && line
-        ? {
-            who: line[0],
-            shown: text.slice(0, typed),
-            hidden: text.slice(typed),
-            done: typed >= text.length,
-          }
-        : null,
-    );
-    this.syncMix();
-    this.updateMusic();
-    this.syncBack();
-    this.syncLifecycle();
-    this.syncFullscreenButton();
-    this.updateRoom();
   }
 
   /** Moves the sound to the room of the screen or level it is now on (Enhanced; Classic only remembers it). */
