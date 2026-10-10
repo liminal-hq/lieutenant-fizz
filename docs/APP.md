@@ -1,6 +1,6 @@
 # The Tauri app and the launcher
 
-**Status: planned.** Nothing here exists yet. This document is the working plan for an Android and desktop app that plays every episode, and for the launcher that picks the episode. It follows the Claude Design export in `design/` (`Launcher.dc.html`, `Mobile Design.dc.html`, `App Icons.dc.html`) and is iterated in pull requests. `docs/STATUS.md` links here. Touch controls, the phone layout and haptics are in [MOBILE.md](MOBILE.md).
+**Status: spike scaffolded.** `apps/player` exists as a spike (a menu, a capability probe and the Episode 1 build with a relative base; see [TAURI_SPIKE.md](TAURI_SPIKE.md)); the launcher, shared options and everything else below are still planned. This document is the working plan for an Android and desktop app that plays every episode, and for the launcher that picks the episode. It follows the Claude Design export in `design/` (`Launcher.dc.html`, `Mobile Design.dc.html`, `App Icons.dc.html`) and is iterated in pull requests. `docs/STATUS.md` links here. Touch controls, the phone layout and haptics are in [MOBILE.md](MOBILE.md).
 
 ## Goals
 - **One app for the whole series.** Episodes share the engine and are small (the art is generated in code, and the Episode 1 WASM is about 65 kB gzipped), so every episode is bundled in one install: one icon, one Settings screen, one place for saves.
@@ -94,13 +94,13 @@ The launcher navigates the WebView to the episode's own page with a launch contr
 - **Cargo workspace:** the Tauri crate joins the workspace but stays out of the default checks (`default-members`, or a separate workflow), so `cargo test --workspace` and clippy do not need WebKit system libraries or the Android targets.
 - **`bun run validate` does not build the app.** The Android build (SDK, NDK, signing, an AAB for the Play Store) is its own heavy workflow, like the e2e job.
 - **Generated files:** Prettier, ESLint and the licence-header check ignore `gen/android`.
-- **Build order:** a `scripts/build-app.sh` assembles the launcher and the episode bundles into the app's `frontendDist` after the WASM and episode builds.
+- **Build order:** `bun run build:wasm`, then `bun run build:app` (`scripts/build-app.sh`), which builds the player pages and then each episode with `--base ./` into `apps/player/dist/episode-N/`, the app's `frontendDist`. Only this script passes `--base`, so the Pages build keeps the episode's own base. Prettier, ESLint and the licence-header check skip the generated `apps/player/src-tauri/gen/`.
 - The Pages deploy is unaffected.
 
 ## Phasing
 The mobile experience on the web comes first, because it is an extension of the game as it is today and needs no new app. It is planned in slices in [MOBILE_PLAN.md](MOBILE_PLAN.md). The app work follows.
 1. **Touch controls, the phone layout and basic haptics on the web** (MOBILE_PLAN.md, slices 0 to 9). They are web UI, so the website and phone browsers get them, and everything below reuses them.
-2. **Spike:** scaffold `apps/player`, run the existing episode build in an Android emulator, and see how WebGL2, WASM, audio and the gamepad behave in the WebView.
+2. **Spike (scaffolded, not yet run on a device):** `apps/player` runs the existing episode build in the Tauri WebView, and a probe page reports how WebGL2, WASM, audio, the gamepad and the rest behave. Findings go in [TAURI_SPIKE.md](TAURI_SPIKE.md).
 3. **Shared options and the launch contract:** the shared options key with per-episode overrides, `parseLaunch()`, and embedded mode in Episode 1.
 4. **The launcher:** the carousel, App settings, Saves export and import, and the demo-strip art.
 5. **Android lifecycle and release:** orientation and fullscreen, the Back button, pausing on background, the icon set, signing, the heavy CI job and the dev-build script.

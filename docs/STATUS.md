@@ -54,6 +54,9 @@ A set of phone-width Playwright specs is switched off while it is reviewed. They
 
 They stay disabled pending review. To switch one back on, remove its pattern from `FLAKY_TITLES`; to add one, add a title pattern there. CI shards by test after the filter, and the timing report only lists tests that ran, so nothing else needs to change.
 
+## Tauri spike
+`apps/player` (`@lieutenant-fizz/player`) is a spike scaffold for the Tauri app: a menu, a capability probe (`probe.html`) and the Episode 1 build under `episode-1/` with a relative base. `bun run build:wasm && bun run build:app` assembles it in `apps/player/dist/`, and the desktop Chromium run boots, loads the WASM as `application/wasm` and logs no console errors. Nothing has run in an Android WebView yet; see `docs/TAURI_SPIKE.md`.
+
 ## Planned
 Written down in `docs/` before any code, and iterated in pull requests. None of it is built.
 - **Tauri app and launcher** (`docs/APP.md`): one Android and desktop app for every episode, with a game-style launcher (a carousel of episodes plus an App settings stop) that replaces each episode's title screen when launched from the app, global options with per-episode overrides, a launch contract, `.fizzsave` export and import, and the chosen app icon.
