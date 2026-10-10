@@ -86,6 +86,12 @@ export const stepPad = (
     next.awake = true;
     intent = 'wake';
   }
+  // Only one intent leaves a poll. When movement took it, a button pressed on the same frame has not been acted on,
+  // so leave its edge unrecorded and it fires on the next poll.
+  if (intent === 'up' || intent === 'down' || intent === 'left' || intent === 'right') {
+    next.activateDown = state.activateDown;
+    next.backDown = state.backDown;
+  }
   return { state: next, intent };
 };
 

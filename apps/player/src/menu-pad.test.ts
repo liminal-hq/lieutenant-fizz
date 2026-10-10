@@ -86,6 +86,29 @@ describe('stepPad', () => {
   });
 });
 
+describe('stepPad edge retention', () => {
+  it('keeps an A press made on a frame that starts movement for the next poll', () => {
+    const first = stepPad(awake(), pad([13, 0]), 0);
+    expect(first.intent).toBe('down');
+    const second = stepPad(first.state, pad([13, 0]), 16);
+    expect(second.intent).toBe('activate');
+    expect(stepPad(second.state, pad([13, 0]), 32).intent).toBeNull();
+  });
+
+  it('keeps an A press made on a frame that repeats movement', () => {
+    let r = stepPad(awake(), pad([13]), 0);
+    r = stepPad(r.state, pad([13, 0]), 400);
+    expect(r.intent).toBe('down');
+    expect(stepPad(r.state, pad([13, 0]), 416).intent).toBe('activate');
+  });
+
+  it('keeps a B press made on a frame that starts movement', () => {
+    const first = stepPad(awake(), pad([13, 1]), 0);
+    expect(first.intent).toBe('down');
+    expect(stepPad(first.state, pad([13, 1]), 16).intent).toBe('back');
+  });
+});
+
 describe('pollPads', () => {
   it('keeps state per pad slot and skips empty slots', () => {
     const states: PadState[] = [];
