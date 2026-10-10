@@ -22,6 +22,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@lieutenant-fizz/engine": "workspace:*",
+        "@liminal-hq/plugin-gamepad-haptics": "^0.1.0",
       },
       "devDependencies": {
         "@tauri-apps/cli": "^2",
@@ -102,6 +103,8 @@
     "@lieutenant-fizz/episode-1": ["@lieutenant-fizz/episode-1@workspace:episodes/episode-1"],
 
     "@lieutenant-fizz/player": ["@lieutenant-fizz/player@workspace:apps/player"],
+
+    "@liminal-hq/plugin-gamepad-haptics": ["@liminal-hq/plugin-gamepad-haptics@0.1.0", "", { "dependencies": { "@tauri-apps/api": "^2.10.0" } }, "sha512-TpPDU0Db8wv6SkZfheB8U8/iDw9WA2lO/CAg4CxGlSJ2h54+4gkXJREWD9d5HXTHCf8BkPJvB4Gp5wRKr2/SuA=="],
 
     "@liminal-hq/undertone": ["@liminal-hq/undertone@0.2.0", "", {}, "sha512-2y93+93xlz83H27fI5/q2ed4e6fJSpmjxhn2aJ0akUsJlW9vuh8YteqzE4iNOgf3nwAdpw1266dCbReofjjsJw=="],
 
