@@ -51,6 +51,9 @@ fn log_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
         .level(level)
         .level_for("jni", log::LevelFilter::Warn)
         .level_for("tao", log::LevelFilter::Info)
+        // The debug MCP bridge's websocket internals are very chatty at Trace.
+        .level_for("tungstenite", log::LevelFilter::Warn)
+        .level_for("tokio_tungstenite", log::LevelFilter::Warn)
         .targets([
             Target::new(TargetKind::Stdout),
             Target::new(TargetKind::LogDir { file_name: None }),
