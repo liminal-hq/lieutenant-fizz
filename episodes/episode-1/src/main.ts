@@ -9,6 +9,7 @@ import {
   parseWakeParam,
 } from '@lieutenant-fizz/engine/lifecycle-policy';
 import { parseAudioParam } from '@lieutenant-fizz/engine/sound-field';
+import { createStorage } from '@lieutenant-fizz/engine/storage';
 import { Game } from './game';
 import { parseHapticsParam, parsePixelsParam } from './url-lock';
 
@@ -43,7 +44,14 @@ const wake = parseWakeParam(query.get('wake'));
 
 // `?back` makes the browser's Back button the game's in an ordinary tab, to try it without fullscreen.
 
+// Saves and settings live in the app's store file inside the Tauri app and in `localStorage` on the web. The
+// store is read in full before the game starts, so the game's reads stay synchronous.
+const storage = await createStorage({
+  onError: (kind, error) => console.warn(`The ${kind} storage is unavailable`, error),
+});
+
 Game.start(stage, {
+  storage,
   previewStinger: query.has('previewStinger'),
   touch: query.has('touch'),
   back: query.has('back'),

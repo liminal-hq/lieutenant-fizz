@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-export {};
+import { createStorage } from '@lieutenant-fizz/engine/storage';
 
 type ProbeReport = Record<string, unknown>;
 
@@ -188,13 +188,18 @@ async function startAudio(): Promise<ProbeReport> {
   };
 }
 
-// Counted once when the page loads, so a re-run reports the same launch instead of a new one.
+// The same storage the game uses: the app's store file in Tauri, `localStorage` elsewhere. Opened once when
+// the page loads (the store is read in full first), so the launch is counted once and a re-run reports the
+// same launch instead of a new one.
+const storage = await createStorage({
+  onError: (kind, error) => console.warn(`The ${kind} storage is unavailable`, error),
+});
 const launchCount = countLaunch();
 
 function countLaunch(): number | null {
   try {
-    const count = Number(localStorage.getItem('lf-probe-launches') ?? '0') + 1;
-    localStorage.setItem('lf-probe-launches', String(count));
+    const count = Number(storage.getItem('lf-probe-launches') ?? '0') + 1;
+    storage.setItem('lf-probe-launches', String(count));
     return count;
   } catch {
     return null;
@@ -203,19 +208,21 @@ function countLaunch(): number | null {
 
 function persistence(): ProbeReport {
   try {
-    if (launchCount === null) throw new Error('localStorage is unavailable');
+    if (launchCount === null) throw new Error('storage is unavailable');
     return {
+      // `tauri` is the store file, `local` is the browser's localStorage and `memory` means nothing is kept.
+      backend: storage.kind,
       launches: launchCount,
-      firstSeen: localStorage.getItem('lf-probe-first') ?? setFirst(),
+      firstSeen: storage.getItem('lf-probe-first') ?? setFirst(),
     };
   } catch (error) {
-    return { error: String(error) };
+    return { backend: storage.kind, error: String(error) };
   }
 }
 
 function setFirst(): string {
   const now = new Date().toISOString();
-  localStorage.setItem('lf-probe-first', now);
+  storage.setItem('lf-probe-first', now);
   return now;
 }
 
