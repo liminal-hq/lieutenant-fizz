@@ -40,6 +40,8 @@ import { setCanGoBack, PREDICTIVE_BACK_EVENT, type PredictiveBackEvent } from '.
 await setCanGoBack(true);
 
 const unlisten = await listen<PredictiveBackEvent>(PREDICTIVE_BACK_EVENT, (event) => {
-	console.log(event.payload.type, event.payload.progress);
+	console.log(event.payload.type, event.payload.progress, event.payload.swipeEdge);
 });
 ```
+
+`swipeEdge` (`"left"` or `"right"`) says which edge the gesture came from. It is sent with `started` and `progress` only, and may be absent.
