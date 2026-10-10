@@ -69,8 +69,10 @@ restore_gen_android() {
   echo "${COLOUR_YELLOW}Restoring ${GEN_ANDROID} to its committed (real-app) state...${COLOUR_RESET}"
   git -C "$REPO_ROOT" checkout -- "$GEN_ANDROID" || true
   git -C "$REPO_ROOT" clean -fdx "$GEN_ANDROID" >/dev/null || true
+  # --ignored is what lets this see ignored output (a container-owned Gradle directory that clean could
+  # not remove); a plain porcelain status never lists ignored paths, so it would report a clean tree.
   local leftover
-  if ! leftover="$(git -C "$REPO_ROOT" status --porcelain -- "$GEN_ANDROID")" || [ -n "$leftover" ]; then
+  if ! leftover="$(git -C "$REPO_ROOT" status --porcelain --ignored -- "$GEN_ANDROID")" || [ -n "$leftover" ]; then
     echo "${COLOUR_RED}Could not restore ${GEN_ANDROID}; it is still in the regenerated dev state.${COLOUR_RESET}" >&2
     echo "Restore it by hand: git -C $REPO_ROOT checkout -- $GEN_ANDROID && git -C $REPO_ROOT clean -fdx $GEN_ANDROID" >&2
     if [ "$build_status" -eq 0 ]; then
