@@ -144,6 +144,26 @@ describe('createStorage', () => {
     expect(onError.mock.calls[0]?.[0]).toBe('tauri');
   });
 
+  it('keeps going when the error callback itself throws', async () => {
+    const local = memoryStorage();
+    const onError = vi.fn(() => {
+      throw new Error('logger broke');
+    });
+    const s = await createStorage({
+      backends: [
+        { kind: 'tauri', open: () => Promise.reject(new Error('async')) },
+        backend('local', local),
+      ],
+      onError,
+    });
+    expect(s).toBe(local);
+    const fallback = await createStorage({
+      backends: [{ kind: 'tauri', open: () => Promise.reject(new Error('async')) }],
+      onError,
+    });
+    expect(fallback.kind).toBe('memory');
+  });
+
   it('falls back to memory when nothing opens', async () => {
     const s = await createStorage({ backends: [backend('tauri', null), backend('local', null)] });
     expect(s.kind).toBe('memory');

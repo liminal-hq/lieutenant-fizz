@@ -124,7 +124,11 @@ export async function createStorage(options: CreateStorageOptions = {}): Promise
       const store = await backend.open();
       if (store) return store;
     } catch (error) {
-      options.onError?.(backend.kind, error);
+      try {
+        options.onError?.(backend.kind, error);
+      } catch {
+        /* reporting is best-effort; the next backend still gets its turn */
+      }
     }
   }
   return memoryStorage();
