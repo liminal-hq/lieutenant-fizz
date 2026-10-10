@@ -56,6 +56,8 @@ const ghost = (page: Page) =>
     const m = new DOMMatrix(cs.transform === 'none' ? undefined : cs.transform);
     return {
       opacity: Number(cs.opacity),
+      mask: cs.maskImage || cs.webkitMaskImage,
+      feather: (g as HTMLElement).style.getPropertyValue('--lf-peek-feather'),
       x: m.e,
       title: g.querySelector('h2')?.textContent ?? '',
       inert: (g as HTMLElement).inert,
@@ -106,6 +108,10 @@ test('the pause menu slides and fades with the gesture, and glides back when it 
   expect(early!.x).toBeGreaterThan(0);
   expect(later!.opacity).toBeLessThan(early!.opacity);
   expect(early!.opacity).toBeLessThan(1);
+  // The edge it leaves behind is feathered, and the mask is on the element that moves.
+  expect(later!.feather).toBe('14%');
+  expect(later!.mask).toContain('linear-gradient');
+  expect(later!.mask).toContain('to right');
   expect(later!.inert).toBe(true);
   expect(later!.hidden).toBe('true');
   // The game shows through: the pause menu itself is gone from under the copy, and the screen is unchanged.
@@ -136,7 +142,9 @@ test('a swipe from the right edge slides the other way', async ({ page }) => {
   await open(page, 'pause');
   await emit(page, { type: 'started', swipeEdge: 'right' });
   await emit(page, { type: 'progress', progress: 0.5, swipeEdge: 'right' });
-  expect((await ghost(page))!.x).toBeLessThan(0);
+  const g = (await ghost(page))!;
+  expect(g.x).toBeLessThan(0);
+  expect(g.mask).toContain('to left');
   await emit(page, { type: 'cancelled' });
   await expect.poll(() => ghost(page)).toBeNull();
 });
@@ -148,6 +156,7 @@ test('reduced motion only fades', async ({ page }) => {
   await emit(page, { type: 'progress', progress: 0.5, swipeEdge: 'left' });
   const g = (await ghost(page))!;
   expect(g.x).toBe(0);
+  expect(g.feather).toBe('0%');
   expect(g.opacity).toBeLessThan(1);
   await emit(page, { type: 'cancelled' });
   await expect.poll(() => ghost(page)).toBeNull();
