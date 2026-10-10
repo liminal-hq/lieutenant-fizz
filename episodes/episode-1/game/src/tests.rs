@@ -3335,3 +3335,22 @@ fn a_low_pogo_bounce_under_a_high_slab_stays_silent() {
     run(&mut w, 300, 0);
     assert_eq!(clunks(&w), 0);
 }
+
+#[test]
+fn a_rise_into_a_ceiling_below_the_last_footing_still_clunks() {
+    // He stood on a high ledge, fell, then kicked off a wall (or let go of a ladder) and rose into a
+    // lower ceiling before landing: the rise gains height from where it started, so it clunks.
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 5, FILL);
+    }
+    w.p.rise_y = 30.0;
+    w.p.b.y = 3.0;
+    w.p.b.vy = 0.0;
+    w.p.b.on_ground = false;
+    w.events.clear();
+    w.step(0);
+    w.p.b.vy = 14.0;
+    run(&mut w, 40, 0);
+    assert_eq!(clunks(&w), 1);
+}

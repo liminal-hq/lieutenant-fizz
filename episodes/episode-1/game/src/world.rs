@@ -203,8 +203,9 @@ pub struct Player {
     pub squash: f64,
     /// Whether this rise has already clunked, so one bounce or jump sounds once.
     pub bumped: bool,
-    /// Where Ben last stood, for telling a real rise from a bounce with no room.
-    pub ground_y: f64,
+    /// Where Ben's current rise began (his height at the last tick he was not rising), for telling a
+    /// real rise from a bounce with no room.
+    pub rise_y: f64,
     pub look_down: f64,
     pub look_up: f64,
     /// Holding a ladder: gravity and running are off and Up/Down move Ben along it.
@@ -240,7 +241,7 @@ impl Player {
             inv: 0.0,
             squash: 0.0,
             bumped: false,
-            ground_y: 0.0,
+            rise_y: 0.0,
             look_down: 0.0,
             look_up: 0.0,
             climb: false,
@@ -1201,16 +1202,16 @@ impl World {
         if self.p.b.vy <= 0.0 && !self.p.b.bonk {
             self.p.bumped = false;
         }
-        if self.p.b.on_ground {
-            self.p.ground_y = self.p.b.y;
+        if rising <= 0.0 || self.p.b.on_ground {
+            self.p.rise_y = self.p.b.y;
         }
-        // A rise that gains no height since the last footing (a pogo under a ceiling that just fits it,
+        // A rise that gains no height since it began (a pogo under a ceiling that just fits it,
         // bouncing again at once from the floor) is not a bump, so a tight corridor does not rattle.
         if self.p.bumped
             || self.p.climb
             || rising <= HEAD_BUMP_MIN_SPEED
             || !self.p.b.bonk
-            || self.p.b.y - self.p.ground_y < HEAD_BUMP_MIN_RISE
+            || self.p.b.y - self.p.rise_y < HEAD_BUMP_MIN_RISE
         {
             return;
         }
