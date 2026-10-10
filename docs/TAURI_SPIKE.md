@@ -24,6 +24,15 @@ adb reverse tcp:5173 tcp:5173               # Remote dev loop
 
 `chrome://inspect` on desktop Chrome attaches to the debug WebView. Repeat the key experiments in Chrome and Firefox on the same phone for a baseline.
 
+## Checking persistence on the phone
+
+In the app, persistence means the `tauri-plugin-store` file `lf-data.json`, not the WebView's `localStorage`. The probe and the game open it through the same storage adapter.
+
+- Open the probe and press Run all. `persistence.backend` must be `tauri` (`local` or `memory` means the store plugin did not load: check the capability `store:default` and `adb logcat` for the warning "The tauri storage is unavailable"), with `launches` and `firstSeen`.
+- Force-stop the app (`adb shell am force-stop ca.liminalhq.lieutenantfizz.dev`), start it and run the probe again: `launches` goes up by one and `firstSeen` is unchanged. Repeat after a reboot (E12a) and after `adb install -r` of a newer build (E12b).
+- In the game, save to a slot, press Home so the app goes to the background (this flushes the store), swipe it away, start it and check Load game. In a debug page (`?debug`), `__lf.debugState.storage` is `tauri`.
+- The file is under the app's data directory, `files/lf-data.json` on a debug build: `adb shell run-as ca.liminalhq.lieutenantfizz.dev cat files/lf-data.json` (the path can differ by Tauri version; `find` for the name if it is not there).
+
 ## Setup
 
 To fill in: workflow run, commit, Tauri and CLI versions, NDK version, APK size, CI time; phone, Android version, WebView version, display size and refresh rate; controller; headphones; origin and secure context.
@@ -44,8 +53,8 @@ To fill in: workflow run, commit, Tauri and CLI versions, NDK version, APK size,
 | E9 | Safe areas and viewport (non-zero insets on the cutout side) | | | | |
 | E10 | Vibrate (needs the haptics plugin's permission) | | | | |
 | E11 | Fullscreen, orientation and wake lock | | | | |
-| E12a | Persistence across restarts and a reboot | | | | |
-| E12b | Persistence across in-place updates (needs the stable debug key) | | | | |
+| E12a | Persistence across restarts and a reboot (the store file, `persistence.backend` is `tauri`) | | | | |
+| E12b | Persistence across in-place updates (the store file, needs the stable debug key) | | | | |
 | E13 | Back (does it fire `popstate` or close the app) | | | | |
 | E14 | Lifecycle (pause on hide, clean resume, no context loss) | | | | |
 | E15 | Candidate CSP | | | | |

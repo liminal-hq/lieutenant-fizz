@@ -57,6 +57,9 @@ They stay disabled pending review. To switch one back on, remove its pattern fro
 ## Tauri spike
 `apps/player` (`@lieutenant-fizz/player`) is a spike scaffold for the Tauri app: a menu, a capability probe (`probe.html`) and the Episode 1 build under `episode-1/` with a relative base. `bun run build:wasm && bun run build:app` assembles it in `apps/player/dist/`, and the desktop Chromium run boots, loads the WASM as `application/wasm` and logs no console errors. The Tauri shell is `apps/player/src-tauri` (its own Cargo workspace, excluded from the root one, checked by `.github/workflows/ci-app.yml`), with the Android project tracked in `gen/android` (landscape lock, immersive fullscreen, minSdk 26) and the icon set generated from `assets/icon/fizz-icon.svg`. Nothing has been built for Android or run in an Android WebView yet: CI builds the dev APK by default, and `bun run build:android:dev` is the one sanctioned local path (a container, a scratch directory and capped parallelism); see `docs/TAURI_SPIKE.md`.
 
+## Storage adapter
+Saves, options and touch settings go through `KeyValueStorage` (`packages/engine/src/storage.ts`). The web build keeps `localStorage`; in the Tauri app a backend (`tauri-storage.ts`) keeps every `lf-*` key in the `lf-data.json` store file, preloaded before the game starts. `debugState.storage` and the probe report which backend is in use. Unit-tested with fakes; the real plugin has not run on a device yet (see `docs/TAURI_SPIKE.md`, E12).
+
 ## Planned
 Written down in `docs/` before any code, and iterated in pull requests. None of it is built.
 - **Tauri app and launcher** (`docs/APP.md`): one Android and desktop app for every episode, with a game-style launcher (a carousel of episodes plus an App settings stop) that replaces each episode's title screen when launched from the app, global options with per-episode overrides, a launch contract, `.fizzsave` export and import, and the chosen app icon.
