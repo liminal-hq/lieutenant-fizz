@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
 # Pushing a `vX.Y.Z` tag builds `.deb`, `.rpm` and `.AppImage` packages for x86_64 and aarch64 (unsigned),
-# and a signed Android APK and AAB (with the R8 mapping), writes SHA256SUMS over all of it, and attaches
+# and a signed Android APK and AAB (with the R8 mapping and the native debug symbols), writes SHA256SUMS over all of it, and attaches
 # everything to a DRAFT release for the tag (created with generated notes, or the existing draft reused).
 # Nothing is published and nothing goes to Google Play: a person reviews the draft and publishes it.
 # Windows, macOS and the Play upload come later.
@@ -359,7 +359,16 @@ jobs:
 
       # The Gradle project signs the release build type when keystore.properties exists. `tauri android build`
       # writes tauri.properties (versionName from the tauri.conf.json version, versionCode derived from it) first.
+      #
+      # The repository's release profile sets `strip = true`, which leaves the native libraries with no symbols for
+      # Play to read. This step overrides it through Cargo's environment, so the desktop packages keep the stripped
+      # profile: `none` keeps the symbol table, and `line-tables-only` adds file and line numbers for crash traces.
+      # AGP strips the copy it ships in the APK and AAB and moves the full one into the bundle's metadata
+      # (`ndk { debugSymbolLevel = "FULL" }` in the Gradle project).
       - name: Build the release APK and AAB
+        env:
+          CARGO_PROFILE_RELEASE_STRIP: none
+          CARGO_PROFILE_RELEASE_DEBUG: line-tables-only
         run: bun run android:build --apk --aab
 
       - name: Verify the signatures
@@ -424,16 +433,27 @@ jobs:
             echo "::warning::No R8 mapping.txt was produced"
           fi
 
-          # Native debug symbols, when the build kept them (the release profile strips today, so there may be none).
-          symbols_dir="$(find "${gen}/app/build/intermediates/merged_native_libs" -type d -name lib -path '*elease*' 2>/dev/null | head -n 1 || true)"
-          if [[ -n "${symbols_dir}" ]]; then
-            sample="$(find "${symbols_dir}" -name 'liblieutenant_fizz_player_lib.so' | head -n 1 || true)"
-            if [[ -n "${sample}" ]] && file "${sample}" | grep -q 'not stripped'; then
-              (cd "${symbols_dir}" && zip -r -q "${GITHUB_WORKSPACE}/${release_dir}/lieutenant-fizz-native-debug-symbols-v${version_name}-${version_code}.zip" .)
-            else
-              echo "The native libraries are stripped, so there is no debug symbols zip"
+          # Native debug symbols for Play: the `<abi>/<library>.so.dbg` files AGP put in the bundle's metadata, zipped
+          # with the ABI folders at the root (the layout Play Console accepts). The release must have them, so an
+          # empty result fails the job instead of shipping a release Play cannot symbolicate.
+          for tool in unzip zip; do
+            if ! command -v "${tool}" >/dev/null; then
+              echo "${tool} is required to build the symbols zip" >&2
+              exit 1
             fi
+          done
+          symbols_tmp="$(mktemp -d)"
+          unzip -q "${aab}" 'BUNDLE-METADATA/com.android.tools.build.debugsymbols/*' -d "${symbols_tmp}" || true
+          symbols_root="${symbols_tmp}/BUNDLE-METADATA/com.android.tools.build.debugsymbols"
+          if [[ -z "$(find "${symbols_root}" -type f -name '*.so.dbg' 2>/dev/null | head -n 1)" ]]; then
+            echo "The bundle has no native debug symbols (BUNDLE-METADATA/com.android.tools.build.debugsymbols). Check CARGO_PROFILE_RELEASE_STRIP and debugSymbolLevel." >&2
+            exit 1
           fi
+          symbols_zip="${GITHUB_WORKSPACE}/${release_dir}/lieutenant-fizz-native-debug-symbols-v${version_name}-${version_code}.zip"
+          (cd "${symbols_root}" && zip -r -q "${symbols_zip}" .)
+          echo "Native debug symbols:"
+          unzip -l "${symbols_zip}"
+          rm -rf "${symbols_tmp}"
 
           ls -l "${release_dir}"
 
@@ -529,6 +549,11 @@ jobs:
               exit 1
             fi
           done
+
+          if [[ -z "$(find . -maxdepth 1 -name 'lieutenant-fizz-native-debug-symbols-v*.zip' -print -quit)" ]]; then
+            echo "No native debug symbols zip was built" >&2
+            exit 1
+          fi
 
           sha256sum ./* | sed 's# \./#  #' > SHA256SUMS
           cat SHA256SUMS
