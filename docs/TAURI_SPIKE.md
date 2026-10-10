@@ -1,6 +1,6 @@
 # Tauri spike: Episode 1 in the Android WebView
 
-**Status: scaffolded, not yet built or run on a device.** This is the findings document for phase 2 of [APP.md](APP.md). The aim is to put the existing Episode 1 build, unchanged, into a Tauri v2 shell at `apps/player`, install a debug APK on a phone and measure what the WebView can do. The verdict feeds the launcher and lifecycle phases.
+**Status: built and run on a device once; the measurements are still to do.** The dev APK has been built in the `tauri-dev-mobile` container and installed on a Pixel 8 Pro, and the first device run is recorded under "Findings from the first device run". The GitHub Actions workflow (`android-apk.yml`) has not been run yet, and the results table is still empty. This is the findings document for phase 2 of [APP.md](APP.md). The aim is to put the existing Episode 1 build, unchanged, into a Tauri v2 shell at `apps/player`, install a debug APK on a phone and measure what the WebView can do. The verdict feeds the launcher and lifecycle phases.
 
 ## How it is built
 
