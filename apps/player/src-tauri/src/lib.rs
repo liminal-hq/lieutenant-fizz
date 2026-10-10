@@ -103,6 +103,9 @@ pub fn run() {
         // The game's saves and settings are kept in a store file (`lf-data.json`) in the app data directory.
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_haptics::init())
+        // The Android Back gesture: the page says whether Back has somewhere to go and hears when it completes.
+        // The desktop build gets a no-op stub, so the plugin is registered everywhere.
+        .plugin(tauri_plugin_predictive_back::init())
         .invoke_handler(tauri::generate_handler![write_store, quit])
         .setup(|app| {
             let info = app.package_info();

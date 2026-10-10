@@ -37,6 +37,9 @@ tauri-plugin-store = "2"
 # liminal-hq/tauri-plugins-workspace). Its build script adds the VIBRATE permission to the Android manifest.
 tauri-plugin-haptics = { git = "https://github.com/liminal-hq/tauri-plugins-workspace", rev = "82a166fbe878d6647b9dbe4a7e46f0967a8d861a" }
 
+# The Android Back gesture. Copied from Cadence and authored here until it moves to tauri-plugins-workspace.
+tauri-plugin-predictive-back = { path = "../../../plugins/predictive-back" }
+
 # Logs: Rust and WebView output to stdout, a rotated file and the devtools console. Threshold's setup,
 # including the local-time format (`chrono`).
 tauri-plugin-log = "2"
