@@ -233,6 +233,7 @@ function composition(p: HapticPattern, scale: number, caps: PluginCaps, c: Plugi
         primitive: 'thud',
         scale: Math.round(i * 0.8 * 100) / 100,
       });
+      runs.push([primitiveMs('thud', caps), true]);
       end += primitiveMs('thud', caps);
     }
   }

@@ -169,6 +169,14 @@ describe('compilePluginPattern', () => {
     });
   });
 
+  it('counts the added thud in the compiled motor time', () => {
+    const plan = compilePluginPattern({ events: [tap(0, 1, 0.6)] }, 1, caps(3));
+    expect((effectOf(plan) as { steps: unknown[] }).steps).toHaveLength(2);
+    // Two 20 ms primitives (the click and the thud) are all motor time; nothing is off.
+    expect(onTime(plan.compiled as number[])).toBe(40);
+    expect(totalTime(plan.compiled as number[])).toBe(plan.ms);
+  });
+
   it('maps sharpness to heavier primitives when dull and crisp ones when sharp, tunably', () => {
     expect([1, 0.85, 0.7, 0.5, 0.4, 0.3, 0.29, 0].map((v) => primitiveFor(v))).toEqual([
       'tick',
