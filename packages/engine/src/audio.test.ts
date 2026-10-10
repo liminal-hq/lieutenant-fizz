@@ -98,6 +98,25 @@ describe('GameAudio with Undertone', () => {
     expect(listeners.size).toBe(0);
   });
 
+  it('creates and resumes the context at boot when asked to, keeping the gesture fallback', async () => {
+    const audio = new GameAudio(patterns, async () => Undertone, { unlockAtBoot: true });
+    await flush();
+    expect(FakeContext.instances).toHaveLength(1);
+    expect(FakeContext.instances[0]!.resume).toHaveBeenCalledTimes(1);
+    expect(listeners.has('pointerdown')).toBe(true);
+    expect(listeners.has('keydown')).toBe(true);
+    audio.dispose();
+  });
+
+  it('starts music requested after a boot unlock without waiting for a gesture', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(patterns, async () => Undertone, { unlockAtBoot: true });
+    await flush();
+    audio.playMusic('title');
+    expect(loop).toHaveBeenCalled();
+    audio.dispose();
+  });
+
   it('plays effects (including high-pass ones) through Undertone once unlocked', async () => {
     const play = vi.spyOn(Undertone.Pattern.prototype, 'play').mockImplementation(() => {});
     const audio = new GameAudio(patterns, async () => Undertone);

@@ -466,11 +466,15 @@ export class GameAudio {
   constructor(
     private readonly patterns: AudioPatterns,
     load: () => Promise<UndertoneModule> = () => import('@liminal-hq/undertone'),
+    options: { unlockAtBoot?: boolean } = {},
   ) {
     window.addEventListener('pointerdown', this.unlock);
     // Chrome does not count a touch's pointerdown as a user gesture, but its pointerup is one.
     window.addEventListener('pointerup', this.unlock);
     window.addEventListener('keydown', this.unlock);
+    // The app's WebView allows autoplay, so it needs no gesture: create and resume the context now. The
+    // handlers above stay as the fallback, and the web build leaves this off (no context before a gesture).
+    if (options.unlockAtBoot) this.unlock();
     load().then(
       (m) => {
         if (this.disposed) return;
