@@ -25,6 +25,17 @@ adb reverse tcp:5173 tcp:5173               # Remote dev loop
 
 `chrome://inspect` on desktop Chrome attaches to the debug WebView. Repeat the key experiments in Chrome and Firefox on the same phone for a baseline.
 
+## Reading the logs
+
+Rust's `log` records and the page's `console.*` calls, uncaught errors and unhandled rejections go through `tauri-plugin-log` (`apps/player/src-tauri/src/lib.rs`; the permission is in `capabilities/logging.json`, apart from `default.json`). Every line is `[local time with UTC offset][LEVEL][target] message`, the format Threshold and Waypoint use. Debug builds log at Debug and release builds at Info (`jni` is held to Warn, `tao` to Info, and the debug MCP bridge's websocket crates to Warn). The first line of a run is the app name, version, identifier and platform.
+
+Page lines come from `packages/engine/src/tauri-log.ts`, started first thing by the Episode 1 entry and the probe and haptics pages, only inside the app, and carry the page as a prefix (`[episode-1]`, `[probe]`, `[haptics]`) and the call site as a trailing `(file:line)`. `console.log` is written at Info. The menu page has no script of its own, so it logs nothing.
+
+- **Desktop terminal:** the stdout target prints every line to the terminal that started the app.
+- **Log file:** a file in the app's log directory, rotated at 40 KB (the plugin's default; one old file is kept). Linux: `$XDG_DATA_HOME/ca.liminalhq.lieutenantfizz/logs` or `~/.local/share/ca.liminalhq.lieutenantfizz/logs`; macOS: `~/Library/Logs/ca.liminalhq.lieutenantfizz`; Windows: `%LOCALAPPDATA%\ca.liminalhq.lieutenantfizz\logs`; Android: `/data/data/ca.liminalhq.lieutenantfizz/files/logs` (private to the app, so read it with `adb shell run-as <id> cat files/logs/<file>` on a debug build, or just use logcat). The file is named after the app. The dev build uses `.dev` ids and a different product name.
+- **Devtools console:** Rust's records are also shown in the WebView's console (the WebView target; the page's own output is already there, so it is not echoed). Use `chrome://inspect` on Android or the desktop's inspector.
+- **Android logcat:** the stdout target goes to logcat through `android_logger`, with the record's target as the tag: Rust lines are tagged `lieutenant_fizz_player_lib` (or the crate's module path) and page lines `webview::...` (the plugin appends the caller's location to the tag). An exact tag filter such as `adb logcat -s webview` will miss the suffixed tags, so filter by process instead: `adb logcat --pid=$(adb shell pidof ca.liminalhq.lieutenantfizz)` (use `ca.liminalhq.lieutenantfizz.dev` for the dev build), or `adb logcat | grep -E 'lieutenant_fizz|webview'`. Unverified on a device.
+
 ## Checking persistence on the phone
 
 In the app, persistence means the `tauri-plugin-store` file `lf-data.json`, not the WebView's `localStorage`. The probe and the game open it through the same storage adapter.
