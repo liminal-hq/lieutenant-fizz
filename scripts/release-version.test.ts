@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  checkNoExplicitVersionCode,
   checkReleaseVersions,
   readCargoVersion,
   readJsonVersion,
@@ -71,5 +72,22 @@ describe('checkReleaseVersions', () => {
 
   it('fails a tag that is not a version tag', () => {
     expect(() => checkReleaseVersions(same, 'android-debug-1-1')).toThrow(/not a release tag/);
+  });
+});
+
+describe('checkNoExplicitVersionCode', () => {
+  it('accepts a config that leaves the versionCode to Tauri', () => {
+    const conf = JSON.stringify({ version: '0.1.0', bundle: { android: { minSdkVersion: 26 } } });
+    expect(() => checkNoExplicitVersionCode(conf, 'tauri.conf.json')).not.toThrow();
+    expect(() =>
+      checkNoExplicitVersionCode('{"version":"0.1.0"}', 'tauri.conf.json'),
+    ).not.toThrow();
+  });
+
+  it('rejects an explicit bundle.android.versionCode', () => {
+    const conf = JSON.stringify({ bundle: { android: { versionCode: 7 } } });
+    expect(() => checkNoExplicitVersionCode(conf, 'tauri.conf.json')).toThrow(
+      /tauri\.conf\.json sets bundle\.android\.versionCode/,
+    );
   });
 });

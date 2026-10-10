@@ -76,3 +76,17 @@ export function checkReleaseVersions(versions: ManifestVersions, tag?: string): 
   if (problems.length > 0) throw new Error(problems.join('\n'));
   return versions.tauriConf;
 }
+
+/**
+ * Throws when `bundle.android.versionCode` is set in tauri.conf.json. Tauri derives the Android versionCode from the
+ * semver version (major * 1,000,000 + minor * 1,000 + patch; 0.1.0 gives 1000), which keeps it rising with the
+ * version. An explicit value would override that and could stall or repeat, which Play rejects.
+ */
+export function checkNoExplicitVersionCode(tauriConfText: string, label: string): void {
+  const conf = JSON.parse(tauriConfText) as { bundle?: { android?: { versionCode?: unknown } } };
+  if (conf.bundle?.android?.versionCode !== undefined) {
+    throw new Error(
+      `${label} sets bundle.android.versionCode; remove it so Tauri derives the versionCode from the version`,
+    );
+  }
+}

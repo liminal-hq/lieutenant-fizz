@@ -6,6 +6,9 @@
 // Usage: bun scripts/check-release-version.ts [--tag vX.Y.Z]
 //   --tag  also require the tag to be `v` plus the shared version (used by the release workflow)
 //
+// It also fails when tauri.conf.json sets `bundle.android.versionCode`: the Android versionCode comes from
+// the version (major * 1,000,000 + minor * 1,000 + patch), so an explicit one could break Play's rising order.
+//
 // Prints the shared version on success and exits 1 with a message naming the file that disagrees, so
 // `bun scripts/check-release-version.ts` doubles as a dry run before tagging. The checks are in
 // release-version.ts.
@@ -13,7 +16,12 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkReleaseVersions, readCargoVersion, readJsonVersion } from './release-version';
+import {
+  checkNoExplicitVersionCode,
+  checkReleaseVersions,
+  readCargoVersion,
+  readJsonVersion,
+} from './release-version';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (file: string): string => readFileSync(join(root, file), 'utf8');
@@ -34,6 +42,7 @@ for (let i = 0; i < args.length; i++) {
 }
 
 try {
+  checkNoExplicitVersionCode(read('apps/player/src-tauri/tauri.conf.json'), 'tauri.conf.json');
   const version = checkReleaseVersions(
     {
       tauriConf: readJsonVersion(read('apps/player/src-tauri/tauri.conf.json'), 'tauri.conf.json'),
