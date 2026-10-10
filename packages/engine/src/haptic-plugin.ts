@@ -392,7 +392,13 @@ function envelope(p: HapticPattern, scale: number, caps: PluginCaps, c: PluginCo
         controlPoints: r.pts,
       },
       ms: r.ms,
-      compiled: onOffRuns(r.pts.map((pt) => [pt.durationMs, pt.amplitude > 0] as const)),
+      // A control point ramps from the previous amplitude to its own, so it is on unless both are zero.
+      compiled: onOffRuns(
+        r.pts.map(
+          (pt, i) =>
+            [pt.durationMs, pt.amplitude > 0 || (r.pts[i - 1]?.amplitude ?? 0) > 0] as const,
+        ),
+      ),
     };
   }
   return { effect: null, ms: 0, why: 'too long or too many points for the envelope limits' };

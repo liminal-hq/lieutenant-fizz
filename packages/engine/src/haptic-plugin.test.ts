@@ -281,6 +281,27 @@ describe('pluginBackend', () => {
     expect(totalTime(compiled)).toBe(r.ms);
   });
 
+  it('counts an envelope ramp down to zero as motor time', () => {
+    const plan = compilePluginPattern(whoa, 1, caps(4));
+    const eff = effectOf(plan) as {
+      controlPoints: { amplitude: number; durationMs: number }[];
+    };
+    // A control point ramps from the previous amplitude to its own, so it is on unless both are zero.
+    let prev = 0;
+    let motor = 0;
+    for (const pt of eff.controlPoints) {
+      if (pt.amplitude > 0 || prev > 0) motor += pt.durationMs;
+      prev = pt.amplitude;
+    }
+    const endpointOnly = eff.controlPoints.reduce(
+      (a, p) => a + (p.amplitude > 0 ? p.durationMs : 0),
+      0,
+    );
+    expect(motor).toBeGreaterThan(endpointOnly);
+    expect(onTime(plan.compiled as number[])).toBe(motor);
+    expect(totalTime(plan.compiled as number[])).toBe(plan.ms);
+  });
+
   it('sends the tier cap to the plugin', async () => {
     const f = fake(caps(4));
     const b = pluginBackend({ invoke: f.invoke });
