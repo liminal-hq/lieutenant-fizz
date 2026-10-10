@@ -93,7 +93,7 @@ const GROUPS: readonly [string, readonly string[]][] = [
   ],
   ['World', ['crumble', 'thunk', 'krunch']],
   ['Boss', ['zzzap', 'thoom', 'clang', 'bossDown']],
-  ['Level', ['taDa', 'gameOver']],
+  ['Level', ['levelStart', 'taDa', 'gameOver']],
   ['Menus', ['ui.move', 'ui.select', 'ui.back', 'ui.reject', 'ui.toggleOn', 'ui.toggleOff']],
   ['Editor', ['ui.pick', 'ui.drop', 'ui.armed']],
 ];

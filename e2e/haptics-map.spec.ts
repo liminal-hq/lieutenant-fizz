@@ -9,6 +9,7 @@ import { settle } from './keys';
 interface Lf {
   debugShow(what: string): void;
   enterMap(): void;
+  debugEnterLevel(id: number): void;
   debugHaptics(): { plays: { cue: string }[] };
 }
 
@@ -43,5 +44,16 @@ test.describe('haptics on the map', () => {
     await settle(page, 60);
     await page.keyboard.up('ArrowRight');
     expect((await cues(page)).slice(before)).toEqual([]);
+  });
+
+  test('entering a level from the map is felt once', async ({ page }) => {
+    await open(page);
+    await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('map'));
+    await settle(page, 10);
+    expect(await cues(page)).toEqual([]);
+    await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugEnterLevel(0));
+    await expect.poll(() => cues(page)).toEqual(['levelStart']);
+    await settle(page, 30);
+    expect((await cues(page)).filter((c) => c === 'levelStart')).toHaveLength(1);
   });
 });

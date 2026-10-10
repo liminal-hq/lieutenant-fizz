@@ -936,6 +936,7 @@ export class Game {
         this.prompt = null;
         this.bossHp = null;
         this.levelSeconds = 0;
+        this.haptics.cue('levelStart');
         this.pogoOn = sim.get(State.POGO_ON) === 1;
         this.ui.toast(LEVELS[e.a]?.name ?? '');
         this.syncUi();

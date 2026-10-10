@@ -50,10 +50,22 @@ describe('FIZZ_HAPTICS', () => {
       'pogoOff',
       'gameOver',
       'bossDown',
+      'levelStart',
       ...cues.map(([id]) => id).filter((id) => id.startsWith('ui.')),
     ]);
     const mapped = new Set(Object.values(FIZZ_HAPTICS.captions));
     for (const [id] of cues) expect(mapped.has(id) || byGame.has(id), id).toBe(true);
+  });
+
+  it('has a short, calm-aware levelStart cue the game raises on entering a level', () => {
+    const c = FIZZ_HAPTICS.cues['levelStart'];
+    expect(c).toBeDefined();
+    expect(c?.lane).toBe('game');
+    expect(c?.policy).toBe('interrupt');
+    expect(c?.calm).toBe(true);
+    expect(c?.priority).toBeGreaterThan(FIZZ_HAPTICS.cues['thunk']?.priority ?? 9);
+    expect(patternLength(c!.pattern)).toBeLessThan(200);
+    expect(c?.cooldownMs).toBeGreaterThanOrEqual(500);
   });
 
   it('keeps level-win and boss hit doubles silent or single', () => {

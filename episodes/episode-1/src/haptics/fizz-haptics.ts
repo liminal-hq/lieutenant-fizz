@@ -158,6 +158,13 @@ export const FIZZ_HAPTICS: HapticTable = {
       cooldownMs: 150,
       policy: I,
     }),
+    // Stepping into a level from the map: a low thud (the door), then a quick crisp click (the latch).
+    levelStart: cue([tap(0.8, 0.15), tap(0.6, 0.85, 80)], {
+      priority: 3,
+      cooldownMs: 600,
+      policy: I,
+      calm: true,
+    }),
     taDa: cue([hum(0, 120, [0.2, 0.7], 0.5), tap(0.8, 0.7, 140)], {
       priority: 4,
       cooldownMs: 500,
