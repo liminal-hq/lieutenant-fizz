@@ -35,7 +35,7 @@ tauri-plugin-store = "2"
 # Haptics: capability reporting and a stepped fallback ladder over the Android vibrator. The plugin is
 # unreleased and still moving, so it is pinned to a commit of `feat/haptics-plugin` (PR #85 in
 # liminal-hq/tauri-plugins-workspace). Its build script adds the VIBRATE permission to the Android manifest.
-tauri-plugin-haptics = { git = "https://github.com/liminal-hq/tauri-plugins-workspace", rev = "5b444d61615730722e264a1013dc4e885ab4c01d" }
+tauri-plugin-haptics = { git = "https://github.com/liminal-hq/tauri-plugins-workspace", rev = "77808a4414094128a0eecf9a3fc9f0ba8d751472" }
 
 [profile.release]
 opt-level = "s"
