@@ -439,6 +439,8 @@ export class GameAudio {
   private handle: { stop(): void } | null = null;
   private track: string | null = null;
   private pending: string | null = null;
+  /** True until the Undertone load settles; music waits for it so it never starts on the built-in synth first. */
+  private utLoading = true;
   private disposed = false;
   /** The Enhanced music route, built the first time Enhanced music plays. */
   private musicBus: MusicBus | null = null;
@@ -478,6 +480,7 @@ export class GameAudio {
     load().then(
       (m) => {
         if (this.disposed) return;
+        this.utLoading = false;
         if (
           typeof m?.note === 'function' &&
           typeof m.sound === 'function' &&
@@ -485,15 +488,25 @@ export class GameAudio {
         ) {
           this.ut = m;
           this.backend = 'Undertone 0.2';
-          // Music requested before the library arrived was started on the built-in synth.
-          if (this.handle && this.music && this.track) this.playMusic(this.track, true);
         } else this.backend = 'Built-in synth';
+        this.flushPending();
       },
       (e: unknown) => {
         console.warn('Undertone unavailable, using the built-in synth', e);
+        if (this.disposed) return;
+        this.utLoading = false;
         this.backend = 'Built-in synth';
+        this.flushPending();
       },
     );
+  }
+
+  /** Starts the music asked for while there was no context or Undertone was still loading. */
+  private flushPending(): void {
+    if (!this.ctx || !this.mini || this.utLoading || !this.pending) return;
+    const t = this.pending;
+    this.pending = null;
+    this.playMusic(t, true);
   }
 
   private ensure(): AudioContext | null {
@@ -505,11 +518,7 @@ export class GameAudio {
     if (!AC) return null;
     this.ctx = new AC();
     this.mini = new MiniSynth(this.ctx, this.ctx.destination);
-    if (this.pending) {
-      const t = this.pending;
-      this.pending = null;
-      this.playMusic(t, true);
-    }
+    this.flushPending();
     return this.ctx;
   }
 
@@ -709,9 +718,10 @@ export class GameAudio {
     this.track = track;
     this.handle?.stop();
     this.handle = null;
+    this.pending = null;
     const t = track ? this.patterns.music[track] : undefined;
     if (!this.music || !t) return;
-    if (!this.ctx || !this.mini) {
+    if (!this.ctx || !this.mini || this.utLoading) {
       this.pending = track;
       return;
     }
