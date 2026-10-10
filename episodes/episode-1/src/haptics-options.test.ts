@@ -17,6 +17,9 @@ import {
   hapticsSettings,
   isHapticsStepRow,
   resetHaptics,
+  resetRumblePads,
+  rumbleLevel,
+  withRumble,
   stepHaptics,
   type HapticsSettings,
 } from './haptics-options';
@@ -49,7 +52,61 @@ describe('hapticsSettings', () => {
   it('takes the strength from the touch settings and the rest from the options', () => {
     expect(
       hapticsSettings({ hapticStrength: 1 }, { ...DEFAULT_OPTIONS, rumble: 2, hapticsLab: true }),
-    ).toEqual({ strength: 1, rumble: 2, lab: true });
+    ).toMatchObject({ strength: 1, rumble: 2, lab: true });
+  });
+});
+
+describe('Rumble per pad model', () => {
+  const ds4 = { key: '1356:1476', name: 'Wireless Controller' };
+  const ds3 = { key: '1356:616', name: 'PLAYSTATION(R)3 Controller' };
+
+  it('uses the saved level of the pad in use, else the shared default', () => {
+    const o = { ...DEFAULT_OPTIONS, rumble: 3, rumblePads: { [ds4.key]: 1 } };
+    expect(rumbleLevel(o, ds4.key)).toBe(1);
+    expect(rumbleLevel(o, '1:2')).toBe(3);
+    expect(rumbleLevel(o, null)).toBe(3);
+  });
+
+  it('starts a DualShock 3 on Medium and leaves every other model on Strong', () => {
+    expect(rumbleLevel(DEFAULT_OPTIONS, ds3.key)).toBe(2);
+    expect(rumbleLevel(DEFAULT_OPTIONS, ds4.key)).toBe(3);
+    expect(rumbleLevel({ ...DEFAULT_OPTIONS, rumble: 1 }, ds3.key)).toBe(1);
+    expect(rumbleLevel({ ...DEFAULT_OPTIONS, rumble: 0 }, ds3.key)).toBe(0);
+  });
+
+  it('a saved level wins over the model start, so a DualShock 3 can be set to Strong', () => {
+    expect(rumbleLevel({ ...DEFAULT_OPTIONS, rumblePads: { [ds3.key]: 3 } }, ds3.key)).toBe(3);
+  });
+
+  it('sets the level of the pad in use, or the default when no pad has been used', () => {
+    expect(withRumble(DEFAULT_OPTIONS, ds4.key, 1).rumblePads).toEqual({ [ds4.key]: 1 });
+    expect(withRumble(DEFAULT_OPTIONS, ds4.key, 1).rumble).toBe(3);
+    expect(withRumble(DEFAULT_OPTIONS, null, 1)).toMatchObject({ rumble: 1, rumblePads: {} });
+  });
+
+  it('reads Rumble for the pad in use and shows its name on the row', () => {
+    const h = hapticsSettings({ hapticStrength: 3 }, DEFAULT_OPTIONS, ds4);
+    expect(h).toMatchObject({ rumble: 3, padKey: ds4.key, padName: ds4.name });
+    const items = hapticsItems(h, NO_LOCKS, ['rumble'], false);
+    expect(items[0]?.value).toBe('Strong, Wireless Controller');
+    const dual = hapticsSettings({ hapticStrength: 3 }, DEFAULT_OPTIONS, ds3);
+    expect(hapticsItems(dual, NO_LOCKS, ['rumble'], false)[0]?.value).toBe(
+      'Medium, PLAYSTATION(R)3 Controller',
+    );
+    expect(
+      hapticsItems(
+        hapticsSettings({ hapticStrength: 3 }, DEFAULT_OPTIONS),
+        NO_LOCKS,
+        ['rumble'],
+        false,
+      )[0]?.value,
+    ).toBe('Strong');
+  });
+
+  it('drops every saved model on reset', () => {
+    expect(
+      resetRumblePads({ ...DEFAULT_OPTIONS, rumblePads: { [ds4.key]: 0 } }).rumblePads,
+    ).toEqual({});
   });
 });
 

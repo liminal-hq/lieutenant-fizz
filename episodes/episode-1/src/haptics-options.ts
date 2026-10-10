@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { modelDefaultLevel } from '@lieutenant-fizz/engine/pad-model';
 import {
   DEFAULT_STRENGTH,
   stepStrength,
@@ -28,17 +29,45 @@ export interface HapticsCaps {
 export interface HapticsSettings {
   /** The phone's strength, 0 Off to 3 Strong. */
   strength: number;
-  /** The controller's strength, 0 Off to 3 Strong. */
+  /** The strength of the pad in use (the default when none has been used), 0 Off to 3 Strong. */
   rumble: number;
+  /** The model of the pad in use (`vendorId:productId`), or null when none has been used: Rumble then changes the default. */
+  padKey?: string | null;
+  /** The name of the pad in use, shown on the Rumble row. */
+  padName?: string | undefined;
   /** Whether the haptics lab is available without `?debug`. */
   lab: boolean;
 }
 
-/** The haptics settings held in the touch settings and the options. */
+/** The pad in use, as far as Rumble is concerned. */
+export interface PadInUse {
+  /** `vendorId:productId`. */
+  key: string;
+  name: string;
+}
+
+/** The rumble level of a pad model: its saved level, else the default (the old single Rumble value, lowered to the model's start). */
+export const rumbleLevel = (
+  o: Pick<Options, 'rumble' | 'rumblePads'>,
+  key: string | null,
+): number => (key === null ? undefined : o.rumblePads[key]) ?? modelDefaultLevel(key, o.rumble);
+
+/** The options with the rumble level of a model set, or the default when no pad is in use. */
+export const withRumble = (o: Options, key: string | null, level: number): Options =>
+  key === null ? { ...o, rumble: level } : { ...o, rumblePads: { ...o.rumblePads, [key]: level } };
+
+/** The haptics settings held in the touch settings and the options, with Rumble read for the pad in use. */
 export const hapticsSettings = (
   touch: { hapticStrength: number },
-  o: Pick<Options, 'rumble' | 'hapticsLab'>,
-): HapticsSettings => ({ strength: touch.hapticStrength, rumble: o.rumble, lab: o.hapticsLab });
+  o: Pick<Options, 'rumble' | 'rumblePads' | 'hapticsLab'>,
+  pad: PadInUse | null = null,
+): HapticsSettings => ({
+  strength: touch.hapticStrength,
+  rumble: rumbleLevel(o, pad?.key ?? null),
+  padKey: pad?.key ?? null,
+  padName: pad?.name,
+  lab: o.hapticsLab,
+});
 
 /** The rows to show: Rumble only once a pad that can rumble has been seen. */
 export const hapticsRows = (caps: HapticsCaps): HapticsRow[] =>
@@ -81,6 +110,10 @@ const linked = (url: HapticsUrl): string => (url === 'on' ? 'On' : 'Off');
 export const hapticsLinkValue = (locks: UrlLocks, stored: number): string =>
   locks.haptics ? linkValue(linked(locks.haptics)) : strengthName(stored);
 
+/** The Rumble row's value: the level, with the name of the pad it is for when one is in use ("Strong, Wireless Controller"). */
+const rumbleValue = (h: HapticsSettings): string =>
+  h.padName ? `${strengthName(h.rumble)}, ${h.padName}` : strengthName(h.rumble);
+
 /** The menu rows for these settings. `armed` is whether Reset has had its first tap. */
 export function hapticsItems(
   h: HapticsSettings,
@@ -98,7 +131,7 @@ export function hapticsItems(
       case 'rumble':
         return locks.haptics
           ? lockedItem({ id, label: 'Rumble' }, linked(locks.haptics))
-          : { id, label: 'Rumble', kind: 'choice', value: strengthName(h.rumble) };
+          : { id, label: 'Rumble', kind: 'choice', value: rumbleValue(h) };
       case 'lab':
         return locks.debug
           ? lockedItem({ id, label: 'Haptics lab' }, 'On')
@@ -139,7 +172,7 @@ export function stepHaptics(
   }
 }
 
-/** Strength and Rumble back to Strong and the haptics lab Off; nothing else changes. */
+/** Strength and Rumble back to Strong and the haptics lab Off; nothing else changes. `resetRumblePads` drops every pad model's saved Rumble. */
 export const resetHaptics = (): HapticsSettings => ({
   strength: DEFAULT_STRENGTH,
   rumble: DEFAULT_STRENGTH,
@@ -164,3 +197,6 @@ export function hapticsFeel(
   if (row === 'lab' && after.lab !== before.lab) return { kind: 'toggle', on: after.lab };
   return null;
 }
+
+/** The options without any pad model's saved rumble level, so every model has its default again. */
+export const resetRumblePads = (o: Options): Options => ({ ...o, rumblePads: {} });

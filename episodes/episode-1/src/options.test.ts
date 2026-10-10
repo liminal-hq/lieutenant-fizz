@@ -29,12 +29,24 @@ describe('options storage', () => {
       motion: 2,
       lab: true,
       rumble: 1,
+      rumblePads: { '1356:616': 1 },
       hapticsLab: true,
       fullscreen: 2,
       awake: false,
       density: 2,
     };
     expect(parseOptions(serialiseOptions(o))).toEqual(o);
+  });
+
+  it('keeps valid per-model rumble levels and drops the rest', () => {
+    const json = JSON.stringify({
+      v: 1,
+      rumble: 2,
+      rumblePads: { '1356:616': 1, '1356:1476': 9, nonsense: 2, '5:6': 'x' },
+    });
+    expect(parseOptions(json).rumblePads).toEqual({ '1356:616': 1 });
+    expect(parseOptions(json).rumble).toBe(2);
+    expect(parseOptions('{"v":1,"rumblePads":[1]}').rumblePads).toEqual({});
   });
 
   it('falls back to the defaults for nothing, junk or another version', () => {
@@ -63,6 +75,7 @@ describe('options storage', () => {
       motion: 2,
       lab: false,
       rumble: 3,
+      rumblePads: {},
       hapticsLab: false,
       fullscreen: 0,
       awake: true,
@@ -210,6 +223,7 @@ describe('stepOption', () => {
       motion: 2,
       lab: true,
       rumble: 1,
+      rumblePads: { '1356:616': 1 },
       hapticsLab: true,
       fullscreen: 1,
       awake: false,
