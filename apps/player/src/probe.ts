@@ -286,7 +286,8 @@ for (const name of [
   'focus',
   'blur',
 ]) {
-  const target = name === 'visibilitychange' ? document : window;
+  // Page Lifecycle `freeze` and `resume` fire on the document and do not bubble, so a window listener never sees them.
+  const target = ['visibilitychange', 'freeze', 'resume'].includes(name) ? document : window;
   target.addEventListener(name, () => note(`${name} (${document.visibilityState})`));
 }
 window.addEventListener('popstate', () => {
