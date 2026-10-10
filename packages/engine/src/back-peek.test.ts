@@ -7,6 +7,8 @@ import { describe, expect, it } from 'vitest';
 import {
   BackPeek,
   PEEK_FEATHER_FRACTION,
+  PEEK_PARENT_HIDDEN_BELOW,
+  PEEK_SCRIM_ALPHA,
   PEEK_SETTLE_MS,
   PEEK_SLIDE_PERCENT,
   PEEK_TIMEOUT_MS,
@@ -24,6 +26,7 @@ describe('peekStyle', () => {
         opacity: 1,
         feather: 0,
         featherEdge: edge,
+        parentOpacity: 0,
       });
       expect(Object.is(peekStyle(0, edge, false).translateXPercent, 0)).toBe(true);
     }
@@ -46,6 +49,7 @@ describe('peekStyle', () => {
       opacity: 0,
       feather: PEEK_FEATHER_FRACTION,
       featherEdge: 'left',
+      parentOpacity: 1,
     });
     expect(peekStyle(1, 'right', false).translateXPercent).toBe(-PEEK_SLIDE_PERCENT);
   });
@@ -74,6 +78,52 @@ describe('peekStyle', () => {
     expect(early).toBeGreaterThan(0);
     expect(early).toBeLessThan(PEEK_FEATHER_FRACTION);
     expect(peekStyle(0, 'left', false).feather).toBe(0);
+  });
+
+  it('shows nothing of the screen Back goes to at the start, and all of it by the end', () => {
+    const start = peekStyle(0, 'left', false);
+    expect(start.opacity).toBe(1);
+    expect(start.parentOpacity).toBe(0);
+    const end = peekStyle(1, 'left', false);
+    expect(end.opacity).toBe(0);
+    expect(end.parentOpacity).toBe(1);
+  });
+
+  it('holds the screen Back goes to out entirely below the hidden threshold', () => {
+    for (let p = 0; p < PEEK_PARENT_HIDDEN_BELOW; p += 0.01) {
+      expect(peekStyle(p, 'left', false).parentOpacity).toBe(0);
+    }
+    expect(peekStyle(0.4, 'left', false).parentOpacity).toBeGreaterThan(0);
+  });
+
+  it('keeps the two scrims together near one scrim all through the gesture', () => {
+    const rest = PEEK_SCRIM_ALPHA;
+    for (let p = 0; p <= 1; p += 0.02) {
+      const { opacity: a, parentOpacity: b } = peekStyle(p, 'left', false);
+      const total = 1 - (1 - rest * a) * (1 - rest * b);
+      expect(Math.abs(total - rest)).toBeLessThan(0.1);
+      // Once the screen has been given up on, the parent carries the whole scrim.
+      if (p >= 0.35) expect(total).toBeCloseTo(rest, 2);
+    }
+  });
+
+  it('never has the parent more than whole, or going backwards as the gesture goes on', () => {
+    let last = 0;
+    for (let p = 0; p <= 1; p += 0.02) {
+      const b = peekStyle(p, 'left', false).parentOpacity;
+      expect(b).toBeGreaterThanOrEqual(last - 1e-9);
+      expect(b).toBeLessThanOrEqual(1);
+      last = b;
+    }
+  });
+
+  it('crossfades the same way under reduced motion, without moving', () => {
+    for (const p of [0, 0.1, 0.3, 0.6, 1]) {
+      const full = peekStyle(p, 'left', false);
+      const reduced = peekStyle(p, 'left', true);
+      expect(reduced.parentOpacity).toBe(full.parentOpacity);
+      expect(reduced.translateXPercent).toBe(0);
+    }
   });
 
   it('only fades under reduced motion', () => {

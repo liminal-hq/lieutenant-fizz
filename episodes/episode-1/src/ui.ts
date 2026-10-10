@@ -874,7 +874,9 @@ export class Ui {
   /**
    * Starts a Back-gesture peek: a copy of the screen being left (`layer`) is laid over it, to slide away
    * while the real element is redrawn as the screen Back goes to. The copy cannot be focused or read out,
-   * and the real screens ignore taps until the peek ends.
+   * and the real screens ignore taps until the peek ends. The Back button belongs to the screen being
+   * left, so the copy takes one with it. The real one is redrawn for the screen Back goes to (the game
+   * redraws the menus as that screen, which shows or hides it), and crossfades in with that screen.
    */
   peekBegin(layer: PeekLayer): void {
     this.peekEnd();
@@ -885,9 +887,19 @@ export class Ui {
     ghost.setAttribute('aria-hidden', 'true');
     ghost.inert = true;
     ghost.dataset.peek = 'drag';
+    if (!this.backBtn.hidden) {
+      const back = this.backBtn.cloneNode(true) as HTMLElement;
+      back.removeAttribute('id');
+      back.classList.add('peek-back');
+      back.tabIndex = -1;
+      ghost.append(back);
+    }
     source.after(ghost);
     this.peekGhost = ghost;
-    this.root.dataset.peeking = '';
+    this.backBtn.dataset.peekParent = '';
+    this.root.dataset.peeking = 'drag';
+    this.root.style.setProperty('--lf-peek-parent-a', '0');
+    this.root.style.setProperty('--lf-peek-parent-v', 'hidden');
   }
 
   /** Puts the copy in a look; `settle` animates the change (the glide back after a cancelled gesture). */
@@ -899,6 +911,14 @@ export class Ui {
     ghost.style.setProperty('--lf-peek-a', String(style.opacity));
     ghost.style.setProperty('--lf-peek-feather', `${Math.round(style.feather * 1000) / 10}%`);
     ghost.dataset.peekEdge = style.featherEdge;
+    // The screen Back goes to crossfades with the copy. Nothing of it is drawn while it has no share, and
+    // while it glides away after a cancel it stays drawn so the fade can be seen.
+    this.root.dataset.peeking = settle ? 'settle' : 'drag';
+    this.root.style.setProperty('--lf-peek-parent-a', String(style.parentOpacity));
+    this.root.style.setProperty(
+      '--lf-peek-parent-v',
+      style.parentOpacity > 0 || settle ? 'visible' : 'hidden',
+    );
   }
 
   /** Ends the peek: the copy goes and the real screens take taps again. */
@@ -906,6 +926,9 @@ export class Ui {
     this.peekGhost?.remove();
     this.peekGhost = null;
     delete this.root.dataset.peeking;
+    delete this.backBtn.dataset.peekParent;
+    this.root.style.removeProperty('--lf-peek-parent-a');
+    this.root.style.removeProperty('--lf-peek-parent-v');
   }
 
   /** Freezes the menu plate cycle and bullet bob, for reduced motion. */

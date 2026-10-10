@@ -16,6 +16,12 @@ export interface PeekStyle {
   feather: number;
   /** The side of the screen that is feathered: the one the screen is leaving behind (the edge the swipe came from). */
   featherEdge: SwipeEdge;
+  /**
+   * How much of the screen Back goes to shows behind it, 0 to 1: 0 until `PEEK_PARENT_HIDDEN_BELOW`, so
+   * nothing of it shows through the translucent screen being left, and 1 by the time that has faded.
+   * It is the crossfade partner of `opacity`, chosen so the two scrims together stay near one scrim.
+   */
+  parentOpacity: number;
 }
 
 /** The furthest the screen slides, in percent of its width. */
@@ -24,6 +30,12 @@ export const PEEK_SLIDE_PERCENT = 30;
 export const PEEK_FEATHER_FRACTION = 0.14;
 /** The progress over which the feather grows from nothing, so it does not pop in at the first movement. */
 export const PEEK_FEATHER_RAMP = 0.1;
+/** The alpha of a menu screen's scrim, which the crossfade keeps the total of constant. */
+export const PEEK_SCRIM_ALPHA = 0.74;
+/** Under this progress the screen Back goes to is not drawn at all. */
+export const PEEK_PARENT_HIDDEN_BELOW = 0.15;
+/** The progress over which the screen Back goes to comes in once it may be drawn. */
+export const PEEK_PARENT_RAMP = 0.2;
 /** The progress by which the screen has fully faded. */
 export const PEEK_FADE_BY = 0.9;
 /** How long the screen takes to glide back to rest after a cancelled gesture, in milliseconds. */
@@ -32,6 +44,24 @@ export const PEEK_SETTLE_MS = 200;
 export const PEEK_TIMEOUT_MS = 3000;
 
 const clamp01 = (v: number): number => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
+
+const smoothstep = (t: number): number => {
+  const x = clamp01(t);
+  return x * x * (3 - 2 * x);
+};
+
+/**
+ * How much of the screen Back goes to shows while the screen being left is at `opacity`. Each has its
+ * own scrim, and two stacked scrims are much darker than one, so the parent's alpha is the one that
+ * leaves the two together at the single scrim's darkness: (1 − s·a)(1 − s·b) = 1 − s. It is held at 0
+ * under `PEEK_PARENT_HIDDEN_BELOW` and eased in after it.
+ */
+function parentOpacity(progress: number, opacity: number): number {
+  if (progress < PEEK_PARENT_HIDDEN_BELOW) return 0;
+  const s = PEEK_SCRIM_ALPHA;
+  const equal = clamp01((1 - (1 - s) / (1 - s * opacity)) / s);
+  return equal * smoothstep((progress - PEEK_PARENT_HIDDEN_BELOW) / PEEK_PARENT_RAMP);
+}
 
 /**
  * The look of the screen for a gesture's progress (0 to 1). It slides in the direction of the swipe, as
@@ -42,7 +72,14 @@ export function peekStyle(progress: number, edge: SwipeEdge, reducedMotion: bool
   const p = clamp01(progress);
   const fade = clamp01(p / PEEK_FADE_BY);
   const opacity = 1 - fade * fade * (3 - 2 * fade);
-  if (reducedMotion) return { translateXPercent: 0, opacity, feather: 0, featherEdge: edge };
+  if (reducedMotion)
+    return {
+      translateXPercent: 0,
+      opacity,
+      feather: 0,
+      featherEdge: edge,
+      parentOpacity: parentOpacity(p, opacity),
+    };
   const slide = PEEK_SLIDE_PERCENT * (1 - (1 - p) * (1 - p));
   // `+ 0` turns a negative zero into zero.
   const feather = PEEK_FEATHER_FRACTION * clamp01(p / PEEK_FEATHER_RAMP);
@@ -51,6 +88,7 @@ export function peekStyle(progress: number, edge: SwipeEdge, reducedMotion: bool
     opacity,
     feather,
     featherEdge: edge,
+    parentOpacity: parentOpacity(p, opacity),
   };
 }
 

@@ -3114,8 +3114,9 @@ export class Game {
   private peekEnd(): void {
     this.peekView = null;
     this.peekKey = null;
-    this.ui.peekEnd();
+    // The real screen is drawn first and the copy removed in the same task, so no frame shows neither.
     this.drawMenus();
+    this.ui.peekEnd();
   }
 
   /**

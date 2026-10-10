@@ -159,3 +159,27 @@
 #ui[data-peeking] .screen:not(.peek-ghost) {
   pointer-events: none;
 }
+
+/* The Back button belongs to the screen being left: its copy slides, fades and feathers with the rest of the
+   copy. The real one is redrawn for the screen Back goes to (shown only if that screen has one) and fades in
+   with it, below. */
+.peek-back {
+  pointer-events: none;
+  top: calc(var(--lf-safe-top) + 8px);
+  left: calc(var(--lf-safe-left) + 16px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* The screen Back goes to is drawn behind the copy, crossfading against it so the two scrims together stay
+   about one scrim (`--lf-peek-parent-a`, from `peekStyle`) and none of it shows through the copy while the copy
+   is nearly whole (`--lf-peek-parent-v`). After a cancelled gesture it fades out as the copy returns. */
+#ui[data-peeking] .screen:not(.peek-ghost),
+#ui[data-peeking] #backBtn[data-peek-parent] {
+  opacity: var(--lf-peek-parent-a, 0);
+  visibility: var(--lf-peek-parent-v, hidden);
+}
+#ui[data-peeking='settle'] .screen:not(.peek-ghost),
+#ui[data-peeking='settle'] #backBtn[data-peek-parent] {
+  transition: opacity 200ms ease-out;
+}
