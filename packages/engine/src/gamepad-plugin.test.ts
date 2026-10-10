@@ -45,6 +45,15 @@ const xbox: NativePad = {
   productId: 0x0b13,
   topTier: 2,
 };
+const ds4: NativePad = {
+  id: 'gamepad:0',
+  slot: 0,
+  name: 'Wireless Controller',
+  vendorId: 0x054c,
+  productId: 0x05c4,
+  topTier: 2,
+};
+const ds3bt: NativePad = { ...ds3, id: 'gamepad:1', slot: 1 };
 const DS3_WEB = { id: '054c-0268-Sony PLAYSTATION(R)3 Controller' };
 
 const thump: HapticPattern = {
@@ -477,9 +486,67 @@ describe('the backend boost', () => {
     expect(api.plays[0]?.frames).toEqual(plain);
   });
 
-  it('treats a DualShock 3 and any pad of tier 2 or lower as on/off light pads', () => {
-    expect(isOnOffLightPad({ vendorId: 0x054c, productId: 0x0268, topTier: 3 })).toBe(true);
-    expect(isOnOffLightPad({ vendorId: 1, productId: 2, topTier: 2 })).toBe(true);
-    expect(isOnOffLightPad({ vendorId: 1, productId: 2, topTier: 3 })).toBe(false);
+  it('boosts a DualShock 3 only: a DualShock 4 plays the plain compile', () => {
+    expect(isOnOffLightPad({ vendorId: 0x054c, productId: 0x0268 })).toBe(true);
+    expect(isOnOffLightPad({ vendorId: 0x054c, productId: 0x05c4 })).toBe(false);
+    expect(isOnOffLightPad({ vendorId: 1, productId: 2 })).toBe(false);
+  });
+
+  it('plays the plain compile, exactly, on a DualShock 4', async () => {
+    const { api, backend } = setup([ds4]);
+    await backend.ready;
+    backend.play(cue('bonk'), 1);
+    expect(api.plays[0]?.frames).toEqual(framesOf(compileRumble(cue('bonk'), 1)));
+  });
+});
+
+describe('two pads at once', () => {
+  const pads = [ds4, ds3bt];
+  const ds4Web = { id: 'Wireless Controller' };
+
+  it('follows the pad with the latest input, by name over Bluetooth', async () => {
+    const { api, backend, setWeb } = setup(pads);
+    await backend.ready;
+    setWeb(ds4Web);
+    backend.play(thump, 1);
+    setWeb({ id: 'PLAYSTATION(R)3 Controller' });
+    backend.play(thump, 1);
+    setWeb(ds4Web);
+    backend.play(thump, 1);
+    expect(api.plays.map((p) => p.padId)).toEqual(['gamepad:0', 'gamepad:1', 'gamepad:0']);
+  });
+
+  it('matches the DualShock 3 with and without the Sony prefix', () => {
+    for (const id of ['Sony PLAYSTATION(R)3 Controller', 'PLAYSTATION(R)3 Controller']) {
+      expect(choosePad(pads, { id })).toEqual({ kind: 'native', pad: ds3bt });
+    }
+    expect(choosePad(pads, ds4Web)).toEqual({ kind: 'native', pad: ds4 });
+  });
+
+  it('matches by vendor and product when the id has them', () => {
+    expect(choosePad(pads, { id: '054c-05c4-Wireless Controller' })).toEqual({
+      kind: 'native',
+      pad: ds4,
+    });
+  });
+
+  it('does not take a pad that merely contains the name when an exact one exists', () => {
+    const xbox2 = { ...xbox, name: 'Xbox Wireless Controller', slot: 0, id: 'gamepad:2' };
+    expect(choosePad([xbox2, ds4], ds4Web)).toEqual({ kind: 'native', pad: ds4 });
+  });
+
+  it('takes the lower slot when the webview lists no pad yet', () => {
+    expect(choosePad([ds3bt, ds4], null)).toEqual({ kind: 'native', pad: ds4 });
+  });
+
+  it('boosts the DualShock 3 and not the DualShock 4 in the same session', async () => {
+    const { api, backend, setWeb } = setup(pads);
+    await backend.ready;
+    setWeb(ds4Web);
+    backend.play(cue('bonk'), 1);
+    setWeb({ id: 'PLAYSTATION(R)3 Controller' });
+    backend.play(cue('bonk'), 1);
+    expect(api.plays[0]?.frames).toEqual(framesOf(compileRumble(cue('bonk'), 1)));
+    expect(api.plays[1]?.frames[0]?.durationMs).toBeGreaterThanOrEqual(RUMBLE_BOOST.minMs);
   });
 });

@@ -107,14 +107,12 @@ export function pluginPadApi(opts: { invoke?: Invoke; listen?: Listen } = {}): P
 
 /**
  * Whether a pad needs the rumble boost: its heavy motor has a dead zone and its light motor is on or off.
- * A DualShock 3 (`hid-sony`) is the one known case. The plugin does not report which motors are on/off, so
- * every pad of tier 2 or lower is treated alike for now.
- * TODO: say so per pad (a pad family or a plugin flag) so a pad with true dual rumble plays unboosted.
+ * A DualShock 3 (`hid-sony`, 054c:0268) is the one known case; a DualShock 4's two motors are variable and
+ * respond at low strengths, so it plays the plain compile.
+ * TODO: have the plugin say which pads have an on/off light motor, instead of listing the family here.
  */
-export function isOnOffLightPad(
-  pad: Pick<NativePad, 'vendorId' | 'productId' | 'topTier'>,
-): boolean {
-  return (pad.vendorId === 0x054c && pad.productId === 0x0268) || pad.topTier <= 2;
+export function isOnOffLightPad(pad: Pick<NativePad, 'vendorId' | 'productId'>): boolean {
+  return pad.vendorId === 0x054c && pad.productId === 0x0268;
 }
 
 const hex = (s: string): number => Number.parseInt(s, 16);
@@ -138,13 +136,20 @@ const plain = (s: string): string =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
+/** A name without its punctuation, case or "Sony " prefix. */
+const bare = (s: string): string => plain(s).replace(/^sony /, '');
+
 /** The native pads that fit a Web `Gamepad`, by vendor and product, else by name. May be several (two of one model). */
 export function matchPads(pads: readonly NativePad[], web: { id: string }): NativePad[] {
   const ids = parseGamepadId(web.id);
   if (ids) return pads.filter((p) => p.vendorId === ids.vendorId && p.productId === ids.productId);
-  const name = plain(web.id);
+  // Names differ between the webview and the kernel ("Sony PLAYSTATION(R)3 Controller" on USB, "PLAYSTATION(R)3
+  // Controller" over Bluetooth), so an equal name wins, and a name that contains the other is the fallback.
+  const name = bare(web.id);
+  const named = pads.filter((p) => bare(p.name) === name && name.length > 0);
+  if (named.length > 0) return named;
   return pads.filter((p) => {
-    const n = plain(p.name);
+    const n = bare(p.name);
     return n.length > 0 && (name.includes(n) || n.includes(name));
   });
 }
