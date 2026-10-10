@@ -61,7 +61,7 @@ fi
 restore_gen_android() {
   echo "${COLOUR_YELLOW}Restoring ${GEN_ANDROID} to its committed (real-app) state...${COLOUR_RESET}"
   git -C "$REPO_ROOT" checkout -- "$GEN_ANDROID" 2>/dev/null || true
-  git -C "$REPO_ROOT" clean -fd "$GEN_ANDROID" >/dev/null 2>&1 || true
+  git -C "$REPO_ROOT" clean -fdx "$GEN_ANDROID" >/dev/null 2>&1 || true
 }
 
 # The restore below force-resets gen/android to HEAD, which would silently discard any real uncommitted
