@@ -345,6 +345,8 @@ export class Game {
   private padSeen = false;
   /** When Reset had its first tap (in `performance.now()` milliseconds), or null. */
   private resetAt: number | null = null;
+  /** The screen and sub-screen that Reset (or Quit game) was armed on: leaving them disarms it. */
+  private resetWhere = '';
   /** What the editor reports as controls are moved: every drop is saved. */
   private readonly editHooks: EditHooks = {
     pick: () => this.haptics.ui('move'),
@@ -2076,6 +2078,7 @@ export class Game {
   /** The first tap of a two-tap Reset: it waits a few seconds for the second. */
   private armReset(): void {
     this.resetAt = performance.now();
+    this.resetWhere = `${this.screen}/${this.sub}`;
     window.clearTimeout(this.resetTimer);
     this.resetTimer = window.setTimeout(() => this.disarmReset(), RESET_ARM_MS);
     this.syncUi();
@@ -2131,7 +2134,10 @@ export class Game {
       this.haptics.ui('reject');
       return;
     }
-    // A tap chooses the row it lands on, so the screen it opens returns to that row.
+    // A tap chooses the row it lands on, so the screen it opens returns to that row. A tap on a row other
+    // than the selected one reaches here without passing through `hover()`, so it disarms a waiting Reset
+    // or Quit game itself.
+    if (i !== this.menuIdx) this.disarmReset();
     this.menuIdx = i;
     this.audio.play('click');
     const id = it.id ?? '';
@@ -2801,6 +2807,12 @@ export class Game {
   // ---------- Overlay + music sync ----------
 
   private syncUi(): void {
+    // Any change of screen or sub-screen (resuming, reopening the pause menu, a card, the title) cancels a
+    // Reset or Quit game that was waiting for its second tap, so it cannot be completed from somewhere else.
+    if (this.resetAt !== null && this.resetWhere !== `${this.screen}/${this.sub}`) {
+      window.clearTimeout(this.resetTimer);
+      this.resetAt = null;
+    }
     const s = this.screen;
     const ui = this.ui;
     // The pause and card screens fill the viewport with a left-aligned column, so the HUD steps aside.

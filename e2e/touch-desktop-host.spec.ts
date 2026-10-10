@@ -61,6 +61,39 @@ test("the pause menu's Quit game arms on the first tap and quits on the second",
   expect(errors).toEqual([]);
 });
 
+test('Quit game stays unarmed after Resume and a reopened pause menu', async ({ page }) => {
+  const errors = await open(page, 'pause', '&host=fake-desktop');
+  await row(page, '#overlay .menu').scrollIntoViewIfNeeded();
+  await row(page, '#overlay .menu').tap();
+  await expect(row(page, '#overlay .menu').locator('.val')).toHaveText('Tap again');
+  // A tap on another row activates it directly, without moving the selection first.
+  await page.locator('#overlay .menu button', { hasText: 'Resume' }).tap();
+  await expect(row(page, '#overlay .menu')).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(row(page, '#overlay .menu')).toBeVisible();
+  await row(page, '#overlay .menu').scrollIntoViewIfNeeded();
+  await row(page, '#overlay .menu').tap();
+  expect(await quits(page)).toBe(0);
+  await expect(row(page, '#overlay .menu').locator('.val')).toHaveText('Tap again');
+  await row(page, '#overlay .menu').tap();
+  await expect.poll(() => quits(page)).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('a direct tap on another pause row disarms Quit game', async ({ page }) => {
+  const errors = await open(page, 'pause', '&host=fake-desktop');
+  await row(page, '#overlay .menu').scrollIntoViewIfNeeded();
+  await row(page, '#overlay .menu').tap();
+  await expect(row(page, '#overlay .menu').locator('.val')).toHaveText('Tap again');
+  await page.locator('#overlay .menu button', { hasText: 'Options' }).tap();
+  await page.keyboard.press('Escape');
+  await expect(row(page, '#overlay .menu')).toBeVisible();
+  await row(page, '#overlay .menu').scrollIntoViewIfNeeded();
+  await row(page, '#overlay .menu').tap();
+  expect(await quits(page)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
 test('the web build has no Quit game on touch either', async ({ page }) => {
   await open(page, 'title', '');
   await expect(row(page, '#title > .menu')).toHaveCount(0);
