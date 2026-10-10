@@ -14,20 +14,12 @@ val tauriProperties = Properties().apply {
     }
 }
 
-// A side-by-side dev build sets the Gradle properties `fizzIdSuffix` (".dev") and `fizzAppLabel`
-// (for example with `ORG_GRADLE_PROJECT_fizzIdSuffix=.dev` in the environment). The namespace stays
-// fixed because it must match the Kotlin package.
-val fizzIdSuffix = (findProperty("fizzIdSuffix") as String?) ?: ""
-val fizzAppLabel = (findProperty("fizzAppLabel") as String?) ?: "Lieutenant Fizz"
-
 android {
     compileSdk = 36
     namespace = "ca.liminalhq.lieutenantfizz"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "ca.liminalhq.lieutenantfizz" + fizzIdSuffix
-        resValue("string", "app_name", fizzAppLabel)
-        resValue("string", "main_activity_title", fizzAppLabel)
+        applicationId = "ca.liminalhq.lieutenantfizz"
         minSdk = 26
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
