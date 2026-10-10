@@ -49,6 +49,8 @@ export interface PluginCaps {
   topTier: PluginTier;
   compositionSupported: boolean;
   primitives: Partial<Record<PrimitiveId, { supported: boolean; durationMs: number | null }>>;
+  /** Predefined effects (API 30 and up), by id. */
+  effects?: Record<string, 'yes' | 'no' | 'unknown'>;
   envelopeSupported: boolean;
   envelopeInfo?: {
     maxSize: number;
@@ -139,11 +141,11 @@ const PRIMITIVE_ORDER: Record<string, PrimitiveId[]> = {
 const PRIMITIVE_MS: Record<PrimitiveId, number> = {
   tick: 10,
   low_tick: 12,
-  click: 20,
-  thud: 25,
-  spin: 30,
-  quick_rise: 150,
-  slow_rise: 500,
+  click: 15,
+  thud: 30,
+  spin: 90,
+  quick_rise: 60,
+  slow_rise: 150,
 };
 
 /** The primitive a tap of this sharpness wants: crisp is a tick, dull is a thud. */
