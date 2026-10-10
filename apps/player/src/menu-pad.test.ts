@@ -123,6 +123,38 @@ describe('pollPads', () => {
     pollPads(states, host, 16);
     expect(seen).toEqual(['wake']);
   });
+
+  it('starts a controller that takes over a vacated slot from a fresh state', () => {
+    const states: PadState[] = [];
+    const seen: PadIntent[] = [];
+    let pads: Array<PadSnapshot | null> = [pad([13])];
+    const host = {
+      getPads: () => pads,
+      onIntent: (i: Exclude<PadIntent, null>) => seen.push(i),
+    };
+    pollPads(states, host, 0);
+    pollPads(states, { ...host, getPads: () => [pad()] }, 16);
+    expect(seen).toEqual(['wake']);
+    // The controller leaves: the slot goes null, then the array shrinks.
+    pads = [null];
+    pollPads(states, host, 32);
+    expect(states[0]).toBeUndefined();
+    pads = [];
+    pollPads(states, host, 48);
+    // A new controller arrives in the same slot with A held: it only wakes the menu, as any first press does.
+    pads = [pad([0])];
+    pollPads(states, host, 64);
+    expect(seen).toEqual(['wake', 'wake']);
+  });
+
+  it('forgets state for slots past the end of the pad list', () => {
+    const states: PadState[] = [];
+    const host = { getPads: () => [null, pad([13])], onIntent: () => {} };
+    pollPads(states, host, 0);
+    expect(states[1]).toBeDefined();
+    pollPads(states, { ...host, getPads: () => [] }, 16);
+    expect(states[1]).toBeUndefined();
+  });
 });
 
 describe('nextFocus', () => {

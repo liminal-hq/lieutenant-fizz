@@ -103,8 +103,14 @@ export interface PadLoopHost {
 
 /** One poll across every connected pad, updating the state kept per pad slot. */
 export const pollPads = (states: PadState[], host: PadLoopHost, now: number): void => {
-  host.getPads().forEach((pad, i) => {
-    if (!pad) return;
+  const pads = host.getPads();
+  // A controller that has gone leaves no state behind, so whatever takes its slot next starts fresh.
+  if (states.length > pads.length) states.length = pads.length;
+  pads.forEach((pad, i) => {
+    if (!pad) {
+      delete states[i];
+      return;
+    }
     const { state, intent } = stepPad(states[i] ?? initialPadState(), pad, now);
     states[i] = state;
     if (intent !== null) host.onIntent(intent);
