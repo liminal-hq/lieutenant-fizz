@@ -48,20 +48,28 @@ const fullscreen = parseFullscreenParam(query.get('fullscreen'));
 // `?debug&host=fake-desktop` pretends to be the desktop app with a window that has no OS behind it, and counts
 // Quit game in `window.__lfQuits` instead of closing the page, so the desktop menus can be tried and tested.
 const fakeDesktop = query.has('debug') && query.get('host') === 'fake-desktop';
-const host = fakeDesktop ? 'app' : parseHostParam(query.get('host'), query.has('debug'));
+const fakeAndroid = query.has('debug') && query.get('host') === 'fake-android';
+const host =
+  fakeDesktop || fakeAndroid ? 'app' : parseHostParam(query.get('host'), query.has('debug'));
 // `?wake=off` never keeps the screen on, `?wake` (or `=on`) does while playing; left out, it is on.
 const wake = parseWakeParam(query.get('wake'));
 
-// The desktop app has Quit game and a native window to take fullscreen; the web and Android do not.
+// The desktop app has Quit to launcher, Quit game and a native window to take fullscreen; Android has Quit to
+// launcher; the web has none of them. `?debug&host=fake-android` is the Android app, which has no Quit game.
+// The fakes count the quits in `window.__lfQuits` and `window.__lfLauncherLeaves` instead of leaving the page.
+const count = (key: '__lfQuits' | '__lfLauncherLeaves'): void => {
+  const w = window as unknown as Record<string, number | undefined>;
+  w[key] = (w[key] ?? 0) + 1;
+};
 const hostBackend: HostBackend = fakeDesktop
   ? {
       kind: 'tauri-desktop',
-      quit: async () => {
-        const w = window as unknown as { __lfQuits?: number };
-        w.__lfQuits = (w.__lfQuits ?? 0) + 1;
-      },
+      quit: async () => count('__lfQuits'),
+      quitToLauncher: () => count('__lfLauncherLeaves'),
     }
-  : createHostBackend();
+  : fakeAndroid
+    ? { kind: 'tauri-android', quitToLauncher: () => count('__lfLauncherLeaves') }
+    : createHostBackend();
 const fullscreenBackend =
   hostBackend.kind === 'tauri-desktop'
     ? await nativeFullscreenBackend(fakeDesktop ? fakeNativeWindow() : undefined)
