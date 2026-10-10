@@ -37,6 +37,12 @@ tauri-plugin-store = "2"
 # liminal-hq/tauri-plugins-workspace). Its build script adds the VIBRATE permission to the Android manifest.
 tauri-plugin-haptics = { git = "https://github.com/liminal-hq/tauri-plugins-workspace", rev = "82a166fbe878d6647b9dbe4a7e46f0967a8d861a" }
 
+# Logs: Rust and WebView output to stdout, a rotated file and the devtools console. Threshold's setup,
+# including the local-time format (`chrono`).
+tauri-plugin-log = "2"
+log = "0.4"
+chrono = "0.4"
+
 [profile.release]
 opt-level = "s"
 lto = true
