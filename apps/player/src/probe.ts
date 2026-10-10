@@ -202,7 +202,9 @@ function setFirst(): string {
   return now;
 }
 
-// Records requestAnimationFrame intervals for a number of seconds.
+// Records requestAnimationFrame intervals for a number of seconds. This page has no episode renderer, so it
+// measures the display refresh cadence of an idle WebView only; Episode 1 frame times (E4) come from the
+// episode page with `?debug` (`__lf.debugState.perf`, `__lf.debugPerfReset()`).
 window.__lfFrames = (seconds: number) =>
   new Promise<FrameStats>((resolve) => {
     const times: number[] = [];
