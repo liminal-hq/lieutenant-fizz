@@ -441,6 +441,8 @@ export class GameAudio {
   private pending: string | null = null;
   /** True until the Undertone load settles; music waits for it so it never starts on the built-in synth first. */
   private utLoading = true;
+  /** Only the app boot path waits for Undertone; the web build starts music on the built-in synth at the first gesture. */
+  private readonly waitForUndertone: boolean;
   private disposed = false;
   /** The Enhanced music route, built the first time Enhanced music plays. */
   private musicBus: MusicBus | null = null;
@@ -470,6 +472,7 @@ export class GameAudio {
     load: () => Promise<UndertoneModule> = () => import('@liminal-hq/undertone'),
     options: { unlockAtBoot?: boolean } = {},
   ) {
+    this.waitForUndertone = !!options.unlockAtBoot;
     window.addEventListener('pointerdown', this.unlock);
     // Chrome does not count a touch's pointerdown as a user gesture, but its pointerup is one.
     window.addEventListener('pointerup', this.unlock);
@@ -503,7 +506,8 @@ export class GameAudio {
 
   /** Starts the music asked for while there was no context or Undertone was still loading. */
   private flushPending(): void {
-    if (!this.ctx || !this.mini || this.utLoading || !this.pending) return;
+    if (!this.ctx || !this.mini || (this.waitForUndertone && this.utLoading) || !this.pending)
+      return;
     const t = this.pending;
     this.pending = null;
     this.playMusic(t, true);
@@ -721,7 +725,7 @@ export class GameAudio {
     this.pending = null;
     const t = track ? this.patterns.music[track] : undefined;
     if (!this.music || !t) return;
-    if (!this.ctx || !this.mini || this.utLoading) {
+    if (!this.ctx || !this.mini || (this.waitForUndertone && this.utLoading)) {
       this.pending = track;
       return;
     }

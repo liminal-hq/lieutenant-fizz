@@ -266,6 +266,18 @@ describe('GameAudio music while Undertone loads at boot', () => {
     audio.dispose();
   });
 
+  it('on the web starts music on the first gesture even while Undertone is still loading', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const c = controlledLoad();
+    const audio = new GameAudio(patterns, c.load);
+    audio.playMusic('title');
+    listeners.get('pointerdown')!();
+    const ctx = FakeContext.instances[0]!;
+    expect(loop).not.toHaveBeenCalled();
+    expect(synthNodes(ctx)).toBeGreaterThan(0);
+    audio.dispose();
+  });
+
   it('starts the built-in loop once, after the load fails', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
