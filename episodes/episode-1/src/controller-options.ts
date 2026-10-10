@@ -10,7 +10,11 @@ import {
   type PadAction,
   type PadBindings,
 } from '@lieutenant-fizz/engine/gamepad-bindings';
-import { padActionNames, type PadFamily } from '@lieutenant-fizz/engine/gamepad-labels';
+import {
+  padActionNames,
+  padButtonName,
+  type PadFamily,
+} from '@lieutenant-fizz/engine/gamepad-labels';
 import type { RemapState } from '@lieutenant-fizz/engine/gamepad-remap';
 import type { MenuItem } from './ui';
 
@@ -40,7 +44,7 @@ export const controllerLinkValue = (b: PadBindings): string =>
 
 /**
  * The menu rows. Each action shows its buttons by their name on the controller in use ("B, Y"); the row
- * being bound says so instead. `armed` is whether Reset has had its first tap.
+ * being bound shows what has been pressed so far, or asks for presses. `armed` is whether Reset has had its first tap.
  */
 export function controllerItems(
   b: PadBindings,
@@ -61,7 +65,9 @@ export function controllerItems(
           label: PAD_ACTION_NAMES[row],
           value:
             remap.kind === 'listening' && remap.action === row
-              ? 'Press a button'
+              ? remap.buttons.length === 0
+                ? 'Press buttons'
+                : `${remap.buttons.map((i) => padButtonName(i, family)).join(', ')} …`
               : padActionNames(b, row, family),
         };
     }

@@ -116,7 +116,7 @@ test('a pad adds the Controller row, whose actions are named for the controller'
   expect(errors).toEqual([]);
 });
 
-test('Jump waits for the next fresh button, ignores held ones and the D-pad, and saves the binding', async ({
+test('Jump waits for a fresh button, ignores held ones and the D-pad, and saves the binding after a pause', async ({
   page,
 }) => {
   const errors = await boot(page, true);
@@ -127,25 +127,27 @@ test('Jump waits for the next fresh button, ignores held ones and the D-pad, and
   await pressUntil(
     page,
     'Enter',
-    () =>
-      document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Press a button',
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Press buttons',
   );
-  await expect(page.locator('.toast, #toast').first()).toContainText('Press a button for Jump');
+  await expect(page.locator('.toast, #toast').first()).toContainText(
+    'Press buttons for Jump, wait when done',
+  );
   await settle(page, 6);
-  await expect(valueOf(page, 'Jump')).toHaveText('Press a button');
+  await expect(valueOf(page, 'Jump')).toHaveText('Press buttons');
   // The D-pad and a stick-click are not bindable, and the held L1 is ignored until it is let go.
   await setButton(page, 14, true);
   await settle(page, 6);
   await setButton(page, 14, false);
-  await expect(valueOf(page, 'Jump')).toHaveText('Press a button');
+  await expect(valueOf(page, 'Jump')).toHaveText('Press buttons');
   expect(await stored(page)).toBeNull();
-  // R1 (index 5) is a fresh press.
+  // R1 (index 5) is a fresh press: it shows at once and is saved when no press follows for a moment.
   await padPress(
     page,
     5,
-    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'R1',
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'R1 …',
   );
   await setButton(page, 4, false);
+  expect(await stored(page)).toBeNull();
   await expect(valueOf(page, 'Jump')).toHaveText('R1');
   expect(await stored(page)).toEqual({ v: 1, jump: [5], pogo: [1, 3], fire: [2, 7], pause: [9] });
   // Still on the Controller screen: the press that bound the button did not also act on a row.
@@ -153,25 +155,23 @@ test('Jump waits for the next fresh button, ignores held ones and the D-pad, and
   expect(errors).toEqual([]);
 });
 
-test('taking a button another action needs gives that action the old one, so none is left bare', async ({
-  page,
-}) => {
+test('a button another action needs is shared with it, so none is left bare', async ({ page }) => {
   const errors = await boot(page, true);
   await show(page, 'controller');
   await pressUntil(
     page,
     'Enter',
-    () =>
-      document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Press a button',
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Press buttons',
   );
-  // Start (Options) is Pause's only button: a short press binds it to Jump and Pause takes Cross.
+  // Start (Options) is Pause's only button: a short press gives it to Jump too, and Pause keeps it.
   await settle(page, 4);
   await setButton(page, 9, true);
   await settle(page, 4);
   await setButton(page, 9, false);
   await expect(valueOf(page, 'Jump')).toHaveText('Options');
-  await expect(valueOf(page, 'Pause')).toHaveText('Cross');
-  expect(await stored(page)).toEqual({ v: 1, jump: [9], pogo: [1, 3], fire: [2, 7], pause: [0] });
+  await expect(valueOf(page, 'Pause')).toHaveText('Options');
+  expect(await stored(page)).toEqual({ v: 1, jump: [9], pogo: [1, 3], fire: [2, 7], pause: [9] });
+  await expect(page.locator('#toast')).toContainText('shared with Pause');
   expect(errors).toEqual([]);
 });
 
@@ -183,8 +183,7 @@ test('Escape cancels the wait and stays on the screen, and a second Escape leave
   await pressUntil(
     page,
     'Enter',
-    () =>
-      document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Press a button',
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Press buttons',
   );
   await pressUntil(
     page,
@@ -207,8 +206,7 @@ test('holding Start on the pad cancels the wait without binding', async ({ page 
   await pressUntil(
     page,
     'Enter',
-    () =>
-      document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Press a button',
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Press buttons',
   );
   await settle(page, 4);
   await setButton(page, 9, true);
@@ -227,13 +225,12 @@ test('a remapped Pogo is Back in the menus and the old button is not', async ({ 
   await pressUntil(
     page,
     'Enter',
-    () =>
-      document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Press a button',
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Press buttons',
   );
   await padPress(
     page,
     4,
-    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'L1',
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'L1 …',
   );
   await expect(valueOf(page, 'Pogo')).toHaveText('L1');
   // Let the results settle, then Circle (the old Back) does nothing and L1 goes back.
@@ -276,5 +273,104 @@ test('Reset to defaults asks twice and puts every button back', async ({ page })
   );
   await expect(valueOf(page, 'Jump')).toHaveText('Cross');
   expect(await stored(page)).toEqual({ v: 1, jump: [0], pogo: [1, 3], fire: [2, 7], pause: [9] });
+  expect(errors).toEqual([]);
+});
+
+const listening = (): boolean =>
+  document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Press buttons';
+
+test('several buttons can be collected for one action, one toggled off, and Enter finishes at once', async ({
+  page,
+}) => {
+  const errors = await boot(page, true);
+  await show(page, 'controller');
+  await pressUntil(page, 'ArrowDown', selected, 'Pogo');
+  await pressUntil(page, 'Enter', listening);
+  await padPress(
+    page,
+    4,
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'L1 …',
+  );
+  await padPress(
+    page,
+    5,
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'L1, R1 …',
+  );
+  // L1 again takes it back out; the row shows the one left.
+  await padPress(
+    page,
+    4,
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'R1 …',
+  );
+  await padPress(
+    page,
+    6,
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'R1, L2 …',
+  );
+  // Nothing is saved until the listen ends; Enter ends it now.
+  expect(await stored(page)).toBeNull();
+  await pressUntil(
+    page,
+    'Enter',
+    () => !document.querySelector('#overlay .menu button.sel .val')?.textContent?.endsWith('…'),
+  );
+  await expect(valueOf(page, 'Pogo')).toHaveText('R1, L2');
+  expect(await stored(page)).toEqual({ v: 1, jump: [0], pogo: [5, 6], fire: [2, 7], pause: [9] });
+  expect(errors).toEqual([]);
+});
+
+test('pressing both buttons rebuilds the defaults, and the listen finishes by itself', async ({
+  page,
+}) => {
+  const errors = await boot(page, true);
+  await page.addInitScript(
+    ([k, v]) => localStorage.setItem(k as string, v as string),
+    [BINDINGS, JSON.stringify({ v: 1, jump: [0], pogo: [4], fire: [2, 7], pause: [9] })],
+  );
+  await page.reload();
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+    timeout: 20_000,
+  });
+  await show(page, 'controller');
+  await expect(valueOf(page, 'Pogo')).toHaveText('L1');
+  await pressUntil(page, 'ArrowDown', selected, 'Pogo');
+  await pressUntil(page, 'Enter', listening);
+  await padPress(
+    page,
+    1,
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Circle …',
+  );
+  await padPress(
+    page,
+    3,
+    () =>
+      document.querySelector('#overlay .menu button.sel .val')?.textContent ===
+      'Circle, Triangle …',
+  );
+  await expect(valueOf(page, 'Pogo')).toHaveText('Circle, Triangle');
+  expect(await stored(page)).toEqual({ v: 1, jump: [0], pogo: [1, 3], fire: [2, 7], pause: [9] });
+  expect(errors).toEqual([]);
+});
+
+test('Escape discards what was collected and keeps the old buttons', async ({ page }) => {
+  const errors = await boot(page, true);
+  await show(page, 'controller');
+  await pressUntil(page, 'ArrowDown', selected, 'Pogo');
+  await pressUntil(page, 'Enter', listening);
+  await padPress(
+    page,
+    4,
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'L1 …',
+  );
+  await expect(valueOf(page, 'Pogo')).toContainText('…');
+  await pressUntil(
+    page,
+    'Escape',
+    () =>
+      document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Circle, Triangle',
+  );
+  expect(await title(page)).toBe('Controller');
+  await settle(page, 6);
+  expect(await stored(page)).toBeNull();
   expect(errors).toEqual([]);
 });

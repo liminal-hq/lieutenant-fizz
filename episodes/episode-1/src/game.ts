@@ -57,11 +57,13 @@ import { padFamily, type PadFamily } from '@lieutenant-fizz/engine/gamepad-label
 import {
   IDLE,
   cancelRemap,
+  finishRemap,
   remapMessage,
   startListening,
   stepRemap,
   type CancelReason,
   type RemapState,
+  type RemapStep,
 } from '@lieutenant-fizz/engine/gamepad-remap';
 import { placeSound, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
@@ -2197,9 +2199,9 @@ export class Game {
   }
 
   /**
-   * Once a frame: feeds the pad's pressed buttons to the listening state machine. A bound button is
-   * saved and takes effect at once (the hints too); a timeout or a Start held down ends the wait; a result
-   * clears after a moment. Off the Controller screen nothing is awaited.
+   * Once a frame: feeds the pad's pressed buttons to the listening state machine. The buttons pressed
+   * are saved when the listen finishes and take effect at once (the hints too); a timeout or a Start held
+   * down discards it; a result clears after a moment. Off the Controller screen nothing is awaited.
    */
   private tickRemap(now: number): void {
     if (this.remap.kind === 'idle') return;
@@ -2208,7 +2210,17 @@ export class Game {
       return;
     }
     const was = this.remap;
-    const step = stepRemap(was, this.padBindings, now, this.input.padButtons());
+    this.applyRemap(was, stepRemap(was, this.padBindings, now, this.input.padButtons()));
+  }
+
+  /** Enter or a tap while buttons are awaited: binds what has been pressed so far, or cancels if nothing has. */
+  private finishListening(): void {
+    const was = this.remap;
+    this.applyRemap(was, finishRemap(was, this.padBindings, performance.now()));
+  }
+
+  /** Takes a step of the listening machine: when a listen ended, saves new bindings, gives the pad back and says what happened. */
+  private applyRemap(was: RemapState, step: RemapStep): void {
     this.remap = step.state;
     if (was.kind === 'listening' && step.state.kind === 'result') {
       this.input.setPadListening(false);
@@ -2534,9 +2546,9 @@ export class Game {
       return;
     }
     if (this.sub === 'controller') {
-      // A press or tap while a button is awaited cancels the wait.
+      // Enter or a tap while buttons are awaited finishes the listen.
       if (this.remap.kind === 'listening') {
-        this.cancelListening('touch');
+        this.finishListening();
         return;
       }
       const row = controllerRowOf(id);

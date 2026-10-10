@@ -15,6 +15,7 @@ import {
   parsePadBindings,
   readPadBindings,
   resetPadBindings,
+  setButtons,
   serialisePadBindings,
   writePadBindings,
   type PadBindings,
@@ -90,10 +91,12 @@ describe('parsePadBindings', () => {
     expect(parsePadBindings('{"v":1,"pogo":[1,1,3]}').pogo).toEqual([1, 3]);
   });
 
-  it('gives every default when two actions share a button', () => {
-    expect(parsePadBindings('{"v":1,"jump":[1],"pogo":[1,3]}')).toEqual(DEFAULT_PAD_BINDINGS);
-    // A field left at its default can collide with a stored one too.
-    expect(parsePadBindings('{"v":1,"jump":[2]}')).toEqual(DEFAULT_PAD_BINDINGS);
+  it('keeps a button two actions share', () => {
+    expect(parsePadBindings('{"v":1,"jump":[1],"pogo":[1,3]}')).toEqual({
+      ...DEFAULT_PAD_BINDINGS,
+      jump: [1],
+    });
+    expect(parsePadBindings('{"v":1,"jump":[2]}').jump).toEqual([2]);
   });
 
   it('ignores unknown fields', () => {
@@ -106,53 +109,63 @@ describe('parsePadBindings', () => {
   });
 });
 
-describe('bindButton', () => {
-  it('replaces an action with the one button when it is free', () => {
+describe('setButtons and bindButton', () => {
+  it('replaces an action with the buttons when they are free', () => {
     const r = bindButton(DEFAULT_PAD_BINDINGS, 'jump', 4);
     expect(r.bindings).toEqual({ ...DEFAULT_PAD_BINDINGS, jump: [4] });
-    expect(r.from).toBeNull();
-    expect(r.swapped).toBe(false);
+    expect(r.lost).toEqual([]);
+    expect(r.shared).toEqual([]);
   });
 
-  it('swaps when the button belongs to an action with only that button', () => {
-    const r = bindButton(DEFAULT_PAD_BINDINGS, 'jump', 9);
-    expect(r.bindings).toEqual({ jump: [9], pogo: [1, 3], fire: [2, 7], pause: [0] });
-    expect(r.from).toBe('pause');
-    expect(r.swapped).toBe(true);
+  it('gives an action several buttons, in the order given, with duplicates collapsed', () => {
+    const r = setButtons(DEFAULT_PAD_BINDINGS, 'jump', [4, 5, 4]);
+    expect(r.bindings.jump).toEqual([4, 5]);
   });
 
-  it('takes a button from an action that has others left, without a swap', () => {
+  it('takes a button from an action that has others left', () => {
     const r = bindButton(DEFAULT_PAD_BINDINGS, 'jump', 7);
     expect(r.bindings).toEqual({ jump: [7], pogo: [1, 3], fire: [2], pause: [9] });
-    expect(r.from).toBe('fire');
-    expect(r.swapped).toBe(false);
+    expect(r.lost).toEqual(['fire']);
+    expect(r.shared).toEqual([]);
   });
 
-  it('gives a swapped action every old button of the one that moved', () => {
-    const r = bindButton({ ...DEFAULT_PAD_BINDINGS, jump: [0, 4] }, 'pause', 0);
-    expect(r.bindings.jump).toEqual([4]);
-    const s = bindButton(DEFAULT_PAD_BINDINGS, 'pogo', 9);
-    expect(s.bindings.pause).toEqual([1, 3]);
-    expect(s.bindings.pogo).toEqual([9]);
+  it('shares a button with an action that would be left with none', () => {
+    const r = bindButton(DEFAULT_PAD_BINDINGS, 'jump', 9);
+    expect(r.bindings).toEqual({ jump: [9], pogo: [1, 3], fire: [2, 7], pause: [9] });
+    expect(r.lost).toEqual([]);
+    expect(r.shared).toEqual(['pause']);
   });
 
-  it('never leaves an action empty or a button on two actions', () => {
+  it('lets an action keep what it would otherwise lose together', () => {
+    const r = setButtons(DEFAULT_PAD_BINDINGS, 'jump', [2, 7]);
+    expect(r.bindings.fire).toEqual([2, 7]);
+    expect(r.shared).toEqual(['fire']);
+    const part = setButtons(DEFAULT_PAD_BINDINGS, 'jump', [2, 5]);
+    expect(part.bindings.fire).toEqual([7]);
+    expect(part.lost).toEqual(['fire']);
+  });
+
+  it('reproduces the defaults by setting both buttons', () => {
+    const custom = setButtons(DEFAULT_PAD_BINDINGS, 'pogo', [4]).bindings;
+    expect(setButtons(custom, 'pogo', [1, 3]).bindings).toEqual(DEFAULT_PAD_BINDINGS);
+  });
+
+  it('never leaves an action empty', () => {
     let b: PadBindings = DEFAULT_PAD_BINDINGS;
     for (const a of PAD_ACTIONS)
       for (const i of BINDABLE_BUTTONS) {
-        b = bindButton(b, a, i).bindings;
-        const all = PAD_ACTIONS.flatMap((x) => b[x]);
-        expect(new Set(all).size).toBe(all.length);
+        b = setButtons(b, a, [i, (i + 3) % 10]).bindings;
         for (const x of PAD_ACTIONS) expect(b[x].length).toBeGreaterThan(0);
-        expect(b[a]).toEqual([i]);
+        expect(b[a]).toEqual([i, (i + 3) % 10]);
       }
   });
 
-  it('refuses a button that cannot be bound', () => {
+  it('refuses buttons that cannot be bound', () => {
     for (const i of [10, 12, 14, 16, -1, 2.5]) {
-      const r = bindButton(DEFAULT_PAD_BINDINGS, 'jump', i);
-      expect(r.bindings).toBe(DEFAULT_PAD_BINDINGS);
+      expect(bindButton(DEFAULT_PAD_BINDINGS, 'jump', i).bindings).toBe(DEFAULT_PAD_BINDINGS);
     }
+    expect(setButtons(DEFAULT_PAD_BINDINGS, 'jump', []).bindings).toBe(DEFAULT_PAD_BINDINGS);
+    expect(setButtons(DEFAULT_PAD_BINDINGS, 'jump', [12, 4]).bindings.jump).toEqual([4]);
   });
 });
 

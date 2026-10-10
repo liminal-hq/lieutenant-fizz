@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { DEFAULT_PAD_BINDINGS, bindButton } from '@lieutenant-fizz/engine/gamepad-bindings';
-import { IDLE, startListening } from '@lieutenant-fizz/engine/gamepad-remap';
+import { IDLE, startListening, stepRemap } from '@lieutenant-fizz/engine/gamepad-remap';
 import { describe, expect, it } from 'vitest';
 import {
   CONTROLLER_ROWS,
@@ -66,8 +66,15 @@ describe('controllerItems', () => {
       startListening('pogo', 0, new Set()),
       false,
     );
-    expect(items[1]?.value).toBe('Press a button');
+    expect(items[1]?.value).toBe('Press buttons');
     expect(items[0]?.value).toBe('A');
+  });
+
+  it('shows every button pressed so far while listening, and all names once bound', () => {
+    let s = startListening('pogo', 0, new Set());
+    s = stepRemap(s, DEFAULT_PAD_BINDINGS, 10, new Set([4, 5])).state;
+    expect(controllerItems(DEFAULT_PAD_BINDINGS, 'xbox', s, false)[1]?.value).toBe('LB, RB …');
+    expect(controllerItems(DEFAULT_PAD_BINDINGS, 'xbox', IDLE, false)[1]?.value).toBe('B, Y');
   });
 
   it('asks for a second tap on Reset once armed', () => {

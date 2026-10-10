@@ -73,7 +73,7 @@ test('Options > Controller on touch: full-height rows that fit, and a tap on a r
   });
   // A tap on Jump waits for a button; a second tap anywhere on the rows gives up and stays here.
   await tapAt(row(page, 'Jump'), page);
-  await expect(row(page, 'Jump').locator('.val')).toHaveText('Press a button');
+  await expect(row(page, 'Jump').locator('.val')).toHaveText('Press buttons');
   await tapAt(row(page, 'Fizz'), page);
   await expect(row(page, 'Jump').locator('.val')).toHaveText('A');
   await expect(page.locator('#overlay h2')).toHaveText('Controller');
@@ -83,7 +83,7 @@ test('Options > Controller on touch: full-height rows that fit, and a tap on a r
 test('the Back button ends the wait first and leaves the screen second', async ({ page }) => {
   const errors = await openController(page);
   await tapAt(row(page, 'Pogo'), page);
-  await expect(row(page, 'Pogo').locator('.val')).toHaveText('Press a button');
+  await expect(row(page, 'Pogo').locator('.val')).toHaveText('Press buttons');
   await tapAt(page.locator('#backBtn'), page);
   await expect(row(page, 'Pogo').locator('.val')).toHaveText('B, Y');
   await expect(page.locator('#overlay h2')).toHaveText('Controller');

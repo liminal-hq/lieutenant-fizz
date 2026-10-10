@@ -29,7 +29,7 @@ export const BINDABLE_BUTTONS: readonly number[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 /** Storage key for the bindings; the version lives inside the saved JSON. */
 export const PAD_BINDINGS_KEY = 'lf-pad-bindings-v1';
 
-/** Each action's buttons. An action can have several (Pogo is B and Y by default); a button has one action. */
+/** Each action's buttons. An action can have several (Pogo is B and Y by default), and a button can serve several actions when the player shares it. */
 export type PadBindings = Readonly<Record<PadAction, readonly number[]>>;
 
 /** The standard mapping as the game has always read it: A jumps, B and Y pogo, X and RT fire, Start pauses. */
@@ -56,20 +56,9 @@ function buttons(v: unknown): number[] | null {
   return [...new Set(v as number[])];
 }
 
-/** Whether two actions share a button. */
-function shared(b: PadBindings): boolean {
-  const seen = new Set<number>();
-  for (const a of PAD_ACTIONS)
-    for (const i of b[a]) {
-      if (seen.has(i)) return true;
-      seen.add(i);
-    }
-  return false;
-}
-
 /**
  * Parses stored bindings. An action whose entry is missing or invalid takes its default; an unknown
- * version, or buttons that two actions share, give every default.
+ * version gives every default. Two actions may hold the same button (a button can be shared).
  */
 export function parsePadBindings(json: string | null): PadBindings {
   try {
@@ -78,7 +67,7 @@ export function parsePadBindings(json: string | null): PadBindings {
     const d = DEFAULT_PAD_BINDINGS;
     const out = {} as Record<PadAction, readonly number[]>;
     for (const a of PAD_ACTIONS) out[a] = buttons(raw[a]) ?? [...d[a]];
-    return shared(out) ? defaults() : out;
+    return out;
   } catch {
     return defaults();
   }
@@ -122,36 +111,47 @@ export const isDefaultPadBindings = (b: PadBindings): boolean =>
       b[a].every((i, k) => i === DEFAULT_PAD_BINDINGS[a][k]),
   );
 
-/** What binding a button did: the new bindings, and the action that lost the button (if any). */
+/** What setting an action's buttons did to the others. */
 export interface BindResult {
   bindings: PadBindings;
-  /** The action that had `button` before, or null when it was free or already this action's own. */
-  from: PadAction | null;
-  /** Whether that action had no button left and took this action's old ones (a swap). */
-  swapped: boolean;
+  /** The actions that lost one or more of the buttons (they keep their other buttons). */
+  lost: PadAction[];
+  /** The actions that would have been left with nothing, and so keep the buttons: the buttons are shared. */
+  shared: PadAction[];
 }
 
 /**
- * Binds one button to an action, replacing the action's buttons with it. A button belongs to one action:
- * if another had it, that action loses it, and when that leaves it with nothing it takes this action's old
- * buttons in exchange, so no action is ever empty. A button that is not bindable changes nothing.
+ * Gives an action exactly these buttons, replacing what it had. Another action that held any of them loses
+ * those and keeps the rest; if that would leave it with nothing it keeps them too, so the button is shared
+ * and no action is ever empty. Buttons that cannot be bound are dropped and duplicates collapse; with none
+ * left nothing changes.
  */
-export function bindButton(b: PadBindings, action: PadAction, button: number): BindResult {
-  if (!bindable(button)) return { bindings: b, from: null, swapped: false };
+export function setButtons(
+  b: PadBindings,
+  action: PadAction,
+  wanted: readonly number[],
+): BindResult {
+  const next = [...new Set(wanted.filter(bindable))];
+  if (next.length === 0) return { bindings: b, lost: [], shared: [] };
   const out = { ...b } as Record<PadAction, readonly number[]>;
-  const old = b[action];
-  out[action] = [button];
-  let from: PadAction | null = null;
-  let swapped = false;
+  out[action] = next;
+  const lost: PadAction[] = [];
+  const shared: PadAction[] = [];
   for (const other of PAD_ACTIONS) {
-    if (other === action || !b[other].includes(button)) continue;
-    from = other;
-    const left = b[other].filter((i) => i !== button);
-    swapped = left.length === 0;
-    out[other] = swapped ? old.filter((i) => i !== button) : left;
+    if (other === action || !b[other].some((i) => next.includes(i))) continue;
+    const left = b[other].filter((i) => !next.includes(i));
+    if (left.length === 0) shared.push(other);
+    else {
+      out[other] = left;
+      lost.push(other);
+    }
   }
-  return { bindings: out, from, swapped };
+  return { bindings: out, lost, shared };
 }
+
+/** Binds one button to an action, replacing its buttons: `setButtons` with a single button. */
+export const bindButton = (b: PadBindings, action: PadAction, button: number): BindResult =>
+  setButtons(b, action, [button]);
 
 /** The actions whose buttons are held on a pad. */
 export interface PadActions {
