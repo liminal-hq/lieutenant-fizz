@@ -22,9 +22,11 @@
 # Other settings:
 #   FIZZ_DEV_APK_DIR   where the APK is copied (default ~/fizz-dev-builds)
 #   FIZZ_DEV_JOBS      cargo jobs, Gradle workers and container CPUs (default 4)
-#   FIZZ_DEV_SCRATCH   a host directory for the Rust build output, the cargo registry, the Gradle cache and
-#                      the SDK extras (for example a games disk instead of /home). It is created if
-#                      needed. Without it these live in Docker volumes.
+#   FIZZ_DEV_SCRATCH   a host directory for the Rust build output, the cargo registry, the Gradle cache
+#                      (for example a games disk instead of /home). It is created if needed. Without it
+#                      these live in Docker volumes. The Android SDK and NDK extras always stay on the
+#                      Docker named volume fizz-android-sdk-extras (Docker storage), because a host
+#                      directory would start empty and hide the image's SDK and NDK.
 #
 # The Android debug keystore is persisted in its own volume. Without it each `docker run --rm` would
 # generate a new random debug key, so every build would be signed differently and `adb install -r` over
