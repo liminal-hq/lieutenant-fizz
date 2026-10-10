@@ -291,6 +291,34 @@ describe('gamepadPluginBackend', () => {
     expect(fallback.stops).toBe(1);
   });
 
+  it('stops the pad it was playing when input moves to another native pad', async () => {
+    const { api, fallback, backend, setWeb } = setup([ds3, xbox], { id: DS3_WEB.id });
+    await backend.ready;
+    backend.play(thump, 1);
+    setWeb({ id: '045e-0b13-Xbox Wireless Controller' });
+    backend.play(thump, 1);
+    expect(api.plays.map((p) => p.padId)).toEqual(['gamepad:0', 'gamepad:1']);
+    expect(api.stops).toEqual(['gamepad:0']);
+    backend.stop();
+    expect(api.stops).toEqual(['gamepad:0', 'gamepad:1']);
+
+    // Moving from a native pad to the webview's pad stops the native one too.
+    setWeb({ id: DS3_WEB.id });
+    backend.play(thump, 1);
+    setWeb({ id: 'Other pad' });
+    backend.play(thump, 1);
+    expect(api.stops).toEqual(['gamepad:0', 'gamepad:1', 'gamepad:0']);
+    expect(fallback.plays).toHaveLength(1);
+  });
+
+  it('leaves a pad that is replaying on the same native pad to the plugin to replace', async () => {
+    const { api, backend } = setup([ds3], { id: DS3_WEB.id });
+    await backend.ready;
+    backend.play(thump, 1);
+    backend.play(thump, 1);
+    expect(api.stops).toHaveLength(0);
+  });
+
   it('passes rumble tuning to the compiler and the webview backend', async () => {
     const { api, fallback, backend } = setup([ds3]);
     await backend.ready;

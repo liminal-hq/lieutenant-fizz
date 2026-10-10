@@ -310,6 +310,12 @@ export function gamepadPluginBackend(
     p.catch(() => {});
   };
 
+  const stopNative = (): void => {
+    const id = nativePlaying;
+    nativePlaying = null;
+    if (id !== null) swallow(api.stop(id));
+  };
+
   return {
     ready,
     pads: () => pads,
@@ -350,6 +356,8 @@ export function gamepadPluginBackend(
     play(p: HapticPattern, scale: number, ctx?: PlayContext): PlayResult {
       const c = choice();
       if (c.kind === 'web') {
+        // The cue moves to the webview's pad: a native pad still rumbling stops first.
+        stopNative();
         webPlaying = true;
         return fallback.play(p, scale);
       }
@@ -362,6 +370,8 @@ export function gamepadPluginBackend(
         webPlaying = false;
         fallback.stop();
       }
+      // The same holds across native pads: a cue moving to another pad stops the one still rumbling.
+      if (nativePlaying !== c.pad.id) stopNative();
       const boosted = useBoost && isOnOffLightPad(c.pad);
       const compiled = boosted
         ? ctx?.ui
@@ -391,9 +401,7 @@ export function gamepadPluginBackend(
         webPlaying = false;
         fallback.stop();
       }
-      const id = nativePlaying;
-      nativePlaying = null;
-      if (id !== null) swallow(api.stop(id));
+      stopNative();
     },
     tuneRumble(patch) {
       Object.assign(compile, patch);
