@@ -85,7 +85,7 @@ for (const size of SIZES) {
       hasTouch: true,
     });
     // The sizes are set here, so one phone project runs them all.
-    test.beforeEach(({}, info) => {
+    test.beforeEach(({ page: _page }, info) => {
       test.skip(info.project.name !== 'touch-844', 'Runs once, at its own sizes.');
     });
 
