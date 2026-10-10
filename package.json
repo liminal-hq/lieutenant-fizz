@@ -20,6 +20,7 @@
     "tauri": "bun run --filter @lieutenant-fizz/player tauri",
     "dev:desktop": "bun run --filter @lieutenant-fizz/player tauri dev",
     "android:build": "bun run --filter @lieutenant-fizz/player tauri android build",
+    "build:android:dev": "bash scripts/build-android-dev.sh",
     "build:font": "bun scripts/build-font.ts",
     "check:font": "bun scripts/build-font.ts --check",
     "build:hero": "bun scripts/build-hero.ts",
