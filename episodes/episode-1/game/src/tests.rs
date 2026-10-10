@@ -10,7 +10,7 @@ use crate::ents::{ItemKind, Kind, St};
 use crate::levels::{CAVES, CITADEL, CRATER};
 use crate::text::{ev, Cap};
 use crate::tiles::*;
-use crate::world::{input::*, Mode, World, MANTLE_REACH, MANTLE_TIME};
+use crate::world::{input::*, Mode, World, MANTLE_REACH, MANTLE_TIME, POGO_DRAWN_HEIGHT};
 
 fn level(id: u8) -> World {
     let mut w = World::new();
@@ -3248,45 +3248,80 @@ fn pogo_bouncing_into_a_slab_clunks_each_bounce() {
 }
 
 #[test]
-fn pogo_flush_against_a_slab_clunks() {
-    let mut w = arena();
-    for x in 0..40 {
-        for y in 4..8 {
-            w.map.set(x, y, FILL);
-        }
-    }
-    w.step(POGO);
-    w.events.clear();
-    run(&mut w, 120, 0);
-    assert!(clunks(&w) >= 1, "clunks = {}", clunks(&w));
-}
-
-#[test]
-fn a_full_pogo_bounce_that_just_misses_the_slab_still_clunks_once() {
-    // Slab bottom at 10.0: the body's best bounce tops out at about 9.77, but the drawn head, 0.6 above
-    // the body, goes into the slab.
+fn a_full_pogo_bounce_stops_with_the_drawn_head_under_the_slab() {
+    // Slab bottom at 10.0: the 1.4 body alone would top out near 9.77, but the drawn head is 2.0 tall.
     let mut w = arena();
     for x in 0..40 {
         w.map.set(x, 10, FILL);
     }
     w.step(POGO);
     w.events.clear();
-    let mut bonks = 0;
+    let (mut bonks, mut top) = (0, 0.0_f64);
     for _ in 0..400 {
         w.step(JUMP);
         bonks += usize::from(w.p.b.bonk);
+        top = top.max(w.p.b.y + POGO_DRAWN_HEIGHT);
     }
     let boings = events_of(&w, ev::CAPTION)
         .iter()
         .filter(|e| e.c == f32::from(Cap::Boing as u16))
         .count();
-    assert_eq!(bonks, 0, "the body never touches the slab");
+    assert!(bonks >= 4, "bonks = {bonks}");
+    assert!(
+        top <= 10.0,
+        "the drawn head stays under the slab, top = {top}"
+    );
+    assert!(top > 9.99, "and reaches it, top = {top}");
     assert!(boings >= 4, "boings = {boings}");
     assert!(
         clunks(&w) + 1 >= boings && clunks(&w) <= boings,
-        "one clunk per bounce: {} clunks, {boings} boings",
+        "{} clunks, {boings} boings",
         clunks(&w)
     );
+}
+
+#[test]
+fn a_two_tile_corridor_keeps_the_pogo_usable_without_a_clunk_loop() {
+    // Floor top at 2, ceiling bottom at 4: the 2.0-tall head fits exactly.
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 4, FILL);
+    }
+    w.step(POGO);
+    w.events.clear();
+    let x0 = w.p.b.x;
+    for _ in 0..300 {
+        w.step(RIGHT | JUMP);
+        assert!(!body_overlaps_solid(&w));
+        assert!(
+            (w.p.b.y - 2.0).abs() < 0.05 || w.p.b.y > 2.0 && w.p.b.y < 2.1,
+            "y = {}",
+            w.p.b.y
+        );
+    }
+    assert!(
+        w.p.b.x > x0 + 5.0,
+        "still walks along: {} -> {}",
+        x0,
+        w.p.b.x
+    );
+    assert!(clunks(&w) <= 2, "clunks = {}", clunks(&w));
+}
+
+#[test]
+fn a_normal_jump_is_unaffected_by_the_pogo_head_box() {
+    // Off the stick, the body alone meets the ceiling: its top ends flush under row 5.
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 5, FILL);
+    }
+    w.step(JUMP);
+    let mut top = 0.0_f64;
+    for _ in 0..40 {
+        w.step(JUMP);
+        top = top.max(w.p.b.y + w.p.b.h);
+    }
+    assert!((top - 5.0).abs() < 0.01, "top = {top}");
 }
 
 #[test]
