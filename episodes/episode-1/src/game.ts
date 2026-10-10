@@ -3120,6 +3120,12 @@ export class Game {
   }
 
   /** Test hook: switches the phone title between its two layouts. */
+  /** Sets the Fizz count (to check how the count fits its touch face) and refreshes the HUD. */
+  debugAmmo(n: number): void {
+    this.sim.set(State.AMMO, n);
+    this.refreshHud();
+  }
+
   debugTitle(mode: TitleLayout): void {
     this.ui.setTitleLayout(mode);
   }

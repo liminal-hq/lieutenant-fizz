@@ -11,6 +11,7 @@ const KEY = 'lf-touch-v1';
 
 interface Lf {
   debugShow(s: string): void;
+  debugAmmo(n: number): void;
 }
 interface Fit {
   control: string;
@@ -97,6 +98,25 @@ for (const size of SIZES) {
         }) => {
           await open(page, screen, s);
           const words = await fits(page);
+          expect(words.length).toBeGreaterThan(0);
+          for (const w of words) {
+            expect(
+              w.word,
+              `${w.control} "${w.text}" is ${w.word} px at ${w.fontSize} px in a ${w.face} px face`,
+            ).toBeLessThanOrEqual(w.face - 2 * MARGIN);
+          }
+        });
+      }
+    }
+
+    // Soda adds ammo on every level load and nothing caps it, so the count can grow past three digits.
+    for (const ammo of [999, 1000, 99999]) {
+      for (const s of ['S', 'M', 'L'] as const) {
+        test(`play, Size ${s}, ${ammo} Fizz: the count is inside its face`, async ({ page }) => {
+          await open(page, 'play', s);
+          await page.evaluate((n) => (window as unknown as { __lf: Lf }).__lf.debugAmmo(n), ammo);
+          await expect(page.locator('#touch [data-control="fire"] .count')).toHaveText(/^\d+$/);
+          const words = (await fits(page)).filter((w) => w.control === 'fire');
           expect(words.length).toBeGreaterThan(0);
           for (const w of words) {
             expect(
