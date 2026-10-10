@@ -12,6 +12,7 @@ import { GameAudio } from '@lieutenant-fizz/engine/audio';
 import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
+import type { HostBackend } from '@lieutenant-fizz/engine/host';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import {
   webFullscreenBackend,
@@ -44,7 +45,12 @@ import {
 } from '@lieutenant-fizz/engine/lifecycle-policy';
 import { placeSound, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
-import { durable, type KeyValueStorage, type StorageKind } from '@lieutenant-fizz/engine/storage';
+import {
+  durable,
+  type FlushableStorage,
+  type KeyValueStorage,
+  type StorageKind,
+} from '@lieutenant-fizz/engine/storage';
 import {
   Input as Bits,
   InputManager,
@@ -144,6 +150,7 @@ import {
   styleName,
   type SoundRow,
 } from './sound-options';
+import { QUIT_GAME_ID, withQuitRow } from './quit';
 import { RESET_ARM_MS, resetArmed } from './two-tap';
 import { firstEnabled, type HapticsUrl, type UrlLocks, type WakeUrl } from './url-lock';
 import {
@@ -242,6 +249,8 @@ export interface GameOptions {
   keepAwake?: KeepAwakeBackend;
   /** What enters and leaves fullscreen and says whether Esc reaches the page; the web build uses the browser's. */
   fullscreenBackend?: FullscreenBackend;
+  /** What the host can do beyond the page; only the desktop app has `quit`, which adds Quit game to the title and pause menus. */
+  hostBackend?: HostBackend;
   /** Where saves and settings are kept, chosen at boot by `createStorage`; left out, the browser's `localStorage`. */
   storage?: KeyValueStorage;
 }
@@ -323,6 +332,8 @@ export class Game {
   private scaleAfter: number | null = null;
   /** Fullscreen as the shell sees it: the browser's, with Esc held by the Keyboard Lock; the app can inject its own. */
   private readonly fs: FullscreenBackend;
+  /** The host's extras: Quit game exists when it has `quit`. */
+  private readonly hostBackend: HostBackend | undefined;
   /** The Touch controls rows. */
   private readonly touchRowList: TouchRow[] = touchRows();
   /** What `?haptics` asked for, which wins over the saved strength and is never saved. */
@@ -507,6 +518,7 @@ export class Game {
         secure: window.isSecureContext,
         touch: () => this.touchCapable,
       });
+    this.hostBackend = options.hostBackend;
     this.wakeUrl = options.wake;
     this.keepAwake =
       this.caps.host === 'app'
@@ -557,6 +569,7 @@ export class Game {
       if (pauseFor('padLost', { playing: this.screen === 'play' })) this.autoPause();
     });
     window.addEventListener('blur', this.onBlur);
+    if (this.fs.kind === 'native') window.addEventListener('keydown', this.onNativeKey);
     for (const t of ['keydown', 'pointerdown', 'touchstart'] as const) {
       window.addEventListener(t, this.onInputEvent, { capture: true, passive: true });
     }
@@ -618,6 +631,7 @@ export class Game {
     this.loadAttract(0);
     this.hasSave = newestSlot(this.store) !== null;
     this.screen = 'title';
+    this.startFullscreen();
     this.ui.setLoading(false);
     for (const k of Object.keys(this.opts) as (keyof Game['opts'])[])
       this.ui.setToggle(k, this.opts[k]);
@@ -637,6 +651,7 @@ export class Game {
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('pagehide', this.onVisibility);
     window.removeEventListener('blur', this.onBlur);
+    window.removeEventListener('keydown', this.onNativeKey);
     for (const t of ['keydown', 'pointerdown', 'touchstart'] as const) {
       window.removeEventListener(t, this.onInputEvent, { capture: true });
     }
@@ -1304,10 +1319,18 @@ export class Game {
     };
   }
 
+  /**
+   * Whether the game can go fullscreen and says so (the Display row, the `F` key and its hint): in a browser page
+   * where the browser allows it, or in the desktop app, whose backend is the native window. The button is the web's.
+   */
+  private fullscreenOffered(): boolean {
+    return this.fs.kind === 'native' || (this.caps.fullscreen && this.caps.host === 'web');
+  }
+
   /** What the Display screen can offer here: fullscreen in a browser page, and anything that can hold the screen on. */
   private displayCaps(): DisplayCaps {
     return {
-      fullscreen: this.caps.fullscreen && this.caps.host === 'web',
+      fullscreen: this.fullscreenOffered(),
       keepAwake: this.keepAwake.kind !== 'none',
       touch: this.touchCapable,
     };
@@ -1361,7 +1384,7 @@ export class Game {
     this.ui.setHintContext({
       device,
       layout: this.settings.layout,
-      fullscreen: this.caps.fullscreen && this.caps.host === 'web',
+      fullscreen: this.fullscreenOffered(),
       escExitsFullscreen:
         this.escLeavesFullscreen() && (this.screen === 'title' || this.screen === 'pause'),
     });
@@ -1382,6 +1405,13 @@ export class Game {
     this.haptics.setActive(this.visible);
     if (!this.visible) this.autoPause();
     this.syncLifecycle();
+  };
+
+  /** F11 in the desktop app, where nothing else handles it: the same toggle as `F`. */
+  private readonly onNativeKey = (e: KeyboardEvent): void => {
+    if (e.code !== 'F11' || e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
+    e.preventDefault();
+    this.toggleFullscreen();
   };
 
   /** The window lost focus (alt-tab, a notification shade, a system dialog): a level in play pauses. */
@@ -1660,7 +1690,7 @@ export class Game {
     if (this.screen === 'title') {
       if (this.sub === 'controls') return [];
       const newest = newestSlot(this.store);
-      return [
+      const rows: MenuItem[] = [
         { id: 'new', label: 'New Game' },
         {
           id: 'continue',
@@ -1672,6 +1702,7 @@ export class Game {
         { id: 'options', label: 'Options' },
         { id: 'controls', label: 'Controls' },
       ];
+      return withQuitRow(rows, this.canQuit(), false, false);
     }
     if (this.screen === 'pause') {
       const items: MenuItem[] = [
@@ -1682,7 +1713,8 @@ export class Game {
         { id: 'options', label: 'Options' },
       ];
       if (this.sim.x.mode() === Mode.LEVEL) items.push({ id: 'leave', label: 'Leave level' });
-      return [...items, { id: 'quit', label: 'Quit to title' }];
+      items.push({ id: 'quit', label: 'Quit to title' });
+      return withQuitRow(items, this.canQuit(), true, resetArmed(this.resetAt, performance.now()));
     }
     if (this.screen === 'card' && this.card) {
       const items: MenuItem[] = [{ id: 'primary', label: this.card.primaryLabel }];
@@ -2011,6 +2043,36 @@ export class Game {
     this.armReset();
   }
 
+  /** Whether the host can close the app, which is what puts Quit game on the menus. */
+  private canQuit(): boolean {
+    return this.hostBackend?.quit !== undefined;
+  }
+
+  /**
+   * Quit game on the pause menu asks twice, so a stray tap does not close a game with unsaved progress: the
+   * first tap arms the row ("Tap again") for a few seconds, the second quits. Moving off the row disarms it.
+   */
+  private tapQuitApp(): void {
+    if (resetArmed(this.resetAt, performance.now())) {
+      this.disarmReset();
+      this.quitApp();
+      return;
+    }
+    this.armReset();
+  }
+
+  /** Leaves fullscreen, writes the settings out and closes the app. Only reached where the host has `quit`. */
+  private quitApp(): void {
+    const host = this.hostBackend;
+    if (!host?.quit) return;
+    const store = this.store as Partial<FlushableStorage> | null;
+    void (async () => {
+      await this.fs.exit();
+      await store?.flush?.();
+      await host.quit?.();
+    })();
+  }
+
   /** The first tap of a two-tap Reset: it waits a few seconds for the second. */
   private armReset(): void {
     this.resetAt = performance.now();
@@ -2028,7 +2090,8 @@ export class Game {
       this.sub === 'touch' ||
       this.sub === 'touchEdit' ||
       this.sub === 'sound' ||
-      this.sub === 'haptics'
+      this.sub === 'haptics' ||
+      (this.screen === 'pause' && !this.sub)
     )
       this.syncUi();
   }
@@ -2138,6 +2201,7 @@ export class Game {
         else if (id === 'load') this.openSaves('load');
         else if (id === 'options') this.openSub('options');
         else if (id === 'controls') this.openSub('controls');
+        else if (id === QUIT_GAME_ID) this.quitApp();
       };
       if (this.titleAction) return;
       if (this.reducedMotion) run();
@@ -2152,6 +2216,7 @@ export class Game {
       else if (id === 'options') this.openSub('options');
       else if (id === 'leave') this.enterMap();
       else if (id === 'quit') this.quitToTitle();
+      else if (id === QUIT_GAME_ID) this.tapQuitApp();
     } else if (this.screen === 'card' && this.card) {
       if (id === 'primary') this.card.primary();
       else this.card.secondary?.();
@@ -2262,7 +2327,7 @@ export class Game {
    * pauses it, as for any other way out.
    */
   private toggleFullscreen(): void {
-    if (!this.fullscreenState().show) return;
+    if (!this.fullscreenState().show && !this.nativeFullscreenKey()) return;
     if (this.fs.isFullscreen()) {
       void this.fs.exit();
       return;
@@ -2271,6 +2336,26 @@ export class Game {
       fullscreen: true,
       lock: this.touchCapable && this.caps.orientationLock,
     });
+  }
+
+  /** `F` in the desktop app: the native window has no button, so the key works wherever the web button would. */
+  private nativeFullscreenKey(): boolean {
+    if (this.fs.kind !== 'native') return false;
+    return fullscreenButton({
+      screen: this.fullscreenScreen(),
+      touch: this.touchMode,
+      caps: { fullscreen: true, host: 'web' },
+      fullscreen: this.fs.isFullscreen(),
+    }).show;
+  }
+
+  /**
+   * The desktop app starts fullscreen when Fullscreen is On (the setting or `?fullscreen`); Off and Auto leave
+   * the window as it opens. The browser needs a gesture for this and the native window does not.
+   */
+  private startFullscreen(): void {
+    if (this.fs.kind !== 'native' || this.fullscreenWant !== 'on' || this.fs.isFullscreen()) return;
+    void this.fs.enter({ fullscreen: true, lock: false });
   }
 
   /**
@@ -3336,6 +3421,8 @@ export class Game {
         keepAwake: this.keepAwake.kind,
         lastFs: this.lastFs,
         escLock: this.fs.escapeCaptured,
+        fullscreen: this.fs.isFullscreen(),
+        fsKind: this.fs.kind,
         scaleBefore: this.scaleBefore,
         scaleAfter: this.scaleAfter,
       },
