@@ -295,14 +295,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Download the deb and rpm packages
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: linux-release-assets-*
           path: release-assets
           merge-multiple: true
 
       - name: Download the AppImages
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: appimage-*
           path: release-assets
@@ -356,7 +356,7 @@ jobs:
       contents: write
     steps:
       - name: Download the release files
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: fizz-player-linux-release
           path: release-assets
