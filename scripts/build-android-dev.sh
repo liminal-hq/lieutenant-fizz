@@ -60,10 +60,24 @@ else
   COLOUR_YELLOW=""
 fi
 
+# Runs on every exit. A restore that fails must not hide behind a successful build: leaving gen/android in
+# the regenerated `.dev` state would make the next real-app build use the wrong application id, so the
+# script exits non-zero when the tree is not clean afterwards, whatever the build's own status was.
 restore_gen_android() {
+  local build_status=$?
+  trap - EXIT
   echo "${COLOUR_YELLOW}Restoring ${GEN_ANDROID} to its committed (real-app) state...${COLOUR_RESET}"
-  git -C "$REPO_ROOT" checkout -- "$GEN_ANDROID" 2>/dev/null || true
-  git -C "$REPO_ROOT" clean -fdx "$GEN_ANDROID" >/dev/null 2>&1 || true
+  git -C "$REPO_ROOT" checkout -- "$GEN_ANDROID" || true
+  git -C "$REPO_ROOT" clean -fdx "$GEN_ANDROID" >/dev/null || true
+  local leftover
+  if ! leftover="$(git -C "$REPO_ROOT" status --porcelain -- "$GEN_ANDROID")" || [ -n "$leftover" ]; then
+    echo "${COLOUR_RED}Could not restore ${GEN_ANDROID}; it is still in the regenerated dev state.${COLOUR_RESET}" >&2
+    echo "Restore it by hand: git -C $REPO_ROOT checkout -- $GEN_ANDROID && git -C $REPO_ROOT clean -fdx $GEN_ANDROID" >&2
+    if [ "$build_status" -eq 0 ]; then
+      exit 1
+    fi
+  fi
+  exit "$build_status"
 }
 
 # The restore below force-resets gen/android to HEAD, which would silently discard any real uncommitted
