@@ -140,6 +140,16 @@
   transform: translateX(var(--lf-peek-x, 0%));
   opacity: var(--lf-peek-a, 1);
   will-change: transform, opacity;
+  /* The edge the screen leaves behind fades in over `--lf-peek-feather` (a share of its width) instead of
+     ending in a hard line. The mask is on the element that moves, so it travels with it. A zero width
+     (rest, reduced motion) masks nothing. */
+  --lf-peek-feather: 0%;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--lf-peek-feather));
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--lf-peek-feather));
+}
+.peek-ghost[data-peek-edge='right'] {
+  -webkit-mask-image: linear-gradient(to left, transparent 0, #000 var(--lf-peek-feather));
+  mask-image: linear-gradient(to left, transparent 0, #000 var(--lf-peek-feather));
 }
 .peek-ghost[data-peek='settle'] {
   transition:

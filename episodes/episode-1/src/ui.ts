@@ -897,6 +897,8 @@ export class Ui {
     ghost.dataset.peek = settle ? 'settle' : 'drag';
     ghost.style.setProperty('--lf-peek-x', `${style.translateXPercent}%`);
     ghost.style.setProperty('--lf-peek-a', String(style.opacity));
+    ghost.style.setProperty('--lf-peek-feather', `${Math.round(style.feather * 1000) / 10}%`);
+    ghost.dataset.peekEdge = style.featherEdge;
   }
 
   /** Ends the peek: the copy goes and the real screens take taps again. */

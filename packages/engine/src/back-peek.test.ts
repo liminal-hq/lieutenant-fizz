@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BackPeek,
+  PEEK_FEATHER_FRACTION,
   PEEK_SETTLE_MS,
   PEEK_SLIDE_PERCENT,
   PEEK_TIMEOUT_MS,
@@ -18,7 +19,12 @@ import {
 describe('peekStyle', () => {
   it('is exactly the rest state at progress 0', () => {
     for (const edge of ['left', 'right'] as const) {
-      expect(peekStyle(0, edge, false)).toEqual({ translateXPercent: 0, opacity: 1 });
+      expect(peekStyle(0, edge, false)).toEqual({
+        translateXPercent: 0,
+        opacity: 1,
+        feather: 0,
+        featherEdge: edge,
+      });
       expect(Object.is(peekStyle(0, edge, false).translateXPercent, 0)).toBe(true);
     }
   });
@@ -38,6 +44,8 @@ describe('peekStyle', () => {
     expect(peekStyle(1, 'left', false)).toEqual({
       translateXPercent: PEEK_SLIDE_PERCENT,
       opacity: 0,
+      feather: PEEK_FEATHER_FRACTION,
+      featherEdge: 'left',
     });
     expect(peekStyle(1, 'right', false).translateXPercent).toBe(-PEEK_SLIDE_PERCENT);
   });
@@ -52,10 +60,27 @@ describe('peekStyle', () => {
     }
   });
 
+  it('feathers the edge the screen leaves behind, for both edges', () => {
+    const left = peekStyle(0.5, 'left', false);
+    const right = peekStyle(0.5, 'right', false);
+    expect(left.feather).toBe(PEEK_FEATHER_FRACTION);
+    expect(left.featherEdge).toBe('left');
+    expect(right.feather).toBe(PEEK_FEATHER_FRACTION);
+    expect(right.featherEdge).toBe('right');
+  });
+
+  it('grows the feather from nothing at the start', () => {
+    const early = peekStyle(0.02, 'left', false).feather;
+    expect(early).toBeGreaterThan(0);
+    expect(early).toBeLessThan(PEEK_FEATHER_FRACTION);
+    expect(peekStyle(0, 'left', false).feather).toBe(0);
+  });
+
   it('only fades under reduced motion', () => {
     const full = peekStyle(0.5, 'left', false);
     const reduced = peekStyle(0.5, 'left', true);
     expect(reduced.translateXPercent).toBe(0);
+    expect(reduced.feather).toBe(0);
     expect(reduced.opacity).toBe(full.opacity);
   });
 
@@ -136,7 +161,8 @@ describe('BackPeek', () => {
     r.frame();
     expect(r.log).toEqual([]);
     r.peek.started('right');
-    expect(r.styles[0]).toEqual({ style: { translateXPercent: 0, opacity: 1 }, settle: false });
+    expect(r.styles[0]?.style).toMatchObject({ translateXPercent: 0, opacity: 1, feather: 0 });
+    expect(r.styles[0]?.settle).toBe(false);
     r.peek.progress(0.2);
     r.peek.progress(0.6);
     expect(r.styles).toHaveLength(1);
@@ -153,7 +179,8 @@ describe('BackPeek', () => {
     r.peek.cancelled();
     r.frame();
     const last = r.styles[r.styles.length - 1];
-    expect(last).toEqual({ style: { translateXPercent: 0, opacity: 1 }, settle: true });
+    expect(last?.style).toMatchObject({ translateXPercent: 0, opacity: 1, feather: 0 });
+    expect(last?.settle).toBe(true);
     expect(r.peek.active).toBe(true);
     r.advance(PEEK_SETTLE_MS);
     expect(r.peek.active).toBe(false);

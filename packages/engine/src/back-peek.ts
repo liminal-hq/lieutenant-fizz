@@ -12,10 +12,18 @@ export interface PeekStyle {
   translateXPercent: number;
   /** 1 at rest, 0 once the screen has faded away. */
   opacity: number;
+  /** The width of the soft edge, as a fraction of the screen's width; 0 for no feather. */
+  feather: number;
+  /** The side of the screen that is feathered: the one the screen is leaving behind (the edge the swipe came from). */
+  featherEdge: SwipeEdge;
 }
 
 /** The furthest the screen slides, in percent of its width. */
 export const PEEK_SLIDE_PERCENT = 30;
+/** The width of the soft edge on the side the sliding screen leaves behind, as a fraction of the screen's width. */
+export const PEEK_FEATHER_FRACTION = 0.14;
+/** The progress over which the feather grows from nothing, so it does not pop in at the first movement. */
+export const PEEK_FEATHER_RAMP = 0.1;
 /** The progress by which the screen has fully faded. */
 export const PEEK_FADE_BY = 0.9;
 /** How long the screen takes to glide back to rest after a cancelled gesture, in milliseconds. */
@@ -28,16 +36,22 @@ const clamp01 = (v: number): number => (Number.isFinite(v) ? Math.min(1, Math.ma
 /**
  * The look of the screen for a gesture's progress (0 to 1). It slides in the direction of the swipe, as
  * Android's own back preview does (a swipe from the left edge moves it right) and fades out by
- * `PEEK_FADE_BY`. Progress 0 is exactly the rest state. With reduced motion it only fades.
+ * `PEEK_FADE_BY`. Progress 0 is exactly the rest state. The edge it leaves behind is feathered, so it does not end in a hard line against what shows through; with reduced motion it only fades, with no slide and no feather.
  */
 export function peekStyle(progress: number, edge: SwipeEdge, reducedMotion: boolean): PeekStyle {
   const p = clamp01(progress);
   const fade = clamp01(p / PEEK_FADE_BY);
   const opacity = 1 - fade * fade * (3 - 2 * fade);
-  if (reducedMotion) return { translateXPercent: 0, opacity };
+  if (reducedMotion) return { translateXPercent: 0, opacity, feather: 0, featherEdge: edge };
   const slide = PEEK_SLIDE_PERCENT * (1 - (1 - p) * (1 - p));
   // `+ 0` turns a negative zero into zero.
-  return { translateXPercent: (edge === 'right' ? -slide : slide) + 0, opacity };
+  const feather = PEEK_FEATHER_FRACTION * clamp01(p / PEEK_FEATHER_RAMP);
+  return {
+    translateXPercent: (edge === 'right' ? -slide : slide) + 0,
+    opacity,
+    feather,
+    featherEdge: edge,
+  };
 }
 
 /** What a peek needs of the game and the page. */
