@@ -1,0 +1,7 @@
+{
+  "default": "fizz-icon.svg",
+  "bg_color": "#0A0A0D",
+  "android_bg": "fizz-icon-background.svg",
+  "android_fg": "fizz-icon-foreground.svg",
+  "android_monochrome": "fizz-icon-monochrome.svg"
+}
