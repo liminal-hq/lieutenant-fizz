@@ -3634,7 +3634,7 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-gamepad-haptics"
 version = "0.0.0"
-source = "git+https://github.com/liminal-hq/tauri-plugins-workspace?rev=d17d794cca94a6fd27f33a308a3a5a126b0494fe#d17d794cca94a6fd27f33a308a3a5a126b0494fe"
+source = "git+https://github.com/liminal-hq/tauri-plugins-workspace?rev=62621b5d80a9954ac1a8296297a1d39bcc30fb37#62621b5d80a9954ac1a8296297a1d39bcc30fb37"
 dependencies = [
  "evdev",
  "inotify",

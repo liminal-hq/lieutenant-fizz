@@ -349,7 +349,7 @@ export const COMPILE_SLIDERS: readonly SliderSpec[] = [
   S('Pad (boost)', 'Gain: after the curve', ['boost', 'gain'], 0.5, 2, 0.05),
   S(
     'Pad (boost)',
-    'Light fold: weak light into heavy (0 is off)',
+    'Light fold: weak light into heavy (0 is off, so the plugin pulses the light motor)',
     ['boost', 'lightFoldGain'],
     0,
     1.5,

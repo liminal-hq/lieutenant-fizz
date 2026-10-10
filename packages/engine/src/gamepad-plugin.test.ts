@@ -479,6 +479,22 @@ describe('the backend boost', () => {
     expect(api.plays[1]?.frames[0]?.durationMs).toBe(200);
   });
 
+  it('sends in-between light levels to the plugin with the fold off, and folds them into the heavy motor with it on', async () => {
+    const tap: HapticPattern = {
+      events: [{ kind: 'transient', at: 0, intensity: 0.6, sharpness: 0.7 }],
+    };
+    const { api, backend } = setup([{ ...ds3, lightBinary: true }]);
+    await backend.ready;
+    backend.play(tap, 1);
+    const folded = api.plays[0]?.frames[0];
+    expect(folded?.light).toBe(0);
+    backend.tuneBoost?.({ lightFoldGain: 0 });
+    backend.play(tap, 1);
+    const open = api.plays[1]?.frames[0];
+    expect(open?.light).toBeGreaterThan(0);
+    expect(open?.light).toBeLessThan(LIGHT_ON);
+  });
+
   it('plays the plain compile with the boost off', async () => {
     const api = fakeApi([ds3]);
     const backend = gamepadPluginBackend(fakeBackend({ target: 'controller' }), () => null, {

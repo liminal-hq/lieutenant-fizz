@@ -19,6 +19,7 @@ declare module '@liminal-hq/plugin-gamepad-haptics' {
     motors: number;
     triggers: boolean;
     topTier: number;
+    lightBinary?: boolean;
     reason?: string;
     backend: string;
   }

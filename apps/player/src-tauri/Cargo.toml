@@ -52,7 +52,7 @@ chrono = "0.4"
 # `feat/gamepad-haptics-plugin` (PR #86 in liminal-hq/tauri-plugins-workspace). Desktop only: the phone has no
 # pad backend, and leaving it out keeps the plugin and `evdev` out of the Android build.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri-plugin-gamepad-haptics = { git = "https://github.com/liminal-hq/tauri-plugins-workspace", rev = "d17d794cca94a6fd27f33a308a3a5a126b0494fe" }
+tauri-plugin-gamepad-haptics = { git = "https://github.com/liminal-hq/tauri-plugins-workspace", rev = "62621b5d80a9954ac1a8296297a1d39bcc30fb37" }
 
 [profile.release]
 opt-level = "s"

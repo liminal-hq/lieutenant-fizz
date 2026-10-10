@@ -30,6 +30,8 @@ export interface NativePad {
   /** `usb`, `bluetooth` or `unknown`. */
   transport?: string;
   topTier: number;
+  /** The light motor only switches on and off (a DualShock 3): the plugin pulses it to approximate a level. */
+  lightBinary?: boolean;
   reason?: string;
 }
 
