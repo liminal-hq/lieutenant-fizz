@@ -153,8 +153,8 @@ describe('choosePad', () => {
     expect(choosePad([], DS3_WEB)).toEqual({ kind: 'web' });
   });
 
-  it('does not play a listed pad it cannot drive through the webview either', () => {
-    expect(choosePad([{ ...ds3, topTier: 0 }], DS3_WEB)).toEqual({ kind: 'none' });
+  it('leaves a listed pad it cannot drive to the webview, which fails quietly without an actuator', () => {
+    expect(choosePad([{ ...ds3, topTier: 0 }], DS3_WEB)).toEqual({ kind: 'web' });
   });
 
   it('breaks a tie between identical pads by slot', () => {
@@ -317,6 +317,16 @@ describe('gamepadPluginBackend', () => {
     backend.play(thump, 1);
     backend.play(thump, 1);
     expect(api.stops).toHaveLength(0);
+  });
+
+  it('plays a listed pad the plugin cannot write through the webview when that can', async () => {
+    const mute = { ...ds3, topTier: 0, reason: 'No write access' };
+    const { api, fallback, backend } = setup([mute], { id: DS3_WEB.id });
+    await backend.ready;
+    expect(backend.caps().available).toBe(true);
+    expect(backend.play(thump, 1).ok).toBe(true);
+    expect(fallback.plays).toHaveLength(1);
+    expect(api.plays).toHaveLength(0);
   });
 
   it('passes rumble tuning to the compiler and the webview backend', async () => {

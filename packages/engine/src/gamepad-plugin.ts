@@ -159,7 +159,8 @@ export type PadChoice = { kind: 'native'; pad: NativePad } | { kind: 'web' } | {
 
 /**
  * Which pad a cue plays on. The plugin's rule is one writer per pad: a pad it can address is played
- * natively, and only a pad it cannot is left to the webview.
+ * natively, and only a pad it cannot (one it does not list, or lists without write access) is left to the
+ * webview.
  *
  * - The pad the player used last (`web`, the Gamepad the game reads) decides when there is one: its native
  *   twin plays it, and when none fits it is the webview's to play. Two identical pads match equally; the
@@ -172,8 +173,8 @@ export function choosePad(pads: readonly NativePad[], web: { id: string } | null
   if (web) {
     const fit = matchPads(playable, web).sort((a, b) => a.slot - b.slot)[0];
     if (fit) return { kind: 'native', pad: fit };
-    // A pad the plugin lists but cannot play (no write access) is not the webview's to play either.
-    if (matchPads(pads, web).length > 0) return { kind: 'none' };
+    // A pad the plugin lists but cannot play (no write access) is still the webview's to try: it never
+    // writes the same pad, and the web backend reports unavailable when its Gamepad has no actuator.
     return { kind: 'web' };
   }
   const first = [...playable].sort((a, b) => a.slot - b.slot)[0];
@@ -343,7 +344,13 @@ export function gamepadPluginBackend(
           name: padLabel(c.pad),
         };
       }
-      if (c.kind === 'web') return fallback.caps();
+      if (c.kind === 'web') {
+        const web = fallback.caps();
+        // Where the webview cannot play either, say why the plugin could not (no write access), not only that
+        // the webview has no actuator.
+        const unplayable = pads.find((p) => p.topTier === 0 && p.reason);
+        return web.available || !unplayable ? web : { ...web, reason: unplayable.reason };
+      }
       const unplayable = pads[0];
       return {
         id: 'gamepad',
