@@ -47,7 +47,7 @@ To fill in: workflow run, commit, Tauri and CLI versions, NDK version, APK size,
 | E4 | Episode 1 frame rate, measured on the episode page with `?debug` (median at least 58 fps at 60 Hz, p95 at most 20 ms, under 1% over 33 ms) | | | | |
 | E4i | Idle display refresh from the probe page (reports the refresh rate the WebView delivers with no renderer; context for E4, not a pass or fail) | | | | |
 | E5 | Pixel scale (same `s`, `k` and tiles as Chrome) | | | | |
-| E6 | Audio start (running after the first gesture, no crackle in Enhanced) | | | | |
+| E6 | Audio start (running before any gesture: the probe's `audioBeforeGesture` is `running` and the game's title music plays at boot in the app; no crackle in Enhanced; a pass that needs a tap first is a fail) | | | | |
 | E7 | Gamepad (standard mapping, key events only, or nothing) | | | | |
 | E8 | Touch (same as Chrome, no stuck buttons) | | | | |
 | E9 | Safe areas and viewport (non-zero insets on the cutout side) | | | | |
@@ -61,7 +61,7 @@ To fill in: workflow run, commit, Tauri and CLI versions, NDK version, APK size,
 | E16 | Remote dev loop | | | | |
 | E17 | Desktop WebKitGTK smoke (optional) | | | | |
 
-**Go** if E1 to E5 pass, E6 works after a tap, E8 matches Chrome and E12a passes. **No-go** if WebGL2 is missing or under 45 fps where Chrome manages 60, or storage does not persist.
+**Go** if E1 to E5 pass, E6 runs before any gesture, E8 matches Chrome and E12a passes. **No-go** if WebGL2 is missing or under 45 fps where Chrome manages 60, or storage does not persist.
 
 ## Findings from the first device run
 
