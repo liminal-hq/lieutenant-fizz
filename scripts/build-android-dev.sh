@@ -88,12 +88,14 @@ fi
 CACHE_ARGS=(-e "CARGO_BUILD_JOBS=$JOBS" -e "GRADLE_OPTS=-Dorg.gradle.workers.max=$JOBS" --cpus "$JOBS")
 BUILD_ENV=""
 if [ -n "$SCRATCH" ]; then
-  mkdir -p "$SCRATCH/cargo-target" "$SCRATCH/cargo-registry" "$SCRATCH/gradle" "$SCRATCH/sdk-extras"
+  mkdir -p "$SCRATCH/cargo-target" "$SCRATCH/cargo-registry" "$SCRATCH/gradle"
   CACHE_ARGS+=(
     -v "$SCRATCH/cargo-target:/scratch/cargo-target"
     -v "$SCRATCH/cargo-registry:/home/vscode/.cargo/registry"
     -v "$SCRATCH/gradle:/home/vscode/.gradle"
-    -v "$SCRATCH/sdk-extras:/home/vscode/Android/Sdk"
+    # The SDK stays on a named volume: Docker fills it from the image on first use, while a host
+    # directory would start empty and hide the image's SDK and NDK.
+    -v fizz-android-sdk-extras:/home/vscode/Android/Sdk
   )
   # Only the Android build moves: `build:wasm` copies from the repository's own target directory.
   BUILD_ENV="CARGO_TARGET_DIR=/scratch/cargo-target"
