@@ -17,6 +17,8 @@
 #   - `compileSdk` and `targetSdk` 36 rather than the template's 37, to match the CI images
 #   - release signing: a `release` signing config reading `keystore.properties` from the Gradle root, set on
 #     the release build type only when that file exists (the release workflow writes it)
+#   - native debug symbols: `ndk { debugSymbolLevel = "FULL" }` on the release build type, so the bundle carries
+#     the symbols Play uses to symbolicate native crashes (the libraries must be built unstripped; see docs/APP.md)
 #
 # `android.permission.VIBRATE` is not added here: the haptics plugin's `build.rs` adds it.
 #
@@ -144,5 +146,24 @@ EOF
   mv "$GRADLE.new" "$GRADLE"
   rm -f "$SIGNING"
   grep -q 'signingConfig = signingConfigs.getByName("release")' "$GRADLE" || die "release signing not applied to $GRADLE"
+fi
+# Native debug symbols: the release build type packs FULL symbols into the bundle's metadata.
+if ! grep -q 'debugSymbolLevel' "$GRADLE"; then
+  grep -q '^            optimization {$' "$GRADLE" || die "anchor 'optimization {' missing in $GRADLE"
+  NDK="$(mktemp)"
+  cat > "$NDK" <<'EOF'
+            // Keeps the native debug symbols out of the app and in the bundle's metadata, where Play reads them to
+            // symbolicate native crashes. The libraries must be unstripped for there to be any (the release workflow).
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
+EOF
+  awk -v block="$NDK" '
+    /^            optimization \{$/ { while ((getline line < block) > 0) print line }
+    { print }
+  ' "$GRADLE" > "$GRADLE.new"
+  mv "$GRADLE.new" "$GRADLE"
+  rm -f "$NDK"
+  grep -q 'debugSymbolLevel = "FULL"' "$GRADLE" || die "native debug symbols not applied to $GRADLE"
 fi
 echo "android settings applied to $GEN"

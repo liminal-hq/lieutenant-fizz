@@ -59,6 +59,11 @@ android {
             if (rootProject.file("keystore.properties").exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
+            // Keeps the native debug symbols out of the app and in the bundle's metadata, where Play reads them to
+            // symbolicate native crashes. The libraries must be unstripped for there to be any (the release workflow).
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             optimization {
                enable = true
             }
