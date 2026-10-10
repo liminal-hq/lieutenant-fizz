@@ -502,7 +502,7 @@ export interface BackendOption {
   reason?: string;
 }
 
-/** The four backend buttons, each with the reason it is disabled when its target cannot play. */
+/** The four backend buttons (Auto, Phone, Pad and Off), each with the reason it is disabled when its target cannot play. */
 export function backendOptions(caps: BackendCaps): BackendOption[] {
   const opt = (
     choice: BackendChoice,
@@ -523,7 +523,7 @@ export function backendOptions(caps: BackendCaps): BackendOption[] {
       'no phone vibrator or controller',
     ),
     opt('phone', 'Phone', caps.device.available, caps.device.reason),
-    opt('controller', 'Controller', caps.controller.available, caps.controller.reason),
+    opt('controller', 'Pad', caps.controller.available, caps.controller.reason),
     opt('off', 'Off', true, undefined),
   ];
 }
@@ -546,6 +546,8 @@ export function pickTarget(choice: BackendChoice, route: Route, caps: BackendCap
 
 export interface StatusInput {
   caps: BackendCaps;
+  /** The target chosen in the header; the status explains an unavailable target only when it is the one wanted. Auto when omitted. */
+  choice?: BackendChoice;
   /** Whether the page has had a tap (`navigator.userActivation.hasBeenActive`), or null when the browser does not say. */
   tapped: boolean | null;
   last?: Pick<PlayRecord, 'cue' | 'target' | 'ok' | 'tier' | 'reason' | 'compiled'> | undefined;
@@ -553,10 +555,30 @@ export interface StatusInput {
 
 /** One line for the header: whether the vibrator and a pad work, whether the page was tapped, and the last play. */
 export function labStatus(i: StatusInput): string {
-  const phone = i.caps.device.available ? 'phone yes' : `phone no (${i.caps.device.reason ?? '?'})`;
-  const pad = i.caps.controller.available
-    ? `pad ${i.caps.controller.name ?? 'yes'}`
-    : `pad no (${i.caps.controller.reason ?? '?'})`;
+  const choice = i.choice ?? 'auto';
+  const { device, controller } = i.caps;
+  // A target that cannot play is explained only when it is the one chosen, or in Auto when neither can.
+  const neither = !device.available && !controller.available;
+  const showPhone =
+    device.available ||
+    choice === 'phone' ||
+    (choice === 'auto' && !controller.available) ||
+    neither;
+  const showPad =
+    controller.available ||
+    choice === 'controller' ||
+    (choice === 'auto' && !device.available) ||
+    neither;
+  const phone = !showPhone
+    ? ''
+    : device.available
+      ? 'phone yes'
+      : `phone no (${device.reason ?? '?'})`;
+  const pad = !showPad
+    ? ''
+    : controller.available
+      ? `pad ${controller.name ?? 'yes'}`
+      : `pad no (${controller.reason ?? '?'})`;
   const tapped = i.tapped === null ? '' : i.tapped ? 'tapped yes' : 'tapped no: tap the page once';
   const l = i.last;
   const last = !l

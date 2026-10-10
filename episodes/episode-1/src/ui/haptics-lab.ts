@@ -290,6 +290,7 @@ export class HapticsLab {
   private refreshStatus(): void {
     this.status.textContent = labStatus({
       caps: this.caps(),
+      choice: this.backend,
       tapped: this.h.tapped(),
       last: this.h.last(),
     });
@@ -644,7 +645,7 @@ export class HapticsLab {
     };
     const ladder = (t: Target): void => {
       if (!this.caps()[t === 'device' ? 'device' : 'controller'].available) {
-        this.compareNote.textContent = `${t === 'device' ? 'Phone' : 'Controller'} cannot play here.`;
+        this.compareNote.textContent = `${t === 'device' ? 'Phone' : 'Pad'} cannot play here.`;
         return;
       }
       this.run(floorLadder(t), 'Floor ladder');

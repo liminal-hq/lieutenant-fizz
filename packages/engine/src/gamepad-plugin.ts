@@ -27,6 +27,8 @@ export interface NativePad {
   productId: number;
   serial?: string;
   guid?: string;
+  /** `usb`, `bluetooth` or `unknown`. */
+  transport?: string;
   topTier: number;
   reason?: string;
 }
@@ -221,6 +223,12 @@ export interface GamepadPluginBackend extends HapticBackend {
   refresh(): Promise<NativePad[]>;
 }
 
+/** A pad for people: its name, how it is connected and the plugin's id for it. */
+export function padLabel(pad: Pick<NativePad, 'id' | 'name' | 'transport'>): string {
+  const how = pad.transport && pad.transport !== 'unknown' ? `, ${pad.transport}` : '';
+  return `${pad.name}${how} (${pad.id})`;
+}
+
 const message = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 /**
@@ -326,7 +334,7 @@ export function gamepadPluginBackend(
           available: true,
           tier: c.pad.topTier >= 2 ? 2 : 1,
           target: 'controller',
-          name: c.pad.name,
+          name: padLabel(c.pad),
         };
       }
       if (c.kind === 'web') return fallback.caps();

@@ -21,6 +21,7 @@ import {
   framesOf,
   gamepadPluginBackend,
   isOnOffLightPad,
+  padLabel,
   matchPads,
   parseGamepadId,
   pluginPadApi,
@@ -242,7 +243,11 @@ describe('gamepadPluginBackend', () => {
     api.emit();
     await settle();
     expect(seen).toEqual([1]);
-    expect(backend.caps()).toMatchObject({ available: true, target: 'controller', name: ds3.name });
+    expect(backend.caps()).toMatchObject({
+      available: true,
+      target: 'controller',
+      name: padLabel(ds3),
+    });
     backend.play(thump, 1);
     expect(api.plays).toHaveLength(1);
 
@@ -548,5 +553,24 @@ describe('two pads at once', () => {
     backend.play(cue('bonk'), 1);
     expect(api.plays[0]?.frames).toEqual(framesOf(compileRumble(cue('bonk'), 1)));
     expect(api.plays[1]?.frames[0]?.durationMs).toBeGreaterThanOrEqual(RUMBLE_BOOST.minMs);
+  });
+});
+
+describe('padLabel and caps', () => {
+  it('names the pad, how it is connected and the plugin id', () => {
+    expect(padLabel({ ...ds4, transport: 'bluetooth' })).toBe(
+      'Wireless Controller, bluetooth (gamepad:0)',
+    );
+    expect(padLabel({ ...ds4, transport: 'unknown' })).toBe('Wireless Controller (gamepad:0)');
+  });
+
+  it('reports the pad as available with no vibrationActuator and no input from it', async () => {
+    const { backend } = setup([{ ...ds4, transport: 'bluetooth' }], null);
+    await backend.ready;
+    expect(backend.caps()).toMatchObject({
+      available: true,
+      target: 'controller',
+      name: 'Wireless Controller, bluetooth (gamepad:0)',
+    });
   });
 });
