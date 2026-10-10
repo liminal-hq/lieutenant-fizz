@@ -1,3 +1,8 @@
+// Vite config for the player app's own pages (the spike menu and the capability probe).
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 
