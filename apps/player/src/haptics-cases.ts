@@ -189,14 +189,27 @@ export const SMOKE_CASES: readonly SmokeCase[] = [
   {
     id: 8,
     title: 'Empty envelope',
-    expect: 'Empty controlPoints reject INVALID_EFFECT with scale 0 and again with maxTier 1.',
+    expect:
+      'Empty controlPoints reject as an invalid request with scale 0 and again with maxTier 1. The INVALID_EFFECT code is added by the JS guest, so raw IPC shows only the message.',
     calls: () => [
       play({ type: 'envelopeWaveform', controlPoints: [] }, { scale: 0 }),
       play({ type: 'envelopeWaveform', controlPoints: [] }, { maxTier: 1 }),
     ],
-    verdict: (o) => yes(o.length === 2 && o.every((x) => /INVALID_EFFECT/i.test(x.error ?? ''))),
+    verdict: (o) =>
+      yes(o.length === 2 && o.every((x) => /INVALID_EFFECT|invalid request/i.test(x.error ?? ''))),
   },
 ];
+
+/** The engine the page runs in, named as it is called there: the Android WebView, WebKitGTK, or the browser's own name. */
+export function readEngine(ua: string): { name: string; version?: string } {
+  const chrome = /Chrome\/([\d.]+)/.exec(ua)?.[1];
+  if (/Android/.test(ua) && /; wv\)/.test(ua))
+    return { name: 'WebView', ...(chrome ? { version: chrome } : {}) };
+  if (chrome) return { name: 'Chromium', version: chrome };
+  const webkit = /AppleWebKit\/([\d.]+)/.exec(ua)?.[1];
+  if (webkit) return { name: /Linux/.test(ua) ? 'WebKitGTK' : 'WebKit', version: webkit };
+  return { name: 'engine' };
+}
 
 /** What the user agent says about the phone: Android release, model and Chrome (WebView) version. */
 export function readUserAgent(ua: string): { android?: string; model?: string; webview?: string } {

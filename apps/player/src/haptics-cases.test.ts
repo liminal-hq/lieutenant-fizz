@@ -9,6 +9,7 @@ import {
   SMOKE_CASES,
   longEnvelope,
   missingPrimitive,
+  readEngine,
   readUserAgent,
   unsupportedEffect,
   validEnvelope,
@@ -100,10 +101,37 @@ describe('smoke cases', () => {
     ).toBe('ok');
     expect(
       c8?.verdict([
+        { call, error: 'invalid request: controlPoints cannot be empty' },
+        { call, error: 'invalid request: controlPoints cannot be empty' },
+      ]),
+    ).toBe('ok');
+    expect(
+      c8?.verdict([
         { call, error: 'INVALID_EFFECT' },
         { call, result: res('') },
       ]),
     ).toBe('check');
+  });
+});
+
+describe('readEngine', () => {
+  it('names the Android WebView, WebKitGTK and a Chromium browser', () => {
+    expect(
+      readEngine(
+        'Mozilla/5.0 (Linux; Android 17; Pixel 8 Pro Build/CP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/153.0.8010.36 Mobile Safari/537.36',
+      ),
+    ).toEqual({ name: 'WebView', version: '153.0.8010.36' });
+    expect(
+      readEngine(
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.1',
+      ),
+    ).toEqual({ name: 'WebKitGTK', version: '605.1.15' });
+    expect(
+      readEngine(
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+      ),
+    ).toEqual({ name: 'Chromium', version: '130.0.0.0' });
+    expect(readEngine('curl/8')).toEqual({ name: 'engine' });
   });
 });
 

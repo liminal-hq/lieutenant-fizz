@@ -20,6 +20,7 @@ import { hapticLabItems } from '../../../episodes/episode-1/src/haptics/lab';
 import {
   SMOKE_CASES,
   missingPrimitive,
+  readEngine,
   readUserAgent,
   unsupportedEffect,
   type Outcome,
@@ -338,10 +339,17 @@ function describeCaps(c: PluginCaps | null, why?: string): void {
     ['plugin', __HAPTICS_PLUGIN_REV__.slice(0, 7)],
     ['in the app', String(isAppHost(window))],
     ['device', c?.device ? `${c.device.manufacturer} ${c.device.model}` : (ua.model ?? '?')],
-    ['Android', c?.device?.release ?? ua.android ?? '?'],
-    ['API', c?.sdkInt !== undefined ? String(c.sdkInt) : '?'],
-    ['WebView', ua.webview ?? '?'],
   ];
+  // Android only: the release and API level mean nothing on a desktop (the plugin reports `linux` there).
+  const android = c?.device?.release ?? ua.android;
+  if (android || c?.sdkInt !== undefined) {
+    items.push(
+      ['Android', android ?? '?'],
+      ['API', c?.sdkInt !== undefined ? String(c.sdkInt) : '?'],
+    );
+  }
+  const engine = readEngine(navigator.userAgent);
+  items.push([engine.name, engine.version ?? '?']);
   if (c) {
     const prims = Object.entries(c.primitives)
       .filter(([, v]) => v?.supported)
@@ -352,8 +360,9 @@ function describeCaps(c: PluginCaps | null, why?: string): void {
       ['primitives', prims.length ? prims.join(' ') : 'none'],
       ['envelope', String(c.envelopeSupported)],
       ['topTier', String(c.topTier)],
-      ['touch feedback', String(c.touchFeedbackEnabled ?? '?')],
     );
+    if (c.touchFeedbackEnabled !== undefined)
+      items.push(['touch feedback', String(c.touchFeedbackEnabled)]);
   } else items.push(['capabilities', why ?? 'unavailable']);
   box.replaceChildren(
     ...items.map(([k, v]) => {
