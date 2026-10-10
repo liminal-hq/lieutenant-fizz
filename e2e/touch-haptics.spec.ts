@@ -93,7 +93,9 @@ test.describe('haptics', () => {
     );
     expect(cues.length).toBeGreaterThan(0);
     expect(
-      cues.every((c) => c.startsWith('ui.') || ['thunk', 'krunch', 'crumble', 'clang', 'thoom'].includes(c)),
+      cues.every(
+        (c) => c.startsWith('ui.') || ['thunk', 'krunch', 'crumble', 'clang', 'thoom'].includes(c),
+      ),
     ).toBe(true);
     await page.evaluate(() => {
       Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
