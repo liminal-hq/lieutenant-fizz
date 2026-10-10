@@ -83,6 +83,36 @@ const behind = (page: Page, selector: '#overlay' | '#title') =>
     };
   }, selector);
 
+/** The one backdrop of a peek: where it sits, how the two scrims are dissolved, and whether the screens carry their own. */
+const backdrop = (page: Page) =>
+  page.evaluate(() => {
+    const b = document.querySelector<HTMLElement>('.peek-backdrop');
+    if (!b) return null;
+    const r = b.getBoundingClientRect();
+    const layer = (n: string) => {
+      const cs = getComputedStyle(b.querySelector(`.${n}`)!);
+      const dark = cs.backgroundImage !== 'none' || cs.backgroundColor !== 'rgba(0, 0, 0, 0)';
+      return { opacity: Number(cs.opacity), dark };
+    };
+    const bg = (sel: string) => {
+      const e = document.querySelector<HTMLElement>(sel);
+      return e ? getComputedStyle(e).backgroundImage + getComputedStyle(e).backgroundColor : null;
+    };
+    return {
+      left: r.left,
+      top: r.top,
+      width: r.width,
+      height: r.height,
+      vw: window.innerWidth,
+      vh: window.innerHeight,
+      transform: getComputedStyle(b).transform,
+      from: layer('from'),
+      to: layer('to'),
+      ghostBg: bg('.peek-ghost'),
+      realBg: bg('#overlay:not(.peek-ghost)'),
+    };
+  });
+
 const heading = (page: Page): Promise<string> =>
   page.evaluate(
     () => document.querySelector<HTMLElement>('#overlay:not(.peek-ghost) h2')?.textContent ?? '',
@@ -166,6 +196,58 @@ test('Options over the pause menu: the pause menu crossfades in with its own Bac
   await expect.poll(() => ghost(page)).toBeNull();
   expect(await heading(page)).toBe('Options');
   expect((await behind(page, '#overlay')).opacity).toBe(1);
+});
+
+test('one non-sliding backdrop dims the whole screen, from the start, whatever the screens do', async ({
+  page,
+}) => {
+  await open(page, 'pause');
+  await tapRow(page, '#overlay .menu', 'Options');
+  expect(await backdrop(page)).toBeNull();
+  await emit(page, { type: 'started', swipeEdge: 'left' });
+  await emit(page, { type: 'progress', progress: 0.1, swipeEdge: 'left' });
+  const early = (await backdrop(page))!;
+  // It covers the viewport and does not move, so no strip the copy leaves is undimmed.
+  expect([early.left, early.top, early.width, early.height]).toEqual([0, 0, early.vw, early.vh]);
+  expect(early.transform).toBe('none');
+  expect(early.from.dark).toBe(true);
+  expect(early.to.dark).toBe(true);
+  // The copy and the screen behind carry no scrim of their own: nothing stacks and nothing slides.
+  expect(early.ghostBg).toBe('nonergba(0, 0, 0, 0)');
+  expect(early.realBg).toBe('nonergba(0, 0, 0, 0)');
+  expect(early.from.opacity + early.to.opacity).toBeCloseTo(1, 2);
+  expect(early.from.opacity).toBeGreaterThan(0.9);
+  await emit(page, { type: 'progress', progress: 0.5, swipeEdge: 'left' });
+  const mid = (await backdrop(page))!;
+  expect(mid.from.opacity + mid.to.opacity).toBeCloseTo(1, 2);
+  expect(mid.to.opacity).toBeGreaterThan(early.to.opacity);
+  expect(mid.transform).toBe('none');
+  await emit(page, { type: 'cancelled' });
+  await expect.poll(() => backdrop(page)).toBeNull();
+  // The real screen has its own scrim again.
+  const realBg = await page.evaluate(() => {
+    const e = document.querySelector<HTMLElement>('#overlay')!;
+    return getComputedStyle(e).backgroundImage + getComputedStyle(e).backgroundColor;
+  });
+  expect(realBg).not.toBe('nonergba(0, 0, 0, 0)');
+});
+
+test('the pause menu peek dissolves its backdrop to nothing, to show the game', async ({
+  page,
+}) => {
+  await open(page, 'pause');
+  await emit(page, { type: 'started', swipeEdge: 'left' });
+  await emit(page, { type: 'progress', progress: 0.5, swipeEdge: 'left' });
+  const mid = (await backdrop(page))!;
+  expect(mid.from.dark).toBe(true);
+  expect(mid.to.dark).toBe(false);
+  expect(mid.from.opacity).toBeLessThan(1);
+  expect(mid.from.opacity).toBeGreaterThan(0);
+  await emit(page, { type: 'progress', progress: 0.95, swipeEdge: 'left' });
+  expect((await backdrop(page))!.from.opacity).toBe(0);
+  await emit(page, { type: 'invoked', progress: 1 });
+  expect(await backdrop(page)).toBeNull();
+  expect((await state(page)).screen).toBe('play');
 });
 
 test('the pause menu slides and fades with the gesture, and glides back when it is cancelled', async ({
