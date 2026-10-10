@@ -12,6 +12,8 @@ import { invoke } from '@tauri-apps/api/core';
 export interface PredictiveBackEvent {
   type: 'started' | 'progress' | 'cancelled' | 'invoked';
   progress: number;
+  /** The edge the gesture came from; sent with `started` and `progress` only. */
+  swipeEdge?: 'left' | 'right';
 }
 
 export const PREDICTIVE_BACK_EVENT = 'predictive-back:event';
