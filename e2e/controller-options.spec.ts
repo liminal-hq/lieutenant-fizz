@@ -374,3 +374,24 @@ test('Escape discards what was collected and keeps the old buttons', async ({ pa
   expect(await stored(page)).toBeNull();
   expect(errors).toEqual([]);
 });
+
+test('a Pogo shared with the only Jump button goes back once and stays back', async ({ page }) => {
+  const errors = await boot(page, true);
+  await page.addInitScript(
+    ([k, v]) => localStorage.setItem(k as string, v as string),
+    [BINDINGS, JSON.stringify({ v: 1, jump: [0], pogo: [0], fire: [2, 7], pause: [9] })],
+  );
+  await page.reload();
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+    timeout: 20_000,
+  });
+  await show(page, 'controller');
+  expect(await title(page)).toBe('Controller');
+  await settle(page, 6);
+  // One fresh press is both Back and Jump: Back wins, and the Options screen it reveals is not also chosen from.
+  await setButton(page, 0, true);
+  await settle(page, 10);
+  await setButton(page, 0, false);
+  expect(await title(page)).toBe('Options');
+  expect(errors).toEqual([]);
+});

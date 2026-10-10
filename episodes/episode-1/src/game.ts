@@ -1334,8 +1334,12 @@ export class Game {
         if (move & Bits.LEFT) this.adjust(-1);
         if (move & Bits.RIGHT) this.adjust(1);
       }
-      // B (the pogo button) goes back from a screen opened over a menu.
-      if (this.sub && edge & Bits.POGO) this.closeSub();
+      // B (the pogo button) goes back from a screen opened over a menu. A button shared with Jump or Fizz
+      // is both in one press: going back wins, so the screen it reveals does not also act on it.
+      if (this.sub && edge & Bits.POGO) {
+        this.closeSub();
+        return;
+      }
     }
     if (
       s === 'cine' ||
