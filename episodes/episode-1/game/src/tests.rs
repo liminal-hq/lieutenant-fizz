@@ -3231,3 +3231,72 @@ fn head_bump_raises_no_clunk_on_the_overworld_map() {
     run(&mut w, 120, UP | JUMP);
     assert_eq!(clunks(&w), 0);
 }
+
+#[test]
+fn pogo_bouncing_into_a_slab_clunks_each_bounce() {
+    let mut w = arena();
+    for x in 0..40 {
+        for y in 5..8 {
+            w.map.set(x, y, FILL);
+        }
+    }
+    w.step(POGO);
+    assert!(w.p.pogo);
+    w.events.clear();
+    run(&mut w, 240, JUMP);
+    assert!(clunks(&w) >= 3, "clunks = {}", clunks(&w));
+}
+
+#[test]
+fn pogo_flush_against_a_slab_clunks() {
+    let mut w = arena();
+    for x in 0..40 {
+        for y in 4..8 {
+            w.map.set(x, y, FILL);
+        }
+    }
+    w.step(POGO);
+    w.events.clear();
+    run(&mut w, 120, 0);
+    assert!(clunks(&w) >= 1, "clunks = {}", clunks(&w));
+}
+
+#[test]
+fn a_full_pogo_bounce_that_just_misses_the_slab_still_clunks_once() {
+    // Slab bottom at 10.0: the body's best bounce tops out at about 9.77, but the drawn head, 0.6 above
+    // the body, goes into the slab.
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 10, FILL);
+    }
+    w.step(POGO);
+    w.events.clear();
+    let mut bonks = 0;
+    for _ in 0..400 {
+        w.step(JUMP);
+        bonks += usize::from(w.p.b.bonk);
+    }
+    let boings = events_of(&w, ev::CAPTION)
+        .iter()
+        .filter(|e| e.c == f32::from(Cap::Boing as u16))
+        .count();
+    assert_eq!(bonks, 0, "the body never touches the slab");
+    assert!(boings >= 4, "boings = {boings}");
+    assert!(
+        clunks(&w) + 1 >= boings && clunks(&w) <= boings,
+        "one clunk per bounce: {} clunks, {boings} boings",
+        clunks(&w)
+    );
+}
+
+#[test]
+fn a_low_pogo_bounce_under_a_high_slab_stays_silent() {
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 12, FILL);
+    }
+    w.step(POGO);
+    w.events.clear();
+    run(&mut w, 300, 0);
+    assert_eq!(clunks(&w), 0);
+}

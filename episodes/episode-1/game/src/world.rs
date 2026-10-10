@@ -59,6 +59,11 @@ pub const WALL_KICK_COOLDOWN: f64 = 0.25;
 /// How fast Ben must be rising (tiles per second) when his head meets a ceiling for it to clunk.
 pub const HEAD_BUMP_MIN_SPEED: f64 = 1.0;
 
+/// How tall Ben is drawn on the pogo stick (32 pixels): 0.6 above his 1.4-tile body, which stops at his
+/// head only. A pogo bounce clunks when the drawn head meets a solid tile, so the sound matches the
+/// picture even when the body just misses the ceiling.
+pub const POGO_DRAWN_HEIGHT: f64 = 2.0;
+
 /// Ladder climbing speed in tiles per second.
 pub const CLIMB_SPEED: f64 = 4.5;
 
@@ -191,6 +196,8 @@ pub struct Player {
     pub dead_sent: bool,
     pub inv: f64,
     pub squash: f64,
+    /// Whether this rise has already clunked, so one bounce or jump sounds once.
+    pub bumped: bool,
     pub look_down: f64,
     pub look_up: f64,
     /// Holding a ladder: gravity and running are off and Up/Down move Ben along it.
@@ -225,6 +232,7 @@ impl Player {
             dead_sent: false,
             inv: 0.0,
             squash: 0.0,
+            bumped: false,
             look_down: 0.0,
             look_up: 0.0,
             climb: false,
@@ -1152,23 +1160,50 @@ impl World {
             self.fire();
         }
         let rising = self.p.b.vy;
+        let drawn_top = self.p.b.y + POGO_DRAWN_HEIGHT;
         self.p.b.phys(&self.map, &self.plats, dt);
         if self.p.b.bonk && self.p.pogo {
             self.p.b.vy = 0.0;
         }
-        // Ben's head meets a ceiling while he was rising: one clunk for the bump. The hit zeroes his
-        // upward speed, so a held jump or a fall under the same ceiling does not repeat it. Climbing
-        // sets his speed every tick, so a ladder or vine against a ceiling stays quiet.
-        if self.p.b.bonk && rising > HEAD_BUMP_MIN_SPEED && !self.p.climb {
-            let (x, y) = (self.p.b.x + self.p.b.w / 2.0, self.p.b.y + self.p.b.h);
-            self.cap(x, y, Cap::Clunk);
-        }
+        self.tick_head_bump(rising, drawn_top);
         self.p.anim += if self.p.climb {
             self.p.b.vy.abs() + self.p.b.vx.abs()
         } else {
             self.p.b.vx.abs()
         } * dt;
         self.tick_mantle(ax);
+    }
+
+    /// Raises the "clunk" when Ben's head meets a ceiling while he rises, once per rise. The hit zeroes
+    /// his upward speed, so a held jump or a fall under the same ceiling does not repeat it, and
+    /// climbing (which sets his speed every tick) stays quiet. On the pogo stick the drawn head is 0.6
+    /// above the body, so it also clunks when that head enters a solid tile above, even when the body
+    /// has not quite touched it. `rising` is his upward speed before the move and `drawn_top` where
+    /// his drawn head was.
+    fn tick_head_bump(&mut self, rising: f64, drawn_top: f64) {
+        if self.p.b.vy <= 0.0 && !self.p.b.bonk {
+            self.p.bumped = false;
+        }
+        if self.p.bumped || self.p.climb || rising <= HEAD_BUMP_MIN_SPEED {
+            return;
+        }
+        let b = &self.p.b;
+        let hit = b.bonk
+            || (self.p.pogo && {
+                let top = b.y + POGO_DRAWN_HEIGHT;
+                let row = top.floor() as i32;
+                let (x0, x1) = (
+                    (b.x + 1e-4).floor() as i32,
+                    (b.x + b.w - 1e-4).floor() as i32,
+                );
+                row != drawn_top.floor() as i32
+                    && (x0..=x1).any(|cx| self.map.solid(cx, row, false, 0.0))
+            });
+        if hit {
+            let (x, y) = (b.x + b.w / 2.0, b.y + b.h);
+            self.p.bumped = true;
+            self.cap(x, y, Cap::Clunk);
+        }
     }
 
     /// Hazards, doors, items, enemy contact and the exit, at wherever Ben ended up this tick.
