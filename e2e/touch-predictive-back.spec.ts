@@ -65,6 +65,24 @@ const ghost = (page: Page) =>
     };
   });
 
+/** The real screen drawn behind the copy (what Back goes to), and the Back buttons: the real one and the copy's. */
+const behind = (page: Page, selector: '#overlay' | '#title') =>
+  page.evaluate((sel) => {
+    const el = document.querySelector<HTMLElement>(`${sel}:not(.peek-ghost)`);
+    const cs = el ? getComputedStyle(el) : null;
+    const real = document.querySelector<HTMLElement>('#backBtn');
+    const copy = document.querySelector<HTMLElement>('.peek-ghost .peek-back');
+    const rect = (e: HTMLElement | null) => (e ? e.getBoundingClientRect().left : null);
+    return {
+      opacity: cs ? Number(cs.opacity) : null,
+      visibility: cs?.visibility ?? null,
+      realBackVisibility: real && !real.hidden ? getComputedStyle(real).visibility : null,
+      realBackOpacity: real && !real.hidden ? Number(getComputedStyle(real).opacity) : null,
+      realBackLeft: rect(real),
+      copyBackLeft: rect(copy),
+    };
+  }, selector);
+
 const heading = (page: Page): Promise<string> =>
   page.evaluate(
     () => document.querySelector<HTMLElement>('#overlay:not(.peek-ghost) h2')?.textContent ?? '',
@@ -91,6 +109,64 @@ const tapRow = async (page: Page, root: '#title > .menu' | '#overlay .menu', lab
   await page.touchscreen.tap(r.x + r.width / 2, r.y + r.height / 2);
   await settle(page);
 };
+
+test('the Back button goes with the sliding screen, and the screen behind crossfades in', async ({
+  page,
+}) => {
+  await open(page, 'title');
+  await show(page, 'options');
+  const rest = await behind(page, '#title');
+  expect(rest.realBackVisibility).toBe('visible');
+  await emit(page, { type: 'started', swipeEdge: 'left' });
+  // Below the threshold nothing of the title menu is drawn behind the copy.
+  await emit(page, { type: 'progress', progress: 0.05, swipeEdge: 'left' });
+  const early = await behind(page, '#title');
+  expect(early.visibility).toBe('hidden');
+  expect(early.opacity).toBe(0);
+  await emit(page, { type: 'progress', progress: 0.5, swipeEdge: 'left' });
+  const mid = await behind(page, '#title');
+  expect(mid.visibility).toBe('visible');
+  expect(mid.opacity).toBeGreaterThan(0.3);
+  expect(mid.opacity).toBeLessThan(1);
+  // The title has no Back button: the real one is not drawn, and the copy's has slid with the screen.
+  expect(mid.realBackVisibility).toBeNull();
+  expect(mid.copyBackLeft).not.toBeNull();
+  expect(mid.copyBackLeft!).toBeGreaterThan((rest.realBackLeft ?? 0) + 20);
+  await emit(page, { type: 'progress', progress: 0.9, swipeEdge: 'left' });
+  expect((await behind(page, '#title')).opacity).toBeGreaterThan(mid.opacity!);
+  await emit(page, { type: 'cancelled' });
+  await expect.poll(() => ghost(page)).toBeNull();
+  const after = await behind(page, '#title');
+  expect(after.realBackVisibility).toBe('visible');
+  expect(after.realBackLeft).toBe(rest.realBackLeft);
+  expect(after.copyBackLeft).toBeNull();
+  expect(await visible(page, '#title')).toBe(false);
+  expect(await heading(page)).toBe('Options');
+});
+
+test('Options over the pause menu: the pause menu crossfades in with its own Back button', async ({
+  page,
+}) => {
+  await open(page, 'pause');
+  await tapRow(page, '#overlay .menu', 'Options');
+  expect((await state(page)).screen).toBe('pause');
+  await emit(page, { type: 'started', swipeEdge: 'left' });
+  await emit(page, { type: 'progress', progress: 0.05, swipeEdge: 'left' });
+  const early = await behind(page, '#overlay');
+  expect(early.visibility).toBe('hidden');
+  expect(early.realBackVisibility).toBe('hidden');
+  expect(early.copyBackLeft).not.toBeNull();
+  await emit(page, { type: 'progress', progress: 0.6, swipeEdge: 'left' });
+  const mid = await behind(page, '#overlay');
+  expect(mid.visibility).toBe('visible');
+  expect(mid.opacity).toBeGreaterThan(0.5);
+  expect(mid.realBackVisibility).toBe('visible');
+  expect(mid.realBackOpacity).toBeCloseTo(mid.opacity!, 2);
+  await emit(page, { type: 'cancelled' });
+  await expect.poll(() => ghost(page)).toBeNull();
+  expect(await heading(page)).toBe('Options');
+  expect((await behind(page, '#overlay')).opacity).toBe(1);
+});
 
 test('the pause menu slides and fades with the gesture, and glides back when it is cancelled', async ({
   page,
