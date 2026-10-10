@@ -3,15 +3,28 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { SwipeEdge } from './back-peek';
 import type { HostKind } from './host';
 
 /** The Tauri event the plugin emits for each frame of a back gesture. */
 export const PREDICTIVE_BACK_EVENT = 'predictive-back:event';
 
-/** One frame of the native back gesture. Only `invoked` is acted on for now. */
+/**
+ * One frame of the native back gesture. `swipeEdge` is the edge the gesture came from; the plugin sends
+ * it with `started` and `progress` only, and an older build does not send it at all.
+ */
 export interface PredictiveBackEvent {
   type: 'started' | 'progress' | 'cancelled' | 'invoked';
   progress: number;
+  swipeEdge?: SwipeEdge;
+}
+
+/** What the game does with each frame of the gesture. Only `invoked` is needed; the rest drive the peek. */
+export interface PredictiveBackHandlers {
+  started?(edge: SwipeEdge | undefined): void;
+  progress?(progress: number, edge: SwipeEdge | undefined): void;
+  cancelled?(): void;
+  invoked(): void;
 }
 
 /** `invoke` from Tauri, or a stand-in for tests. */
@@ -30,8 +43,8 @@ export interface PredictiveBackBackend {
    * game; while false it keeps it (the app backgrounds). Never rejects.
    */
   setCanGoBack(canGoBack: boolean): Promise<void>;
-  /** Calls `handler` each time a back gesture completes. Resolves with the function that stops listening. Never rejects. */
-  onInvoked(handler: () => void): Promise<() => void>;
+  /** Calls the handlers as a back gesture goes on, in the order the system sends the frames. Resolves with the function that stops listening. Never rejects. */
+  onGesture(handlers: PredictiveBackHandlers): Promise<() => void>;
 }
 
 /** Tauri's `invoke`, loaded when first used so the web bundle never carries it. */
@@ -65,10 +78,27 @@ export function createPredictiveBack(
         console.warn('Telling the app whether Back has somewhere to go failed', error);
       }
     },
-    async onInvoked(handler) {
+    async onGesture(handlers) {
       try {
-        return await listen(PREDICTIVE_BACK_EVENT, (event) => {
-          if (event.payload.type === 'invoked') handler();
+        return await listen(PREDICTIVE_BACK_EVENT, ({ payload }) => {
+          const edge =
+            payload.swipeEdge === 'left' || payload.swipeEdge === 'right'
+              ? payload.swipeEdge
+              : undefined;
+          switch (payload.type) {
+            case 'started':
+              handlers.started?.(edge);
+              break;
+            case 'progress':
+              handlers.progress?.(payload.progress, edge);
+              break;
+            case 'cancelled':
+              handlers.cancelled?.();
+              break;
+            case 'invoked':
+              handlers.invoked();
+              break;
+          }
         });
       } catch (error) {
         console.warn('Listening for the Back gesture failed', error);
