@@ -14,7 +14,7 @@ import {
   type RumbleSegment,
   type VibrateCompile,
 } from './haptic-pattern';
-import type { PluginCompile } from './haptic-plugin';
+import type { PluginCompile } from './haptic-plugin-compile';
 
 /** What a backend can do right now. `tier` is 0 (nothing), 1 (on and off) up to 4 (full envelopes). */
 export interface HapticCaps {

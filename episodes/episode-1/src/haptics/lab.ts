@@ -20,7 +20,7 @@ import {
   type RumbleSegment,
   type VibrateCompile,
 } from '@lieutenant-fizz/engine/haptic-pattern';
-import { PLUGIN_COMPILE, type PluginCompile } from '@lieutenant-fizz/engine/haptic-plugin';
+import { PLUGIN_COMPILE, type PluginCompile } from '@lieutenant-fizz/engine/haptic-plugin-compile';
 import type { PlayRecord, Route, Target } from '@lieutenant-fizz/engine/haptics';
 import type { LabItem, SliderSpec } from '../audio/lab';
 import { FIZZ_HAPTICS } from './fizz-haptics';

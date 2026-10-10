@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBackend, noneBackend, type FakeBackend } from './haptic-backends';
 import { RUMBLE_COMPILE, VIBRATE_COMPILE } from './haptic-pattern';
-import { PLUGIN_COMPILE } from './haptic-plugin';
+import { PLUGIN_COMPILE } from './haptic-plugin-compile';
 import type { HapticCue, HapticTable } from './haptic-pattern';
 import { ATTRACT_SCALE, GameHaptics, UI_BOOST, onScreen, routeFor } from './haptics';
 

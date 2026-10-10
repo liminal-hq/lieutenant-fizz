@@ -5,11 +5,10 @@
 
 import { describe, expect, it } from 'vitest';
 import { onTime, totalTime, type HapticPattern, type HapticTable } from './haptic-pattern';
+import { PLUGIN_COMPILE, PLUGIN_LIMITS } from './haptic-plugin-compile';
 import { GameHaptics } from './haptics';
 import {
   adoptPlugin,
-  PLUGIN_COMPILE,
-  PLUGIN_LIMITS,
   compilePluginPattern,
   pluginBackend,
   primitiveFor,

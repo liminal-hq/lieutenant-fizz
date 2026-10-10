@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { noneBackend, type HapticBackend, type PlayResult } from './haptic-backends';
-import { PLUGIN_COMPILE, PLUGIN_LIMITS, type PluginCompile } from './haptic-plugin';
+import { PLUGIN_COMPILE, PLUGIN_LIMITS, type PluginCompile } from './haptic-plugin-compile';
 import type { InputDevice } from './input';
 import {
   COMPILE_LIMITS,

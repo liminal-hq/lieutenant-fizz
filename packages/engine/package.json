@@ -19,6 +19,7 @@
     "./haptic-backends": "./src/haptic-backends.ts",
     "./haptic-pattern": "./src/haptic-pattern.ts",
     "./haptic-plugin": "./src/haptic-plugin.ts",
+    "./haptic-plugin-compile": "./src/haptic-plugin-compile.ts",
     "./haptic-strength": "./src/haptic-strength.ts",
     "./haptics": "./src/haptics.ts",
     "./input": "./src/input.ts",
