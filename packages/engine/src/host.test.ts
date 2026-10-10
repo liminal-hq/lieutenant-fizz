@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it, vi } from 'vitest';
-import { createHostBackend, detectHostKind, hostEnvOf } from './host';
+import { LAUNCHER_URL, createHostBackend, detectHostKind, hostEnvOf } from './host';
 
 const LINUX = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36';
 const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/130.0 Mobile';
@@ -83,5 +83,47 @@ describe('createHostBackend', () => {
     ).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
+  });
+
+  it('offers quit to launcher on the desktop and Android apps only', () => {
+    for (const env of [
+      { tauri: true, userAgent: LINUX },
+      { tauri: true, userAgent: ANDROID },
+    ]) {
+      expect(createHostBackend(env, async () => {}, vi.fn()).quitToLauncher).toBeTypeOf('function');
+    }
+    for (const env of [
+      { tauri: false, userAgent: LINUX },
+      { tauri: false, userAgent: ANDROID },
+      { tauri: true, userAgent: IPHONE },
+    ]) {
+      expect(createHostBackend(env, async () => {}, vi.fn()).quitToLauncher).toBeUndefined();
+    }
+  });
+
+  it('keeps quit off Android even though it can go to the launcher', () => {
+    const host = createHostBackend({ tauri: true, userAgent: ANDROID }, async () => {}, vi.fn());
+    expect(host.quit).toBeUndefined();
+  });
+
+  it('navigates to the one launcher URL', () => {
+    const navigate = vi.fn();
+    createHostBackend(
+      { tauri: true, userAgent: LINUX },
+      async () => {},
+      navigate,
+    ).quitToLauncher?.();
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(LAUNCHER_URL);
+  });
+
+  it('resolves the launcher URL one folder up on both Tauri origins', () => {
+    for (const origin of ['tauri://localhost', 'http://tauri.localhost']) {
+      expect(new URL(LAUNCHER_URL, `${origin}/episode-1/index.html`).href).toBe(
+        `${origin}/index.html`,
+      );
+      expect(new URL(LAUNCHER_URL, `${origin}/episode-1/index.html?launch=new`).href).toBe(
+        `${origin}/index.html`,
+      );
+    }
   });
 });
