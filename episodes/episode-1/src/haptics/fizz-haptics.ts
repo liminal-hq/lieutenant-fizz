@@ -178,7 +178,7 @@ export const FIZZ_HAPTICS: HapticTable = {
       calm: true,
     }),
 
-    // Menus: the phone's own lane, played as game patterns (never `plugin:haptics|ui`) at 1.5 times the Strength setting.
+    // Menus: the phone's own lane, played as game patterns (never `plugin:phone-haptics|ui`) at 1.5 times the Strength setting.
     'ui.move': cue([tap(0.3, 0.8)], { priority: 0, cooldownMs: 40, policy: D, lane: 'ui' }),
     'ui.select': cue([tap(0.5, 0.8)], { priority: 1, cooldownMs: 80, policy: I, lane: 'ui' }),
     'ui.back': cue([tap(0.4, 0.5)], { priority: 1, cooldownMs: 80, policy: I, lane: 'ui' }),
