@@ -103,13 +103,12 @@ export function writePadBindings(store: Writer | null, b: PadBindings): boolean 
 /** Every action back on its default buttons. */
 export const resetPadBindings = (): PadBindings => defaults();
 
-/** Whether the bindings are the defaults. */
+/** Whether the bindings are the defaults: each action holds the same set of buttons, in whatever order they were collected. */
 export const isDefaultPadBindings = (b: PadBindings): boolean =>
-  PAD_ACTIONS.every(
-    (a) =>
-      b[a].length === DEFAULT_PAD_BINDINGS[a].length &&
-      b[a].every((i, k) => i === DEFAULT_PAD_BINDINGS[a][k]),
-  );
+  PAD_ACTIONS.every((a) => {
+    const d = DEFAULT_PAD_BINDINGS[a];
+    return b[a].length === d.length && b[a].every((i) => d.includes(i));
+  });
 
 /** What setting an action's buttons did to the others. */
 export interface BindResult {

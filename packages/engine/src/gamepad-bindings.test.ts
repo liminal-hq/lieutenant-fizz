@@ -205,6 +205,13 @@ describe('reset and storage', () => {
     expect(isDefaultPadBindings(bindButton(DEFAULT_PAD_BINDINGS, 'jump', 4).bindings)).toBe(false);
   });
 
+  it('counts the default buttons in any order as the defaults', () => {
+    const reversed: PadBindings = { ...DEFAULT_PAD_BINDINGS, pogo: [3, 1], fire: [7, 2] };
+    expect(isDefaultPadBindings(reversed)).toBe(true);
+    expect(isDefaultPadBindings({ ...DEFAULT_PAD_BINDINGS, pogo: [3] })).toBe(false);
+    expect(isDefaultPadBindings({ ...DEFAULT_PAD_BINDINGS, pogo: [3, 4] })).toBe(false);
+  });
+
   it('writes and reads through a store under its own key', () => {
     const data = new Map<string, string>();
     const store = {
