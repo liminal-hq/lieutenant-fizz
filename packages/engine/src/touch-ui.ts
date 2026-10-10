@@ -49,6 +49,8 @@ export interface TouchControlsOptions {
   /** The accessible name of a movable control in the editor; without one it is "Move" and the control's name. */
   editLabels?: Partial<Record<MovableId, string>>;
   spec?: TouchSpec;
+  /** Called with the faces whenever the controls are placed again at a new size or place, so the episode can fit what it draws on them. */
+  onPlaced?(face: PlacedControls['face']): void;
 }
 
 /** What the editor hears while the player moves controls (haptics, saving). */
@@ -226,6 +228,7 @@ export class TouchControls {
       this.pausePointer = null;
       this.placementKey = key;
       this.apply(placed);
+      this.opts.onPlaced?.(placed.face);
     }
     this.placed = placed;
     this.input.touch.layout = this.editing ? null : this.liveHits();

@@ -167,6 +167,26 @@ export function watchResize(
   };
 }
 
+/**
+ * The widest word each touch face holds, in glyph pixels at scale 1 (the condensed cut; "Select" is 29,
+ * "Back" 20, and the Fizz count is up to three digits of 7). Jump's face holds Jump and Select, Pogo's
+ * holds Pogo and Back, so a face keeps one scale in play and in a menu.
+ */
+export const TOUCH_WORD_GLYPHS = { jump: 29, pogo: 20, fire: 21 } as const;
+
+/** The room a word keeps from the edge of its face, on each side, in CSS pixels. */
+export const TOUCH_WORD_MARGIN = 4;
+
+/**
+ * The largest whole pixel scale at which a word `glyphs` pixels wide at scale 1 stays inside a round
+ * face `face` px across with `margin` px to spare on each side. Never below 1, so a very small face
+ * still shows its word.
+ */
+export function touchWordCap(face: number, glyphs: number, margin = TOUCH_WORD_MARGIN): number {
+  if (!(glyphs > 0)) return MAX_SCALE;
+  return Math.min(MAX_SCALE, Math.max(1, Math.floor((face - 2 * margin) / glyphs)));
+}
+
 /** Whether a window of this size is taller than it is wide (a phone held upright). */
 export const isPortrait = (width: number, height: number): boolean => height > width;
 

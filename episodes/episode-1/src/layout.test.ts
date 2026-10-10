@@ -15,6 +15,8 @@ import {
   NO_GUTTERS,
   promptClear,
   titleCandidates,
+  TOUCH_WORD_GLYPHS,
+  touchWordCap,
   watchResize,
   type TouchGutters,
 } from './layout';
@@ -290,5 +292,40 @@ describe('promptClear', () => {
     const v = layoutVars(844, 390, false, { ...DEFAULT, leftTop: 150 });
     expect(v['--lf-prompt-left']).toBe('190px');
     expect(v['--lf-prompt-right']).toBe('0px');
+  });
+});
+
+describe('touchWordCap', () => {
+  it('keeps the word 4 px inside the face on each side', () => {
+    // Select (29) in the default 80 px Jump face: 72 / 29 = 2.48, so scale 2 (58 px, 11 px to spare).
+    expect(touchWordCap(80, TOUCH_WORD_GLYPHS.jump)).toBe(2);
+    // Exactly 4 px to spare on each side is allowed; a pixel less is not.
+    expect(touchWordCap(29 * 3 + 8, 29)).toBe(3);
+    expect(touchWordCap(29 * 3 + 7, 29)).toBe(2);
+  });
+
+  it('leaves the 844×390 and 740×360 scales of the default faces as they are', () => {
+    // Those windows set the item scale to 2.
+    expect(touchWordCap(80, TOUCH_WORD_GLYPHS.jump)).toBeGreaterThanOrEqual(2);
+    expect(touchWordCap(62, TOUCH_WORD_GLYPHS.pogo)).toBeGreaterThanOrEqual(2);
+    // Small size: 68 and 52.7 px faces.
+    expect(touchWordCap(68, TOUCH_WORD_GLYPHS.jump)).toBeGreaterThanOrEqual(2);
+    expect(touchWordCap(52.6875, TOUCH_WORD_GLYPHS.pogo)).toBeGreaterThanOrEqual(2);
+  });
+
+  it('never gives a word more room than its face has, at any face size', () => {
+    for (let face = 20; face <= 200; face += 0.5) {
+      for (const glyphs of [29, 20, 21]) {
+        const n = touchWordCap(face, glyphs);
+        expect(n).toBeGreaterThanOrEqual(1);
+        if (n > 1) expect(n * glyphs).toBeLessThanOrEqual(face - 8);
+        // And it is the largest scale that does.
+        if (n < 6) expect((n + 1) * glyphs).toBeGreaterThan(face - 8);
+      }
+    }
+  });
+
+  it('gives the largest scale for a word with no width', () => {
+    expect(touchWordCap(80, 0)).toBe(6);
   });
 });

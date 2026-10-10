@@ -60,12 +60,14 @@
 #touch [data-control='fire'] .face img {
   width: 32px;
 }
+/* A word takes the screen's scale, or the largest that fits its face (`--lf-word-cap`, set on the face from its size). */
 #touch .lbl {
+  --n: min(var(--lf-n), var(--lf-word-cap, 6));
   font-weight: 700;
   color: #fff;
 }
 #touch .count {
-  --n: var(--lf-n-small);
+  --n: min(var(--lf-n-small), var(--lf-word-cap, 6));
   font-family: var(--lf-mono);
   font-weight: 700;
   color: #55ffff;
