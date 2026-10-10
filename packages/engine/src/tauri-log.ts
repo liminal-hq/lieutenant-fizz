@@ -32,7 +32,7 @@ export type ConsoleLike = Record<ConsoleMethod, (...args: unknown[]) => void>;
 
 /** The window, as far as the bridge needs it. */
 export interface WindowLike {
-  addEventListener(type: string, listener: (event: never) => void): void;
+  addEventListener(type: string, listener: (event: Event) => void): void;
 }
 
 /** What the bridge uses of `@tauri-apps/plugin-log`. */
@@ -236,9 +236,9 @@ export function initTauriLogging(
     };
   }
 
-  win.addEventListener('error', (event: never) => {
+  win.addEventListener('error', (event: Event) => {
     guarded(() => {
-      const e = event as {
+      const e = event as unknown as {
         message?: unknown;
         filename?: unknown;
         lineno?: unknown;
@@ -255,11 +255,11 @@ export function initTauriLogging(
       );
     });
   });
-  win.addEventListener('unhandledrejection', (event: never) => {
+  win.addEventListener('unhandledrejection', (event: Event) => {
     guarded(() => {
       emit(
         'error',
-        `Unhandled rejection: ${serialiseConsoleArg((event as { reason?: unknown }).reason)}`,
+        `Unhandled rejection: ${serialiseConsoleArg((event as unknown as { reason?: unknown }).reason)}`,
       );
     });
   });
