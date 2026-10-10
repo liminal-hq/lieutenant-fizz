@@ -228,6 +228,91 @@ describe('GameAudio volume', () => {
   });
 });
 
+describe('GameAudio music while Undertone loads at boot', () => {
+  /** A loader the test settles by hand. */
+  function controlledLoad(): {
+    load: () => Promise<typeof Undertone>;
+    resolve: () => void;
+    reject: () => void;
+  } {
+    let resolve!: (m: typeof Undertone) => void;
+    let reject!: (e: unknown) => void;
+    const p = new Promise<typeof Undertone>((a, b) => {
+      resolve = a;
+      reject = b;
+    });
+    return {
+      load: () => p,
+      resolve: () => resolve(Undertone),
+      reject: () => reject(new Error('x')),
+    };
+  }
+  const synthNodes = (ctx: FakeContext): number =>
+    ctx.nodes.filter((n) => n.kind === 'oscillator' || n.kind === 'bufferSource').length;
+
+  it('holds music back until Undertone arrives, then starts exactly one Undertone loop', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const c = controlledLoad();
+    const audio = new GameAudio(patterns, c.load, { unlockAtBoot: true });
+    const ctx = FakeContext.instances[0]!;
+    audio.playMusic('title');
+    await flush();
+    expect(loop).not.toHaveBeenCalled();
+    expect(synthNodes(ctx)).toBe(0);
+    c.resolve();
+    await flush();
+    expect(loop).toHaveBeenCalledTimes(1);
+    expect(synthNodes(ctx)).toBe(0);
+    audio.dispose();
+  });
+
+  it('starts the built-in loop once, after the load fails', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const c = controlledLoad();
+    const audio = new GameAudio(patterns, c.load, { unlockAtBoot: true });
+    const ctx = FakeContext.instances[0]!;
+    audio.playMusic('title');
+    expect(synthNodes(ctx)).toBe(0);
+    c.reject();
+    await flush();
+    expect(loop).not.toHaveBeenCalled();
+    expect(synthNodes(ctx)).toBeGreaterThan(0);
+    const after = synthNodes(ctx);
+    await flush();
+    expect(synthNodes(ctx)).toBe(after);
+    audio.dispose();
+  });
+
+  it('does not start the track twice when a gesture arrives mid-load', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const c = controlledLoad();
+    const audio = new GameAudio(patterns, c.load, { unlockAtBoot: true });
+    audio.playMusic('title');
+    listeners.get('pointerdown')!();
+    listeners.get('keydown')!();
+    expect(loop).not.toHaveBeenCalled();
+    c.resolve();
+    await flush();
+    expect(loop).toHaveBeenCalledTimes(1);
+    audio.dispose();
+  });
+
+  it('drops a held track when music changes to none or is switched off before the load', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const c = controlledLoad();
+    const audio = new GameAudio(patterns, c.load, { unlockAtBoot: true });
+    audio.playMusic('title');
+    audio.playMusic(null);
+    c.resolve();
+    await flush();
+    expect(loop).not.toHaveBeenCalled();
+    audio.playMusic('title');
+    expect(loop).toHaveBeenCalledTimes(1);
+    audio.dispose();
+  });
+});
+
 describe('GameAudio fallback', () => {
   it('uses the built-in synth when Undertone fails to load', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
