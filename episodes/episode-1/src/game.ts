@@ -44,6 +44,7 @@ import {
 } from '@lieutenant-fizz/engine/lifecycle-policy';
 import { placeSound, type AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import { StingerScene, type StingerContent } from '@lieutenant-fizz/engine/stinger';
+import { durable, type KeyValueStorage, type StorageKind } from '@lieutenant-fizz/engine/storage';
 import {
   Input as Bits,
   InputManager,
@@ -240,6 +241,8 @@ export interface GameOptions {
   keepAwake?: KeepAwakeBackend;
   /** What enters and leaves fullscreen and says whether Esc reaches the page; the web build uses the browser's. */
   fullscreenBackend?: FullscreenBackend;
+  /** Where saves and settings are kept, chosen at boot by `createStorage`; left out, the browser's `localStorage`. */
+  storage?: KeyValueStorage;
 }
 
 /** The `display-mode` values an installed app runs in. */
@@ -388,7 +391,10 @@ export class Game {
   private readonly cine = new Cinematic();
   private readonly writer: InstanceWriter;
   private readonly stepper = new FixedStepper(STEP);
-  private readonly store = safeStorage();
+  /** Where saves and settings go; null when nothing durable is available, so saving reports a failure. */
+  private readonly store: KeyValueStorage | null;
+  /** Which backend `store` came from (`memory` when the game runs without durable storage). */
+  private readonly storageKind: StorageKind;
   private captionNames: string[] = [];
   private toastNames: string[] = [];
   private readonly previewStinger: boolean;
@@ -466,6 +472,9 @@ export class Game {
     options: GameOptions,
   ) {
     this.previewStinger = options.previewStinger ?? false;
+    const storage = options.storage ?? safeStorage();
+    this.store = durable(storage);
+    this.storageKind = storage?.kind ?? 'memory';
     this.reducedForced = options.reducedMotion;
     this.sim = sim;
     this.atlas = atlas;
@@ -3316,6 +3325,7 @@ export class Game {
         scaleBefore: this.scaleBefore,
         scaleAfter: this.scaleAfter,
       },
+      storage: this.storageKind,
       instances: this.lastCount,
       atlas: this.atlas.size,
       perf: this.perf?.report() ?? null,
