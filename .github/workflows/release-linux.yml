@@ -1,0 +1,369 @@
+# Builds the Linux packages of the Tauri player and attaches them to a draft GitHub release.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+# Pushing a `vX.Y.Z` tag builds `.deb`, `.rpm` and `.AppImage` packages for x86_64 and aarch64, writes
+# SHA256SUMS, and attaches everything to a DRAFT release for the tag (created with generated notes, or
+# the existing draft reused). The packages are unsigned. Nothing is published: a person reviews the draft
+# and publishes it. Android, Windows and macOS builds come later; this file builds Linux only.
+#
+# Started by hand (Actions > Linux Release > Run workflow), it builds and uploads the packages as workflow
+# artefacts and publishes nothing, unless `release_tag` names an existing tag: then it builds that tag
+# and drafts its release as a push would.
+#
+# The shape follows Jar and Emoji Nook's release workflows: the `tauri-ci-desktop` container for the
+# deb and rpm build, the org's reusable `package-arch-appimage.yml` for the AppImage (it repackages the
+# built .deb), and `gh release upload` for the draft. See docs/APP.md, Releases.
+#
+# `android-apk.yml` also drafts releases, but under its own `android-debug-<run>-<attempt>` tags, so the
+# two never touch each other's draft. A later Android release build for a `v*` tag can attach to the
+# draft this workflow makes with `gh release upload vX.Y.Z <file>`.
+
+name: Linux Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Optional existing tag (vX.Y.Z) to build and draft a release for; empty builds this ref and publishes nothing
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: release-linux-${{ github.event_name == 'workflow_dispatch' && (inputs.release_tag || github.sha) || github.ref_name }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  prepare:
+    name: Check the version and tag
+    runs-on: ubuntu-24.04
+    outputs:
+      tag_name: ${{ steps.meta.outputs.tag_name }}
+      release_version: ${{ steps.meta.outputs.release_version }}
+      checkout_ref: ${{ steps.meta.outputs.checkout_ref }}
+      release_target: ${{ steps.meta.outputs.release_target }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+
+      # With a tag (pushed, or `release_tag`), the three manifests must agree with it; without one (a manual
+      # run on a branch) they only have to agree with each other. Both fail with a message naming the file.
+      - name: Resolve the release and check its version
+        id: meta
+        env:
+          MANUAL_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          TAG_NAME=""
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+          elif [[ -n "${MANUAL_RELEASE_TAG}" ]]; then
+            TAG_NAME="${MANUAL_RELEASE_TAG}"
+          fi
+
+          CHECKOUT_REF="${GITHUB_SHA}"
+          RELEASE_TARGET="${GITHUB_SHA}"
+          PRERELEASE=false
+
+          if [[ -n "${TAG_NAME}" ]]; then
+            if [[ ! "${TAG_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "Invalid release tag: ${TAG_NAME}" >&2
+              echo "Expected a tag matching vX.Y.Z or vX.Y.Z-beta.N" >&2
+              exit 1
+            fi
+            if ! git rev-parse -q --verify "refs/tags/${TAG_NAME}" >/dev/null; then
+              echo "The tag ${TAG_NAME} does not exist in this repository" >&2
+              exit 1
+            fi
+
+            CHECKOUT_REF="${TAG_NAME}"
+            RELEASE_TARGET="$(git rev-list -n 1 "${TAG_NAME}")"
+
+            git fetch origin main
+            if ! git merge-base --is-ancestor "${RELEASE_TARGET}" "origin/main"; then
+              echo "Release commit ${RELEASE_TARGET} is not on origin/main" >&2
+              exit 1
+            fi
+
+            git checkout --quiet "${CHECKOUT_REF}"
+            RELEASE_VERSION="$(bun scripts/check-release-version.ts --tag "${TAG_NAME}")"
+
+            if [[ "${TAG_NAME}" == *-* ]]; then
+              PRERELEASE=true
+            fi
+          else
+            RELEASE_VERSION="$(bun scripts/check-release-version.ts)"
+          fi
+
+          {
+            echo "tag_name=${TAG_NAME}"
+            echo "release_version=${RELEASE_VERSION}"
+            echo "checkout_ref=${CHECKOUT_REF}"
+            echo "release_target=${RELEASE_TARGET}"
+            echo "prerelease=${PRERELEASE}"
+          } >> "${GITHUB_OUTPUT}"
+
+          {
+            echo "## Linux release"
+            echo
+            echo "- Version: \`${RELEASE_VERSION}\`"
+            echo "- Tag: \`${TAG_NAME:-none (artefacts only, no release)}\`"
+            echo "- Commit: \`${RELEASE_TARGET}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # Creates the draft release for the tag, or finds the draft (or any release) already there, so the
+  # builds can run while it is made. The only job besides the upload that can write to the repository.
+  draft-release:
+    name: Draft the release
+    if: needs.prepare.outputs.tag_name != ''
+    needs: prepare
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Create the draft release, or reuse the existing one
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
+          RELEASE_TARGET: ${{ needs.prepare.outputs.release_target }}
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          # The list includes drafts; `releases/tags/<tag>` does not.
+          EXISTING="$(
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              --jq ".[] | select(.tag_name == \"${TAG_NAME}\") | [.draft, .html_url] | @tsv" \
+              | head -n 1 || true
+          )"
+
+          if [[ -z "${EXISTING}" ]]; then
+            URL="$(
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/releases" \
+                -f tag_name="${TAG_NAME}" \
+                -f target_commitish="${RELEASE_TARGET}" \
+                -f name="Lieutenant Fizz ${TAG_NAME}" \
+                -f body='Unsigned Linux packages of the Lieutenant Fizz player. Check the downloads against the SHA256SUMS file.' \
+                -F generate_release_notes=true \
+                -F draft=true \
+                -F prerelease="${PRERELEASE}" \
+                --jq .html_url
+            )"
+            ACTION="Created"
+          else
+            IS_DRAFT="$(cut -f1 <<< "${EXISTING}")"
+            URL="$(cut -f2 <<< "${EXISTING}")"
+            if [[ "${IS_DRAFT}" != "true" ]]; then
+              echo "The release for ${TAG_NAME} is already published (${URL}); this workflow only adds to drafts." >&2
+              exit 1
+            fi
+            ACTION="Reused the existing draft"
+          fi
+
+          echo "${ACTION}: ${URL}"
+          echo "- ${ACTION}: ${URL}" >> "${GITHUB_STEP_SUMMARY}"
+
+  build-linux:
+    name: Build deb and rpm (${{ matrix.arch }})
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+            artefact_name: linux-release-assets-x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            artefact_name: linux-release-assets-arm64
+    container:
+      image: ghcr.io/liminal-hq/tauri-ci-desktop:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+
+      - name: Trust the GitHub workspace
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+
+      # `rust-toolchain.toml` pins the toolchain and lists the WASM target; rustup installs both on first use.
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            apps/player/src-tauri
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the WASM and the app frontend
+        run: |
+          bun run build:wasm
+          bun run build:app
+
+      # The release profile (apps/player/src-tauri/Cargo.toml) builds without debug assertions, so the dev-only
+      # MCP bridge plugin is not registered. The AppImage is packaged from the .deb in the next job.
+      - name: Build the deb and rpm packages
+        run: bun run tauri build --bundles deb,rpm
+
+      - name: Collect the packages
+        run: |
+          set -euo pipefail
+
+          release_dir="release-assets/linux"
+          mkdir -p "${release_dir}"
+
+          mapfile -t bundle_files < <(find apps/player/src-tauri/target/release/bundle -type f \( -name '*.deb' -o -name '*.rpm' \) | sort)
+          if [[ "${#bundle_files[@]}" -eq 0 ]]; then
+            echo "No deb or rpm packages found under apps/player/src-tauri/target/release/bundle" >&2
+            exit 1
+          fi
+
+          # The product name has a space ("Lieutenant Fizz_0.1.0_amd64.deb"), which GitHub rewrites in a download name.
+          for file in "${bundle_files[@]}"; do
+            name="$(basename "${file}")"
+            cp "${file}" "${release_dir}/${name// /-}"
+          done
+
+          ls -l "${release_dir}"
+
+      - name: Upload the packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artefact_name }}
+          path: release-assets/linux/**
+          if-no-files-found: error
+          retention-days: 14
+
+  package-appimage:
+    name: Package the AppImage (${{ matrix.arch }})
+    needs:
+      - prepare
+      - build-linux
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+            deb-artefact: linux-release-assets-x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            deb-artefact: linux-release-assets-arm64
+    uses: liminal-hq/.github/.github/workflows/package-arch-appimage.yml@main
+    with:
+      runs-on: ${{ matrix.runner }}
+      deb-artifact-name: ${{ matrix.deb-artefact }}
+      app-version: ${{ needs.prepare.outputs.release_version }}
+
+  # Gathers every package, normalises the file names and writes SHA256SUMS over the lot. A manual run
+  # without a tag ends here, with the combined artefact as its output.
+  assemble:
+    name: Gather the packages and checksums
+    needs:
+      - prepare
+      - build-linux
+      - package-appimage
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download the deb and rpm packages
+        uses: actions/download-artifact@v7
+        with:
+          pattern: linux-release-assets-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Download the AppImages
+        uses: actions/download-artifact@v7
+        with:
+          pattern: appimage-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Name the files and write the checksums
+        working-directory: release-assets
+        run: |
+          set -euo pipefail
+
+          for file in *; do
+            if [[ "${file}" == *" "* ]]; then
+              mv "${file}" "${file// /-}"
+            fi
+          done
+
+          for ext in deb rpm AppImage; do
+            if [[ -z "$(find . -maxdepth 1 -name "*.${ext}" -print -quit)" ]]; then
+              echo "No .${ext} file was built" >&2
+              exit 1
+            fi
+          done
+
+          sha256sum ./* | sed 's# \./#  #' > SHA256SUMS
+          cat SHA256SUMS
+          {
+            echo "### Files"
+            echo
+            echo '```'
+            cat SHA256SUMS
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload the release files
+        uses: actions/upload-artifact@v7
+        with:
+          name: fizz-player-linux-release
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 14
+
+  attach-to-release:
+    name: Attach the files to the draft release
+    if: needs.prepare.outputs.tag_name != ''
+    needs:
+      - prepare
+      - draft-release
+      - assemble
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download the release files
+        uses: actions/download-artifact@v7
+        with:
+          name: fizz-player-linux-release
+          path: release-assets
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
+        run: gh release upload "${TAG_NAME}" release-assets/* --clobber
