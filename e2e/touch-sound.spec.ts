@@ -24,7 +24,15 @@ const row = (page: Page, label: string) =>
 const tapAt = async (sel: ReturnType<Page['locator']>, page: Page): Promise<void> => {
   // The menu scrolls when its rows are taller than the screen, so bring the row into view first.
   await sel.scrollIntoViewIfNeeded();
-  const b = (await sel.boundingBox())!;
+  // A scrolling menu can still be moving, so tap where the row has settled.
+  let b = (await sel.boundingBox())!;
+  for (let i = 0; i < 20; i++) {
+    await page.waitForTimeout(50);
+    const next = (await sel.boundingBox())!;
+    const still = next.x === b.x && next.y === b.y;
+    b = next;
+    if (still) break;
+  }
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
 };
 
