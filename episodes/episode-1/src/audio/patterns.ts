@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { AudioPatterns, MusicPart, MusicTrack, SfxVoice } from '@lieutenant-fizz/engine/audio';
+import { enhanceSfx } from './enhanced-sfx';
 
 // Sound effects and music for Episode 1, written as Undertone-style voice data and
 // mini-notation patterns (ported from the prototype's audio.js).
@@ -611,4 +612,9 @@ CAPTION_SFX['crumble'] = 'krunch';
 CAPTION_SFX['pop!'] = 'plink';
 CAPTION_SFX['heave'] = 'bonk';
 
-export const PATTERNS: AudioPatterns = { sfx: SFX, music: MUSIC, captionSfx: CAPTION_SFX };
+export const PATTERNS: AudioPatterns = {
+  sfx: SFX,
+  sfxEnhanced: enhanceSfx(SFX),
+  music: MUSIC,
+  captionSfx: CAPTION_SFX,
+};
