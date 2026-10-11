@@ -29,6 +29,14 @@ Style (above) chooses how sound is placed and mastered. A separate row, Effects 
 - **Data, not code:** `SfxVoice` gains `hz` (an exact pitch) and the filter envelope fields `lpenv`, `lpa`, `lpd`, `lps` and `lpr`, and `AudioPatterns.sfxEnhanced` holds the second set. An effect without an Enhanced version plays as Classic. The built-in synth fallback plays the voices without the filter envelope. The Classic oracle is unchanged.
 - **Auto is Classic.** The stored choice is Auto, Classic or Enhanced; `SFX_VERSION_DEFAULT` in `options.ts` is what Auto shows, so the default can change without pinning anyone.
 
+## Enhanced music
+A Music version row (Classic or Enhanced) chooses which arrangement of the music plays, independently of Style. Classic is the game's own loops. Enhanced plays the level, overworld and boss cues (`crater`, `caves`, `sky`, `tower`, `theatre`, `foundry`, `secret`, `citadel`, `map`, `boss`) as songs of about a minute, written from the cue's own notes with ordinary song-writing devices, and leaves the title, the cinematics and the ending as they are. See `episodes/episode-1/src/audio/songs.ts`.
+- **Sections:** an intro that brings the band in, the tune, a contrast section in a related key (a fifth or fourth up, or a tone for the tower), a breakdown and a snare-roll build, the tune again doubled an octave up (a key higher for the crater, sky, tower and citadel), and a one-bar fill that turns the end back into the start so the loop has no seam. The form whose length lands nearest a minute is chosen for each cue. The overworld starts straight on the tune (A B A′) and the boss keeps its tempo; neither has an intro or a fill.
+- **Depth:** every melodic part opens a filter at each attack and closes it as the note settles (the audible effect of a decaying modulator), and gets a sine partner on the same note 2 ms late, panned to the other side of its role. Drums and noise are untouched. Pads open slowly. Each song has a level trim, since Undertone has no limiter.
+- **Data, not code:** `AudioPatterns.songs` holds, per cue, the length of each section in cycles and one stream per voice (the part it plays in each section, or a rest). `MusicPart` gains the filter envelope fields, `nudge` and `mirror` (the partner's pan opposite its role in Enhanced, or the given side for a centred role). `GameAudio.setMusicStyle` restarts the running track on the other arrangement; a cue with no song plays as Classic, and if Undertone has no `arrange` the track plays as Classic.
+- **Auto is Classic**, as for the effects (`MUSIC_VERSION_DEFAULT`).
+- **Not included:** five original songs written in the lab (a funk, a groove and three on the ideas of Keen cues) have no cue to replace, so they are not in the game yet.
+
 ## Parked
 These are designed but not started. Starting values are first guesses to tune by ear.
 
