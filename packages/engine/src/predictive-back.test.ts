@@ -24,8 +24,11 @@ function fakeListen() {
   return {
     listen,
     stop,
-    emit: (type: PredictiveBackEvent['type'], progress = 0) =>
-      handler?.({ payload: { type, progress } }),
+    emit: (
+      type: PredictiveBackEvent['type'],
+      progress = 0,
+      swipeEdge?: PredictiveBackEvent['swipeEdge'],
+    ) => handler?.({ payload: { type, progress, ...(swipeEdge ? { swipeEdge } : {}) } }),
   };
 }
 
@@ -59,26 +62,56 @@ describe('createPredictiveBack', () => {
     warn.mockRestore();
   });
 
-  it('calls the handler on invoked only, not on started, progress or cancelled', async () => {
+  it('passes each frame of the gesture to its handler, in order, with the edge when there is one', async () => {
     const fake = fakeListen();
     const backend = createPredictiveBack('tauri-android', async () => undefined, fake.listen)!;
-    const handler = vi.fn();
-    const stop = await backend.onInvoked(handler);
-    fake.emit('started', 0.1);
-    fake.emit('progress', 0.5);
+    const calls: string[] = [];
+    const stop = await backend.onGesture({
+      started: (edge) => calls.push(`started ${edge}`),
+      progress: (p, edge) => calls.push(`progress ${p} ${edge}`),
+      cancelled: () => calls.push('cancelled'),
+      invoked: () => calls.push('invoked'),
+    });
+    fake.emit('started', 0, 'right');
+    fake.emit('progress', 0.5, 'right');
+    fake.emit('progress', 0.75);
     fake.emit('cancelled');
-    expect(handler).not.toHaveBeenCalled();
+    fake.emit('started', 0, 'left');
     fake.emit('invoked', 1);
-    expect(handler).toHaveBeenCalledTimes(1);
+    expect(calls).toEqual([
+      'started right',
+      'progress 0.5 right',
+      'progress 0.75 undefined',
+      'cancelled',
+      'started left',
+      'invoked',
+    ]);
     stop();
     expect(fake.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('needs only an invoked handler, and ignores an edge it does not know', async () => {
+    const fake = fakeListen();
+    const backend = createPredictiveBack('tauri-android', async () => undefined, fake.listen)!;
+    const invoked = vi.fn();
+    await backend.onGesture({ invoked });
+    fake.emit('started', 0);
+    fake.emit('progress', 0.5);
+    fake.emit('cancelled');
+    expect(invoked).not.toHaveBeenCalled();
+    fake.emit('invoked', 1);
+    expect(invoked).toHaveBeenCalledTimes(1);
+    const got = vi.fn();
+    await backend.onGesture({ invoked, started: got });
+    fake.emit('started', 0, 'up' as never);
+    expect(got).toHaveBeenCalledWith(undefined);
   });
 
   it('swallows a failed listen and hands back a stop that does nothing', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const listen: PredictiveListen = () => Promise.reject(new Error('no events'));
     const backend = createPredictiveBack('tauri-android', async () => undefined, listen)!;
-    const stop = await backend.onInvoked(() => {});
+    const stop = await backend.onGesture({ invoked: () => {} });
     expect(() => stop()).not.toThrow();
     warn.mockRestore();
   });

@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { PeekStyle } from '@lieutenant-fizz/engine/back-peek';
 import type { CreditsContent } from '@lieutenant-fizz/engine/credits';
 import { pixelScale, scaleSteps } from '@lieutenant-fizz/engine/font/scale';
 import { hintText } from '@lieutenant-fizz/engine/font/tokens';
@@ -10,6 +11,7 @@ import { EGA } from '@lieutenant-fizz/engine/palette';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import type { StingerContent, StingerPhase } from '@lieutenant-fizz/engine/stinger';
 import type { Rect, Shape } from '@lieutenant-fizz/engine/touch';
+import type { PeekLayer } from './back';
 import {
   controlsTable,
   creditsHints,
@@ -207,6 +209,10 @@ export class Ui {
   private readonly overlay: HTMLElement;
   private readonly overlayMenu: HTMLElement;
   private readonly overlayNote: HTMLElement;
+  /** The copy of the title or overlay that slides away during a Back-gesture peek. */
+  private peekGhost: HTMLElement | null = null;
+  /** The one scrim behind the copy and the screen Back goes to during a peek; it does not slide. */
+  private peekBackdrop: HTMLElement | null = null;
   private readonly letterbox: HTMLElement;
   private readonly dialogue: HTMLElement;
   private readonly panel: HTMLElement;
@@ -865,6 +871,113 @@ export class Ui {
   setTextLarge(large: boolean): void {
     this.large = large;
     this.relayout();
+  }
+
+  /**
+   * Starts a Back-gesture peek: a copy of the screen being left (`layer`) is laid over it, to slide away
+   * while the real element is redrawn as the screen Back goes to. The copy cannot be focused or read out,
+   * and the real screens ignore taps until the peek ends. The Back button belongs to the screen being
+   * left, so the copy takes one with it. The real one is redrawn for the screen Back goes to (the game
+   * redraws the menus as that screen, which shows or hides it), and crossfades in with that screen.
+   */
+  peekBegin(layer: PeekLayer): void {
+    this.peekEnd();
+    const source = layer === 'title' ? this.title : this.overlay;
+    const ghost = source.cloneNode(true) as HTMLElement;
+    ghost.hidden = false;
+    ghost.classList.add('peek-ghost');
+    ghost.setAttribute('aria-hidden', 'true');
+    ghost.inert = true;
+    ghost.dataset.peek = 'drag';
+    // `cloneNode` copies the DOM but not scroll offsets, so remember where the screen and everything
+    // scrollable inside it has been scrolled to and give the copy the same, once it is laid out.
+    const scrolled: [HTMLElement, number, number][] = [];
+    const sources = [source, ...source.querySelectorAll<HTMLElement>('*')];
+    const copies = [ghost, ...ghost.querySelectorAll<HTMLElement>('*')];
+    sources.forEach((e, i) => {
+      const copy = copies[i];
+      if (copy && (e.scrollTop || e.scrollLeft)) scrolled.push([copy, e.scrollTop, e.scrollLeft]);
+    });
+    if (!this.backBtn.hidden) {
+      const back = this.backBtn.cloneNode(true) as HTMLElement;
+      back.removeAttribute('id');
+      back.classList.add('peek-back');
+      back.tabIndex = -1;
+      ghost.append(back);
+    }
+    source.after(ghost);
+    for (const [e, top, left] of scrolled) {
+      e.scrollTop = top;
+      e.scrollLeft = left;
+    }
+    this.peekGhost = ghost;
+    this.backBtn.dataset.peekParent = '';
+    this.backBtn.inert = true;
+  }
+
+  /**
+   * Puts the peek's one backdrop in, once the screen Back goes to has been drawn: a full-screen layer under
+   * the copy and that screen, dissolving from the scrim of the screen being left to the scrim of the one
+   * Back goes to (none for the game). Both are read as the screens draw them (their own backgrounds, so
+   * a side gradient stays a gradient), and then the screens' own scrims are switched off for the peek, so
+   * the scrim does not slide away with the copy and is not stacked with the other screen's.
+   */
+  peekDress(): void {
+    const ghost = this.peekGhost;
+    if (!ghost) return;
+    const behind = [this.title, this.overlay].find((e) => !e.hidden);
+    const layer = (source: HTMLElement | undefined, name: string): HTMLElement => {
+      const d = el('div', { class: name });
+      if (source) {
+        const cs = getComputedStyle(source);
+        d.style.backgroundImage = cs.backgroundImage;
+        d.style.backgroundColor = cs.backgroundColor;
+      }
+      return d;
+    };
+    const backdrop = el('div', { class: 'peek-backdrop' });
+    backdrop.setAttribute('aria-hidden', 'true');
+    backdrop.append(layer(ghost, 'from'), layer(behind, 'to'));
+    this.title.before(backdrop);
+    this.peekBackdrop = backdrop;
+    this.root.dataset.peeking = 'drag';
+    this.root.style.setProperty('--lf-peek-parent-a', '0');
+    this.root.style.setProperty('--lf-peek-parent-v', 'hidden');
+    this.root.style.setProperty('--lf-peek-w', '0');
+  }
+
+  /** Puts the copy in a look; `settle` animates the change (the glide back after a cancelled gesture). */
+  peekApply(style: PeekStyle, settle: boolean): void {
+    const ghost = this.peekGhost;
+    if (!ghost) return;
+    ghost.dataset.peek = settle ? 'settle' : 'drag';
+    ghost.style.setProperty('--lf-peek-x', `${style.translateXPercent}%`);
+    ghost.style.setProperty('--lf-peek-a', String(style.opacity));
+    ghost.style.setProperty('--lf-peek-feather', `${Math.round(style.feather * 1000) / 10}%`);
+    ghost.dataset.peekEdge = style.featherEdge;
+    // The screen Back goes to crossfades with the copy. Nothing of it is drawn while it has no share, and
+    // while it glides away after a cancel it stays drawn so the fade can be seen.
+    this.root.dataset.peeking = settle ? 'settle' : 'drag';
+    this.root.style.setProperty('--lf-peek-parent-a', String(style.parentOpacity));
+    this.root.style.setProperty('--lf-peek-w', String(style.backdrop));
+    this.root.style.setProperty(
+      '--lf-peek-parent-v',
+      style.parentOpacity > 0 || settle ? 'visible' : 'hidden',
+    );
+  }
+
+  /** Ends the peek: the copy goes and the real screens take taps again. */
+  peekEnd(): void {
+    this.peekGhost?.remove();
+    this.peekGhost = null;
+    this.peekBackdrop?.remove();
+    this.peekBackdrop = null;
+    this.root.style.removeProperty('--lf-peek-w');
+    delete this.root.dataset.peeking;
+    delete this.backBtn.dataset.peekParent;
+    this.backBtn.inert = false;
+    this.root.style.removeProperty('--lf-peek-parent-a');
+    this.root.style.removeProperty('--lf-peek-parent-v');
   }
 
   /** Freezes the menu plate cycle and bullet bob, for reduced motion. */

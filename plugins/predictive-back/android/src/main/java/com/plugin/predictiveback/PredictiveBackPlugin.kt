@@ -94,11 +94,11 @@ class PredictiveBackPlugin(private val activity: Activity) : Plugin(activity) {
 
         val cb = object : OnBackAnimationCallback {
             override fun onBackStarted(backEvent: BackEvent) {
-                sendEvent("started", backEvent.progress)
+                sendEvent("started", backEvent.progress, edgeName(backEvent.swipeEdge))
             }
 
             override fun onBackProgressed(backEvent: BackEvent) {
-                sendEvent("progress", backEvent.progress)
+                sendEvent("progress", backEvent.progress, edgeName(backEvent.swipeEdge))
             }
 
             override fun onBackCancelled() {
@@ -128,12 +128,14 @@ class PredictiveBackPlugin(private val activity: Activity) : Plugin(activity) {
         Log.d(TAG, "Unregistered OnBackAnimationCallback")
     }
 
-    private fun sendEvent(type: String, progress: Float) {
+    private fun sendEvent(type: String, progress: Float, swipeEdge: String? = null) {
         val channel = eventChannel ?: return
         try {
             val event = JSObject().apply {
                 put("type", type)
                 put("progress", progress)
+                // Only `started` and `progress` have a BackEvent to read the edge from.
+                if (swipeEdge != null) put("swipeEdge", swipeEdge)
             }
             channel.send(event)
         } catch (e: Exception) {
@@ -154,4 +156,12 @@ class PredictiveBackPlugin(private val activity: Activity) : Plugin(activity) {
  */
 internal fun shouldRegisterPredictiveBack(sdkInt: Int, canGoBack: Boolean): Boolean {
     return sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && canGoBack
+}
+
+/**
+ * The name the webview hears for the edge a gesture started from: `BackEvent.EDGE_RIGHT` is "right",
+ * anything else (`EDGE_LEFT`) is "left". Pure, so it is unit-testable on a plain JVM.
+ */
+internal fun edgeName(swipeEdge: Int): String {
+    return if (swipeEdge == BackEvent.EDGE_RIGHT) "right" else "left"
 }

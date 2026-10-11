@@ -91,3 +91,32 @@ export function escAction(
     return 'exitFullscreen';
   return pauseAction(screen, sub, false);
 }
+
+/** The element a screen is drawn in: the full-screen overlay, or the title's own (which also holds the Controls table). */
+export type PeekLayer = 'overlay' | 'title';
+
+/** What a Back gesture reveals as it slides a screen away. */
+export interface PeekPlan {
+  /** The element the screen being left is drawn in; a copy of it slides away. */
+  layer: PeekLayer;
+  /** What Back goes to: the game itself (the pause menu resumes), or the menu screen under it (`null` is the menu's own top level). */
+  parent: { game: true } | { game: false; sub: SubScreen };
+}
+
+/**
+ * Whether a Back gesture on this screen gets a peek, and what it reveals. The pause menu peeks onto the
+ * game; every screen opened over the title or the pause menu (Controls, Options and the screens over it,
+ * Saves) peeks onto the screen under it, `under` (the one that opened it, `null` for the menu's top
+ * level). The title's top level has no peek, since Back there backgrounds the app and the system draws
+ * its own animation. The touch controls editor is a placement surface, not a sheet, so it has none, and
+ * neither have the story screens, which Back skips or ignores.
+ */
+export function peekPlan(screen: ShellScreen, sub: SubScreen, under: SubScreen): PeekPlan | null {
+  if (screen !== 'title' && screen !== 'pause') return null;
+  if (!sub) return screen === 'pause' ? { layer: 'overlay', parent: { game: true } } : null;
+  if (sub === 'touchEdit') return null;
+  return {
+    layer: screen === 'title' && sub === 'controls' ? 'title' : 'overlay',
+    parent: { game: false, sub: under },
+  };
+}

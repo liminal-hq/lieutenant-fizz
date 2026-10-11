@@ -21,6 +21,7 @@ import {
 } from '@lieutenant-fizz/engine/lifecycle-policy';
 import { parseAudioParam } from '@lieutenant-fizz/engine/sound-field';
 import { createStorage } from '@lieutenant-fizz/engine/storage';
+import { fakePredictiveBack } from './fake-predictive-back';
 import { Game } from './game';
 import { parseHapticsParam, parsePixelsParam } from './url-lock';
 
@@ -85,12 +86,19 @@ const hostBackend: HostBackend = fakeDesktop
         },
       }
     : createHostBackend();
-// The Android app hands Back to the game through the predictive-back plugin; no other host has it.
-const fakePredictiveBack: PredictiveBackBackend = {
-  setCanGoBack: async (can) => logBack(`canGoBack:${can}`),
-  onInvoked: async () => () => {},
-};
-const predictiveBack = fakeAndroid ? fakePredictiveBack : createPredictiveBack(hostBackend.kind);
+// The Android app hands Back to the game through the predictive-back plugin; no other host has it. The
+// fake Android host takes the gesture from `window.__lfPredictiveBack.emit({ type, progress, swipeEdge })`
+// and records each `setCanGoBack` call in `window.__lfBackLog`.
+const fakeBack = fakeAndroid ? fakePredictiveBack(window) : undefined;
+const predictiveBack: PredictiveBackBackend | undefined = fakeBack
+  ? {
+      ...fakeBack,
+      setCanGoBack: async (can) => {
+        logBack(`canGoBack:${can}`);
+        await fakeBack.setCanGoBack(can);
+      },
+    }
+  : createPredictiveBack(hostBackend.kind);
 const fullscreenBackend =
   hostBackend.kind === 'tauri-desktop'
     ? await nativeFullscreenBackend(fakeDesktop ? fakeNativeWindow() : undefined)

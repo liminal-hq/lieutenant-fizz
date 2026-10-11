@@ -8,6 +8,7 @@
     "./audio": "./src/audio.ts",
     "./audio-tune": "./src/audio-tune.ts",
     "./back-guard": "./src/back-guard.ts",
+    "./back-peek": "./src/back-peek.ts",
     "./credits": "./src/credits.ts",
     "./episode": "./src/episode.ts",
     "./font/fizz.css": "./src/font/fizz.css",

@@ -6,6 +6,8 @@
 package com.plugin.predictiveback
 
 import android.os.Build
+import android.window.BackEvent
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -37,5 +39,11 @@ class PredictiveBackPluginTest {
         // OnBackAnimationCallback (the class this plugin instantiates) does not -- referencing it
         // would throw on a real API 33 device, so this must stay false right up to API 34.
         assertFalse(shouldRegisterPredictiveBack(Build.VERSION_CODES.TIRAMISU, canGoBack = true))
+    }
+
+    @Test
+    fun `names the edge a gesture started from`() {
+        assertEquals("left", edgeName(BackEvent.EDGE_LEFT))
+        assertEquals("right", edgeName(BackEvent.EDGE_RIGHT))
     }
 }
