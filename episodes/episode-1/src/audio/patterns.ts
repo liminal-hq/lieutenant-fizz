@@ -5,6 +5,7 @@
 
 import type { AudioPatterns, MusicPart, MusicTrack, SfxVoice } from '@lieutenant-fizz/engine/audio';
 import { enhanceSfx } from './enhanced-sfx';
+import { buildSongs } from './songs';
 
 // Sound effects and music for Episode 1, written as Undertone-style voice data and
 // mini-notation patterns (ported from the prototype's audio.js).
@@ -616,5 +617,6 @@ export const PATTERNS: AudioPatterns = {
   sfx: SFX,
   sfxEnhanced: enhanceSfx(SFX),
   music: MUSIC,
+  songs: buildSongs(MUSIC),
   captionSfx: CAPTION_SFX,
 };
