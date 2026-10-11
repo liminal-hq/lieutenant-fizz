@@ -31,7 +31,7 @@ import {
   type Verdict,
 } from './haptics-cases';
 
-declare const __HAPTICS_PLUGIN_REV__: string;
+declare const __HAPTICS_PLUGIN_VERSION__: string;
 
 const UI_KINDS = ['confirm', 'reject', 'tick', 'toggle-on', 'toggle-off', 'drag-start'] as const;
 
@@ -180,16 +180,16 @@ async function playUi(kind: string): Promise<void> {
   const entry = addEntry({
     kind: 'ui',
     label: `ui ${kind}`,
-    calls: [{ call: { cmd: 'plugin:haptics|ui', args: { kind } } }],
+    calls: [{ call: { cmd: 'plugin:phone-haptics|ui', args: { kind } } }],
   });
-  entry.calls[0] = await raw({ cmd: 'plugin:haptics|ui', args: { kind } });
+  entry.calls[0] = await raw({ cmd: 'plugin:phone-haptics|ui', args: { kind } });
   paint(entry);
 }
 
 async function stopAll(): Promise<void> {
   backend.stop();
   const entry = addEntry({ kind: 'stop', label: 'stop', calls: [] });
-  entry.calls = [await raw({ cmd: 'plugin:haptics|stop' })];
+  entry.calls = [await raw({ cmd: 'plugin:phone-haptics|stop' })];
   paint(entry);
 }
 
@@ -229,14 +229,14 @@ async function runGuest(): Promise<void> {
   const label = 'case 9: Registered patterns (JS guest)';
   const expect =
     'Register a 400 ms drop-if-busy pattern and trigger it twice at once: the second is tier 0 with policy "dropped".';
-  const w = window as unknown as { __TAURI__?: { haptics?: GuestApi } };
-  const g = w.__TAURI__?.haptics;
+  const w = window as unknown as { __TAURI__?: { phoneHaptics?: GuestApi } };
+  const g = w.__TAURI__?.phoneHaptics;
   if (!g) {
     addEntry({
       kind: 'smoke',
       label,
       verdict: 'check',
-      note: `${expect}\nwindow.__TAURI__.haptics is missing (${
+      note: `${expect}\nwindow.__TAURI__.phoneHaptics is missing (${
         w.__TAURI__
           ? 'window.__TAURI__ exists, so the plugin script was not injected'
           : 'window.__TAURI__ is missing, so withGlobalTauri is off in this build'
@@ -321,7 +321,7 @@ function buildMain(): void {
     const { grid } = section(`Cues: ${g.title}`);
     for (const item of g.items) grid.append(button(item.label, () => playCue(item.id)));
   }
-  const ui = section('UI lane (the system’s own feedback, plugin:haptics|ui)');
+  const ui = section('UI lane (the system’s own feedback, plugin:phone-haptics|ui)');
   for (const k of UI_KINDS) ui.grid.append(button(k, () => void playUi(k)));
 
   const smoke = section('Plugin smoke tests');
@@ -331,7 +331,11 @@ function buildMain(): void {
       button(`${c.id}. ${c.title}`, () => void runSmoke(c.id), c.expect.split('. ')[0]),
     );
   smoke.grid.append(
-    button('9. Registered patterns', () => void runGuest(), 'JS guest: window.__TAURI__.haptics'),
+    button(
+      '9. Registered patterns',
+      () => void runGuest(),
+      'JS guest: window.__TAURI__.phoneHaptics',
+    ),
   );
 
   // The gamepad plugin's own section, with the game's cues on the controller target.
@@ -355,7 +359,7 @@ function describeCaps(c: PluginCaps | null, why?: string): void {
   const box = $('caps');
   const ua = readUserAgent(navigator.userAgent);
   const items: [string, string][] = [
-    ['plugin', __HAPTICS_PLUGIN_REV__.slice(0, 7)],
+    ['plugin', __HAPTICS_PLUGIN_VERSION__],
     ['in the app', String(isAppHost(window))],
     ['device', c?.device ? `${c.device.manufacturer} ${c.device.model}` : (ua.model ?? '?')],
   ];
@@ -400,7 +404,7 @@ async function copyLog(): Promise<void> {
     {
       page: 'lieutenant-fizz player haptics',
       when: new Date().toISOString(),
-      pluginRev: __HAPTICS_PLUGIN_REV__,
+      pluginVersion: __HAPTICS_PLUGIN_VERSION__,
       inApp: isAppHost(window),
       userAgent: navigator.userAgent,
       device: { ...ua, ...(caps?.device ?? {}), sdkInt: caps?.sdkInt },

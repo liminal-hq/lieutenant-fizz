@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import * as guest from '@liminal-hq/plugin-gamepad-haptics';
-import type { GamepadBackend, PadHint, PadInfo } from '@liminal-hq/plugin-gamepad-haptics';
+import type { GamepadBackend, PadHint, PadInfo, Pattern } from '@liminal-hq/plugin-gamepad-haptics';
 import { gamepadBackend, type RumblePad } from '@lieutenant-fizz/engine/haptic-backends';
 import {
   gamepadPluginBackend,
@@ -12,6 +12,8 @@ import {
   type GamepadPluginBackend,
 } from '@lieutenant-fizz/engine/gamepad-plugin';
 import type { HapticPattern } from '@lieutenant-fizz/engine/haptic-pattern';
+
+declare const __GAMEPAD_PLUGIN_VERSION__: string;
 
 /** One call the section made: what was sent and what came back. */
 export interface PadEntry {
@@ -144,7 +146,6 @@ export function mountGamepadSection(host: HTMLElement, opts: GamepadSectionOptio
   const entries: PadEntry[] = [];
   const rows = new Map<PadEntry, HTMLElement>();
   const logBox = el('div', { id: 'padlog' });
-  const missing = __GAMEPAD_GUEST_MISSING__;
   let pads: PadInfo[] = [];
   let guestBackend: GamepadBackend | null = null;
 
@@ -306,13 +307,11 @@ export function mountGamepadSection(host: HTMLElement, opts: GamepadSectionOptio
 
   // ----- Build -----
 
-  const title = el('h2', {}, `Gamepad rumble (plugin ${__GAMEPAD_PLUGIN_REV__.slice(0, 7)})`);
+  const title = el('h2', {}, `Gamepad rumble (plugin ${__GAMEPAD_PLUGIN_VERSION__})`);
   const note = el(
     'p',
     {},
-    missing
-      ? 'The plugin’s guest package is not built into this page (set GAMEPAD_HAPTICS_GUEST to its guest-js/index.ts and rebuild), so the guest boxes fail; the game cues below still work.'
-      : 'Rumble only: the plugin never reads input. A pad found natively is played natively; the webview’s vibrationActuator plays only when no native pad fits.',
+    'Rumble only: the plugin never reads input. A pad found natively is played natively; the webview’s vibrationActuator plays only when no native pad fits.',
   );
 
   const status = el('div', {});
@@ -433,7 +432,7 @@ export function mountGamepadSection(host: HTMLElement, opts: GamepadSectionOptio
         const parsed = parse('register', patternArea.value);
         if (!parsed.ok) return;
         void call('register', { id: idInput.value, pattern: parsed.value }, () =>
-          backend().register(idInput.value, parsed.value),
+          backend().register(idInput.value, parsed.value as Pattern),
         );
       }),
     ),
@@ -534,8 +533,7 @@ export function mountGamepadSection(host: HTMLElement, opts: GamepadSectionOptio
       {
         page: 'lieutenant-fizz player gamepad rumble',
         when: new Date().toISOString(),
-        pluginRev: __GAMEPAD_PLUGIN_REV__,
-        guestMissing: missing,
+        pluginVersion: __GAMEPAD_PLUGIN_VERSION__,
         userAgent: navigator.userAgent,
         pads,
         webPads: (navigator.getGamepads?.() ?? [])
@@ -596,17 +594,15 @@ export function mountGamepadSection(host: HTMLElement, opts: GamepadSectionOptio
   addEventListener('gamepadconnected', describeWeb);
   addEventListener('gamepaddisconnected', describeWeb);
   void refreshPads('listPads (start)');
-  if (!missing) {
-    const event = (kind: string) => (data: unknown) => {
-      add({ kind: 'event', label: `pad ${kind}`, result: data });
-      void refreshPads(`listPads (after ${kind})`);
-    };
-    void guest
-      .onPadConnected(event('connected'))
-      .catch((e) => add({ kind: 'note', label: 'onPadConnected', error: msg(e) }));
-    void guest.onPadChanged(event('changed')).catch(() => {});
-    void guest.onPadDisconnected(event('disconnected')).catch(() => {});
-  }
+  const event = (kind: string) => (data: unknown) => {
+    add({ kind: 'event', label: `pad ${kind}`, result: data });
+    void refreshPads(`listPads (after ${kind})`);
+  };
+  void guest
+    .onPadConnected(event('connected'))
+    .catch((e) => add({ kind: 'note', label: 'onPadConnected', error: msg(e) }));
+  void guest.onPadChanged(event('changed')).catch(() => {});
+  void guest.onPadDisconnected(event('disconnected')).catch(() => {});
 
   if (opts.debug) {
     (window as unknown as { __lfGamepad: unknown }).__lfGamepad = {

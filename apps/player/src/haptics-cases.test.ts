@@ -52,7 +52,7 @@ describe('smoke cases', () => {
   });
 
   it('builds the step cases', () => {
-    expect(calls(3)[0]?.cmd).toBe('plugin:haptics|play_steps');
+    expect(calls(3)[0]?.cmd).toBe('plugin:phone-haptics|play_steps');
     expect(calls(3)[0]?.args).toMatchObject({ steps: [{ atMs: 0 }, { atMs: 50 }] });
     expect(calls(4)[0]?.args).toMatchObject({ steps: [{ atMs: 9950 }] });
   });

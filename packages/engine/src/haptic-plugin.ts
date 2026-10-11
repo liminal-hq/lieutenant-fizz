@@ -79,9 +79,12 @@ export interface PluginPlayResult {
 
 /** A call to the plugin, as `invoke` takes it. */
 export type PluginCall =
-  | { cmd: 'plugin:haptics|play'; args: { req: PluginRequest; scale?: number; maxTier?: number } }
   | {
-      cmd: 'plugin:haptics|play_steps';
+      cmd: 'plugin:phone-haptics|play';
+      args: { req: PluginRequest; scale?: number; maxTier?: number };
+    }
+  | {
+      cmd: 'plugin:phone-haptics|play_steps';
       args: {
         steps: { atMs: number; request: PluginRequest }[];
         scale?: number;
@@ -509,7 +512,7 @@ export function compilePluginPattern(
     }
     if (a.note) reasons.push(a.note);
     const call: PluginCall = {
-      cmd: 'plugin:haptics|play',
+      cmd: 'plugin:phone-haptics|play',
       args: {
         req: { effect: a.effect },
         ...(opts.maxTier !== undefined && opts.maxTier !== null ? { maxTier: opts.maxTier } : {}),
@@ -561,7 +564,7 @@ export interface PluginBackend extends HapticBackend {
   onResult(fn: (r: PluginRecord) => void): () => void;
   /** Changes the compiler's constants (`PLUGIN_COMPILE`) for the plays that follow. */
   tunePlugin(patch: Partial<PluginCompile>): void;
-  /** Plays a UI-lane kind through the system's view haptics (`plugin:haptics|ui`). */
+  /** Plays a UI-lane kind through the system's view haptics (`plugin:phone-haptics|ui`). */
   ui(kind: 'confirm' | 'reject' | 'tick' | 'toggle-on' | 'toggle-off' | 'drag-start'): void;
 }
 
@@ -604,7 +607,7 @@ export function pluginBackend(
     }
   };
 
-  const ready = call('plugin:haptics|capabilities').then(
+  const ready = call('plugin:phone-haptics|capabilities').then(
     (r) => {
       caps = r as PluginCaps;
       return caps;
@@ -695,12 +698,12 @@ export function pluginBackend(
     },
     ui(kind) {
       // Not used by `GameHaptics`: the OS's view haptics ignore Strength, so menus play as game patterns.
-      void call('plugin:haptics|ui', { kind }).catch(() => {});
+      void call('plugin:phone-haptics|ui', { kind }).catch(() => {});
     },
     stop() {
       if (!sent) return;
       sent = false;
-      void call('plugin:haptics|stop').catch(() => {});
+      void call('plugin:phone-haptics|stop').catch(() => {});
     },
     dispose() {
       this.stop();

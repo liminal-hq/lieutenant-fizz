@@ -10,7 +10,8 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@lieutenant-fizz/engine": "workspace:*"
+    "@lieutenant-fizz/engine": "workspace:*",
+    "@liminal-hq/plugin-gamepad-haptics": "^0.1.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

@@ -9,6 +9,6 @@
     "core:window:allow-is-fullscreen",
     "mcp-bridge:default",
     "store:default",
-    "haptics:default"
+    "phone-haptics:default"
   ]
 }

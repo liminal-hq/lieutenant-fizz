@@ -307,7 +307,7 @@ function fake(
   let reject: Error | null = null;
   const invoke: Invoke = (cmd, args) => {
     calls.push({ cmd, args });
-    if (cmd === 'plugin:haptics|capabilities')
+    if (cmd === 'plugin:phone-haptics|capabilities')
       return c instanceof Error ? Promise.reject(c) : Promise.resolve(c);
     if (reject) return Promise.reject(reject);
     return Promise.resolve(answer);
@@ -330,7 +330,7 @@ describe('pluginBackend', () => {
       target: 'device',
       name: 'Google Pixel 8 Pro',
     });
-    expect(f.calls[0]?.cmd).toBe('plugin:haptics|capabilities');
+    expect(f.calls[0]?.cmd).toBe('plugin:phone-haptics|capabilities');
   });
 
   it('is unavailable with no vibrator, and when the capabilities call fails', async () => {
@@ -358,7 +358,7 @@ describe('pluginBackend', () => {
     const r = b.play(bonk, 1);
     expect(r).toMatchObject({ ok: true, tier: 3, downgraded: false, target: 'device' });
     expect(r.ms).toBeGreaterThan(0);
-    expect(f.calls[1]?.cmd).toBe('plugin:haptics|play');
+    expect(f.calls[1]?.cmd).toBe('plugin:phone-haptics|play');
     expect(b.lastResult()?.result).toBeUndefined();
     await settle();
     expect(b.lastResult()).toMatchObject({ at: 5, result: { tier: 3, policy: 'played' } });
@@ -465,9 +465,9 @@ describe('pluginBackend', () => {
     b.play(bonk, 1);
     b.stop();
     expect(f.calls.map((c) => c.cmd)).toEqual([
-      'plugin:haptics|capabilities',
-      'plugin:haptics|play',
-      'plugin:haptics|stop',
+      'plugin:phone-haptics|capabilities',
+      'plugin:phone-haptics|play',
+      'plugin:phone-haptics|stop',
     ]);
     b.stop();
     expect(f.calls).toHaveLength(3);
@@ -478,13 +478,15 @@ describe('pluginBackend', () => {
     const b = pluginBackend({ invoke: f.invoke });
     await b.ready;
     b.ui('toggle-on');
-    expect(f.calls[1]).toEqual({ cmd: 'plugin:haptics|ui', args: { kind: 'toggle-on' } });
+    expect(f.calls[1]).toEqual({ cmd: 'plugin:phone-haptics|ui', args: { kind: 'toggle-on' } });
   });
 });
 
 describe('tauriInvoke', () => {
   it('rejects, not throws, outside Tauri', async () => {
-    await expect(tauriInvoke('plugin:haptics|stop')).rejects.toThrow('Tauri is not available');
+    await expect(tauriInvoke('plugin:phone-haptics|stop')).rejects.toThrow(
+      'Tauri is not available',
+    );
   });
 });
 
@@ -545,12 +547,11 @@ describe('menu cues through GameHaptics', () => {
     h.setScale(0.5);
     h.ui('select');
     h.flush();
-    expect(f.calls.map((c) => c.cmd).filter((c) => c !== 'plugin:haptics|capabilities')).toEqual([
-      'plugin:haptics|play',
-      'plugin:haptics|play',
-    ]);
+    expect(
+      f.calls.map((c) => c.cmd).filter((c) => c !== 'plugin:phone-haptics|capabilities'),
+    ).toEqual(['plugin:phone-haptics|play', 'plugin:phone-haptics|play']);
     const scales = f.calls
-      .filter((c) => c.cmd === 'plugin:haptics|play')
+      .filter((c) => c.cmd === 'plugin:phone-haptics|play')
       .map((c) => {
         const req = (c.args as { req: { effect: { steps: { scale: number }[] } } }).req;
         return req.effect.steps[0]?.scale ?? 0;

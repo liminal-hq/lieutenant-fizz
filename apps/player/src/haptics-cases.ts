@@ -33,12 +33,12 @@ export interface SmokeCase {
 }
 
 const play = (effect: Record<string, unknown>, extra: Record<string, unknown> = {}): RawCall => ({
-  cmd: 'plugin:haptics|play',
+  cmd: 'plugin:phone-haptics|play',
   args: { req: { effect }, ...extra },
 });
 
 const steps = (list: { atMs: number; effect: Record<string, unknown> }[]): RawCall => ({
-  cmd: 'plugin:haptics|play_steps',
+  cmd: 'plugin:phone-haptics|play_steps',
   args: { steps: list.map((s) => ({ atMs: s.atMs, request: { effect: s.effect } })) },
 });
 
