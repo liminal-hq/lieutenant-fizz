@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// Imported first: ES modules evaluate in import order, so the log bridge is up before any other module loads.
+import './probe-log-boot';
 import { createStorage } from '@lieutenant-fizz/engine/storage';
 
 type ProbeReport = Record<string, unknown>;

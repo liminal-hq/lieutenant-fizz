@@ -38,6 +38,7 @@
     "./storage": "./src/storage.ts",
     "./story-beats": "./src/story-beats.ts",
     "./story-pages": "./src/story-pages.ts",
+    "./tauri-log": "./src/tauri-log.ts",
     "./touch": "./src/touch.ts",
     "./touch-layout": "./src/touch-layout.ts",
     "./touch-settings": "./src/touch-settings.ts",
@@ -49,6 +50,7 @@
   "dependencies": {
     "@liminal-hq/undertone": "^0.2.0",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-log": "^2",
     "@tauri-apps/plugin-store": "^2",
     "three": "^0.184.0"
   },
