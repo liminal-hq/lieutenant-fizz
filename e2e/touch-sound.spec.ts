@@ -22,6 +22,8 @@ const row = (page: Page, label: string) =>
   page.locator('#overlay .menu button', { has: page.locator('.lbl', { hasText: label }) });
 
 const tapAt = async (sel: ReturnType<Page['locator']>, page: Page): Promise<void> => {
+  // The menu scrolls when its rows are taller than the screen, so bring the row into view first.
+  await sel.scrollIntoViewIfNeeded();
   const b = (await sel.boundingBox())!;
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
 };
@@ -52,12 +54,13 @@ test('Options > Sound on touch: full-height rows, the Style stepper switches the
   const heights = await page
     .locator('#overlay .menu button')
     .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
-  expect(heights).toHaveLength(7);
+  expect(heights).toHaveLength(8);
   expect(Math.min(...heights)).toBeGreaterThanOrEqual(ROW_MIN);
-  // The Effects version row sits after Effects, then the Sound lab row. ?debug puts the lab on, so the row shows On (link), fixed.
+  // The Music version row sits after Music and the Effects version row after Effects, then the Sound lab row. ?debug puts the lab on, so the row shows On (link), fixed.
   expect(await page.locator('#overlay .menu button .lbl').allInnerTexts()).toEqual([
     'Style',
     'Music',
+    'Music version',
     'Effects',
     'Effects version',
     'Sound lab',
