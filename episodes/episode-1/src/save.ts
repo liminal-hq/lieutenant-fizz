@@ -3,7 +3,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { localStorageAdapter, type KeyValueStorage } from '@lieutenant-fizz/engine/storage';
+import {
+  flushable,
+  localStorageAdapter,
+  type KeyValueStorage,
+} from '@lieutenant-fizz/engine/storage';
 import { State } from './sim/protocol';
 import type { Sim } from './sim/sim';
 
@@ -142,6 +146,15 @@ export function writeSlot(
   } catch {
     return false;
   }
+}
+
+/**
+ * Confirms that what was just written reached the backing store. Returns null when the write was already
+ * complete when `setItem` returned (the web's `localStorage`), so the caller can stay synchronous; otherwise a
+ * promise of whether the store's background write succeeded (the Tauri app's file, which can be out of space).
+ */
+export function confirmWrite(store: KeyValueStorage | null): Promise<boolean> | null {
+  return flushable(store)?.flush() ?? null;
 }
 
 /** Every slot with its save, or null for an empty one, autosave first. */

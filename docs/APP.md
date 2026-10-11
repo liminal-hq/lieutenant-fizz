@@ -72,6 +72,7 @@ The launcher navigates the WebView to the episode's own page with a launch contr
 - Other ways to launch were considered and rejected for now: mounting the episode inside the launcher (needs a `mount`/`unmount` contract and careful WebGL and audio cleanup) and an iframe (focus, audio unlock, fullscreen and gamepad all get awkward).
 
 ## Shared storage
+- **Where it lives:** in the app, every `lf-*` key (saves, options, touch settings) is kept in the `tauri-plugin-store` file `lf-data.json` in the app data directory, which the OS does not evict and which also suits desktop. On the web it stays in `localStorage`. The game talks to a storage adapter (`KeyValueStorage`, see ENGINE_SPEC section 4.4) and the entry point picks the backend before the game starts. The app starts with an empty store; nothing is copied over from an earlier `localStorage`.
 - **Options:** see the options model above.
 - **Saves** stay per episode (`lf-ep1-save-v1` and `lf-ep1-slot-1…4`). The launcher reads their metadata (location, lives, score, time played, date) as plain JSON, so Load game shows text rows such as "Slot 1 · Lives 4 · 8,150 pts · 0:41 played". The design has no thumbnails in the launcher, so no save-format change is needed for it.
 

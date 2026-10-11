@@ -29,6 +29,9 @@ tauri = { version = "2", features = [] }
 # do not exist on mobile, so it fails to compile for Android whatever the build profile.
 tauri-plugin-mcp-bridge = "0.12"
 
+# Saves, options and touch settings (every `lf-*` key) live in `lf-data.json` in the app data directory.
+tauri-plugin-store = "2"
+
 [profile.release]
 opt-level = "s"
 lto = true

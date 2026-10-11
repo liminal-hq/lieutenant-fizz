@@ -4,7 +4,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
+import { memoryStorage, type FlushableStorage } from '@lieutenant-fizz/engine/storage';
 import {
+  confirmWrite,
   newestSlot,
   parseSave,
   readProgress,
@@ -188,5 +190,24 @@ describe('save slots', () => {
     expect(readSlots(broken).every((s) => s.save === null)).toBe(true);
     expect(newestSlot(broken)).toBeNull();
     expect(writeSlot(broken, 1, progress)).toBe(false);
+  });
+});
+
+describe('confirmWrite', () => {
+  it('is null for a store whose writes are already complete', () => {
+    expect(confirmWrite(memoryStorage())).toBeNull();
+    expect(confirmWrite(null)).toBeNull();
+  });
+
+  it('reports the flush of a store that writes in the background', async () => {
+    const outcomes = [false, true];
+    const store: FlushableStorage = {
+      ...memoryStorage(),
+      kind: 'tauri',
+      flush: async () => outcomes.shift() ?? true,
+    };
+    expect(writeSlot(store, 1, progress)).toBe(true);
+    expect(await confirmWrite(store)).toBe(false);
+    expect(await confirmWrite(store)).toBe(true);
   });
 });

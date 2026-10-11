@@ -24,8 +24,18 @@ export interface KeyValueStorage {
 
 /** A store that can be written out; the Tauri backend writes to a file in the background. */
 export interface FlushableStorage extends KeyValueStorage {
-  /** Resolves when every write so far has reached the backing store. Never rejects. */
-  flush(): Promise<void>;
+  /**
+   * Writes out everything held back and resolves true when it all reached the backing store, or false when
+   * the write failed (for example no space left); what failed is kept for the next flush. Never rejects.
+   */
+  flush(): Promise<boolean>;
+}
+
+/** The store as a {@link FlushableStorage}, or null when its writes are already complete when `setItem` returns. */
+export function flushable(store: KeyValueStorage | null | undefined): FlushableStorage | null {
+  return store && typeof (store as Partial<FlushableStorage>).flush === 'function'
+    ? (store as FlushableStorage)
+    : null;
 }
 
 /** A way of reaching storage, tried in order by {@link createStorage}. */
@@ -109,9 +119,24 @@ export function localStorageBackend(host?: LocalStorageHost): StorageBackend {
   return { kind: 'local', open: () => localStorageAdapter(host) };
 }
 
-/** The backends the game tries at boot, in order. */
+/**
+ * The Tauri app's store file. The adapter and the plugin are only fetched once the page is known to run inside
+ * the app, so the web build never loads them.
+ */
+export function tauriBackend(): StorageBackend {
+  return {
+    kind: 'tauri',
+    open: async () => {
+      if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return null;
+      const { tauriStorageBackend } = await import('./tauri-storage');
+      return tauriStorageBackend().open();
+    },
+  };
+}
+
+/** The backends the game tries at boot, in order: the app's store file, then the browser's `localStorage`. */
 export function defaultBackends(): readonly StorageBackend[] {
-  return [localStorageBackend()];
+  return [tauriBackend(), localStorageBackend()];
 }
 
 /**
