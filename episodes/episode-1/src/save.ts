@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { localStorageAdapter, type KeyValueStorage } from '@lieutenant-fizz/engine/storage';
 import { State } from './sim/protocol';
 import type { Sim } from './sim/sim';
 
@@ -116,8 +117,8 @@ export function parseSave(json: string | null): Stored | null {
   }
 }
 
-type Reader = Pick<Storage, 'getItem'>;
-type Writer = Pick<Storage, 'setItem'>;
+type Reader = Pick<KeyValueStorage, 'getItem'>;
+type Writer = Pick<KeyValueStorage, 'setItem'>;
 
 /** Reads one slot, or null when it is empty or unreadable. */
 export function readSlot(store: Reader | null, id: SlotId): Stored | null {
@@ -192,10 +193,7 @@ export function applyProgress(sim: Sim, p: Progress): void {
   } else sim.set(State.HAS_MAP_POS, 0);
 }
 
-export function safeStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
+/** The browser's `localStorage`, or null when it is blocked. The entry point normally gives the game its storage. */
+export function safeStorage(): KeyValueStorage | null {
+  return localStorageAdapter();
 }

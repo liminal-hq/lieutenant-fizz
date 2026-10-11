@@ -9,6 +9,7 @@ import {
   MAX_STRENGTH,
 } from '@lieutenant-fizz/engine/haptic-strength';
 import type { AudioMode } from '@lieutenant-fizz/engine/sound-field';
+import type { KeyValueStorage } from '@lieutenant-fizz/engine/storage';
 import { DEFAULT_DENSITY, DENSITY_COUNT } from './menu-density';
 
 /** Storage key for the options; the version lives inside the saved JSON. */
@@ -107,8 +108,8 @@ export function serialiseOptions(o: Options): string {
   return JSON.stringify({ v: 1, ...o });
 }
 
-type Reader = Pick<Storage, 'getItem'>;
-type Writer = Pick<Storage, 'setItem'>;
+type Reader = Pick<KeyValueStorage, 'getItem'>;
+type Writer = Pick<KeyValueStorage, 'setItem'>;
 
 export function readOptions(store: Reader | null): Options {
   try {
