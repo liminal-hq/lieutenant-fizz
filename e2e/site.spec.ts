@@ -20,6 +20,7 @@ for (const [w, h] of [
     for (const [name, path] of [
       ['landing page', ''],
       ['game guide', 'guide/'],
+      ['privacy policy', 'privacy/'],
     ] as const) {
       test(`the ${name} fits the window, is set in Fizz at whole-pixel sizes and has no clipped text`, async ({
         page,
@@ -69,8 +70,8 @@ for (const [w, h] of [
       });
     }
 
-    test('every sprite loads on both pages', async ({ page }) => {
-      for (const path of ['', 'guide/']) {
+    test('every sprite loads on every page', async ({ page }) => {
+      for (const path of ['', 'guide/', 'privacy/']) {
         await page.goto(SITE + path);
         const broken = await page.evaluate(async () => {
           const imgs = [...document.querySelectorAll<HTMLImageElement>('img.spr')];
