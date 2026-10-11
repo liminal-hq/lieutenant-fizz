@@ -242,6 +242,86 @@ describe('GameAudio volume', () => {
   });
 });
 
+describe('GameAudio effects style', () => {
+  const styled: AudioPatterns = {
+    ...patterns,
+    sfxEnhanced: {
+      jump: [
+        { n: 'c4', hz: 262, w: 'square', g: 0.3 },
+        { n: 'c4', hz: 300, w: 'square', g: 0.3, nudge: 0.025, lpenv: 3000, lpd: 0.05 },
+      ],
+    },
+  };
+
+  /** The voices of each effect played, as Undertone events (one entry per effect played). */
+  function played(): Record<string, unknown>[][] {
+    const out: Record<string, unknown>[][] = [];
+    vi.spyOn(Undertone.Pattern.prototype, 'play').mockImplementation(function (
+      this: Undertone.Pattern<Undertone.ControlPatch>,
+    ) {
+      out.push(
+        this.query({ begin: new Undertone.Fraction(0), end: new Undertone.Fraction(1) })
+          .filter((h) => Undertone.hasOnset(h))
+          .map((h) => ({ ...h.value }) as Record<string, unknown>),
+      );
+    });
+    return out;
+  }
+
+  it('plays the Classic voices until Enhanced is chosen, and Enhanced after', async () => {
+    const out = played();
+    const audio = new GameAudio(styled, async () => Undertone);
+    await flush();
+    await unlockAudio();
+    expect(audio.sfxStyle).toBe('classic');
+    audio.play('jump');
+    audio.setSfxStyle('enhanced');
+    audio.play('jump');
+    audio.setSfxStyle('classic');
+    audio.play('jump');
+    expect(out.map((voices) => voices.length)).toEqual([1, 2, 1]);
+  });
+
+  it('gives a voice an exact pitch and a filter envelope', async () => {
+    const out = played();
+    const audio = new GameAudio(styled, async () => Undertone);
+    await flush();
+    await unlockAudio();
+    audio.setSfxStyle('enhanced');
+    audio.play('jump');
+    const [first, second] = out[0]!;
+    expect(first).toMatchObject({ pitch: 262 });
+    expect(second).toMatchObject({ pitch: 300, filterEnvAmount: 3000, filterDecay: 0.05 });
+  });
+
+  it('plays an effect with no Enhanced version as Classic', async () => {
+    const out = played();
+    const audio = new GameAudio(styled, async () => Undertone);
+    await flush();
+    await unlockAudio();
+    audio.setSfxStyle('enhanced');
+    audio.play('zap');
+    expect(out[0]).toHaveLength(2);
+  });
+
+  it('plays Classic when there are no Enhanced voices at all', async () => {
+    const out = played();
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    await unlockAudio();
+    audio.setSfxStyle('enhanced');
+    audio.play('jump');
+    expect(out[0]).toHaveLength(1);
+  });
+
+  it('does not change the music or the audio mode', async () => {
+    const audio = new GameAudio(styled, async () => Undertone);
+    await flush();
+    audio.setSfxStyle('enhanced');
+    expect(audio.mode).toBe('classic');
+  });
+});
+
 describe('GameAudio music while Undertone loads at boot', () => {
   /** A loader the test settles by hand. */
   function controlledLoad(): {

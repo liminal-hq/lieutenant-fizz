@@ -54,6 +54,18 @@ export interface SfxVoice {
   hpf?: number;
   slide?: number;
   nudge?: number;
+  /** An exact pitch in Hz, used in place of `n` for an effect that moves its pitch in small steps. */
+  hz?: number;
+  /**
+   * A filter envelope on `lpf`: it opens to `lpenv` Hz at the attack (`lpa` seconds), falls to `lps` of
+   * the way back over `lpd`, and closes over `lpr` after the note. Undertone only; the built-in synth
+   * plays the voice without it.
+   */
+  lpenv?: number;
+  lpa?: number;
+  lpd?: number;
+  lps?: number;
+  lpr?: number;
 }
 
 /** One part of a looping music track (mini-notation pattern plus voice settings). */
@@ -83,6 +95,8 @@ export interface MusicTrack {
 export interface AudioPatterns {
   sfx: Record<string, SfxVoice[]>;
   music: Record<string, MusicTrack>;
+  /** A second set of voices for some or all of the effects, played in place of `sfx` when the effects style is Enhanced. */
+  sfxEnhanced?: Record<string, SfxVoice[]>;
   /** Caption text to SFX name, so on-screen sound captions and audio always agree. */
   captionSfx: Record<string, string>;
   /** The named mix states `AudioTune.mix` can change (see `mix.ts`); the episode keeps the live values. */
@@ -187,6 +201,7 @@ const isNoise = (n: string): boolean => n === 'white' || n === 'pink' || n === '
 
 interface VoiceSpec {
   n: string;
+  hz?: number;
   w?: OscillatorType;
   a?: number;
   d?: number;
@@ -216,11 +231,12 @@ export function buildVoice(
   placed = false,
 ): Voice {
   const text = 'notes' in v ? v.notes : v.n;
+  const exact = 'hz' in v ? v.hz : undefined;
   const role = placed && 'notes' in v ? v.role : undefined;
   const noisy = 'noise' in v ? !!v.noise : isNoise(text);
   let p: Voice = noisy
     ? U.sound(text as SoundType)
-    : U.note(text).sound((v.w ?? 'triangle') as SoundType);
+    : U.note(exact ?? text).sound((v.w ?? 'triangle') as SoundType);
   p = p
     .attack(v.a ?? 0.001)
     .decay(v.d ?? 0.1)
@@ -232,6 +248,14 @@ export function buildVoice(
     if (pan !== undefined) p = p.pan(pan);
   }
   if (v.lpf) p = p.lpf(v.lpf);
+  if ('lpenv' in v && v.lpenv) {
+    p = p
+      .lpenv(v.lpenv)
+      .lpa(v.lpa ?? 0.001)
+      .lpd(v.lpd ?? 0.1)
+      .lps(v.lps ?? 0)
+      .lpr(v.lpr ?? 0.05);
+  }
   if (v.hpf) p = p.hpf(v.hpf);
   if (v.slide) p = p.slide(v.slide);
   if ('nudge' in v && v.nudge) p = p.nudge(v.nudge);
@@ -315,7 +339,7 @@ export class MiniSynth {
     } else {
       const o = ctx.createOscillator();
       o.type = v.w ?? 'triangle';
-      const f = noteHz(v.n);
+      const f = v.hz ?? noteHz(v.n);
       if (v.slide) {
         o.frequency.setValueAtTime(f * 2, t);
         o.frequency.exponentialRampToValueAtTime(f, t + v.slide);
@@ -431,6 +455,8 @@ export class GameAudio {
   backend = 'Loading Undertone';
   /** Classic is today's sound, untouched. Enhanced places sound effects in the stereo field. */
   mode: AudioMode = 'classic';
+  /** Which set of voices effects play: Classic is the game's own, Enhanced adds pitch curves, bell partials and a filter that opens at each attack. */
+  sfxStyle: AudioMode = 'classic';
   /** How many sound effects have been placed through an emitter (always 0 in Classic). */
   emitters = 0;
   private ctx: AudioContext | null = null;
@@ -534,7 +560,7 @@ export class GameAudio {
   }
 
   private undertoneEffect(U: UndertoneModule, name: string, voices: readonly SfxVoice[]): Voice {
-    const key = `${name}@${this.sfxVol}`;
+    const key = `${name}@${this.sfxVol}@${this.sfxStyle}`;
     const hit = this.cache.get(key);
     if (hit) return hit;
     const fx = U.stack(...voices.map((v) => buildVoice(U, v, this.sfxVol, false)));
@@ -693,7 +719,7 @@ export class GameAudio {
    * panner into the destination), which places it at `at` (the centre if omitted).
    */
   play(name: string, at?: SoundAt): void {
-    const voices = this.patterns.sfx[name];
+    const voices = this.voicesFor(name);
     if (!this.sfx || !voices) return;
     const ctx = this.ensure();
     if (!ctx || ctx.state !== 'running') return;
@@ -715,6 +741,17 @@ export class GameAudio {
     } catch (e) {
       console.warn('sfx failed', name, e);
     }
+  }
+
+  /** The voices of an effect in the style in effect: Enhanced falls back to Classic for an effect with no Enhanced version. */
+  private voicesFor(name: string): SfxVoice[] | undefined {
+    const enhanced = this.sfxStyle === 'enhanced' ? this.patterns.sfxEnhanced?.[name] : undefined;
+    return enhanced ?? this.patterns.sfx[name];
+  }
+
+  /** Chooses which version of the effects plays from now on. Effects already playing finish as they were. */
+  setSfxStyle(style: AudioMode): void {
+    this.sfxStyle = style;
   }
 
   /** Plays the sound effect tied to an on-screen caption, if it has one, placed at `at`. */
