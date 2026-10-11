@@ -714,6 +714,7 @@ impl World {
         self.areas = m.areas;
         self.mode = Mode::Map;
         self.t = 0.0;
+        self.shake = 0.0;
         self.fx.clear();
         self.shots.clear();
         self.ents.clear();
@@ -798,9 +799,6 @@ impl World {
                         self.end_timer = Some(t - dt);
                     }
                 }
-                if self.shake > 0.0 {
-                    self.shake = (self.shake - dt * 2.0).max(0.0);
-                }
                 let p = &self.p;
                 match self.theme.cam() {
                     CamMode::Side => {
@@ -822,6 +820,11 @@ impl World {
                 }
             }
             Mode::None => {}
+        }
+        // Shake fades in every ticking mode: a hit that lands just before the level ends, or a
+        // bump in the attract loop, must not leave the camera vibrating on the map.
+        if self.shake > 0.0 {
+            self.shake = (self.shake - dt * 2.0).max(0.0);
         }
     }
 
