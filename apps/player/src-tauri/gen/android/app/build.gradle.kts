@@ -25,20 +25,39 @@ android {
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
+    // Release signing reads `keystore.properties` (keyAlias, password, storeFile) from the Gradle root. The file
+    // exists only in a release build (the release workflow writes it, and removes it afterwards), so debug and
+    // dev builds, and a release build without it, carry no signing config.
+    signingConfigs {
+        create("release") {
+            val keystorePropertiesFile = rootProject.file("keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                val keystoreProperties = Properties().apply {
+                    keystorePropertiesFile.inputStream().use { load(it) }
+                }
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["password"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["password"] as String
+            }
+        }
+    }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
             isDebuggable = true
             isJniDebuggable = true
             isMinifyEnabled = false
-            packaging {
-                jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
-                jniLibs.keepDebugSymbols.add("*/armeabi-v7a/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86_64/*.so")
-            }
         }
         getByName("release") {
+            if (rootProject.file("keystore.properties").exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+            // Keeps the native debug symbols out of the app and in the bundle's metadata, where Play reads them to
+            // symbolicate native crashes. The libraries must be unstripped for there to be any (the release workflow).
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             optimization {
                enable = true
             }
@@ -56,6 +75,18 @@ android {
     }
     buildFeatures {
         buildConfig = true
+    }
+}
+
+// The template put `packaging { jniLibs.keepDebugSymbols ... }` inside the debug build type, but there it resolved to
+// the module-wide packaging options, so the release build kept its native libraries unstripped too (and AGP, finding
+// nothing to strip, extracted no debug symbols). Scoping it to the debug variants leaves the release build stripped
+// and its symbols in the bundle's metadata.
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        variant.packaging.jniLibs.keepDebugSymbols.addAll(
+            listOf("*/arm64-v8a/*.so", "*/armeabi-v7a/*.so", "*/x86/*.so", "*/x86_64/*.so")
+        )
     }
 }
 

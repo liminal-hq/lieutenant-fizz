@@ -1,0 +1,598 @@
+# Builds the Linux packages and a signed Android build of the Tauri player and attaches them to one draft release.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+# Pushing a `vX.Y.Z` tag builds `.deb`, `.rpm` and `.AppImage` packages for x86_64 and aarch64 (unsigned),
+# and a signed Android APK and AAB (with the R8 mapping and the native debug symbols), writes SHA256SUMS over all of it, and attaches
+# everything to a DRAFT release for the tag (created with generated notes, or the existing draft reused).
+# Nothing is published and nothing goes to Google Play: a person reviews the draft and publishes it.
+# Windows, macOS and the Play upload come later.
+#
+# Started by hand (Actions > Release > Run workflow), it builds and uploads everything as workflow
+# artefacts and publishes nothing, unless `release_tag` names an existing tag: then it builds that tag
+# and drafts its release as a push would. A run without a tag still builds and signs the Android app, so
+# it works as a dry run of the whole workflow.
+#
+# The shape follows Jar, Emoji Nook and Threshold's release workflows: the `tauri-ci-desktop` container
+# for the deb and rpm build, the org's reusable `package-arch-appimage.yml` for the AppImage (it
+# repackages the built .deb), the `tauri-ci-mobile` container for Android (signing from the org's
+# `ANDROID_UPLOAD_*` secrets, through `keystore.properties`), and `gh release upload` for the draft.
+# See docs/APP.md, Releases.
+#
+# `android-apk.yml` also drafts releases, but under its own `android-debug-<run>-<attempt>` tags, so the
+# two never touch each other's draft.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Optional existing tag (vX.Y.Z) to build and draft a release for; empty builds this ref and publishes nothing
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && (inputs.release_tag || github.sha) || github.ref_name }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  prepare:
+    name: Check the version and tag
+    runs-on: ubuntu-24.04
+    outputs:
+      tag_name: ${{ steps.meta.outputs.tag_name }}
+      release_version: ${{ steps.meta.outputs.release_version }}
+      checkout_ref: ${{ steps.meta.outputs.checkout_ref }}
+      release_target: ${{ steps.meta.outputs.release_target }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+
+      # With a tag (pushed, or `release_tag`), the three manifests must agree with it; without one (a manual
+      # run on a branch) they only have to agree with each other. Both fail with a message naming the file.
+      - name: Resolve the release and check its version
+        id: meta
+        env:
+          MANUAL_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          TAG_NAME=""
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+          elif [[ -n "${MANUAL_RELEASE_TAG}" ]]; then
+            TAG_NAME="${MANUAL_RELEASE_TAG}"
+          fi
+
+          CHECKOUT_REF="${GITHUB_SHA}"
+          RELEASE_TARGET="${GITHUB_SHA}"
+          PRERELEASE=false
+
+          if [[ -n "${TAG_NAME}" ]]; then
+            if [[ ! "${TAG_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "Invalid release tag: ${TAG_NAME}" >&2
+              echo "Expected a tag matching vX.Y.Z or vX.Y.Z-beta.N" >&2
+              exit 1
+            fi
+            if ! git rev-parse -q --verify "refs/tags/${TAG_NAME}" >/dev/null; then
+              echo "The tag ${TAG_NAME} does not exist in this repository" >&2
+              exit 1
+            fi
+
+            CHECKOUT_REF="${TAG_NAME}"
+            RELEASE_TARGET="$(git rev-list -n 1 "${TAG_NAME}")"
+
+            git fetch origin main
+            if ! git merge-base --is-ancestor "${RELEASE_TARGET}" "origin/main"; then
+              echo "Release commit ${RELEASE_TARGET} is not on origin/main" >&2
+              exit 1
+            fi
+
+            git checkout --quiet "${CHECKOUT_REF}"
+            RELEASE_VERSION="$(bun scripts/check-release-version.ts --tag "${TAG_NAME}")"
+
+            if [[ "${TAG_NAME}" == *-* ]]; then
+              PRERELEASE=true
+            fi
+          else
+            RELEASE_VERSION="$(bun scripts/check-release-version.ts)"
+          fi
+
+          {
+            echo "tag_name=${TAG_NAME}"
+            echo "release_version=${RELEASE_VERSION}"
+            echo "checkout_ref=${CHECKOUT_REF}"
+            echo "release_target=${RELEASE_TARGET}"
+            echo "prerelease=${PRERELEASE}"
+          } >> "${GITHUB_OUTPUT}"
+
+          {
+            echo "## Release"
+            echo
+            echo "- Version: \`${RELEASE_VERSION}\`"
+            echo "- Tag: \`${TAG_NAME:-none (artefacts only, no release)}\`"
+            echo "- Commit: \`${RELEASE_TARGET}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # Creates the draft release for the tag, or finds the draft (or any release) already there, so the
+  # builds can run while it is made. The only job besides the upload that can write to the repository.
+  draft-release:
+    name: Draft the release
+    if: needs.prepare.outputs.tag_name != ''
+    needs: prepare
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Create the draft release, or reuse the existing one
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
+          RELEASE_TARGET: ${{ needs.prepare.outputs.release_target }}
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          # The list includes drafts; `releases/tags/<tag>` does not.
+          EXISTING="$(
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              --jq ".[] | select(.tag_name == \"${TAG_NAME}\") | [.draft, .html_url] | @tsv" \
+              | head -n 1 || true
+          )"
+
+          if [[ -z "${EXISTING}" ]]; then
+            URL="$(
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/releases" \
+                -f tag_name="${TAG_NAME}" \
+                -f target_commitish="${RELEASE_TARGET}" \
+                -f name="Lieutenant Fizz ${TAG_NAME}" \
+                -f body='The Lieutenant Fizz player: Linux packages (unsigned) and a signed Android APK and AAB. Check the downloads against the SHA256SUMS file.' \
+                -F generate_release_notes=true \
+                -F draft=true \
+                -F prerelease="${PRERELEASE}" \
+                --jq .html_url
+            )"
+            ACTION="Created"
+          else
+            IS_DRAFT="$(cut -f1 <<< "${EXISTING}")"
+            URL="$(cut -f2 <<< "${EXISTING}")"
+            if [[ "${IS_DRAFT}" != "true" ]]; then
+              echo "The release for ${TAG_NAME} is already published (${URL}); this workflow only adds to drafts." >&2
+              exit 1
+            fi
+            ACTION="Reused the existing draft"
+          fi
+
+          echo "${ACTION}: ${URL}"
+          echo "- ${ACTION}: ${URL}" >> "${GITHUB_STEP_SUMMARY}"
+
+  build-linux:
+    name: Build deb and rpm (${{ matrix.arch }})
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+            artefact_name: linux-release-assets-x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            artefact_name: linux-release-assets-arm64
+    container:
+      image: ghcr.io/liminal-hq/tauri-ci-desktop:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+
+      - name: Trust the GitHub workspace
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+
+      # `rust-toolchain.toml` pins the toolchain and lists the WASM target; rustup installs both on first use.
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            apps/player/src-tauri
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the WASM and the app frontend
+        run: |
+          bun run build:wasm
+          bun run build:app
+
+      # The release profile (apps/player/src-tauri/Cargo.toml) builds without debug assertions, so the dev-only
+      # MCP bridge plugin is not registered. The AppImage is packaged from the .deb in the next job.
+      - name: Build the deb and rpm packages
+        run: bun run tauri build --bundles deb,rpm
+
+      - name: Collect the packages
+        run: |
+          set -euo pipefail
+
+          release_dir="release-assets/linux"
+          mkdir -p "${release_dir}"
+
+          mapfile -t bundle_files < <(find apps/player/src-tauri/target/release/bundle -type f \( -name '*.deb' -o -name '*.rpm' \) | sort)
+          if [[ "${#bundle_files[@]}" -eq 0 ]]; then
+            echo "No deb or rpm packages found under apps/player/src-tauri/target/release/bundle" >&2
+            exit 1
+          fi
+
+          # The product name has a space ("Lieutenant Fizz_0.1.0_amd64.deb"), which GitHub rewrites in a download name.
+          for file in "${bundle_files[@]}"; do
+            name="$(basename "${file}")"
+            cp "${file}" "${release_dir}/${name// /-}"
+          done
+
+          ls -l "${release_dir}"
+
+      - name: Upload the packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artefact_name }}
+          path: release-assets/linux/**
+          if-no-files-found: error
+          retention-days: 14
+
+  # Builds the release APK and AAB in the shared mobile image, signed with the upload key. The key reaches the
+  # job only as the three `ANDROID_UPLOAD_*` org secrets, in the one step that writes it out, and is removed
+  # by the `always()` step at the end. Play re-signs the app with its own key; this key is the upload key.
+  build-android:
+    name: Build the signed Android APK and AAB
+    needs: prepare
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/liminal-hq/tauri-ci-mobile:latest
+      options: --user 0
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      # Gradle's user home (debug.keystore and the like), independent of the container's HOME.
+      ANDROID_USER_HOME: /tmp/android-user-home
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+
+      - name: Trust the GitHub workspace
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            apps/player/src-tauri
+
+      # `rust-toolchain.toml` pins the toolchain and lists only the WASM target. A release build covers all four
+      # ABIs: the AAB needs them for Play, and the APK is the universal one.
+      - name: Add the Android targets
+        run: |
+          rustup target add \
+            aarch64-linux-android \
+            armv7-linux-androideabi \
+            i686-linux-android \
+            x86_64-linux-android
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the WASM and the app frontend
+        run: |
+          bun run build:wasm
+          bun run build:app
+
+      # Writes the keystore under .ci/signing and the properties file the Gradle project reads (see
+      # apps/player/src-tauri/gen/android/app/build.gradle.kts), and checks the keystore opens with the password.
+      # Values are never echoed, and a missing secret fails the run.
+      - name: Configure Android signing
+        env:
+          ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${ANDROID_UPLOAD_KEYSTORE_BASE64}" || -z "${ANDROID_UPLOAD_KEY_ALIAS}" || -z "${ANDROID_UPLOAD_KEYSTORE_PASSWORD}" ]]; then
+            echo "Missing Android signing secrets. Expected ANDROID_UPLOAD_KEYSTORE_BASE64, ANDROID_UPLOAD_KEY_ALIAS and ANDROID_UPLOAD_KEYSTORE_PASSWORD" >&2
+            exit 1
+          fi
+
+          key_alias="$(printf '%s' "${ANDROID_UPLOAD_KEY_ALIAS}" | tr -d '\r\n')"
+          keystore_password="$(printf '%s' "${ANDROID_UPLOAD_KEYSTORE_PASSWORD}" | tr -d '\r\n')"
+          keystore="${GITHUB_WORKSPACE}/.ci/signing/upload-keystore.jks"
+
+          mkdir -p "$(dirname "${keystore}")"
+          umask 077
+          if ! printf '%s' "${ANDROID_UPLOAD_KEYSTORE_BASE64}" | tr -d '\r\n\t ' | base64 --decode > "${keystore}" 2>/dev/null; then
+            echo "Could not decode ANDROID_UPLOAD_KEYSTORE_BASE64 as base64" >&2
+            exit 1
+          fi
+
+          if ! keytool -list -keystore "${keystore}" -storepass "${keystore_password}" -alias "${key_alias}" >/dev/null 2>&1; then
+            echo "The decoded keystore does not open with the given password and alias" >&2
+            exit 1
+          fi
+
+          # A Java properties file reads a backslash as an escape, so double it.
+          escape() { printf '%s' "${1//\\/\\\\}"; }
+          {
+            printf 'keyAlias=%s\n' "$(escape "${key_alias}")"
+            printf 'password=%s\n' "$(escape "${keystore_password}")"
+            printf 'storeFile=%s\n' "$(escape "${keystore}")"
+          } > apps/player/src-tauri/gen/android/keystore.properties
+
+          echo "Android signing is configured (the keystore opens with the alias)."
+
+      # The Gradle project signs the release build type when keystore.properties exists. `tauri android build`
+      # writes tauri.properties (versionName from the tauri.conf.json version, versionCode derived from it) first.
+      #
+      # The repository's release profile sets `strip = true`, which leaves the native libraries with no symbols for
+      # Play to read. This step overrides it through Cargo's environment, so the desktop packages keep the stripped
+      # profile: `none` keeps the symbol table, and `line-tables-only` adds file and line numbers for crash traces.
+      # AGP strips the copy it ships in the APK and AAB and moves the full one into the bundle's metadata
+      # (`ndk { debugSymbolLevel = "FULL" }` in the Gradle project).
+      - name: Build the release APK and AAB
+        env:
+          CARGO_PROFILE_RELEASE_STRIP: none
+          CARGO_PROFILE_RELEASE_DEBUG: line-tables-only
+        run: bun run android:build --apk --aab
+
+      - name: Verify the signatures
+        run: |
+          set -euo pipefail
+
+          outputs="apps/player/src-tauri/gen/android/app/build/outputs"
+          mapfile -d '' artefacts < <(find "${outputs}" -type f \( -name '*.aab' -o -name '*.apk' \) -print0)
+          if [[ "${#artefacts[@]}" -eq 0 ]]; then
+            echo "No Android release artefacts found under ${outputs}" >&2
+            exit 1
+          fi
+
+          for artefact in "${artefacts[@]}"; do
+            echo "Verifying signature: ${artefact}"
+            jarsigner -verify -certs "${artefact}" >/dev/null
+          done
+
+      - name: Collect the Android files
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+        run: |
+          set -euo pipefail
+
+          gen="apps/player/src-tauri/gen/android"
+          props="${gen}/app/tauri.properties"
+          if [[ ! -f "${props}" ]]; then
+            echo "Missing ${props}; the build should have written it" >&2
+            exit 1
+          fi
+          version_name="$(grep '^tauri.android.versionName=' "${props}" | cut -d= -f2)"
+          version_code="$(grep '^tauri.android.versionCode=' "${props}" | cut -d= -f2)"
+          if [[ -z "${version_name}" || -z "${version_code}" ]]; then
+            echo "Could not read versionName and versionCode from ${props}" >&2
+            exit 1
+          fi
+
+          # `prepare` checked the manifests against the tag; Tauri must have written the same versionName.
+          if [[ "${version_name}" != "${RELEASE_VERSION}" ]]; then
+            echo "Tauri wrote versionName ${version_name}, but the release is ${RELEASE_VERSION}" >&2
+            exit 1
+          fi
+
+          release_dir="release-assets/android"
+          base="lieutenant-fizz-v${version_name}-${version_code}"
+          mkdir -p "${release_dir}"
+
+          apk="$(find "${gen}/app/build/outputs/apk" -type f -name '*.apk' | sort | head -n 1)"
+          aab="$(find "${gen}/app/build/outputs/bundle" -type f -name '*.aab' | sort | head -n 1)"
+          if [[ -z "${apk}" || -z "${aab}" ]]; then
+            echo "Missing the release APK or AAB" >&2
+            exit 1
+          fi
+          cp "${apk}" "${release_dir}/${base}.apk"
+          cp "${aab}" "${release_dir}/${base}.aab"
+
+          # The R8 mapping, to read a release crash trace.
+          mapping="$(find "${gen}/app/build/outputs" -type f -name 'mapping.txt' | sort | head -n 1)"
+          if [[ -n "${mapping}" ]]; then
+            cp "${mapping}" "${release_dir}/lieutenant-fizz-mapping-v${version_name}-${version_code}.txt"
+          else
+            echo "::warning::No R8 mapping.txt was produced"
+          fi
+
+          # Native debug symbols for Play: the `<abi>/<library>.so.dbg` files AGP put in the bundle's metadata, zipped
+          # with the ABI folders at the root (the layout Play Console accepts). The release must have them, so an
+          # empty result fails the job instead of shipping a release Play cannot symbolicate.
+          for tool in unzip zip; do
+            if ! command -v "${tool}" >/dev/null; then
+              echo "${tool} is required to build the symbols zip" >&2
+              exit 1
+            fi
+          done
+          symbols_tmp="$(mktemp -d)"
+          unzip -q "${aab}" 'BUNDLE-METADATA/com.android.tools.build.debugsymbols/*' -d "${symbols_tmp}" || true
+          symbols_root="${symbols_tmp}/BUNDLE-METADATA/com.android.tools.build.debugsymbols"
+          if [[ -z "$(find "${symbols_root}" -type f -name '*.so.dbg' 2>/dev/null | head -n 1)" ]]; then
+            echo "The bundle has no native debug symbols (BUNDLE-METADATA/com.android.tools.build.debugsymbols). Check CARGO_PROFILE_RELEASE_STRIP and debugSymbolLevel." >&2
+            exit 1
+          fi
+          symbols_zip="${GITHUB_WORKSPACE}/${release_dir}/lieutenant-fizz-native-debug-symbols-v${version_name}-${version_code}.zip"
+          (cd "${symbols_root}" && zip -r -q "${symbols_zip}" .)
+          echo "Native debug symbols:"
+          unzip -l "${symbols_zip}"
+          rm -rf "${symbols_tmp}"
+
+          ls -l "${release_dir}"
+
+          cert="$(apksigner verify --print-certs "${release_dir}/${base}.apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          {
+            echo "### Android"
+            echo
+            echo "- Version: \`${version_name}\`, versionCode \`${version_code}\`"
+            echo "- Signing certificate (SHA-256, no colons): \`${cert}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload the Android files
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-release-assets
+          path: release-assets/android/**
+          if-no-files-found: error
+          retention-days: 14
+
+      # Runs even when an earlier step failed, so the key never stays on the runner.
+      - name: Remove the signing key
+        if: always()
+        run: |
+          rm -rf .ci/signing
+          rm -f apps/player/src-tauri/gen/android/keystore.properties
+
+  package-appimage:
+    name: Package the AppImage (${{ matrix.arch }})
+    needs:
+      - prepare
+      - build-linux
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+            deb-artefact: linux-release-assets-x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            deb-artefact: linux-release-assets-arm64
+    uses: liminal-hq/.github/.github/workflows/package-arch-appimage.yml@main
+    with:
+      runs-on: ${{ matrix.runner }}
+      deb-artifact-name: ${{ matrix.deb-artefact }}
+      app-version: ${{ needs.prepare.outputs.release_version }}
+
+  # Gathers every package, normalises the file names and writes SHA256SUMS over the lot. A manual run
+  # without a tag ends here, with the combined artefact as its output.
+  assemble:
+    name: Gather the packages and checksums
+    needs:
+      - prepare
+      - build-linux
+      - build-android
+      - package-appimage
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download the deb and rpm packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: linux-release-assets-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Download the AppImages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: appimage-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Download the Android files
+        uses: actions/download-artifact@v8
+        with:
+          name: android-release-assets
+          path: release-assets
+
+      - name: Name the files and write the checksums
+        working-directory: release-assets
+        run: |
+          set -euo pipefail
+
+          for file in *; do
+            if [[ "${file}" == *" "* ]]; then
+              mv "${file}" "${file// /-}"
+            fi
+          done
+
+          for ext in deb rpm AppImage apk aab; do
+            if [[ -z "$(find . -maxdepth 1 -name "*.${ext}" -print -quit)" ]]; then
+              echo "No .${ext} file was built" >&2
+              exit 1
+            fi
+          done
+
+          if [[ -z "$(find . -maxdepth 1 -name 'lieutenant-fizz-native-debug-symbols-v*.zip' -print -quit)" ]]; then
+            echo "No native debug symbols zip was built" >&2
+            exit 1
+          fi
+
+          sha256sum ./* | sed 's# \./#  #' > SHA256SUMS
+          cat SHA256SUMS
+          {
+            echo "### Files"
+            echo
+            echo '```'
+            cat SHA256SUMS
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload the release files
+        uses: actions/upload-artifact@v7
+        with:
+          name: fizz-player-release
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 14
+
+  attach-to-release:
+    name: Attach the files to the draft release
+    if: needs.prepare.outputs.tag_name != ''
+    needs:
+      - prepare
+      - draft-release
+      - assemble
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download the release files
+        uses: actions/download-artifact@v8
+        with:
+          name: fizz-player-release
+          path: release-assets
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
+        run: gh release upload "${TAG_NAME}" release-assets/* --clobber

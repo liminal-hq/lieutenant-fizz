@@ -15,6 +15,11 @@
 #   - WebView settings: `MainActivity.onWebViewCreate` pins `textZoom` to 100 (the game owns its text
 #     size, so the system font scale must not apply) and lets media play without a user gesture
 #   - `compileSdk` and `targetSdk` 36 rather than the template's 37, to match the CI images
+#   - release signing: a `release` signing config reading `keystore.properties` from the Gradle root, set on
+#     the release build type only when that file exists (the release workflow writes it)
+#   - the template's `keepDebugSymbols` moved from the (module-wide, in effect) debug packaging block to the debug variants
+#   - native debug symbols: `ndk { debugSymbolLevel = "FULL" }` on the release build type, so the bundle carries
+#     the symbols Play uses to symbolicate native crashes (the libraries must be built unstripped; see docs/APP.md)
 #
 # `android.permission.VIBRATE` is not added here: the haptics plugin's `build.rs` adds it.
 #
@@ -105,4 +110,94 @@ sed -i 's/^\( *\)compileSdk = 37$/\1compileSdk = 36/; s/^\( *\)targetSdk = 37$/\
 grep -q 'compileSdk = 36' "$GRADLE" || die "compileSdk is not 36 in $GRADLE"
 grep -q 'targetSdk = 36' "$GRADLE" || die "targetSdk is not 36 in $GRADLE"
 
+# Release signing: a `release` signing config that reads keystore.properties from the Gradle root, set on the
+# release build type only when that file exists. A dev or debug build has no such file, so it is unaffected.
+if ! grep -q 'signingConfigs {' "$GRADLE"; then
+  grep -q '^    buildTypes {$' "$GRADLE" || die "anchor 'buildTypes {' missing in $GRADLE"
+  grep -q '^        getByName("release") {$' "$GRADLE" || die "anchor 'getByName(\"release\")' missing in $GRADLE"
+  SIGNING="$(mktemp)"
+  cat > "$SIGNING" <<'EOF'
+    // Release signing reads `keystore.properties` (keyAlias, password, storeFile) from the Gradle root. The file
+    // exists only in a release build (the release workflow writes it, and removes it afterwards), so debug and
+    // dev builds, and a release build without it, carry no signing config.
+    signingConfigs {
+        create("release") {
+            val keystorePropertiesFile = rootProject.file("keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                val keystoreProperties = Properties().apply {
+                    keystorePropertiesFile.inputStream().use { load(it) }
+                }
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["password"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["password"] as String
+            }
+        }
+    }
+EOF
+  awk -v block="$SIGNING" '
+    /^    buildTypes \{$/ { while ((getline line < block) > 0) print line }
+    { print }
+    /^        getByName\("release"\) \{$/ {
+      print "            if (rootProject.file(\"keystore.properties\").exists()) {"
+      print "                signingConfig = signingConfigs.getByName(\"release\")"
+      print "            }"
+    }
+  ' "$GRADLE" > "$GRADLE.new"
+  mv "$GRADLE.new" "$GRADLE"
+  rm -f "$SIGNING"
+  grep -q 'signingConfig = signingConfigs.getByName("release")' "$GRADLE" || die "release signing not applied to $GRADLE"
+fi
+# The template's `packaging { jniLibs.keepDebugSymbols ... }` sits inside the debug build type but resolves to the
+# module-wide packaging options, so the release build would keep its libraries unstripped too, and AGP then extracts
+# no native debug symbols (it finds nothing to strip). Move it to the debug variants only.
+if ! grep -q 'androidComponents {' "$GRADLE"; then
+  grep -q '^            packaging {$' "$GRADLE" || die "anchor 'packaging {' missing in $GRADLE"
+  grep -q '^kotlin {$' "$GRADLE" || die "anchor 'kotlin {' missing in $GRADLE"
+  VARIANTS="$(mktemp)"
+  cat > "$VARIANTS" <<'EOF'
+// The template put `packaging { jniLibs.keepDebugSymbols ... }` inside the debug build type, but there it resolved to
+// the module-wide packaging options, so the release build kept its native libraries unstripped too (and AGP, finding
+// nothing to strip, extracted no debug symbols). Scoping it to the debug variants leaves the release build stripped
+// and its symbols in the bundle's metadata.
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        variant.packaging.jniLibs.keepDebugSymbols.addAll(
+            listOf("*/arm64-v8a/*.so", "*/armeabi-v7a/*.so", "*/x86/*.so", "*/x86_64/*.so")
+        )
+    }
+}
+
+EOF
+  awk -v block="$VARIANTS" '
+    /^            packaging \{$/ { skipping = 1 }
+    skipping { if ($0 ~ /^            \}$/) skipping = 0; next }
+    /^kotlin \{$/ { while ((getline line < block) > 0) print line }
+    { print }
+  ' "$GRADLE" > "$GRADLE.new"
+  mv "$GRADLE.new" "$GRADLE"
+  rm -f "$VARIANTS"
+  grep -q 'androidComponents {' "$GRADLE" || die "debug symbol packaging not scoped in $GRADLE"
+  if grep -q '^            packaging {$' "$GRADLE"; then die "template packaging block still in $GRADLE"; fi
+fi
+
+# Native debug symbols: the release build type packs FULL symbols into the bundle's metadata.
+if ! grep -q 'debugSymbolLevel' "$GRADLE"; then
+  grep -q '^            optimization {$' "$GRADLE" || die "anchor 'optimization {' missing in $GRADLE"
+  NDK="$(mktemp)"
+  cat > "$NDK" <<'EOF'
+            // Keeps the native debug symbols out of the app and in the bundle's metadata, where Play reads them to
+            // symbolicate native crashes. The libraries must be unstripped for there to be any (the release workflow).
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
+EOF
+  awk -v block="$NDK" '
+    /^            optimization \{$/ { while ((getline line < block) > 0) print line }
+    { print }
+  ' "$GRADLE" > "$GRADLE.new"
+  mv "$GRADLE.new" "$GRADLE"
+  rm -f "$NDK"
+  grep -q 'debugSymbolLevel = "FULL"' "$GRADLE" || die "native debug symbols not applied to $GRADLE"
+fi
 echo "android settings applied to $GEN"
