@@ -221,6 +221,23 @@ test('Android has Quit to launcher and no Quit game', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('Quit to launcher on Android hands Back to the system before it leaves', async ({ page }) => {
+  const errors = await open(page, 'pause', '&host=fake-android');
+  const log = (): Promise<string[]> =>
+    page.evaluate(() => (window as unknown as { __lfBackLog?: string[] }).__lfBackLog ?? []);
+  await expect.poll(log).toContain('canGoBack:true');
+  await toLastRow(page, OVERLAY, 'Quit to launcher');
+  const armed = (): boolean =>
+    document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Tap again';
+  await pressUntil(page, 'Enter', armed);
+  await pressUntil(page, 'Enter', () => true);
+  await expect.poll(() => leaves(page)).toBe(1);
+  const entries = await log();
+  expect(entries.at(-1)).toBe('leave');
+  expect(entries.at(-2)).toBe('canGoBack:false');
+  expect(errors).toEqual([]);
+});
+
 test('the web build has no Quit to launcher on the title or the pause menu', async ({ page }) => {
   await open(page, 'title', '');
   expect(await labels(page, TITLE)).not.toContain('Quit to launcher');

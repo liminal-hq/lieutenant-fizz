@@ -31,6 +31,7 @@
     "./mix": "./src/mix.ts",
     "./palette": "./src/palette.ts",
     "./pen": "./src/pen.ts",
+    "./predictive-back": "./src/predictive-back.ts",
     "./renderer": "./src/renderer.ts",
     "./frame-stats": "./src/frame-stats.ts",
     "./repeat": "./src/repeat.ts",
