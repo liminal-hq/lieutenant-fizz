@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "mcp-bridge",
+  "description": "The debug-only MCP bridge. Not on Windows, where the plugin is not built (see Cargo.toml)",
+  "windows": ["main"],
+  "platforms": ["linux", "macOS", "android", "iOS"],
+  "permissions": ["mcp-bridge:default"]
+}
