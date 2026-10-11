@@ -19,7 +19,7 @@ Every tagged version has a release on the [Releases page](https://github.com/lim
 | Android | `lieutenant-fizz-v<version>-<code>.apk` |
 | Windows | `Lieutenant-Fizz_<version>_x64_en-US.msi` or `Lieutenant-Fizz_<version>_x64-setup.exe` (use `arm64` on an ARM PC) |
 
-The other files on a release are for people who work on the game: the `.aab` is the bundle for Google Play (it cannot be installed directly), and the mapping and native debug symbols read crash reports. The Linux, macOS and Windows builds are not signed by a publisher, so check them as below. macOS and Windows builds start with the first release after 0.1.0.
+The other files on a release are for people who work on the game: the `.aab` is the bundle for Google Play (it cannot be installed directly), and the mapping and native debug symbols read crash reports. The Linux, macOS and Windows builds are not signed by a publisher, so check them as below. macOS and Windows builds start with 0.1.1.
 
 ### Check a download
 
