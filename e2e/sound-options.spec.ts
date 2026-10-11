@@ -68,6 +68,7 @@ test('Options > Sound: Left and Enter change the style, which is saved, and Esca
   expect(await labels(page)).toEqual([
     'Style',
     'Music',
+    'Music version',
     'Effects',
     'Effects version',
     'Sound lab',
