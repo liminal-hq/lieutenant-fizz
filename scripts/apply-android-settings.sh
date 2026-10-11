@@ -12,6 +12,8 @@
 #   - landscape lock: `screenOrientation="sensorLandscape"` on the activity
 #   - fullscreen theme, with the display cutout in `shortEdges` mode, in both theme files
 #   - immersive mode: `MainActivity` hides the system bars (transient bars on swipe)
+#   - WebView settings: `MainActivity.onWebViewCreate` pins `textZoom` to 100 (the game owns its text
+#     size, so the system font scale must not apply) and lets media play without a user gesture
 #   - `compileSdk` and `targetSdk` 36 rather than the template's 37, to match the CI images
 #
 # `android.permission.VIBRATE` is not added here: the haptics plugin's `build.rs` adds it.
@@ -47,16 +49,19 @@ for themes in "$MAIN/res/values/themes.xml" "$MAIN/res/values-night/themes.xml";
   grep -q 'android:windowFullscreen' "$themes" || die "fullscreen theme not applied to $themes"
 done
 
-# Immersive mode. The package line follows the application identifier, so it is read back from the
+# Immersive mode and WebView settings. The package line follows the application identifier, so it is read back from the
 # generated file (it differs in the dev build).
 ACTIVITY="$(find "$MAIN/java" -name MainActivity.kt | head -n 1)"
 [ -n "$ACTIVITY" ] || die "MainActivity.kt not found"
 PACKAGE="$(sed -n 's/^package //p' "$ACTIVITY")"
 [ -n "$PACKAGE" ] || die "no package line in $ACTIVITY"
+# The hook below overrides `WryActivity.onWebViewCreate(WebView)`, which `TauriActivity` inherits.
+grep -q 'class MainActivity : TauriActivity()' "$ACTIVITY" || die "anchor 'class MainActivity : TauriActivity()' missing in $ACTIVITY"
 cat > "$ACTIVITY" <<EOF
 package $PACKAGE
 
 import android.os.Bundle
+import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -67,6 +72,14 @@ class MainActivity : TauriActivity() {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     hideSystemBars()
+  }
+
+  // Called by WryActivity.setWebView once the WebView exists. The WebView applies the system font scale
+  // to all text by default, which breaks the game's pixel layout, so pin it to 100%. Audio may start
+  // without the tap a browser needs.
+  override fun onWebViewCreate(webView: WebView) {
+    webView.settings.textZoom = 100
+    webView.settings.mediaPlaybackRequiresUserGesture = false
   }
 
   // Immersive mode: the bars stay hidden and a swipe from the edge shows them briefly. The system
@@ -83,6 +96,7 @@ class MainActivity : TauriActivity() {
   }
 }
 EOF
+grep -q 'webView.settings.textZoom = 100' "$ACTIVITY" || die "WebView settings not applied to $ACTIVITY"
 
 # SDK levels.
 GRADLE="$GEN/app/build.gradle.kts"

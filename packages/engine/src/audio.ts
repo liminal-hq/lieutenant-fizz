@@ -439,6 +439,10 @@ export class GameAudio {
   private handle: { stop(): void } | null = null;
   private track: string | null = null;
   private pending: string | null = null;
+  /** True until the Undertone load settles; music waits for it so it never starts on the built-in synth first. */
+  private utLoading = true;
+  /** Only the app boot path waits for Undertone; the web build starts music on the built-in synth at the first gesture. */
+  private readonly waitForUndertone: boolean;
   private disposed = false;
   /** The Enhanced music route, built the first time Enhanced music plays. */
   private musicBus: MusicBus | null = null;
@@ -460,20 +464,28 @@ export class GameAudio {
   private readonly unlock = (): void => {
     if (this.disposed) return;
     this.ensure();
-    if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
+    if (this.ctx && this.ctx.state === 'suspended' && !this.hidden) void this.ctx.resume();
   };
 
   constructor(
     private readonly patterns: AudioPatterns,
     load: () => Promise<UndertoneModule> = () => import('@liminal-hq/undertone'),
+    options: { unlockAtBoot?: boolean } = {},
   ) {
+    this.waitForUndertone = !!options.unlockAtBoot;
+    // A page that went to the background before this was built missed the visibility event.
+    this.hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
     window.addEventListener('pointerdown', this.unlock);
     // Chrome does not count a touch's pointerdown as a user gesture, but its pointerup is one.
     window.addEventListener('pointerup', this.unlock);
     window.addEventListener('keydown', this.unlock);
+    // The app's WebView allows autoplay, so it needs no gesture: create and resume the context now. The
+    // handlers above stay as the fallback, and the web build leaves this off (no context before a gesture).
+    if (options.unlockAtBoot) this.unlock();
     load().then(
       (m) => {
         if (this.disposed) return;
+        this.utLoading = false;
         if (
           typeof m?.note === 'function' &&
           typeof m.sound === 'function' &&
@@ -481,15 +493,29 @@ export class GameAudio {
         ) {
           this.ut = m;
           this.backend = 'Undertone 0.2';
-          // Music requested before the library arrived was started on the built-in synth.
-          if (this.handle && this.music && this.track) this.playMusic(this.track, true);
         } else this.backend = 'Built-in synth';
+        // On the web the built-in loop may already be playing (the first gesture came before the import
+        // settled); hand it over to Undertone, as the build did before the boot path began to wait.
+        if (this.ut && this.handle && this.track) this.playMusic(this.track, true);
+        else this.flushPending();
       },
       (e: unknown) => {
         console.warn('Undertone unavailable, using the built-in synth', e);
+        if (this.disposed) return;
+        this.utLoading = false;
         this.backend = 'Built-in synth';
+        this.flushPending();
       },
     );
+  }
+
+  /** Starts the music asked for while there was no context or Undertone was still loading. */
+  private flushPending(): void {
+    if (!this.ctx || !this.mini || (this.waitForUndertone && this.utLoading) || !this.pending)
+      return;
+    const t = this.pending;
+    this.pending = null;
+    this.playMusic(t, true);
   }
 
   private ensure(): AudioContext | null {
@@ -501,11 +527,9 @@ export class GameAudio {
     if (!AC) return null;
     this.ctx = new AC();
     this.mini = new MiniSynth(this.ctx, this.ctx.destination);
-    if (this.pending) {
-      const t = this.pending;
-      this.pending = null;
-      this.playMusic(t, true);
-    }
+    // A context created while hidden (some WebViews start it running) stays quiet until the page returns.
+    if (this.hidden && this.ctx.state === 'running') void this.ctx.suspend();
+    this.flushPending();
     return this.ctx;
   }
 
@@ -705,9 +729,10 @@ export class GameAudio {
     this.track = track;
     this.handle?.stop();
     this.handle = null;
+    this.pending = null;
     const t = track ? this.patterns.music[track] : undefined;
     if (!this.music || !t) return;
-    if (!this.ctx || !this.mini) {
+    if (!this.ctx || !this.mini || (this.waitForUndertone && this.utLoading)) {
       this.pending = track;
       return;
     }

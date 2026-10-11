@@ -1,6 +1,7 @@
 package ca.liminalhq.lieutenantfizz
 
 import android.os.Bundle
+import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -11,6 +12,14 @@ class MainActivity : TauriActivity() {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     hideSystemBars()
+  }
+
+  // Called by WryActivity.setWebView once the WebView exists. The WebView applies the system font scale
+  // to all text by default, which breaks the game's pixel layout, so pin it to 100%. Audio may start
+  // without the tap a browser needs.
+  override fun onWebViewCreate(webView: WebView) {
+    webView.settings.textZoom = 100
+    webView.settings.mediaPlaybackRequiresUserGesture = false
   }
 
   // Immersive mode: the bars stay hidden and a swipe from the edge shows them briefly. The system

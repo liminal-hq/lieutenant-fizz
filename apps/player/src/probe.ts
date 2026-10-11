@@ -30,6 +30,22 @@ interface FrameStats {
   fps: number;
 }
 
+// Created at load, before any user gesture: `state` after 500 ms shows whether audio starts on its own
+// ("running") or waits for a tap ("suspended"). The Android activity sets
+// `mediaPlaybackRequiresUserGesture = false`, so the app is expected to report "running".
+let preGestureAudioState: string = 'unavailable';
+try {
+  const early = new AudioContext();
+  preGestureAudioState = early.state;
+  setTimeout(() => {
+    preGestureAudioState = early.state;
+    report.audioBeforeGesture = preGestureAudioState;
+    render();
+  }, 500);
+} catch (error) {
+  preGestureAudioState = `error: ${String(error)}`;
+}
+
 const out = document.getElementById('out') as HTMLPreElement;
 
 function render(): void {
@@ -93,6 +109,10 @@ function environment(): ProbeReport {
     })(),
     safeAreaInsets: insets(),
     tauriInternals: '__TAURI_INTERNALS__' in window,
+    tauriInternalsType: typeof (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__,
+    // Expect 16: anything else means the WebView is scaling text (Android `textZoom`).
+    rootFontSizePx: parseFloat(getComputedStyle(document.documentElement).fontSize),
+    audioBeforeGesture: preGestureAudioState,
     tauri: '__TAURI__' in window,
     hardwareConcurrency: navigator.hardwareConcurrency,
     maxTouchPoints: navigator.maxTouchPoints,

@@ -521,7 +521,10 @@ export class Game {
       spec: touchSpec(this.touchSettings, undefined, this.chromeless()),
     });
     ui.setTouchOpacity(this.touchSettings.opacity);
-    this.audio = new GameAudio({ ...PATTERNS, mix: MIX });
+    // The app's WebView allows autoplay, so its audio starts at boot; the web waits for a gesture.
+    this.audio = new GameAudio({ ...PATTERNS, mix: MIX }, undefined, {
+      unlockAtBoot: isAppHost(window),
+    });
     this.audioForced = options.audio !== undefined;
     this.audioUrl = options.audio;
     this.coarseSpeaker = !!window.matchMedia?.('(pointer: coarse)').matches;

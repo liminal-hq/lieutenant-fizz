@@ -1,13 +1,13 @@
 # Tauri spike: Episode 1 in the Android WebView
 
-**Status: scaffolded, not yet built or run on a device.** This is the findings document for phase 2 of [APP.md](APP.md). The aim is to put the existing Episode 1 build, unchanged, into a Tauri v2 shell at `apps/player`, install a debug APK on a phone and measure what the WebView can do. The verdict feeds the launcher and lifecycle phases.
+**Status: built and run on a device once; the measurements are still to do.** The dev APK has been built in the `tauri-dev-mobile` container and installed on a Pixel 8 Pro, and the first device run is recorded under "Findings from the first device run". The GitHub Actions workflow (`android-apk.yml`) has not been run yet, and the results table is still empty. This is the findings document for phase 2 of [APP.md](APP.md). The aim is to put the existing Episode 1 build, unchanged, into a Tauri v2 shell at `apps/player`, install a debug APK on a phone and measure what the WebView can do. The verdict feeds the launcher and lifecycle phases.
 
 ## How it is built
 
 - **CI is the default build.** The real Android project is tracked in `apps/player/src-tauri/gen/android`. The APK is built in GitHub Actions: `gh workflow run android-apk.yml --ref <branch>`. The one sanctioned local build is `bun run build:android:dev` (`scripts/build-android-dev.sh`): it runs the same steps in the `tauri-dev-mobile` container, with parallelism capped (`FIZZ_DEV_JOBS`, default 4) and the heavy directories under `FIZZ_DEV_SCRATCH` (a host directory, for example on another disk). No emulator, `tauri android dev` or bare Gradle run is used, and the script exits non-zero if it cannot restore `gen/android`. The workflow also runs on pushes to `feat/tauri-player*` branches so it can run before it exists on `main`. See [APP.md](APP.md#tooling-and-ci).
 - **Workflow details:** `android-apk.yml` runs in the `tauri-ci-mobile` image, builds the WASM and the app frontend, regenerates `gen/android` as the dev app (`scripts/prepare-android-dev.sh`: `tauri android init` with `tauri.conf.dev.json`, the Android settings re-applied, the dev ribbon icon stamped), then runs `bun run android:build --debug --target aarch64 --apk --config src-tauri/tauri.conf.dev.json` and uploads `fizz-player-debug-apk` (14 days). The result is the side-by-side `ca.liminalhq.lieutenantfizz.dev` app, labelled 'Lieutenant Fizz Dev'. With the `ANDROID_DEBUG_KEYSTORE_BASE64` secret the debug key is stable and `adb install -r` updates in place; without it each build has a throwaway key and the previous install must be removed first. The `publish_draft_release` input also attaches the APK to a draft pre-release for a direct phone download.
 - **Frontend:** `bun run build:wasm && bun run build:app` assembles `apps/player/dist/`: a spike menu (`index.html`), a capability probe (`probe.html`) and the Episode 1 build under `episode-1/`, built with `--base ./` so every URL is relative. The Pages build is unchanged.
-- **Probe:** `probe.html` reports the origin and secure context, user agent, pixel ratio, screen, viewport and safe-area insets, the WebGL2 renderer, the WASM fetch content type and timings, audio start, the gamepad list, and the availability of vibrate, fullscreen, orientation lock and wake lock. Buttons try each of those, and the page logs lifecycle events, `popstate` and touches, and keeps a launch counter in `localStorage`. `window.__probe` holds the whole report, and `window.__lfFrames(seconds)` (the "Idle refresh" button) records the display refresh cadence of the idle probe page. It runs no episode renderer, so it says nothing about Episode 1 frame times.
+- **Probe:** `probe.html` reports the origin and secure context, user agent, pixel ratio, screen, viewport and safe-area insets, the WebGL2 renderer, the WASM fetch content type and timings, audio start, the gamepad list, and the availability of vibrate, fullscreen, orientation lock and wake lock, the root font size in px, `__TAURI_INTERNALS__`, and the `AudioContext` state before any gesture. Buttons try each of those, and the page logs lifecycle events, `popstate` and touches, and keeps a launch counter in `localStorage`. `window.__probe` holds the whole report, and `window.__lfFrames(seconds)` (the "Idle refresh" button) records the display refresh cadence of the idle probe page. It runs no episode renderer, so it says nothing about Episode 1 frame times.
 - **Vibration:** the manifest does not carry `android.permission.VIBRATE` yet. The haptics plugin adds it from its own `build.rs` once the app depends on that plugin, so the probe's vibrate test is expected to report no permission until then.
 - **Fast iteration:** the menu links to `http://localhost:5173/`. With `adb reverse tcp:5173 tcp:5173` and `bun run dev:phone`, the WebView loads the live Vite server.
 - **Automation:** debug builds include `tauri-plugin-mcp-bridge` (pinned to 0.12; 0.13 does not compile for Android). With `adb forward tcp:9223 tcp:9223` the MCP tools can run the probe, the idle refresh recorder, screenshots and logs.
@@ -47,7 +47,7 @@ To fill in: workflow run, commit, Tauri and CLI versions, NDK version, APK size,
 | E4 | Episode 1 frame rate, measured on the episode page with `?debug` (median at least 58 fps at 60 Hz, p95 at most 20 ms, under 1% over 33 ms) | | | | |
 | E4i | Idle display refresh from the probe page (reports the refresh rate the WebView delivers with no renderer; context for E4, not a pass or fail) | | | | |
 | E5 | Pixel scale (same `s`, `k` and tiles as Chrome) | | | | |
-| E6 | Audio start (running after the first gesture, no crackle in Enhanced) | | | | |
+| E6 | Audio start (running before any gesture: the probe's `audioBeforeGesture` is `running` and the game's title music plays at boot in the app; no crackle in Enhanced; a pass that needs a tap first is a fail) | | | | |
 | E7 | Gamepad (standard mapping, key events only, or nothing) | | | | |
 | E8 | Touch (same as Chrome, no stuck buttons) | | | | |
 | E9 | Safe areas and viewport (non-zero insets on the cutout side) | | | | |
@@ -61,7 +61,18 @@ To fill in: workflow run, commit, Tauri and CLI versions, NDK version, APK size,
 | E16 | Remote dev loop | | | | |
 | E17 | Desktop WebKitGTK smoke (optional) | | | | |
 
-**Go** if E1 to E5 pass, E6 works after a tap, E8 matches Chrome and E12a passes. **No-go** if WebGL2 is missing or under 45 fps where Chrome manages 60, or storage does not persist.
+**Go** if E1 to E5 pass, E6 runs before any gesture, E8 matches Chrome and E12a passes. **No-go** if WebGL2 is missing or under 45 fps where Chrome manages 60, or storage does not persist.
+
+## Findings from the first device run
+
+Pixel 8 Pro, Android 17, WebView 153, system font scale 1.15.
+
+- **Font scale (bug, fixed):** the Android WebView applied the system font scale to all text, so `getComputedStyle(document.documentElement).fontSize` was `18.4px` instead of `16px`, and the touch button labels computed to 37.95 px instead of 33 px. The labels overflowed their circles, the pause hint wrapped into the map and menu rows crowded. Chrome and Firefox on the same phone were fine. The cause is the WebView's `textZoom`, which follows the system font scale by default. The fix is `webView.settings.textZoom = 100` in `MainActivity.onWebViewCreate`, applied by `scripts/apply-android-settings.sh`. The game is pixel-art with its own px layout and Text size option, so it must not scale. The probe now reports `rootFontSizePx`; expect 16.
+- **Audio:** a browser needs a first tap before audio starts. The app sets `mediaPlaybackRequiresUserGesture = false` in the same hook so it can start right away, and the game creates its context at boot in the app (the web build still waits for a gesture). The probe creates an `AudioContext` at load and reports `audioBeforeGesture` after 500 ms; expect `running`.
+- **Safe area:** `env(safe-area-inset-left)` computed to `60px` on the cutout side, so the insets work in the WebView.
+- **WASM:** served as `application/wasm`.
+- **APIs present:** vibrate, wake lock, fullscreen and orientation lock are all available in the WebView.
+- **To confirm on the next run:** `rootFontSizePx` is 16, `audioBeforeGesture` is `running`, and `window.__TAURI_INTERNALS__` is present (`tauriInternals` and `tauriInternalsType` in the environment section).
 
 ## Frame timing
 
