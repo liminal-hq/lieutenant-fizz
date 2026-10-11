@@ -21,6 +21,14 @@
 | 8c.1 | Options > Sound: Style (Classic or Enhanced), Music and Effects, Reset | in progress, merges after slice 6 (it uses the nested sub-screen stack) |
 | 8c.8 | The sound lab under `?debug` | in progress |
 
+## Enhanced sound effects
+Style (above) chooses how sound is placed and mastered. A separate row, Effects version, chooses which voices an effect plays: Classic is the game's own, Enhanced is the same effects reshaped the way an AdLib sound chip shaped its effects (see `episodes/episode-1/src/audio/enhanced-sfx.ts`). The two are independent, so Enhanced effects can play on the Classic route and the reverse.
+- **Pitch curves:** a chain of very short notes, one every 25 ms, each at the next pitch on a curve, for `jump`, `boing`, `sproing`, `vworp`, `zap`, `zzzap`, `hurt`, `stinger` and `stun`. Undertone's `slide` only falls, from an octave above the note; the chip moved its pitch every 1/140 s, so a sweep could rise, fall, bounce or wobble. `stinger` gains a slow falling alarm under the low sting.
+- **Shaping:** every pitched voice of 100 Hz or more gets a filter that opens at the attack and closes as the note settles (the audible effect of a decaying modulator), and the longer voices a soft sine partner on the same note 2 ms late.
+- **Bell partials:** `win`, `life`, `usb` and `key` get a quiet sine at an inharmonic multiple of a top note (2.76, which the chip's modulator ratio of 67 to 176 gives). It strikes with the note and dies before it, so nothing rings past the end of the effect, and it is turned down by the ear's sensitivity around 3 to 4 kHz. A note whose own harmonics sit within a critical band of the partial (a triangle's third harmonic is the usual one) gets another ratio, so the two do not beat.
+- **Data, not code:** `SfxVoice` gains `hz` (an exact pitch) and the filter envelope fields `lpenv`, `lpa`, `lpd`, `lps` and `lpr`, and `AudioPatterns.sfxEnhanced` holds the second set. An effect without an Enhanced version plays as Classic. The built-in synth fallback plays the voices without the filter envelope. The Classic oracle is unchanged.
+- **Auto is Classic.** The stored choice is Auto, Classic or Enhanced; `SFX_VERSION_DEFAULT` in `options.ts` is what Auto shows, so the default can change without pinning anyone.
+
 ## Parked
 These are designed but not started. Starting values are first guesses to tune by ear.
 
