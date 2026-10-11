@@ -56,7 +56,7 @@ The engine is game-agnostic. Simulation runs separately from rendering: a determ
 | --------------- | ------------------------------------------------------------------------------------- |
 | Simulation core | Rust → WASM (`wasm32-unknown-unknown`) with raw C-ABI exports: `crates/sim` plus each episode's own crate |
 | Renderer        | Three.js over WebGL2 (WebGPU later): one `InstancedBufferGeometry` + `ShaderMaterial` |
-| Shell           | Browser tab today; Tauri v2 is planned                                                |
+| Shell           | Browser tab, or the Tauri v2 player app for Linux and Android (see Releases)          |
 | Audio           | Undertone (`@liminal-hq/undertone`) with a built-in mini-notation synth as a fallback |
 | UI              | DOM overlay (React is planned)                                                        |
 | Memory          | Zero-copy `Float32Array` view over the WASM linear memory, 20 floats per instance     |
@@ -80,6 +80,10 @@ The repository is a monorepo for every Lieutenant Fizz episode.
 | `.github/workflows/`     | CI and the GitHub Pages deploy                                                                              |
 
 The split is one sentence: deterministic simulation lives in Rust and is exposed through a raw C-ABI export surface (no `wasm-bindgen`); TypeScript renders, handles input and audio, and reacts to simulation state without re-deriving its rules. [`AGENTS.md`](AGENTS.md) (mirrored for Claude Code in [`CLAUDE.md`](CLAUDE.md)) covers contributor conventions.
+
+## Releases
+
+Each tagged version has a release on GitHub with the player app: Linux packages (`.deb`, `.rpm` and AppImage for x86_64 and aarch64) and a signed Android APK and AAB, with `SHA256SUMS` to check them against. The notes for each version are in [`docs/releases/`](docs/releases/), and how a release is cut is in [`docs/APP.md`](docs/APP.md).
 
 ## Getting started
 
