@@ -11,6 +11,7 @@ export default tseslint.config(
       'docs/**',
       'site/**',
       '**/src/wasm/**',
+      'apps/player/src-tauri/gen/**',
     ],
   },
   js.configs.recommended,

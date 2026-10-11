@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0a14" />
+    <link rel="icon" href="data:," />
+    <title>Lieutenant Fizz — Player spike</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+          max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+        background: #0a0a14;
+        color: #e8e8f0;
+        font:
+          16px/1.5 system-ui,
+          sans-serif;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 4px;
+      }
+      p {
+        margin: 4px 0 16px;
+        color: #a8a8c0;
+      }
+      nav {
+        display: grid;
+        gap: 10px;
+        max-width: 28rem;
+      }
+      a {
+        display: block;
+        padding: 14px 16px;
+        border: 2px solid #ff55ff;
+        color: #fff;
+        text-decoration: none;
+      }
+      a small {
+        display: block;
+        color: #a8a8c0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Lieutenant Fizz — Player spike</h1>
+    <p>A throwaway menu for checking the Tauri shell. The launcher replaces it later.</p>
+    <nav>
+      <a href="episode-1/index.html"
+        >Episode 1<small>The bundled build with a relative base</small></a
+      >
+      <a href="episode-1/index.html?debug"
+        >Episode 1 with ?debug<small>Exposes window.__lf</small></a
+      >
+      <a href="probe.html"
+        >Capability probe<small>WebGL2, WASM, audio, gamepad, insets, lifecycle</small></a
+      >
+      <a href="http://localhost:5173/"
+        >Remote dev server<small
+          >Needs adb reverse tcp:5173 tcp:5173 and bun run dev:phone</small
+        ></a
+      >
+    </nav>
+  </body>
+</html>

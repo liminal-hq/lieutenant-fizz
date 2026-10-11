@@ -10,7 +10,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-EXEMPT='^(design/|eslint\.config\.js$|vitest\.config\.ts$|playwright\.config\.ts$|episodes/[^/]+/vite\.config\.ts$)'
+EXEMPT='^(design/|apps/player/src-tauri/gen/|eslint\.config\.js$|vitest\.config\.ts$|playwright\.config\.ts$|episodes/[^/]+/vite\.config\.ts$)'
 
 fail=0
 while IFS= read -r file; do

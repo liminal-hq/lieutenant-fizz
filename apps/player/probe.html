@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0a14" />
+    <link rel="icon" href="data:," />
+    <title>Lieutenant Fizz — Capability probe</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+          max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+        background: #0a0a14;
+        color: #e8e8f0;
+        font:
+          14px/1.4 ui-monospace,
+          monospace;
+      }
+      h1 {
+        font-size: 1.1rem;
+        margin: 0 0 8px;
+      }
+      .bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 8px 0;
+      }
+      button {
+        font: inherit;
+        padding: 10px 12px;
+        color: #fff;
+        background: #2a2a4a;
+        border: 1px solid #ff55ff;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin: 0;
+      }
+      #pad {
+        height: 80px;
+        border: 1px dashed #55ffff;
+        margin: 8px 0;
+        padding: 4px;
+        touch-action: none;
+      }
+      a {
+        color: #55ffff;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Capability probe</h1>
+    <a href="index.html">Back to the menu</a>
+    <div class="bar">
+      <button id="btn-run">Re-run</button>
+      <button id="btn-audio">Audio</button>
+      <button id="btn-vibrate">Vibrate</button>
+      <button id="btn-fullscreen">Fullscreen</button>
+      <button id="btn-orientation">Lock landscape</button>
+      <button id="btn-wake">Wake lock</button>
+      <button id="btn-frames">Idle refresh (5 s)</button>
+      <button id="btn-copy">Copy JSON</button>
+    </div>
+    <div id="pad">Touch here: the active touch count appears in the report.</div>
+    <pre id="out">Running…</pre>
+    <script type="module" src="./src/probe.ts"></script>
+  </body>
+</html>
