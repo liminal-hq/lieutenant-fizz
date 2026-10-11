@@ -27,6 +27,14 @@ async fn write_store(
     store.save().map_err(|e| e.to_string())
 }
 
+/// Closes the app: the game's Quit game row on the desktop. An app-defined command needs no capability entry,
+/// which is why this is not the process plugin (a crate, a permission and an `exit` anyone could call).
+/// The page only offers it on the desktop; Android leaves a game with Back and Home.
+#[tauri::command]
+fn quit(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // `mut` is only needed when the debug-only plugin below is compiled in.
@@ -42,7 +50,7 @@ pub fn run() {
     builder
         // The game's saves and settings are kept in a store file (`lf-data.json`) in the app data directory.
         .plugin(tauri_plugin_store::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![write_store])
+        .invoke_handler(tauri::generate_handler![write_store, quit])
         .run(tauri::generate_context!())
         .expect("error while running the Lieutenant Fizz player");
 }
