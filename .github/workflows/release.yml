@@ -143,10 +143,17 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Only the release notes are read from the checkout; the builds do their own.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+          sparse-checkout: docs/releases
+
       - name: Create the draft release, or reuse the existing one
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
           RELEASE_TARGET: ${{ needs.prepare.outputs.release_target }}
           PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
         run: |
@@ -159,13 +166,20 @@ jobs:
               | head -n 1 || true
           )"
 
+          # The hand-written notes for this version lead the release; GitHub appends its list of changes.
+          NOTES="docs/releases/${RELEASE_VERSION}.md"
+          if [[ ! -f "${NOTES}" ]]; then
+            NOTES="$(mktemp)"
+            echo 'The Lieutenant Fizz player: Linux packages (unsigned) and a signed Android APK and AAB. Check the downloads against the SHA256SUMS file.' > "${NOTES}"
+          fi
+
           if [[ -z "${EXISTING}" ]]; then
             URL="$(
               gh api --method POST "repos/${GITHUB_REPOSITORY}/releases" \
                 -f tag_name="${TAG_NAME}" \
                 -f target_commitish="${RELEASE_TARGET}" \
                 -f name="Lieutenant Fizz ${TAG_NAME}" \
-                -f body='The Lieutenant Fizz player: Linux packages (unsigned) and a signed Android APK and AAB. Check the downloads against the SHA256SUMS file.' \
+                -F body=@"${NOTES}" \
                 -F generate_release_notes=true \
                 -F draft=true \
                 -F prerelease="${PRERELEASE}" \
