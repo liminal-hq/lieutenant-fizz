@@ -762,8 +762,10 @@ export class Game {
     // The sim samples touch presses in play; a menu has no step, so it marks them seen itself.
     if (screen !== 'play') this.input.markTouchSeen();
 
-    // Gameplay haptics follow the level only: the title's attract loop raises captions too.
+    // Gameplay haptics follow the level only; the title's attract loop raises captions too and gets its own rule below.
     this.haptics.setGameplay(screen === 'play');
+    // The attract loop is felt, quietly, only where it is on show: the bare title, not behind a sub-screen.
+    this.haptics.setAttract(screen === 'title' && !this.sub && this.visible);
     if (screen === 'play' || screen === 'title') {
       this.alpha = this.stepper.advance(dt, () => {
         sim.step(screen === 'play' ? this.input.poll() : 0);
@@ -773,8 +775,10 @@ export class Game {
         this.played += dt;
         // Toggling pogo raises no event, so the lit state is read each frame (it writes on a change only).
         if (this.touchMode) this.touchUi.setLit(sim.get(State.POGO_ON) === 1);
+        // Only Ben in a level pogoes: coming back to the map resets the flag without a pogo being toggled.
         const pogo = sim.get(State.POGO_ON) === 1;
-        if (pogo !== this.pogoOn) this.haptics.cue(pogo ? 'pogoOn' : 'pogoOff');
+        if (pogo !== this.pogoOn && sim.x.mode() === Mode.LEVEL)
+          this.haptics.cue(pogo ? 'pogoOn' : 'pogoOff');
         this.pogoOn = pogo;
       } else this.pogoOn = sim.get(State.POGO_ON) === 1;
       this.handleEvents();
@@ -934,6 +938,7 @@ export class Game {
         this.prompt = null;
         this.bossHp = null;
         this.levelSeconds = 0;
+        this.haptics.cue('levelStart');
         this.pogoOn = sim.get(State.POGO_ON) === 1;
         this.ui.toast(LEVELS[e.a]?.name ?? '');
         this.syncUi();

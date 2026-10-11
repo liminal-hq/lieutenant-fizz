@@ -86,13 +86,17 @@ test.describe('haptics', () => {
     );
     await expect.poll(() => calls(page)).not.toEqual([]);
     expect((await calls(page))[0]).toEqual(expect.arrayContaining([expect.any(Number)]));
-    // The title's attract loop raises captions too; none of them may reach the vibrator.
+    // The title's attract loop raises captions too; only its on-screen world cues may reach the vibrator.
     await page.waitForTimeout(1500);
     const cues = await page.evaluate(() =>
       (window as unknown as Win).__lf.debugHaptics().plays.map((p) => p.cue),
     );
     expect(cues.length).toBeGreaterThan(0);
-    expect(cues.every((c) => c.startsWith('ui.'))).toBe(true);
+    expect(
+      cues.every(
+        (c) => c.startsWith('ui.') || ['thunk', 'krunch', 'crumble', 'clang', 'thoom'].includes(c),
+      ),
+    ).toBe(true);
     await page.evaluate(() => {
       Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
       document.dispatchEvent(new Event('visibilitychange'));

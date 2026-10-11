@@ -11,6 +11,7 @@ import {
   type HapticPattern,
 } from './haptic-pattern';
 import type { HapticBackend, HapticCaps, PlayResult } from './haptic-backends';
+import { PLUGIN_COMPILE, type PluginCompile } from './haptic-plugin-compile';
 
 // ---------- The plugin's shapes (camelCase on the wire) ----------
 
@@ -101,17 +102,11 @@ export const tauriInvoke: Invoke = (cmd, args) => {
 
 // ---------- Compile ----------
 
-/** Tunable constants of the plugin compiler. */
-export interface PluginCompile {
-  /** Intensity below this plays nothing. */
-  floor: number;
-  /** Length of one slice of a hum in a waveform, in ms. */
-  slice: number;
-  /** The longest effect sent, in ms. */
-  maxMs: number;
+/** The strength sent for a raw strength (already scaled): curved, boosted, lifted to `min` and clamped. Zero stays zero. */
+export function shapeStrength(raw: number, c: Readonly<PluginCompile>, min = 0): number {
+  if (raw <= 0) return 0;
+  return Math.min(1, Math.max(min, c.gain * Math.pow(Math.min(1, raw), c.gamma)));
 }
-
-export const PLUGIN_COMPILE: Readonly<PluginCompile> = { floor: 0.08, slice: 20, maxMs: 1000 };
 
 /** What the compiler decided: the call (null when nothing plays), the tier used and why it was not higher. */
 export interface PluginPlan {
@@ -150,11 +145,14 @@ const PRIMITIVE_MS: Record<PrimitiveId, number> = {
   slow_rise: 150,
 };
 
-/** The primitive a tap of this sharpness wants: crisp is a tick, dull is a thud. */
-export function primitiveFor(sharpness: number): PrimitiveId {
-  if (sharpness >= 0.75) return 'tick';
-  if (sharpness >= 0.45) return 'click';
-  if (sharpness >= 0.25) return 'low_tick';
+/** The primitive a tap of this sharpness wants: crisp is a tick, dull is a thud, and between them the clicks carry the most. */
+export function primitiveFor(
+  sharpness: number,
+  c: Readonly<PluginCompile> = PLUGIN_COMPILE,
+): PrimitiveId {
+  if (sharpness >= c.tickAt) return 'tick';
+  if (sharpness >= c.clickAt) return 'click';
+  if (sharpness >= c.lowAt) return 'low_tick';
   return 'thud';
 }
 
@@ -204,9 +202,10 @@ function composition(p: HapticPattern, scale: number, caps: PluginCaps, c: Plugi
   let end = 0;
   let notes = 0;
   for (const t of taps) {
-    const i = clamp01(t.intensity * scale);
-    if (i < c.floor) continue;
-    const want = primitiveFor(t.sharpness);
+    const raw = clamp01(t.intensity * scale);
+    if (raw < c.floor) continue;
+    const i = shapeStrength(raw, c, c.primMin);
+    const want = primitiveFor(t.sharpness, c);
     const id = pickPrimitive(want, caps);
     if (!id) return { effect: null, ms: 0, why: 'no primitive is supported' };
     if (id !== want) notes++;
@@ -221,6 +220,22 @@ function composition(p: HapticPattern, scale: number, caps: PluginCaps, c: Plugi
     runs.push([primitiveMs(id, caps), true]);
     end = Math.max(end, t.at) + primitiveMs(id, caps);
     if (delay === 0 && t.at < end - primitiveMs(id, caps)) notes++;
+    // The strongest taps get a thud right behind the primitive, so they land with some weight.
+    const next = taps[taps.indexOf(t) + 1];
+    if (
+      raw >= c.doubleAt &&
+      id !== 'thud' &&
+      caps.primitives['thud']?.supported &&
+      (!next || next.at >= end + primitiveMs('thud', caps))
+    ) {
+      steps.push({
+        kind: 'primitive',
+        primitive: 'thud',
+        scale: Math.round(i * 0.8 * 100) / 100,
+      });
+      runs.push([primitiveMs('thud', caps), true]);
+      end += primitiveMs('thud', caps);
+    }
   }
   if (steps.length === 0) return { effect: null, ms: 0, why: 'below the strength floor' };
   return {
@@ -253,8 +268,9 @@ function amplitudeWaveform(
     Math.min(maxAmp, Math.max(1, Math.round(clamp01(i) * 255)));
   for (const e of p.events) {
     if (e.kind === 'transient') {
-      const i = clamp01(e.intensity * scale);
-      if (i < c.floor) continue;
+      const raw = clamp01(e.intensity * scale);
+      if (raw < c.floor) continue;
+      const i = shapeStrength(raw, c, c.ampMin);
       const len = Math.max(
         VIBRATE_COMPILE.minOn,
         round((VIBRATE_COMPILE.tBase + VIBRATE_COMPILE.tSpan * i) * (1.15 - 0.3 * e.sharpness)),
@@ -264,9 +280,9 @@ function amplitudeWaveform(
     }
     for (let off = 0; off < e.duration; off += c.slice) {
       const len = Math.min(c.slice, e.duration - off);
-      const i = clamp01(sampleCurve(e.intensity, off + len / 2) * scale);
-      if (i < c.floor) continue;
-      paint(e.at + off, e.at + off + len, amplitudeOf(i));
+      const raw = clamp01(sampleCurve(e.intensity, off + len / 2) * scale);
+      if (raw < c.floor) continue;
+      paint(e.at + off, e.at + off + len, amplitudeOf(shapeStrength(raw, c, c.ampMin)));
     }
   }
   const timings: number[] = [];
@@ -290,11 +306,42 @@ function amplitudeWaveform(
   return { effect: { type: 'waveform', timingsMs: timings, amplitudes: amps }, ms, compiled };
 }
 
+/**
+ * A copy of the pattern with every strength run through the perceptual curve, for the on and off compiler,
+ * which takes one linear `scale`. Taps and hum slices under the floor (before the curve) are dropped, and a hum
+ * becomes a curve sampled where `compileVibrate` samples it.
+ */
+function shapeForVibrate(p: HapticPattern, scale: number, c: PluginCompile): HapticPattern {
+  const events: HapticEvent[] = [];
+  for (const e of p.events) {
+    if (e.kind === 'transient') {
+      const raw = e.intensity * scale;
+      if (raw < c.floor) continue;
+      events.push({ ...e, intensity: shapeStrength(raw, c) });
+      continue;
+    }
+    const pts: { t: number; v: number }[] = [];
+    for (let off = 0; off < e.duration; off += VIBRATE_COMPILE.period) {
+      const len = Math.min(VIBRATE_COMPILE.period, e.duration - off);
+      const t = off + len / 2;
+      const raw = sampleCurve(e.intensity, t) * scale;
+      pts.push({ t, v: raw < c.floor ? 0 : shapeStrength(raw, c) });
+    }
+    if (pts.length > 0) events.push({ ...e, intensity: pts });
+  }
+  return { events };
+}
+
 /** Tier 1: on and off, from the same compiler `navigator.vibrate` uses. */
 function onOff(p: HapticPattern, scale: number, caps: PluginCaps, c: PluginCompile): Attempt {
   if (!caps.hasVibrator) return { effect: null, ms: 0, why: 'no vibrator' };
   const maxMs = Math.min(c.maxMs, caps.limits?.maxDurationMs ?? c.maxMs);
-  const arr = compileVibrate(p, scale, { ...VIBRATE_COMPILE, floor: c.floor, maxMs });
+  const arr = compileVibrate(shapeForVibrate(p, scale, c), 1, {
+    ...VIBRATE_COMPILE,
+    // The strength floor is applied to the raw strength in `shapeForVibrate`; what is left is already shaped.
+    floor: 1e-9,
+    maxMs,
+  });
   if (arr.length === 0) return { effect: null, ms: 0, why: 'below the strength floor' };
   const ms = arr.reduce((a, b) => a + b, 0);
   if (arr.length === 1)
@@ -342,10 +389,10 @@ function envelope(p: HapticPattern, scale: number, caps: PluginCaps, c: PluginCo
     for (const e of events) {
       silence(e.at);
       if (e.kind === 'transient') {
-        const i = clamp01(e.intensity * scale);
-        if (i < c.floor) continue;
+        const raw = clamp01(e.intensity * scale);
+        if (raw < c.floor) continue;
         const f = freqOf(e.sharpness);
-        push(i, f, minCp);
+        push(shapeStrength(raw, c, c.ampMin), f, minCp);
         push(0, f, minCp);
         continue;
       }
@@ -355,10 +402,14 @@ function envelope(p: HapticPattern, scale: number, caps: PluginCaps, c: PluginCo
       for (let off = 0; off < e.duration; off += sliceMs) {
         const len = Math.min(sliceMs, e.duration - off);
         if (len < minCp && off > 0) break;
-        const i = clamp01(sampleCurve(e.intensity, off + len) * scale);
-        if (i >= c.floor) any = true;
+        const raw = clamp01(sampleCurve(e.intensity, off + len) * scale);
+        if (raw >= c.floor) any = true;
         const f = freqOf(sampleCurve(e.sharpness, off + len / 2));
-        push(i >= c.floor ? i : 0, f, Math.min(maxCp, Math.max(minCp, len)));
+        push(
+          raw >= c.floor ? shapeStrength(raw, c, c.ampMin) : 0,
+          f,
+          Math.min(maxCp, Math.max(minCp, len)),
+        );
       }
       if (!any) {
         // Nothing to feel in this hum: take it back out.
@@ -508,6 +559,8 @@ export interface PluginBackend extends HapticBackend {
   lastResult(): PluginRecord | null;
   /** Calls `fn` each time a play settles (the plugin answered or failed). Returns an unsubscribe. */
   onResult(fn: (r: PluginRecord) => void): () => void;
+  /** Changes the compiler's constants (`PLUGIN_COMPILE`) for the plays that follow. */
+  tunePlugin(patch: Partial<PluginCompile>): void;
   /** Plays a UI-lane kind through the system's view haptics (`plugin:haptics|ui`). */
   ui(kind: 'confirm' | 'reject' | 'tick' | 'toggle-on' | 'toggle-off' | 'drag-start'): void;
 }
@@ -600,6 +653,9 @@ export function pluginBackend(
     setMaxTier(tier) {
       maxTier = tier;
     },
+    tunePlugin(patch) {
+      Object.assign(compile, patch);
+    },
     lastResult: () => last,
     onResult(fn) {
       listeners.add(fn);
@@ -638,6 +694,7 @@ export function pluginBackend(
       return estimate;
     },
     ui(kind) {
+      // Not used by `GameHaptics`: the OS's view haptics ignore Strength, so menus play as game patterns.
       void call('plugin:haptics|ui', { kind }).catch(() => {});
     },
     stop() {

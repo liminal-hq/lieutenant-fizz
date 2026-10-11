@@ -158,6 +158,13 @@ export const FIZZ_HAPTICS: HapticTable = {
       cooldownMs: 150,
       policy: I,
     }),
+    // Stepping into a level from the map: a low thud (the door), then a quick crisp click (the latch).
+    levelStart: cue([tap(0.8, 0.15), tap(0.6, 0.85, 80)], {
+      priority: 3,
+      cooldownMs: 600,
+      policy: I,
+      calm: true,
+    }),
     taDa: cue([hum(0, 120, [0.2, 0.7], 0.5), tap(0.8, 0.7, 140)], {
       priority: 4,
       cooldownMs: 500,
@@ -171,23 +178,23 @@ export const FIZZ_HAPTICS: HapticTable = {
       calm: true,
     }),
 
-    // Menus: the phone's own lane.
-    'ui.move': cue([tap(0.2, 1)], { priority: 0, cooldownMs: 40, policy: D, lane: 'ui' }),
-    'ui.select': cue([tap(0.4, 0.8)], { priority: 1, cooldownMs: 80, policy: I, lane: 'ui' }),
-    'ui.back': cue([tap(0.3, 0.5)], { priority: 1, cooldownMs: 80, policy: I, lane: 'ui' }),
-    'ui.reject': cue([tap(0.3, 0.2), tap(0.3, 0.2, 60)], {
+    // Menus: the phone's own lane, played as game patterns (never `plugin:haptics|ui`) at 1.5 times the Strength setting.
+    'ui.move': cue([tap(0.3, 0.8)], { priority: 0, cooldownMs: 40, policy: D, lane: 'ui' }),
+    'ui.select': cue([tap(0.5, 0.8)], { priority: 1, cooldownMs: 80, policy: I, lane: 'ui' }),
+    'ui.back': cue([tap(0.4, 0.5)], { priority: 1, cooldownMs: 80, policy: I, lane: 'ui' }),
+    'ui.reject': cue([tap(0.45, 0.2), tap(0.45, 0.2, 60)], {
       priority: 1,
       cooldownMs: 150,
       policy: I,
       lane: 'ui',
     }),
-    'ui.toggleOn': cue([tap(0.4, 0.6), tap(0.4, 0.6, 70)], {
+    'ui.toggleOn': cue([tap(0.5, 0.6), tap(0.5, 0.6, 70)], {
       priority: 1,
       cooldownMs: 80,
       policy: I,
       lane: 'ui',
     }),
-    'ui.toggleOff': cue([tap(0.35, 0.6)], { priority: 1, cooldownMs: 80, policy: I, lane: 'ui' }),
+    'ui.toggleOff': cue([tap(0.45, 0.6)], { priority: 1, cooldownMs: 80, policy: I, lane: 'ui' }),
   },
   // Every caption the sim can raise (and the stage scene's "♪ low sting"), by the text on screen.
   // `null` is silent on purpose: enemy noises and the like, which a player can tune in later.
