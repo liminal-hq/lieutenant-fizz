@@ -20,6 +20,9 @@
 #   - the template's `keepDebugSymbols` moved from the (module-wide, in effect) debug packaging block to the debug variants
 #   - native debug symbols: `ndk { debugSymbolLevel = "FULL" }` on the release build type, so the bundle carries
 #     the symbols Play uses to symbolicate native crashes (the libraries must be built unstripped; see docs/APP.md)
+#   - `android.permission.INTERNET` only in debug builds: it comes out of the main manifest (the game makes no network
+#     requests, so a release build declares none) and goes into `src/debug/AndroidManifest.xml`, where the dev server
+#     and the debug-only MCP bridge need it
 #
 # `android.permission.VIBRATE` is not added here: the haptics plugin's `build.rs` adds it.
 #
@@ -43,6 +46,22 @@ if ! grep -q 'android:screenOrientation=' "$MANIFEST"; then
   sed -i 's#^\( *\)android:launchMode="singleTask"#\1android:screenOrientation="sensorLandscape"\n\1android:launchMode="singleTask"#' "$MANIFEST"
 fi
 grep -q 'android:screenOrientation="sensorLandscape"' "$MANIFEST" || die "landscape lock not applied"
+
+# Network access in debug builds only. The release app serves its own bundled files and makes no requests, so it does
+# not declare the INTERNET permission; the dev server and the debug-only MCP bridge need it, so it lives in the debug
+# source set, which Gradle merges into debug builds only.
+INTERNET='<uses-permission android:name="android.permission.INTERNET" />'
+sed -i "\#$INTERNET#d" "$MANIFEST"
+! grep -q 'android.permission.INTERNET' "$MANIFEST" || die "INTERNET was not removed from $MANIFEST"
+DEBUG_MANIFEST="$GEN/app/src/debug/AndroidManifest.xml"
+mkdir -p "$(dirname "$DEBUG_MANIFEST")"
+cat > "$DEBUG_MANIFEST" <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Debug builds only: the dev server and the MCP bridge. See scripts/apply-android-settings.sh. -->
+    $INTERNET
+</manifest>
+EOF
 
 # Fullscreen theme, in the light and night variants.
 for themes in "$MAIN/res/values/themes.xml" "$MAIN/res/values-night/themes.xml"; do

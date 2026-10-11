@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Debug builds only: the dev server and the MCP bridge. See scripts/apply-android-settings.sh. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>
