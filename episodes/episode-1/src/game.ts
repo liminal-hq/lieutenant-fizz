@@ -343,6 +343,8 @@ export class Game {
    * Rumble row never shifts the Haptics screen while it is open.
    */
   private padSeen = false;
+  /** The Tauri haptics plugin reported a vibrator and is the phone's backend. */
+  private pluginVibrator = false;
   /** When Reset had its first tap (in `performance.now()` milliseconds), or null. */
   private resetAt: number | null = null;
   /** The screen and sub-screen that Reset (or Quit game) was armed on: leaving them disarms it. */
@@ -548,6 +550,24 @@ export class Game {
       device: vibrateBackend(navigator),
       controller: gamepadBackend(() => this.input.activePad()),
     });
+    // Inside the app the plugin's vibrator (amplitudes, primitives, envelopes) replaces `navigator.vibrate`
+    // once it reports one. The web never creates it, and never downloads its compiler: it is its own chunk,
+    // imported only here. Until it has loaded and adopted, cues take the `navigator.vibrate` backend above.
+    if (isAppHost(window)) {
+      void import('@lieutenant-fizz/engine/haptic-plugin')
+        .then(({ adoptPlugin, pluginBackend }) => {
+          const plugin = pluginBackend();
+          if (this.disposed) {
+            plugin.dispose();
+            return false;
+          }
+          return adoptPlugin(this.haptics, plugin, true);
+        })
+        .then((adopted) => {
+          if (adopted) this.keepRow(() => (this.pluginVibrator = true));
+        })
+        .catch(() => {});
+    }
     this.haptics.setRoute(routeFor(this.input.device));
     this.input.onDevice((d) => this.haptics.setRoute(routeFor(d)));
     this.settings = readOptions(this.store);
@@ -1359,7 +1379,9 @@ export class Game {
 
   /** Whether the Haptics screen has anything to offer: a vibrator, a pad that rumbles, or a link asking for it. */
   private hapticsShown(): boolean {
-    return this.vibratorLikely() || this.padSeen || this.hapticsUrl !== undefined;
+    return (
+      this.vibratorLikely() || this.pluginVibrator || this.padSeen || this.hapticsUrl !== undefined
+    );
   }
 
   /** The rows of the Haptics screen. */

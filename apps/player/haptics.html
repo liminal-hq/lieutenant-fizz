@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0a14" />
+    <link rel="icon" href="data:," />
+    <title>Lieutenant Fizz — Haptics</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+          max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+        background: #0a0a14;
+        color: #e8e8f0;
+        font:
+          14px/1.4 ui-monospace,
+          monospace;
+      }
+      h1 {
+        font-size: 1.1rem;
+        margin: 0;
+      }
+      h2 {
+        font-size: 0.95rem;
+        margin: 14px 0 6px;
+        color: #55ffff;
+      }
+      a {
+        color: #55ffff;
+      }
+      button {
+        font: inherit;
+        min-height: 48px;
+        min-width: 48px;
+        padding: 8px 12px;
+        color: #fff;
+        background: #2a2a4a;
+        border: 1px solid #ff55ff;
+        touch-action: manipulation;
+      }
+      button:active,
+      button[aria-pressed='true'] {
+        background: #ff55ff;
+        color: #0a0a14;
+      }
+      .top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 16px;
+      }
+      #caps {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 14px;
+        margin: 6px 0;
+        color: #a8a8c0;
+      }
+      #caps b {
+        color: #e8e8f0;
+        font-weight: normal;
+      }
+      .bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+        margin: 6px 0;
+      }
+      .bar .seg {
+        display: flex;
+      }
+      .bar .seg button + button {
+        border-left: 0;
+      }
+      .bar label {
+        color: #a8a8c0;
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      @media (min-width: 720px) {
+        .cols {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+        #logpane {
+          position: sticky;
+          top: 0;
+          align-self: start;
+          max-height: calc(100vh - 16px);
+          overflow: auto;
+        }
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 6px;
+      }
+      .grid.wide {
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      }
+      .case {
+        text-align: left;
+      }
+      .case small {
+        display: block;
+        color: #a8a8c0;
+      }
+      .case:active small {
+        color: #0a0a14;
+      }
+      #log div.entry {
+        border-bottom: 1px solid #2a2a4a;
+        padding: 4px 0;
+      }
+      #log pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin: 4px 0 0;
+        color: #a8a8c0;
+      }
+      #log .ok {
+        color: #55ff55;
+      }
+      #log .check {
+        color: #ffff55;
+      }
+      #log .bad {
+        color: #ff5555;
+      }
+      #fallback {
+        width: 100%;
+        height: 8rem;
+        background: #12121f;
+        color: #e8e8f0;
+        font: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="top">
+      <h1>Haptics</h1>
+      <a href="index.html">Back to the menu</a>
+      <span id="host"></span>
+    </div>
+    <div id="caps">Reading the plugin…</div>
+    <div class="bar">
+      <label>Master strength</label>
+      <span class="seg" id="strength"></span>
+      <label>Tier cap</label>
+      <span class="seg" id="tiercap"></span>
+      <button id="btn-stop">Stop</button>
+      <button id="btn-copy">Copy log as JSON</button>
+      <button id="btn-clear">Clear log</button>
+    </div>
+    <div class="cols">
+      <main id="main"></main>
+      <section id="logpane">
+        <h2>Log</h2>
+        <textarea id="fallback" hidden readonly></textarea>
+        <div id="log"></div>
+      </section>
+    </div>
+    <script type="module" src="./src/haptics.ts"></script>
+  </body>
+</html>

@@ -32,6 +32,11 @@ tauri-plugin-mcp-bridge = "0.12"
 # Saves, options and touch settings (every `lf-*` key) live in `lf-data.json` in the app data directory.
 tauri-plugin-store = "2"
 
+# Haptics: capability reporting and a stepped fallback ladder over the Android vibrator. The plugin is
+# unreleased and still moving, so it is pinned to a commit of `feat/haptics-plugin` (PR #85 in
+# liminal-hq/tauri-plugins-workspace). Its build script adds the VIBRATE permission to the Android manifest.
+tauri-plugin-haptics = { git = "https://github.com/liminal-hq/tauri-plugins-workspace", rev = "82a166fbe878d6647b9dbe4a7e46f0967a8d861a" }
+
 [profile.release]
 opt-level = "s"
 lto = true
