@@ -92,7 +92,7 @@ pub fn run() {
     let mut builder = tauri::Builder::default();
 
     // The MCP bridge lets tooling drive the WebView (screenshots, scripts, logs) in debug builds.
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, not(windows)))]
     {
         builder = builder.plugin(tauri_plugin_mcp_bridge::init());
     }

@@ -83,7 +83,7 @@ The split is one sentence: deterministic simulation lives in Rust and is exposed
 
 ## Releases
 
-Each tagged version has a release on GitHub with the player app: Linux packages (`.deb`, `.rpm` and AppImage for x86_64 and aarch64) and a signed Android APK and AAB, with `SHA256SUMS` to check them against. The notes for each version are in [`docs/releases/`](docs/releases/), and how a release is cut is in [`docs/APP.md`](docs/APP.md).
+Each tagged version has a release on GitHub with the player app: Linux packages (`.deb`, `.rpm` and AppImage for x86_64 and aarch64), a universal macOS `.dmg` (not notarised), Windows installers (`.msi` and `.exe`, unsigned) and a signed Android APK and AAB, with `SHA256SUMS` to check them against. The notes for each version are in [`docs/releases/`](docs/releases/), and how a release is cut is in [`docs/APP.md`](docs/APP.md). To install and run it on your system, see [Getting the game going](docs/GETTING_STARTED.md).
 
 ## Getting started
 

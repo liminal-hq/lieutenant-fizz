@@ -7,7 +7,8 @@
 # and a signed Android APK and AAB (with the R8 mapping and the native debug symbols), writes SHA256SUMS over all of it, and attaches
 # everything to the release for the tag. The release is created as a draft so it is never public half-filled
 # (generated notes, or the existing draft reused), then published once every file is on it. Nothing goes to Google Play.
-# Windows, macOS and the Play upload come later.
+# A universal macOS .dmg (Apple silicon and Intel, ad-hoc signed, not notarised) and Windows installers (an .msi and an
+# NSIS .exe for x64 and arm64, unsigned) are built too. The Play upload comes later.
 #
 # Started by hand (Actions > Release > Run workflow), it builds and uploads everything as workflow
 # artefacts and publishes nothing, unless `release_tag` names an existing tag: then it builds that tag
@@ -285,6 +286,154 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  # The Windows installers, unsigned (there is no code-signing certificate here, so SmartScreen warns on first run):
+  # an .msi and an NSIS setup .exe, for x64 and arm64 on GitHub's Windows runners. The default shell is bash (Git
+  # Bash), so the repository's build scripts run as they do elsewhere.
+  build-windows:
+    name: Build the Windows installers (${{ matrix.arch }})
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x64
+            artefact_name: windows-release-assets-x64
+          - runner: windows-11-arm
+            arch: arm64
+            artefact_name: windows-release-assets-arm64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+
+      # `rust-toolchain.toml` pins the toolchain and lists the WASM target; rustup installs both on first use.
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            apps/player/src-tauri
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the WASM and the app frontend
+        run: |
+          bun run build:wasm
+          bun run build:app
+
+      - name: Build the msi and NSIS installers
+        run: bun run tauri build --bundles msi,nsis
+
+      - name: Collect the installers
+        run: |
+          set -euo pipefail
+
+          release_dir="release-assets/windows"
+          mkdir -p "${release_dir}"
+
+          mapfile -t bundle_files < <(find apps/player/src-tauri/target/release/bundle -type f \( -name '*.msi' -o -name '*-setup.exe' \) | sort)
+          if [[ "${#bundle_files[@]}" -eq 0 ]]; then
+            echo "No msi or setup exe found under apps/player/src-tauri/target/release/bundle" >&2
+            exit 1
+          fi
+
+          # The product name has a space ("Lieutenant Fizz_0.1.0_x64_en-US.msi"), which GitHub rewrites in a download name.
+          for file in "${bundle_files[@]}"; do
+            name="$(basename "${file}")"
+            cp "${file}" "${release_dir}/${name// /-}"
+          done
+
+          ls -l "${release_dir}"
+
+      - name: Upload the installers
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artefact_name }}
+          path: release-assets/windows/**
+          if-no-files-found: error
+          retention-days: 14
+
+  # One universal macOS build on GitHub's macOS runner (Apple silicon), cross-compiling the Intel half. There is no
+  # Apple Developer ID here, so the app is ad-hoc signed (`APPLE_SIGNING_IDENTITY=-`): Apple silicon refuses to run a
+  # binary with no signature at all, and an ad-hoc one runs once the person allows it in System Settings. It is not
+  # notarised, so Gatekeeper warns on first open (docs/APP.md, Releases).
+  build-macos:
+    name: Build the macOS dmg (universal)
+    needs: prepare
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+
+      # `rust-toolchain.toml` pins the toolchain and lists the WASM target; the two Apple targets are added to it.
+      - name: Add the Apple targets
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            apps/player/src-tauri
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the WASM and the app frontend
+        run: |
+          bun run build:wasm
+          bun run build:app
+
+      - name: Build the universal dmg
+        env:
+          APPLE_SIGNING_IDENTITY: '-'
+        run: bun run tauri build --target universal-apple-darwin --bundles dmg
+
+      - name: Collect the dmg
+        run: |
+          set -euo pipefail
+
+          release_dir="release-assets/macos"
+          mkdir -p "${release_dir}"
+
+          # macOS ships bash 3.2, which has no `mapfile`: read the list in a loop.
+          bundle_files=()
+          while IFS= read -r file; do
+            bundle_files+=("${file}")
+          done < <(find apps/player/src-tauri/target/universal-apple-darwin/release/bundle -type f -name '*.dmg' | sort)
+          if [[ "${#bundle_files[@]}" -eq 0 ]]; then
+            echo "No dmg found under apps/player/src-tauri/target/universal-apple-darwin/release/bundle" >&2
+            exit 1
+          fi
+
+          # The product name has a space ("Lieutenant Fizz_0.1.0_universal.dmg"), which GitHub rewrites in a download name.
+          for file in "${bundle_files[@]}"; do
+            name="$(basename "${file}")"
+            cp "${file}" "${release_dir}/${name// /-}"
+          done
+
+          ls -l "${release_dir}"
+
+      - name: Upload the dmg
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-release-assets
+          path: release-assets/macos/**
+          if-no-files-found: error
+          retention-days: 14
+
   # Builds the release APK and AAB in the shared mobile image, signed with the upload key. The key reaches the
   # job only as the three `ANDROID_UPLOAD_*` org secrets, in the one step that writes it out, and is removed
   # by the `always()` step at the end. Play re-signs the app with its own key; this key is the upload key.
@@ -527,6 +676,8 @@ jobs:
     needs:
       - prepare
       - build-linux
+      - build-macos
+      - build-windows
       - build-android
       - package-appimage
     runs-on: ubuntu-24.04
@@ -545,6 +696,19 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      - name: Download the Windows installers
+        uses: actions/download-artifact@v8
+        with:
+          pattern: windows-release-assets-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Download the macOS dmg
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-release-assets
+          path: release-assets
+
       - name: Download the Android files
         uses: actions/download-artifact@v8
         with:
@@ -562,7 +726,7 @@ jobs:
             fi
           done
 
-          for ext in deb rpm AppImage apk aab; do
+          for ext in deb rpm AppImage dmg msi exe apk aab; do
             if [[ -z "$(find . -maxdepth 1 -name "*.${ext}" -print -quit)" ]]; then
               echo "No .${ext} file was built" >&2
               exit 1

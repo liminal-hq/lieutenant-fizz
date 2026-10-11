@@ -23,12 +23,6 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 
-# Dev tooling. Cargo cannot gate a dependency on `debug_assertions`, so it is always compiled in but
-# only registered under `#[cfg(debug_assertions)]` in `src/lib.rs`: present but inert in release.
-# Pinned below 0.13, whose websocket code calls `WebviewWindow::minimize()` and `maximize()`, which
-# do not exist on mobile, so it fails to compile for Android whatever the build profile.
-tauri-plugin-mcp-bridge = "0.12"
-
 # Saves, options and touch settings (every `lf-*` key) live in `lf-data.json` in the app data directory.
 tauri-plugin-store = "2"
 
@@ -51,6 +45,15 @@ chrono = "0.4"
 # plugin and `evdev` out of the Android build.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-gamepad-haptics = "0.1.0"
+
+# Dev tooling. Cargo cannot gate a dependency on `debug_assertions`, so it is always compiled in but
+# only registered under `#[cfg(debug_assertions)]` in `src/lib.rs`: present but inert in release.
+# Pinned below 0.13, whose websocket code calls `WebviewWindow::minimize()` and `maximize()`, which
+# do not exist on mobile, so it fails to compile for Android whatever the build profile. Left out on Windows,
+# where 0.12 does not compile against the `windows` crates Tauri's WebView2 binding uses (a trait-bound error in
+# its webview capture code), which broke the release build there; the bridge is for debug sessions on Linux and Android.
+[target.'cfg(not(windows))'.dependencies]
+tauri-plugin-mcp-bridge = "0.12"
 
 [profile.release]
 opt-level = "s"

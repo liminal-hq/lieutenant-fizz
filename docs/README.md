@@ -3,6 +3,7 @@
 - [GAME_DESIGN.md](GAME_DESIGN.md): *Lieutenant Fizz*, Episode 1: The Cocoa Caper
 - [STORY.md](STORY.md): cinematic, dialogue and ending text
 - [FONT.md](FONT.md): the Fizz pixel font family: glyph grids, metrics, build and rendering rules
+- [GETTING_STARTED.md](GETTING_STARTED.md): play in a browser, or install the Linux, macOS and Android builds; checking downloads and the controls
 - [STATUS.md](STATUS.md): what is built, verified and still missing in the Rust/WASM port
 - [APP.md](APP.md): planned Tauri app and launcher for Android and desktop
 - [MOBILE.md](MOBILE.md): planned touch controls, phone layout and haptics
