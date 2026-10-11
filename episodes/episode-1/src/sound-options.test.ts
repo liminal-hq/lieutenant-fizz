@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { AUDIO_DEFAULT } from '@lieutenant-fizz/engine/sound-field';
 import { NO_LOCKS } from './url-lock';
-import { DEFAULT_OPTIONS, parseOptions, type Options } from './options';
+import { DEFAULT_OPTIONS, parseOptions, SFX_VERSION_DEFAULT, type Options } from './options';
 import {
   effectiveAudio,
   isSoundStepRow,
@@ -25,8 +25,8 @@ const base = (): Options => ({ ...DEFAULT_OPTIONS });
 const rows = soundRows();
 
 describe('soundRows', () => {
-  it('lists Style, Music, Effects, Sound lab, Reset and Back', () => {
-    expect(rows).toEqual(['style', 'music', 'sfx', 'lab', 'reset', 'back']);
+  it('lists Style, Music, Effects, Effects version, Sound lab, Reset and Back', () => {
+    expect(rows).toEqual(['style', 'music', 'sfx', 'sfxVersion', 'lab', 'reset', 'back']);
   });
 
   it('round-trips a row through its menu id and rejects anything else', () => {
@@ -45,6 +45,7 @@ describe('soundItems', () => {
       ['Style', styleName(AUDIO_DEFAULT), undefined],
       ['Music', undefined, 8],
       ['Effects', undefined, 8],
+      ['Effects version', 'Classic', undefined],
       ['Sound lab', 'Off', undefined],
       ['Reset', undefined, undefined],
       ['Back', undefined, undefined],
@@ -54,7 +55,7 @@ describe('soundItems', () => {
   });
 
   it('shows the Sound lab row as an Off or On choice', () => {
-    const lab = (on: boolean) => soundItems({ ...base(), lab: on }, NO_LOCKS, rows, false)[3];
+    const lab = (on: boolean) => soundItems({ ...base(), lab: on }, NO_LOCKS, rows, false)[4];
     expect(lab(false)).toMatchObject({ label: 'Sound lab', kind: 'choice', value: 'Off' });
     expect(lab(true)?.value).toBe('On');
   });
@@ -76,7 +77,7 @@ describe('soundItems', () => {
   });
 
   it('asks for a second tap once Reset is armed', () => {
-    const reset = (armed: boolean) => soundItems(base(), NO_LOCKS, rows, armed)[4];
+    const reset = (armed: boolean) => soundItems(base(), NO_LOCKS, rows, armed)[5];
     expect(reset(false)?.value).toBeUndefined();
     expect(reset(true)?.value).toBe('Tap again');
   });
@@ -94,8 +95,14 @@ describe('effectiveAudio', () => {
 });
 
 describe('isSoundStepRow', () => {
-  it('steps Style, Music, Effects and the Sound lab only', () => {
-    expect(rows.filter((r) => isSoundStepRow(r))).toEqual(['style', 'music', 'sfx', 'lab']);
+  it('steps Style, Music, Effects, Effects version and the Sound lab only', () => {
+    expect(rows.filter((r) => isSoundStepRow(r))).toEqual([
+      'style',
+      'music',
+      'sfx',
+      'sfxVersion',
+      'lab',
+    ]);
     expect(isSoundStepRow(null)).toBe(false);
   });
 });
@@ -133,6 +140,19 @@ describe('stepSound', () => {
     expect(stepSound({ ...base(), sfx: 0 }, 'sfx', -1, true).sfx).toBe(8);
   });
 
+  it('steps Effects version off Auto to the other version and saves an explicit choice', () => {
+    // Auto shows Classic, so a step toward Enhanced saves Enhanced.
+    expect(SFX_VERSION_DEFAULT).toBe('classic');
+    expect(stepSound(base(), 'sfxVersion', 1, false).sfxVersion).toBe(2);
+    expect(stepSound({ ...base(), sfxVersion: 2 }, 'sfxVersion', 1, true).sfxVersion).toBe(1);
+    expect(stepSound({ ...base(), sfxVersion: 1 }, 'sfxVersion', -1, true).sfxVersion).toBe(2);
+  });
+
+  it('leaves Auto alone when Effects version has nowhere to go', () => {
+    const o = base();
+    expect(stepSound(o, 'sfxVersion', -1, false)).toBe(o);
+  });
+
   it('changes only the row it steps', () => {
     const o = { ...base(), music: 3, sfx: 4, audio: 2, captions: false, layout: 1 };
     expect(stepSound(o, 'music', 1, false)).toEqual({ ...o, music: 4 });
@@ -160,11 +180,12 @@ describe('stepSound', () => {
 });
 
 describe('resetSound', () => {
-  it('puts Style, Music, Effects and the Sound lab back and leaves every other option alone', () => {
+  it('puts Style, Music, Effects, Effects version and the Sound lab back and leaves every other option alone', () => {
     const o: Options = {
       music: 2,
       sfx: 5,
       audio: 1,
+      sfxVersion: 2,
       captions: false,
       layout: 1,
       text: 1,
@@ -177,7 +198,7 @@ describe('resetSound', () => {
       awake: false,
       density: 2,
     };
-    expect(resetSound(o)).toEqual({ ...o, audio: 0, music: 8, sfx: 8, lab: false });
+    expect(resetSound(o)).toEqual({ ...o, audio: 0, music: 8, sfx: 8, sfxVersion: 0, lab: false });
   });
 
   it('does not change options already at their defaults', () => {
@@ -203,6 +224,11 @@ describe('soundPreview', () => {
     expect(soundPreview('sfx', { sfx: 0 })).toEqual([]);
   });
 
+  it('plays a boing then a key for Effects version, and nothing when effects are silent', () => {
+    expect(soundPreview('sfxVersion', base()).map((s) => s.name)).toEqual(['boing', 'key']);
+    expect(soundPreview('sfxVersion', { sfx: 0 })).toEqual([]);
+  });
+
   it('has none for Music (it changes live), the Sound lab, Reset or Back', () => {
     for (const r of ['music', 'lab', 'reset', 'back'] as const)
       expect(soundPreview(r, base())).toEqual([]);
@@ -218,7 +244,7 @@ describe('soundPreview', () => {
 
 describe('the address', () => {
   it('shows the Sound lab as On (link), disabled, under ?debug', () => {
-    const lab = soundItems(base(), { ...NO_LOCKS, debug: true }, rows, false)[3];
+    const lab = soundItems(base(), { ...NO_LOCKS, debug: true }, rows, false)[4];
     expect(lab).toMatchObject({ label: 'Sound lab', value: 'On (link)', disabled: true });
   });
 

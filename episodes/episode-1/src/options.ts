@@ -34,6 +34,8 @@ export interface Options {
   sfx: number;
   /** Sound style: 0 Auto (the game's default), 1 Classic, 2 Enhanced. */
   audio: number;
+  /** Which sound effects play: 0 Auto (the game's default), 1 Classic, 2 Enhanced. */
+  sfxVersion: number;
   /** Floating sound captions on or off. */
   captions: boolean;
   /** Which keyboard layout the hints and Controls table show: 0 Keen-style, 1 Modern. */
@@ -66,6 +68,7 @@ export const DEFAULT_OPTIONS: Readonly<Options> = {
   music: METER_BLOCKS,
   sfx: METER_BLOCKS,
   audio: 0,
+  sfxVersion: 0,
   captions: true,
   layout: 0,
   text: 0,
@@ -103,6 +106,7 @@ export function parseOptions(json: string | null): Options {
       music: int(raw['music'], 0, METER_BLOCKS, d.music),
       sfx: int(raw['sfx'], 0, METER_BLOCKS, d.sfx),
       audio: int(raw['audio'], 0, AUDIO_CHOICES.length - 1, d.audio),
+      sfxVersion: int(raw['sfxVersion'], 0, AUDIO_CHOICES.length - 1, d.sfxVersion),
       captions: typeof raw['captions'] === 'boolean' ? raw['captions'] : d.captions,
       layout: int(raw['layout'], 0, LAYOUTS.length - 1, d.layout),
       text: int(raw['text'], 0, TEXT_SIZES.length - 1, d.text),
@@ -149,6 +153,14 @@ export function audioChoice(o: Pick<Options, 'audio'>): AudioMode | undefined {
   return o.audio === 1 ? 'classic' : o.audio === 2 ? 'enhanced' : undefined;
 }
 
+/** The version of the sound effects Auto picks. Classic is the sound the game has always had. */
+export const SFX_VERSION_DEFAULT: AudioMode = 'classic';
+
+/** The version of the sound effects in use: the player's choice, or the default while it is on Auto. */
+export function sfxVersionOf(o: Pick<Options, 'sfxVersion'>): AudioMode {
+  return o.sfxVersion === 1 ? 'classic' : o.sfxVersion === 2 ? 'enhanced' : SFX_VERSION_DEFAULT;
+}
+
 /** A meter level as a gain from 0 to 1. */
 export const volumeOf = (level: number): number => level / METER_BLOCKS;
 
@@ -160,6 +172,7 @@ export function reducedMotion(o: Pick<Options, 'motion'>, system: boolean): bool
 /** The number of values a choice option cycles through. */
 const CHOICES: Partial<Record<SettingKey, number>> = {
   audio: AUDIO_CHOICES.length,
+  sfxVersion: AUDIO_CHOICES.length,
   captions: 2,
   lab: 2,
   hapticsLab: 2,

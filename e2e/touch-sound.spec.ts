@@ -52,13 +52,14 @@ test('Options > Sound on touch: full-height rows, the Style stepper switches the
   const heights = await page
     .locator('#overlay .menu button')
     .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
-  expect(heights).toHaveLength(6);
+  expect(heights).toHaveLength(7);
   expect(Math.min(...heights)).toBeGreaterThanOrEqual(ROW_MIN);
-  // The Sound lab row sits after Effects. ?debug puts the lab on, so the row shows On (link), fixed.
+  // The Effects version row sits after Effects, then the Sound lab row. ?debug puts the lab on, so the row shows On (link), fixed.
   expect(await page.locator('#overlay .menu button .lbl').allInnerTexts()).toEqual([
     'Style',
     'Music',
     'Effects',
+    'Effects version',
     'Sound lab',
     'Reset',
     'Back',
