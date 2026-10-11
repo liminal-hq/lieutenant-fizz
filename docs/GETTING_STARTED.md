@@ -1,6 +1,6 @@
 # Getting the game going
 
-Lieutenant Fizz runs in a browser, as a desktop app on Linux and macOS, and as an Android app. This page covers each, how to check a download, and the controls on each. To build it yourself, see "Getting started" in the [README](../README.md).
+Lieutenant Fizz runs in a browser, as a desktop app on Linux, macOS and Windows, and as an Android app. This page covers each, how to check a download, and the controls on each. To build it yourself, see "Getting started" in the [README](../README.md).
 
 ## In a browser
 
@@ -17,9 +17,9 @@ Every tagged version has a release on the [Releases page](https://github.com/lim
 | Any Linux | `Lieutenant_Fizz-<version>-anylinux-x86_64.AppImage` or `-aarch64.AppImage` |
 | macOS (Apple silicon and Intel) | `Lieutenant-Fizz_<version>_universal.dmg` |
 | Android | `lieutenant-fizz-v<version>-<code>.apk` |
-| Windows | not built yet; play in a browser |
+| Windows | `Lieutenant-Fizz_<version>_x64_en-US.msi` or `Lieutenant-Fizz_<version>_x64-setup.exe` (use `arm64` on an ARM PC) |
 
-The other files on a release are for people who work on the game: the `.aab` is the bundle for Google Play (it cannot be installed directly), and the mapping and native debug symbols read crash reports. The Linux and macOS builds are not signed by a publisher, so check them as below. macOS builds start with the first release after 0.1.0.
+The other files on a release are for people who work on the game: the `.aab` is the bundle for Google Play (it cannot be installed directly), and the mapping and native debug symbols read crash reports. The Linux, macOS and Windows builds are not signed by a publisher, so check them as below. macOS and Windows builds start with the first release after 0.1.0.
 
 ### Check a download
 
@@ -64,6 +64,14 @@ The `.deb` and `.rpm` add it to your applications menu, under Games. F or F11 go
      ```
 
 After that it opens like any other app. It runs natively on both Apple silicon and Intel.
+
+## Windows
+
+1. Run the setup `.exe` (or the `.msi`). Either installs the app and a Start menu entry.
+2. The first time, Windows SmartScreen may say it protected your PC, because the installer has no publisher signature. Choose **More info**, then **Run anyway**.
+3. The app uses Microsoft's WebView2, which comes with Windows 10 and 11. The installer fetches it if it is missing.
+
+Start it from the Start menu. F or F11 goes fullscreen. Rumble on a controller goes through the WebView's own gamepad support and has not been tried on Windows.
 
 ## Android
 
