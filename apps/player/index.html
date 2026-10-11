@@ -40,13 +40,18 @@
         color: #fff;
         text-decoration: none;
       }
+      a:focus-visible {
+        outline: 4px solid #ffff55;
+        outline-offset: 2px;
+        background: #3a1a4a;
+      }
       a small {
         display: block;
         color: #a8a8c0;
       }
     </style>
   </head>
-  <body>
+  <body data-pad="menu">
     <h1>Lieutenant Fizz — Player spike</h1>
     <p>A throwaway menu for checking the Tauri shell. The launcher replaces it later.</p>
     <nav>
@@ -68,5 +73,6 @@
         ></a
       >
     </nav>
+    <script type="module" src="./src/menu.ts"></script>
   </body>
 </html>

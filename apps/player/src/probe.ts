@@ -178,17 +178,49 @@ async function wasmFetch(): Promise<ProbeReport> {
   };
 }
 
+interface PadActuators {
+  vibrationActuator?: { type?: string } | null;
+  hapticActuators?: ArrayLike<{ type?: string }>;
+}
+
+function actuatorType(a: { type?: string } | null | undefined): string {
+  return a ? (a.type ?? 'present') : 'absent';
+}
+
+function connectedPads(): Gamepad[] {
+  return Array.from(navigator.getGamepads?.() ?? []).filter((pad): pad is Gamepad => pad !== null);
+}
+
 function gamepads(): unknown {
-  return Array.from(navigator.getGamepads?.() ?? [])
-    .filter((pad): pad is Gamepad => pad !== null)
-    .map((pad) => ({
+  const pads = connectedPads().map((pad) => {
+    const extra = pad as Gamepad & PadActuators;
+    return {
+      index: pad.index,
       id: pad.id,
-      mapping: pad.mapping,
+      mapping: pad.mapping || '(none)',
+      connected: pad.connected,
       buttons: pad.buttons.length,
       axes: pad.axes.length,
-      pressed: pad.buttons.flatMap((b, i) => (b.pressed ? [i] : [])),
-      vibrationActuator: 'vibrationActuator' in pad ? String(pad.vibrationActuator) : 'absent',
-    }));
+      vibrationActuator:
+        'vibrationActuator' in pad ? actuatorType(extra.vibrationActuator) : 'absent',
+      hapticActuators: extra.hapticActuators
+        ? Array.from(extra.hapticActuators, (a) => actuatorType(a))
+        : 'absent',
+    };
+  });
+  return pads.length > 0
+    ? pads
+    : 'none: press a button on the pad, as pads only appear after input';
+}
+
+/** Pressed buttons and axis values of the first pad, for checking the mapping by hand. */
+function gamepadLive(): unknown {
+  const pad = connectedPads()[0];
+  if (!pad) return null;
+  return {
+    pressed: pad.buttons.flatMap((b, i) => (b.pressed ? [i] : [])),
+    axes: Array.from(pad.axes, (v) => Number(v.toFixed(2))),
+  };
 }
 
 async function startAudio(): Promise<ProbeReport> {
@@ -286,6 +318,7 @@ async function runAll(): Promise<void> {
   report.webgl = webgl();
   report.persistence = persistence();
   report.gamepads = gamepads();
+  report.gamepadLive = gamepadLive();
   report.gamepadApi = typeof navigator.getGamepads === 'function';
   report.vibrateApi = typeof navigator.vibrate === 'function';
   report.fullscreenApi = Boolean(document.documentElement.requestFullscreen);
@@ -341,8 +374,38 @@ window.addEventListener('popstate', () => {
   note('popstate');
 });
 history.pushState({ probe: true }, '');
-window.addEventListener('gamepadconnected', (e) => note(`gamepadconnected ${e.gamepad.id}`));
-window.addEventListener('gamepaddisconnected', (e) => note(`gamepaddisconnected ${e.gamepad.id}`));
+function refreshGamepads(): void {
+  report.gamepads = gamepads();
+  render();
+}
+window.addEventListener('gamepadconnected', (e) => {
+  note(`gamepadconnected ${e.gamepad.id}`);
+  refreshGamepads();
+});
+window.addEventListener('gamepaddisconnected', (e) => {
+  note(`gamepaddisconnected ${e.gamepad.id}`);
+  refreshGamepads();
+});
+// Pads only appear after a button press, and some WebViews never fire the events, so poll as well. The list is
+// redrawn only when it changes; the live values of the first pad are checked every frame.
+let lastPads = '';
+let lastLive = '';
+const pollGamepads = (): void => {
+  const live = JSON.stringify(gamepadLive());
+  if (live !== lastLive) {
+    lastLive = live;
+    report.gamepadLive = JSON.parse(live) as unknown;
+    render();
+  }
+  requestAnimationFrame(pollGamepads);
+};
+requestAnimationFrame(pollGamepads);
+setInterval(() => {
+  const now = JSON.stringify(gamepads());
+  if (now === lastPads) return;
+  lastPads = now;
+  refreshGamepads();
+}, 500);
 window.addEventListener('keydown', (e) =>
   note(`keydown ${e.key} (${e.code}, keyCode ${e.keyCode})`),
 );
