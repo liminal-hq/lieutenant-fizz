@@ -64,7 +64,7 @@ In the Tauri desktop app (not the web, Android or iOS) the title and pause menus
 Saves, options and touch settings go through `KeyValueStorage` (`packages/engine/src/storage.ts`). The web build keeps `localStorage`; in the Tauri app a backend (`tauri-storage.ts`) keeps every `lf-*` key in the `lf-data.json` store file, preloaded before the game starts. `debugState.storage` and the probe report which backend is in use. Unit-tested with fakes; the store file has run in the app on a Pixel and on the desktop (see `docs/TAURI_SPIKE.md`, E12).
 
 ## Releases
-`.github/workflows/release.yml` builds the Linux packages (deb, rpm and AppImage for x86_64 and aarch64) and a signed Android APK and AAB when a `vX.Y.Z` tag is pushed, and drafts one release with them, led by the hand-written notes in `docs/releases/<version>.md`. 0.1.0 is the first; its notes list what is in it and what is untried. Windows, macOS and Google Play come later. See `docs/APP.md`, "Releases".
+`.github/workflows/release.yml` builds the Linux packages (deb, rpm and AppImage for x86_64 and aarch64) and a signed Android APK and AAB when a `vX.Y.Z` tag is pushed, and publishes one release with them, led by the hand-written notes in `docs/releases/<version>.md`. 0.1.0 is the first; its notes list what is in it and what is untried. Windows, macOS and Google Play come later. See `docs/APP.md`, "Releases".
 
 ## Planned
 Written down in `docs/` before any code, and iterated in pull requests. None of it is built.

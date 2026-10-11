@@ -1,23 +1,23 @@
-# Builds the Linux packages and a signed Android build of the Tauri player and attaches them to one draft release.
+# Builds the Linux packages and a signed Android build of the Tauri player and attaches them to one release.
 #
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
 # Pushing a `vX.Y.Z` tag builds `.deb`, `.rpm` and `.AppImage` packages for x86_64 and aarch64 (unsigned),
 # and a signed Android APK and AAB (with the R8 mapping and the native debug symbols), writes SHA256SUMS over all of it, and attaches
-# everything to a DRAFT release for the tag (created with generated notes, or the existing draft reused).
-# Nothing is published and nothing goes to Google Play: a person reviews the draft and publishes it.
+# everything to the release for the tag. The release is created as a draft so it is never public half-filled
+# (generated notes, or the existing draft reused), then published once every file is on it. Nothing goes to Google Play.
 # Windows, macOS and the Play upload come later.
 #
 # Started by hand (Actions > Release > Run workflow), it builds and uploads everything as workflow
 # artefacts and publishes nothing, unless `release_tag` names an existing tag: then it builds that tag
-# and drafts its release as a push would. A run without a tag still builds and signs the Android app, so
+# and releases it as a push would (or leaves it a draft when `draft` is ticked). A run without a tag still builds and signs the Android app, so
 # it works as a dry run of the whole workflow.
 #
 # The shape follows Jar, Emoji Nook and Threshold's release workflows: the `tauri-ci-desktop` container
 # for the deb and rpm build, the org's reusable `package-arch-appimage.yml` for the AppImage (it
 # repackages the built .deb), the `tauri-ci-mobile` container for Android (signing from the org's
-# `ANDROID_UPLOAD_*` secrets, through `keystore.properties`), and `gh release upload` for the draft.
+# `ANDROID_UPLOAD_*` secrets, through `keystore.properties`), and `gh release upload` for the files.
 # See docs/APP.md, Releases.
 #
 # `android-apk.yml` also drafts releases, but under its own `android-debug-<run>-<attempt>` tags, so the
@@ -35,6 +35,11 @@ on:
         description: Optional existing tag (vX.Y.Z) to build and draft a release for; empty builds this ref and publishes nothing
         required: false
         type: string
+      draft:
+        description: With a release tag, leave the release a draft for review instead of publishing it
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -588,7 +593,7 @@ jobs:
           retention-days: 14
 
   attach-to-release:
-    name: Attach the files to the draft release
+    name: Attach the files to the release and publish it
     if: needs.prepare.outputs.tag_name != ''
     needs:
       - prepare
@@ -610,3 +615,13 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
         run: gh release upload "${TAG_NAME}" release-assets/* --clobber
+
+      # The release was created as a draft so nobody sees it half-filled; with every file on it, it goes public
+      # (a pre-release tag stays a pre-release). Tick `draft` on a manual run to review it first.
+      - name: Publish the release
+        if: ${{ !inputs.draft }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
+        run: gh release edit "${TAG_NAME}" --draft=false
