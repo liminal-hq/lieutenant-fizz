@@ -12,6 +12,7 @@ import {
   readOptions,
   reducedMotion,
   serialiseOptions,
+  sfxVersionOf,
   stepOption,
   volumeOf,
   writeOptions,
@@ -23,6 +24,8 @@ describe('options storage', () => {
       music: 3,
       sfx: 0,
       audio: 2,
+      musicVersion: 2,
+      sfxVersion: 2,
       captions: false,
       layout: 1,
       text: 1,
@@ -69,6 +72,8 @@ describe('options storage', () => {
       music: 3,
       sfx: 5,
       audio: 0,
+      musicVersion: 0,
+      sfxVersion: 0,
       captions: false,
       layout: 1,
       text: 1,
@@ -81,6 +86,16 @@ describe('options storage', () => {
       awake: true,
       density: 1,
     });
+  });
+
+  it('keeps the effects version on Auto unless it is saved as Classic or Enhanced', () => {
+    expect(DEFAULT_OPTIONS.sfxVersion).toBe(0);
+    expect(parseOptions('{"v":1,"sfxVersion":2}').sfxVersion).toBe(2);
+    expect(parseOptions('{"v":1,"sfxVersion":7}').sfxVersion).toBe(0);
+    expect(parseOptions('{"v":1,"sfxVersion":"2"}').sfxVersion).toBe(0);
+    expect(sfxVersionOf({ sfxVersion: 0 })).toBe('classic');
+    expect(sfxVersionOf({ sfxVersion: 1 })).toBe('classic');
+    expect(sfxVersionOf({ sfxVersion: 2 })).toBe('enhanced');
   });
 
   it('keeps the Sound lab off unless it is saved as true, and rejects anything else', () => {
@@ -217,6 +232,8 @@ describe('stepOption', () => {
       music: 2,
       sfx: 3,
       audio: 1,
+      musicVersion: 2,
+      sfxVersion: 2,
       captions: false,
       layout: 1,
       text: 1,

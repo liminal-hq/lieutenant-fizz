@@ -19,6 +19,7 @@ import {
 } from './sound-graph';
 import {
   isPanned,
+  mirrorPan,
   partMakeup,
   partPanAt,
   undertonePan,
@@ -37,12 +38,13 @@ const CENTRE: SoundAt = { pan: 0, gain: 1 };
 export type UndertoneModule = Pick<
   typeof import('@liminal-hq/undertone'),
   'note' | 'sound' | 'stack'
->;
+> &
+  Partial<Pick<typeof import('@liminal-hq/undertone'), 'arrange' | 'silence'>>;
 
 type Voice = Pattern<ControlPatch>;
 
 /** One-shot SFX voice, as data (Undertone voice controls). */
-export interface SfxVoice {
+export interface SfxVoice extends FilterEnvelope {
   /** Note name (`e4`) or noise type (`white`, `pink`, `brown`). */
   n: string;
   w?: OscillatorType;
@@ -54,10 +56,25 @@ export interface SfxVoice {
   hpf?: number;
   slide?: number;
   nudge?: number;
+  /** An exact pitch in Hz, used in place of `n` for an effect that moves its pitch in small steps. */
+  hz?: number;
+}
+
+/**
+ * A filter envelope on `lpf`: it opens to `lpenv` Hz at the attack (`lpa` seconds), falls to `lps` of
+ * the way back over `lpd`, and closes over `lpr` after the note. Undertone only; the built-in synth
+ * plays the voice without it.
+ */
+export interface FilterEnvelope {
+  lpenv?: number;
+  lpa?: number;
+  lpd?: number;
+  lps?: number;
+  lpr?: number;
 }
 
 /** One part of a looping music track (mini-notation pattern plus voice settings). */
-export interface MusicPart {
+export interface MusicPart extends FilterEnvelope {
   notes: string;
   w?: OscillatorType;
   noise?: boolean;
@@ -73,6 +90,25 @@ export interface MusicPart {
   delay?: number;
   /** What the part does in the mix; Enhanced uses it to place the part in the stereo field. */
   role?: PartRole;
+  /** Seconds the part starts after the beat. */
+  nudge?: number;
+  /**
+   * Makes the part a partner layer that pans opposite its role in Enhanced (this is the pan it takes
+   * when the role is centred). Without a role, or in Classic, it has no effect.
+   */
+  mirror?: number;
+}
+
+/**
+ * A longer arrangement of a track, in sections. Each stream is one voice across the sections: the
+ * part it plays in each, or null where it is silent. The song loops from its last section to its
+ * first, at the track's `bpm`, so its length is the total of `cycles` (a cycle is one bar of four).
+ */
+export interface MusicSong {
+  bpm: number;
+  /** The length of each section in cycles. */
+  cycles: number[];
+  streams: (MusicPart | null)[][];
 }
 
 export interface MusicTrack {
@@ -83,6 +119,10 @@ export interface MusicTrack {
 export interface AudioPatterns {
   sfx: Record<string, SfxVoice[]>;
   music: Record<string, MusicTrack>;
+  /** A longer arrangement for some or all of the tracks, played in place of `music` when the music style is Enhanced. */
+  songs?: Record<string, MusicSong>;
+  /** A second set of voices for some or all of the effects, played in place of `sfx` when the effects style is Enhanced. */
+  sfxEnhanced?: Record<string, SfxVoice[]>;
   /** Caption text to SFX name, so on-screen sound captions and audio always agree. */
   captionSfx: Record<string, string>;
   /** The named mix states `AudioTune.mix` can change (see `mix.ts`); the episode keeps the live values. */
@@ -187,6 +227,7 @@ const isNoise = (n: string): boolean => n === 'white' || n === 'pink' || n === '
 
 interface VoiceSpec {
   n: string;
+  hz?: number;
   w?: OscillatorType;
   a?: number;
   d?: number;
@@ -216,11 +257,12 @@ export function buildVoice(
   placed = false,
 ): Voice {
   const text = 'notes' in v ? v.notes : v.n;
+  const exact = 'hz' in v ? v.hz : undefined;
   const role = placed && 'notes' in v ? v.role : undefined;
   const noisy = 'noise' in v ? !!v.noise : isNoise(text);
   let p: Voice = noisy
     ? U.sound(text as SoundType)
-    : U.note(text).sound((v.w ?? 'triangle') as SoundType);
+    : U.note(exact ?? text).sound((v.w ?? 'triangle') as SoundType);
   p = p
     .attack(v.a ?? 0.001)
     .decay(v.d ?? 0.1)
@@ -231,10 +273,21 @@ export function buildVoice(
     const pan = undertonePan(role);
     if (pan !== undefined) p = p.pan(pan);
   }
+  if (placed && 'mirror' in v && v.mirror !== undefined && 'notes' in v) {
+    p = p.pan(mirrorPan(v.role, v.mirror));
+  }
   if (v.lpf) p = p.lpf(v.lpf);
+  if (v.lpenv) {
+    p = p
+      .lpenv(v.lpenv)
+      .lpa(v.lpa ?? 0.001)
+      .lpd(v.lpd ?? 0.1)
+      .lps(v.lps ?? 0)
+      .lpr(v.lpr ?? 0.05);
+  }
   if (v.hpf) p = p.hpf(v.hpf);
   if (v.slide) p = p.slide(v.slide);
-  if ('nudge' in v && v.nudge) p = p.nudge(v.nudge);
+  if (v.nudge) p = p.nudge(v.nudge);
   if ('room' in v && v.room) p = p.room(v.room).roomsize(6).orbit(1);
   if ('delay' in v && v.delay) p = p.delay(v.delay).delaytime(0.33).delayfeedback(0.35).orbit(2);
   return p;
@@ -315,7 +368,7 @@ export class MiniSynth {
     } else {
       const o = ctx.createOscillator();
       o.type = v.w ?? 'triangle';
-      const f = noteHz(v.n);
+      const f = v.hz ?? noteHz(v.n);
       if (v.slide) {
         o.frequency.setValueAtTime(f * 2, t);
         o.frequency.exponentialRampToValueAtTime(f, t + v.slide);
@@ -431,6 +484,10 @@ export class GameAudio {
   backend = 'Loading Undertone';
   /** Classic is today's sound, untouched. Enhanced places sound effects in the stereo field. */
   mode: AudioMode = 'classic';
+  /** Which set of voices effects play: Classic is the game's own, Enhanced adds pitch curves, bell partials and a filter that opens at each attack. */
+  sfxStyle: AudioMode = 'classic';
+  /** Which arrangement of the music plays: Classic is the game's own loops, Enhanced the longer songs where there are any. */
+  musicStyle: AudioMode = 'classic';
   /** How many sound effects have been placed through an emitter (always 0 in Classic). */
   emitters = 0;
   private ctx: AudioContext | null = null;
@@ -534,7 +591,7 @@ export class GameAudio {
   }
 
   private undertoneEffect(U: UndertoneModule, name: string, voices: readonly SfxVoice[]): Voice {
-    const key = `${name}@${this.sfxVol}`;
+    const key = `${name}@${this.sfxVol}@${this.sfxStyle}`;
     const hit = this.cache.get(key);
     if (hit) return hit;
     const fx = U.stack(...voices.map((v) => buildVoice(U, v, this.sfxVol, false)));
@@ -693,7 +750,7 @@ export class GameAudio {
    * panner into the destination), which places it at `at` (the centre if omitted).
    */
   play(name: string, at?: SoundAt): void {
-    const voices = this.patterns.sfx[name];
+    const voices = this.voicesFor(name);
     if (!this.sfx || !voices) return;
     const ctx = this.ensure();
     if (!ctx || ctx.state !== 'running') return;
@@ -717,6 +774,17 @@ export class GameAudio {
     }
   }
 
+  /** The voices of an effect in the style in effect: Enhanced falls back to Classic for an effect with no Enhanced version. */
+  private voicesFor(name: string): SfxVoice[] | undefined {
+    const enhanced = this.sfxStyle === 'enhanced' ? this.patterns.sfxEnhanced?.[name] : undefined;
+    return enhanced ?? this.patterns.sfx[name];
+  }
+
+  /** Chooses which version of the effects plays from now on. Effects already playing finish as they were. */
+  setSfxStyle(style: AudioMode): void {
+    this.sfxStyle = style;
+  }
+
   /** Plays the sound effect tied to an on-screen caption, if it has one, placed at `at`. */
   caption(text: string, at?: SoundAt): void {
     const k = this.patterns.captionSfx[text];
@@ -731,12 +799,21 @@ export class GameAudio {
     this.handle = null;
     this.pending = null;
     const t = track ? this.patterns.music[track] : undefined;
+    const song = track && this.musicStyle === 'enhanced' ? this.patterns.songs?.[track] : undefined;
     if (!this.music || !t) return;
     if (!this.ctx || !this.mini || (this.waitForUndertone && this.utLoading)) {
       this.pending = track;
       return;
     }
     const field = this.mode === 'enhanced' ? this.enhancedMusic(this.ctx) : null;
+    if (this.ut && song && this.ut.arrange && this.ut.silence) {
+      try {
+        this.handle = this.loopSong(this.ut, song, field);
+        return;
+      } catch (e) {
+        console.warn('Undertone song failed, playing the track', track, e);
+      }
+    }
     if (this.ut) {
       try {
         const U = this.ut;
@@ -752,6 +829,34 @@ export class GameAudio {
       }
     }
     this.handle = this.mini.loop(t, field ? 1 : this.musicVol, field?.bus);
+  }
+
+  /** Loops a song: one stream per voice, each arranged across the sections it plays in. */
+  private loopSong(U: UndertoneModule, song: MusicSong, field: MusicBus | null): { stop(): void } {
+    const arrange = U.arrange!;
+    const silence = U.silence! as Voice;
+    const vol = field ? 1 : this.musicVol;
+    const streams = song.streams.map((stream) =>
+      arrange(
+        ...song.cycles.map((cycles, section): [number, Voice] => {
+          const part = stream[section];
+          return [cycles, part ? buildVoice(U, part, vol, true, !!field) : silence];
+        }),
+      ),
+    );
+    return U.stack(...streams).loop(
+      field ? { ctx: field.routed, bpm: song.bpm } : { ctx: this.ctx!, bpm: song.bpm },
+    );
+  }
+
+  /**
+   * Chooses which arrangement of the music plays. The running track starts again from the top on the
+   * new one; a track with no song plays as Classic in either style.
+   */
+  setMusicStyle(style: AudioMode): void {
+    if (style === this.musicStyle) return;
+    this.musicStyle = style;
+    if (this.handle && this.music && this.track) this.playMusic(this.track, true);
   }
 
   setMusic(on: boolean): void {

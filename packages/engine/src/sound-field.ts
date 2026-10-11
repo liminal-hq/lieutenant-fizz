@@ -143,6 +143,16 @@ export function undertonePan(role: PartRole | undefined): number | string | unde
   return typeof p === 'number' ? p : `[${p[0]} ${p[1]}]*${ARP_STEPS / 2}`;
 }
 
+/**
+ * The pan for a partner layer that sits opposite its part: the part's pan reversed (an arpeggio's
+ * alternation swapped), or `side` for a role that is centred.
+ */
+export function mirrorPan(role: PartRole | undefined, side: number): number | string {
+  const p = role ? PART_PAN[role] : 0;
+  if (typeof p === 'number') return p === 0 ? side : -p;
+  return `[${p[1]} ${p[0]}]*${ARP_STEPS / 2}`;
+}
+
 /** The make-up gain a part's voices need: one for centred parts, `PANNED_MAKEUP` for panned. */
 export function partMakeup(role: PartRole | undefined): number {
   return isPanned(role) ? PANNED_MAKEUP : 1;

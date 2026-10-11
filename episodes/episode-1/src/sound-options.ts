@@ -8,14 +8,31 @@ import {
   type AudioMode,
   type SoundAt,
 } from '@lieutenant-fizz/engine/sound-field';
-import { audioChoice, DEFAULT_OPTIONS, stepOption, type Options } from './options';
+import {
+  audioChoice,
+  DEFAULT_OPTIONS,
+  musicVersionOf,
+  sfxVersionOf,
+  stepOption,
+  type Options,
+} from './options';
 import type { MenuItem } from './ui';
 import { NO_LOCKS, lockedItem, type UrlLocks } from './url-lock';
 
 /** The rows of the Sound screen, in order. */
-export type SoundRow = 'style' | 'music' | 'sfx' | 'lab' | 'reset' | 'back';
+export type SoundRow =
+  'style' | 'music' | 'musicVersion' | 'sfx' | 'sfxVersion' | 'lab' | 'reset' | 'back';
 
-const ROWS: readonly SoundRow[] = ['style', 'music', 'sfx', 'lab', 'reset', 'back'];
+const ROWS: readonly SoundRow[] = [
+  'style',
+  'music',
+  'musicVersion',
+  'sfx',
+  'sfxVersion',
+  'lab',
+  'reset',
+  'back',
+];
 
 /** The styles a Style row steps through, in order. */
 const STYLES: readonly AudioMode[] = ['classic', 'enhanced'];
@@ -75,6 +92,10 @@ export function soundItems(
         return { id, label: 'Music', kind: 'meter', meter: o.music };
       case 'sfx':
         return { id, label: 'Effects', kind: 'meter', meter: o.sfx };
+      case 'musicVersion':
+        return { id, label: 'Music version', kind: 'choice', value: NAMES[musicVersionOf(o)] };
+      case 'sfxVersion':
+        return { id, label: 'Effects version', kind: 'choice', value: NAMES[sfxVersionOf(o)] };
       case 'lab':
         return locks.debug
           ? lockedItem({ id, label: 'Sound lab' }, 'On')
@@ -89,7 +110,12 @@ export function soundItems(
 
 /** Whether a row changes with Left and Right (the others are chosen). */
 export const isSoundStepRow = (row: SoundRow | null): boolean =>
-  row === 'style' || row === 'music' || row === 'sfx' || row === 'lab';
+  row === 'style' ||
+  row === 'music' ||
+  row === 'musicVersion' ||
+  row === 'sfx' ||
+  row === 'sfxVersion' ||
+  row === 'lab';
 
 /**
  * One step on a row, `d` of -1 or +1. At the end of a list a step stops, and choosing the row (`wrap`)
@@ -116,6 +142,20 @@ export function stepSound(
       return stepOption(o, 'music', d, wrap);
     case 'sfx':
       return stepOption(o, 'sfx', d, wrap);
+    case 'musicVersion': {
+      const n = STYLES.length;
+      const i = STYLES.indexOf(musicVersionOf(o)) + d;
+      const next = STYLES[wrap ? (i + n) % n : Math.min(n - 1, Math.max(0, i))] as AudioMode;
+      if (next === musicVersionOf(o)) return o;
+      return { ...o, musicVersion: next === 'classic' ? 1 : 2 };
+    }
+    case 'sfxVersion': {
+      const n = STYLES.length;
+      const i = STYLES.indexOf(sfxVersionOf(o)) + d;
+      const next = STYLES[wrap ? (i + n) % n : Math.min(n - 1, Math.max(0, i))] as AudioMode;
+      if (next === sfxVersionOf(o)) return o;
+      return { ...o, sfxVersion: next === 'classic' ? 1 : 2 };
+    }
     case 'lab':
       return stepOption(o, 'lab', d, wrap);
     default:
@@ -126,7 +166,15 @@ export function stepSound(
 /** The sound options back to their defaults (Auto, full volume, no sound lab); nothing else changes. */
 export function resetSound(o: Options): Options {
   const d = DEFAULT_OPTIONS;
-  return { ...o, audio: d.audio, music: d.music, sfx: d.sfx, lab: d.lab };
+  return {
+    ...o,
+    audio: d.audio,
+    music: d.music,
+    musicVersion: d.musicVersion,
+    sfx: d.sfx,
+    sfxVersion: d.sfxVersion,
+    lab: d.lab,
+  };
 }
 
 /** A sound to play as a preview: after `delayMs`, at `at` in the stereo field (Classic plays it centred). */
@@ -142,8 +190,9 @@ export const PREVIEW_DELAY_MS = 250;
 /**
  * The sounds to play after a step on a row, once the new options are in use. Style plays a boing on the
  * left, then a plink on the right: Enhanced puts them apart and Classic plays both centred, so one step
- * is the comparison. Effects play a crunch at the new level (silent at 0). Music changes the running
- * track and the Sound lab row only shows or hides a button, so neither has a preview.
+ * is the comparison. Effects play a crunch at the new level (silent at 0), and Effects version a boing then
+ * a key. Music and Music version change the running track and the Sound lab row only shows or hides a
+ * button, so none of them has a preview.
  */
 export function soundPreview(row: SoundRow, o: Pick<Options, 'sfx'>): Preview[] {
   switch (row) {
@@ -154,6 +203,14 @@ export function soundPreview(row: SoundRow, o: Pick<Options, 'sfx'>): Preview[] 
       ];
     case 'sfx':
       return o.sfx > 0 ? [{ name: 'crunch', delayMs: 0 }] : [];
+    case 'sfxVersion':
+      // A bouncing sweep, then a jingle: the two effects that change the most between versions.
+      return o.sfx > 0
+        ? [
+            { name: 'boing', delayMs: 0 },
+            { name: 'key', delayMs: 450 },
+          ]
+        : [];
     default:
       return [];
   }

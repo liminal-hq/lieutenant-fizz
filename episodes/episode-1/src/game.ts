@@ -121,7 +121,9 @@ import {
   METER_BLOCKS,
   MOTIONS,
   readOptions,
+  musicVersionOf,
   reducedMotion,
+  sfxVersionOf,
   stepOption,
   TEXT_SIZES,
   volumeOf,
@@ -1447,9 +1449,11 @@ export class Game {
     const o = this.settings;
     this.audio.setMode(effectiveAudio(this.audioUrl, o));
     this.audio.setMusicVolume(volumeOf(o.music));
+    this.audio.setMusicStyle(musicVersionOf(o));
     this.audio.setMusic(o.music > 0);
     this.audio.setSfxVolume(volumeOf(o.sfx));
     this.audio.setSfx(o.sfx > 0);
+    this.audio.setSfxStyle(sfxVersionOf(o));
     this.opts.captions = o.captions;
     const before = this.reducedMotion;
     this.reducedMotion =
@@ -2108,7 +2112,7 @@ export class Game {
   }
 
   /**
-   * Steps a Sound setting. Music and Effects take the new level at once; Style switches the mode. Then a
+   * Steps a Sound setting. Music and Effects take the new level at once; Style switches the mode and Effects version the set of effects. Then a
    * short preview plays so the change can be heard.
    */
   private stepSoundRow(row: SoundRow | null, d: number, wrap: boolean): void {
@@ -2118,14 +2122,16 @@ export class Game {
     if (
       next.audio === o.audio &&
       next.music === o.music &&
+      next.musicVersion === o.musicVersion &&
       next.sfx === o.sfx &&
+      next.sfxVersion === o.sfxVersion &&
       next.lab === o.lab
     )
       return;
     this.disarmReset();
     this.settings = next;
-    // Style and Effects are heard in their previews; Music and the Sound lab row play the menu blip.
-    if (row === 'music' || row === 'lab') this.audio.play('menu');
+    // Style, Effects and Effects version are heard in their previews; Music and the Sound lab row play the menu blip.
+    if (row === 'music' || row === 'musicVersion' || row === 'lab') this.audio.play('menu');
     this.applySettings();
     this.syncUi();
     this.schedulePreview(row);
@@ -2335,7 +2341,7 @@ export class Game {
     this.armReset();
   }
 
-  /** Reset on the Sound screen asks twice, then puts Style, Music, Effects and the Sound lab back and nothing else. */
+  /** Reset on the Sound screen asks twice, then puts Style, Music, Music version, Effects, Effects version and the Sound lab back and nothing else. */
   private tapSoundReset(): void {
     if (resetArmed(this.resetAt, performance.now())) {
       this.disarmReset();

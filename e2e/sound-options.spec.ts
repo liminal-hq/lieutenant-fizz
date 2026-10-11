@@ -65,7 +65,16 @@ test('Options > Sound: Left and Enter change the style, which is saved, and Esca
     () => document.querySelector('#overlay h2')?.textContent === 'Sound',
   );
   await expect(page.locator('#overlay h2')).toHaveText('Sound');
-  expect(await labels(page)).toEqual(['Style', 'Music', 'Effects', 'Sound lab', 'Reset', 'Back']);
+  expect(await labels(page)).toEqual([
+    'Style',
+    'Music',
+    'Music version',
+    'Effects',
+    'Effects version',
+    'Sound lab',
+    'Reset',
+    'Back',
+  ]);
   // Auto resolves to the game's default.
   expect(await styleValue(page)).toBe('Enhanced');
   expect((await lf(page, (g) => g.debugAudio())).mode).toBe('enhanced');
