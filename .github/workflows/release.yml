@@ -574,7 +574,7 @@ jobs:
             exit 1
           fi
 
-          sha256sum ./* | sed 's# \./#  #' > SHA256SUMS
+          sha256sum ./* | sed 's#  \./#  #' > SHA256SUMS
           cat SHA256SUMS
           {
             echo "### Files"
