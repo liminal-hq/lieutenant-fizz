@@ -1,0 +1,37 @@
+[package]
+name = "lieutenant-fizz-player"
+version = "0.1.0"
+description = "Lieutenant Fizz: the Android and desktop player"
+authors = ["Liminal HQ, Scott Morris"]
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/liminal-hq/lieutenant-fizz"
+edition = "2021"
+
+# The app is its own workspace root: the repository's root workspace excludes it, and this empty table
+# keeps Cargo from looking further up for another one.
+[workspace]
+
+[lib]
+# The `_lib` suffix keeps the library name from clashing with the binary name (a Windows-only
+# problem, see https://github.com/rust-lang/cargo/issues/8519).
+name = "lieutenant_fizz_player_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+# Dev tooling. Cargo cannot gate a dependency on `debug_assertions`, so it is always compiled in but
+# only registered under `#[cfg(debug_assertions)]` in `src/lib.rs`: present but inert in release.
+# Pinned below 0.13, whose websocket code calls `WebviewWindow::minimize()` and `maximize()`, which
+# do not exist on mobile, so it fails to compile for Android whatever the build profile.
+tauri-plugin-mcp-bridge = "0.12"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

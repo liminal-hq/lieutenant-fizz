@@ -1,5 +1,8 @@
 [workspace]
 members = ["crates/sim", "episodes/episode-1/game"]
+# The Tauri app is its own workspace (own lockfile and profile) so its heavy dependencies and system
+# libraries stay out of the simulation's checks; see `apps/player/src-tauri/Cargo.toml`.
+exclude = ["apps/player/src-tauri"]
 resolver = "2"
 
 [workspace.package]

@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
 # Raw C-ABI exports (no wasm-bindgen needed); Vite imports the output as a URL.
+# Honours CARGO_TARGET_DIR, so a build that moves Rust output to another disk moves this too.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -14,7 +15,7 @@ if [ "$PROFILE" = "release" ]; then FLAG="--release"; else FLAG=""; fi
 cargo build --target wasm32-unknown-unknown $FLAG -p lf-episode-1
 
 mkdir -p episodes/episode-1/src/wasm
-cp "target/wasm32-unknown-unknown/$PROFILE/lf_episode_1.wasm" episodes/episode-1/src/wasm/sim.wasm
+cp "${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/$PROFILE/lf_episode_1.wasm" episodes/episode-1/src/wasm/sim.wasm
 
 # Optional size pass when binaryen is installed.
 if command -v wasm-opt >/dev/null 2>&1 && [ "$PROFILE" = "release" ]; then

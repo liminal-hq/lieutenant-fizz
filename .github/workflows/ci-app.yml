@@ -1,0 +1,61 @@
+# Checks the Tauri app's Rust crate (format, clippy, tests) on the desktop target.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+# The app is its own Cargo workspace, so the main CI job does not build it. This one runs only when the
+# app changes. It needs the WebKitGTK and GTK system libraries, which the shared desktop image carries.
+# No Android build happens here (see android-apk.yml).
+
+name: CI (app)
+
+on:
+  pull_request:
+    paths:
+      - 'apps/player/**'
+      - 'rust-toolchain.toml'
+      - '.github/workflows/ci-app.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: ci-app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: App crate format, clippy and tests
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/liminal-hq/tauri-ci-desktop:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/player/src-tauri
+
+      # `tauri::generate_context!` needs the frontend directory to exist, but these checks never load it,
+      # so a stub page stands in for the real build.
+      - name: Stub the frontend directory
+        run: |
+          mkdir -p apps/player/dist
+          echo '<!doctype html><title>stub</title>' > apps/player/dist/index.html
+
+      - name: Check formatting
+        working-directory: apps/player/src-tauri
+        run: cargo fmt --check
+
+      - name: Run Clippy
+        working-directory: apps/player/src-tauri
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Run tests
+        working-directory: apps/player/src-tauri
+        run: cargo test --locked
