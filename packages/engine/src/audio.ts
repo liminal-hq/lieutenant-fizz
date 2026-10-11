@@ -19,6 +19,7 @@ import {
 } from './sound-graph';
 import {
   isPanned,
+  mirrorPan,
   partMakeup,
   partPanAt,
   undertonePan,
@@ -37,12 +38,13 @@ const CENTRE: SoundAt = { pan: 0, gain: 1 };
 export type UndertoneModule = Pick<
   typeof import('@liminal-hq/undertone'),
   'note' | 'sound' | 'stack'
->;
+> &
+  Partial<Pick<typeof import('@liminal-hq/undertone'), 'arrange' | 'silence'>>;
 
 type Voice = Pattern<ControlPatch>;
 
 /** One-shot SFX voice, as data (Undertone voice controls). */
-export interface SfxVoice {
+export interface SfxVoice extends FilterEnvelope {
   /** Note name (`e4`) or noise type (`white`, `pink`, `brown`). */
   n: string;
   w?: OscillatorType;
@@ -56,11 +58,14 @@ export interface SfxVoice {
   nudge?: number;
   /** An exact pitch in Hz, used in place of `n` for an effect that moves its pitch in small steps. */
   hz?: number;
-  /**
-   * A filter envelope on `lpf`: it opens to `lpenv` Hz at the attack (`lpa` seconds), falls to `lps` of
-   * the way back over `lpd`, and closes over `lpr` after the note. Undertone only; the built-in synth
-   * plays the voice without it.
-   */
+}
+
+/**
+ * A filter envelope on `lpf`: it opens to `lpenv` Hz at the attack (`lpa` seconds), falls to `lps` of
+ * the way back over `lpd`, and closes over `lpr` after the note. Undertone only; the built-in synth
+ * plays the voice without it.
+ */
+export interface FilterEnvelope {
   lpenv?: number;
   lpa?: number;
   lpd?: number;
@@ -69,7 +74,7 @@ export interface SfxVoice {
 }
 
 /** One part of a looping music track (mini-notation pattern plus voice settings). */
-export interface MusicPart {
+export interface MusicPart extends FilterEnvelope {
   notes: string;
   w?: OscillatorType;
   noise?: boolean;
@@ -85,6 +90,25 @@ export interface MusicPart {
   delay?: number;
   /** What the part does in the mix; Enhanced uses it to place the part in the stereo field. */
   role?: PartRole;
+  /** Seconds the part starts after the beat. */
+  nudge?: number;
+  /**
+   * Makes the part a partner layer that pans opposite its role in Enhanced (this is the pan it takes
+   * when the role is centred). Without a role, or in Classic, it has no effect.
+   */
+  mirror?: number;
+}
+
+/**
+ * A longer arrangement of a track, in sections. Each stream is one voice across the sections: the
+ * part it plays in each, or null where it is silent. The song loops from its last section to its
+ * first, at the track's `bpm`, so its length is the total of `cycles` (a cycle is one bar of four).
+ */
+export interface MusicSong {
+  bpm: number;
+  /** The length of each section in cycles. */
+  cycles: number[];
+  streams: (MusicPart | null)[][];
 }
 
 export interface MusicTrack {
@@ -95,6 +119,8 @@ export interface MusicTrack {
 export interface AudioPatterns {
   sfx: Record<string, SfxVoice[]>;
   music: Record<string, MusicTrack>;
+  /** A longer arrangement for some or all of the tracks, played in place of `music` when the music style is Enhanced. */
+  songs?: Record<string, MusicSong>;
   /** A second set of voices for some or all of the effects, played in place of `sfx` when the effects style is Enhanced. */
   sfxEnhanced?: Record<string, SfxVoice[]>;
   /** Caption text to SFX name, so on-screen sound captions and audio always agree. */
@@ -247,8 +273,11 @@ export function buildVoice(
     const pan = undertonePan(role);
     if (pan !== undefined) p = p.pan(pan);
   }
+  if (placed && 'mirror' in v && v.mirror !== undefined && 'notes' in v) {
+    p = p.pan(mirrorPan(v.role, v.mirror));
+  }
   if (v.lpf) p = p.lpf(v.lpf);
-  if ('lpenv' in v && v.lpenv) {
+  if (v.lpenv) {
     p = p
       .lpenv(v.lpenv)
       .lpa(v.lpa ?? 0.001)
@@ -258,7 +287,7 @@ export function buildVoice(
   }
   if (v.hpf) p = p.hpf(v.hpf);
   if (v.slide) p = p.slide(v.slide);
-  if ('nudge' in v && v.nudge) p = p.nudge(v.nudge);
+  if (v.nudge) p = p.nudge(v.nudge);
   if ('room' in v && v.room) p = p.room(v.room).roomsize(6).orbit(1);
   if ('delay' in v && v.delay) p = p.delay(v.delay).delaytime(0.33).delayfeedback(0.35).orbit(2);
   return p;
@@ -457,6 +486,8 @@ export class GameAudio {
   mode: AudioMode = 'classic';
   /** Which set of voices effects play: Classic is the game's own, Enhanced adds pitch curves, bell partials and a filter that opens at each attack. */
   sfxStyle: AudioMode = 'classic';
+  /** Which arrangement of the music plays: Classic is the game's own loops, Enhanced the longer songs where there are any. */
+  musicStyle: AudioMode = 'classic';
   /** How many sound effects have been placed through an emitter (always 0 in Classic). */
   emitters = 0;
   private ctx: AudioContext | null = null;
@@ -768,12 +799,21 @@ export class GameAudio {
     this.handle = null;
     this.pending = null;
     const t = track ? this.patterns.music[track] : undefined;
+    const song = track && this.musicStyle === 'enhanced' ? this.patterns.songs?.[track] : undefined;
     if (!this.music || !t) return;
     if (!this.ctx || !this.mini || (this.waitForUndertone && this.utLoading)) {
       this.pending = track;
       return;
     }
     const field = this.mode === 'enhanced' ? this.enhancedMusic(this.ctx) : null;
+    if (this.ut && song && this.ut.arrange && this.ut.silence) {
+      try {
+        this.handle = this.loopSong(this.ut, song, field);
+        return;
+      } catch (e) {
+        console.warn('Undertone song failed, playing the track', track, e);
+      }
+    }
     if (this.ut) {
       try {
         const U = this.ut;
@@ -789,6 +829,34 @@ export class GameAudio {
       }
     }
     this.handle = this.mini.loop(t, field ? 1 : this.musicVol, field?.bus);
+  }
+
+  /** Loops a song: one stream per voice, each arranged across the sections it plays in. */
+  private loopSong(U: UndertoneModule, song: MusicSong, field: MusicBus | null): { stop(): void } {
+    const arrange = U.arrange!;
+    const silence = U.silence! as Voice;
+    const vol = field ? 1 : this.musicVol;
+    const streams = song.streams.map((stream) =>
+      arrange(
+        ...song.cycles.map((cycles, section): [number, Voice] => {
+          const part = stream[section];
+          return [cycles, part ? buildVoice(U, part, vol, true, !!field) : silence];
+        }),
+      ),
+    );
+    return U.stack(...streams).loop(
+      field ? { ctx: field.routed, bpm: song.bpm } : { ctx: this.ctx!, bpm: song.bpm },
+    );
+  }
+
+  /**
+   * Chooses which arrangement of the music plays. The running track starts again from the top on the
+   * new one; a track with no song plays as Classic in either style.
+   */
+  setMusicStyle(style: AudioMode): void {
+    if (style === this.musicStyle) return;
+    this.musicStyle = style;
+    if (this.handle && this.music && this.track) this.playMusic(this.track, true);
   }
 
   setMusic(on: boolean): void {

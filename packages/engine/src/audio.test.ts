@@ -322,6 +322,101 @@ describe('GameAudio effects style', () => {
   });
 });
 
+describe('GameAudio music style', () => {
+  const withSong: AudioPatterns = {
+    ...patterns,
+    songs: {
+      title: {
+        bpm: 90,
+        cycles: [1, 2],
+        streams: [
+          [
+            { notes: 'c4', g: 0.2 },
+            { notes: 'e4', g: 0.2 },
+          ],
+          [null, { notes: 'g4', g: 0.2, lpf: 2000, lpenv: 3000 }],
+        ],
+      },
+    },
+  };
+
+  /** The number of notes the looped pattern starts in each of its first three cycles. */
+  function notesPerCycle(loop: { mock: { contexts: unknown[] } }): number[] {
+    const pattern = loop.mock.contexts[0] as Undertone.Pattern<Undertone.ControlPatch>;
+    return [0, 1, 2].map(
+      (cycle) =>
+        pattern
+          .query({ begin: new Undertone.Fraction(cycle), end: new Undertone.Fraction(cycle + 1) })
+          .filter((h) => Undertone.hasOnset(h)).length,
+    );
+  }
+
+  it('plays the track until Enhanced is chosen, and the song after', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(withSong, async () => Undertone);
+    await flush();
+    const ctx = await unlockAudio();
+    expect(audio.musicStyle).toBe('classic');
+    audio.playMusic('title');
+    expect(loop.mock.calls[0]![0]).toEqual({ ctx, bpm: 120 });
+    audio.setMusicStyle('enhanced');
+    expect(loop).toHaveBeenCalledTimes(2);
+    expect(loop.mock.calls[1]![0]).toEqual({ ctx, bpm: 90 });
+  });
+
+  it('arranges each stream across the sections, with a rest where it has no part', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(withSong, async () => Undertone);
+    await flush();
+    await unlockAudio();
+    audio.setMusicStyle('enhanced');
+    audio.playMusic('title');
+    // One note in the first bar (the second stream rests), two in each of the next two.
+    expect(notesPerCycle(loop)).toEqual([1, 2, 2]);
+  });
+
+  it('restarts the running music on the new style, and only then', async () => {
+    const stop = vi.fn();
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop });
+    const audio = new GameAudio(withSong, async () => Undertone);
+    await flush();
+    await unlockAudio();
+    audio.setMusicStyle('enhanced');
+    expect(loop).not.toHaveBeenCalled();
+    audio.playMusic('title');
+    audio.setMusicStyle('enhanced');
+    expect(loop).toHaveBeenCalledTimes(1);
+    audio.setMusicStyle('classic');
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(loop).toHaveBeenCalledTimes(2);
+    expect(loop.mock.calls[1]![0]).toMatchObject({ bpm: 120 });
+  });
+
+  it('plays a track with no song as the track, in either style', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    await unlockAudio();
+    audio.setMusicStyle('enhanced');
+    audio.playMusic('title');
+    expect(loop.mock.calls[0]![0]).toMatchObject({ bpm: 120 });
+  });
+
+  it('plays the track if Undertone has no arrange', async () => {
+    const loop = vi.spyOn(Undertone.Pattern.prototype, 'loop').mockReturnValue({ stop: vi.fn() });
+    const audio = new GameAudio(withSong, async () => ({
+      note: Undertone.note,
+      sound: Undertone.sound,
+      stack: Undertone.stack,
+    }));
+    await flush();
+    await unlockAudio();
+    audio.setMusicStyle('enhanced');
+    audio.playMusic('title');
+    expect(loop.mock.calls[0]![0]).toMatchObject({ bpm: 120 });
+  });
+});
+
 describe('GameAudio music while Undertone loads at boot', () => {
   /** A loader the test settles by hand. */
   function controlledLoad(): {

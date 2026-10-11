@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AUDIO_DEFAULT,
   FIELD,
+  mirrorPan,
   PANNED_MAKEUP,
   PART_PAN,
   panGains,
@@ -167,5 +168,15 @@ describe('music part pans', () => {
     expect(seen).toEqual([-0.3, 0.3, -0.3, 0.3, -0.3, 0.3, -0.3, 0.3]);
     expect(partPanAt('arp', 0.99)).toBe(0.3);
     expect(partPanAt('lead', 0.5)).toBe(-0.15);
+  });
+});
+
+describe('mirrorPan', () => {
+  it('reverses a panned role, swaps an arpeggio’s sides, and uses the given side for a centred role', () => {
+    expect(mirrorPan('lead', 0.22)).toBe(0.15);
+    expect(mirrorPan('counter', -0.22)).toBe(-0.2);
+    expect(mirrorPan('arp', 0.22)).toBe('[0.3 -0.3]*4');
+    expect(mirrorPan('bass', -0.22)).toBe(-0.22);
+    expect(mirrorPan(undefined, 0.22)).toBe(0.22);
   });
 });
