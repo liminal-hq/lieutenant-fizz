@@ -3,6 +3,13 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { DEFAULT_PAD_BINDINGS } from '@lieutenant-fizz/engine/gamepad-bindings';
+import {
+  padActionToken,
+  padActionTokens,
+  padButtonToken,
+  type PadLabels,
+} from '@lieutenant-fizz/engine/gamepad-labels';
 import type { InputDevice } from '@lieutenant-fizz/engine/input';
 
 /** What the hints need to know: the device in use, and Options › Controls (0 Keen-style, 1 Modern). */
@@ -19,10 +26,28 @@ export interface HintContext {
    * the pause menu is resumed with P or Pause.
    */
   escExitsFullscreen?: boolean;
+  /** The gamepad's bindings and the controller family to name them in. Without it the hints show the defaults on an Xbox pad. */
+  pad?: PadLabels;
 }
 
 /** The screens that show a hint bar. */
-export type HintScreen = 'list' | 'pause' | 'options' | 'saves' | 'controls';
+export type HintScreen = 'list' | 'pause' | 'options' | 'saves' | 'controls' | 'listen';
+
+/** The gamepad labels the hints use: the player's bindings and controller, or the standard mapping on an Xbox pad. */
+const labels = (c: HintContext): PadLabels =>
+  c.pad ?? { bindings: DEFAULT_PAD_BINDINGS, family: 'xbox' };
+
+/** One action's first button as a hint token. */
+const padToken = (c: HintContext, action: 'jump' | 'pogo' | 'fire' | 'pause'): string => {
+  const l = labels(c);
+  return padActionToken(l.bindings, action, l.family);
+};
+
+/** All of an action's buttons as hint tokens, such as `{B} {Y}`. */
+const padTokens = (c: HintContext, action: 'jump' | 'pogo' | 'fire' | 'pause'): string => {
+  const l = labels(c);
+  return padActionTokens(l.bindings, action, l.family);
+};
 
 const pad = (c: HintContext): boolean => c.device === 'gamepad';
 const touch = (c: HintContext): boolean => c.device === 'touch';
@@ -41,21 +66,27 @@ export const TOUCH_LABELS = {
 /** An on-screen control's name as a hint token (drawn as a keycap, like a key's name). */
 const touchCap = (name: string): string => `{[${name}]}`;
 
-/** The jump control: Ctrl in the Keen-style layout, Z in the modern one, A on a gamepad, Select on touch. */
+/** The jump control: Ctrl in the Keen-style layout, Z in the modern one, the Jump button (A by default) on a gamepad, Select on touch. */
 export const jumpHint = (c: HintContext): string =>
-  touch(c) ? touchCap(TOUCH_LABELS.select) : pad(c) ? '{A}' : c.layout === 1 ? '{[Z]}' : '{Ctrl}';
+  touch(c)
+    ? touchCap(TOUCH_LABELS.select)
+    : pad(c)
+      ? padToken(c, 'jump')
+      : c.layout === 1
+        ? '{[Z]}'
+        : '{Ctrl}';
 
-/** The confirm control. */
+/** The confirm control. On a gamepad it is the Jump button, since menus read Jump as Select. */
 export const selectHint = (c: HintContext): string =>
-  touch(c) ? touchCap(TOUCH_LABELS.select) : pad(c) ? '{A}' : '{Enter}';
+  touch(c) ? touchCap(TOUCH_LABELS.select) : pad(c) ? padToken(c, 'jump') : '{Enter}';
 
-/** The back control. */
+/** The back control. On a gamepad it is the Pogo button, since menus read Pogo as Back. */
 export const backHint = (c: HintContext): string =>
-  touch(c) ? touchCap(TOUCH_LABELS.back) : pad(c) ? '{B}' : '{Esc}';
+  touch(c) ? touchCap(TOUCH_LABELS.back) : pad(c) ? padToken(c, 'pogo') : '{Esc}';
 
-/** The menu control that skips or resumes: Esc and the Pause key, Start on a gamepad, the Pause button on touch. */
+/** The menu control that skips or resumes: Esc and the Pause key, the Pause button (Start by default) on a gamepad, the Pause button on touch. */
 export const menuHint = (c: HintContext): string =>
-  touch(c) ? touchCap(TOUCH_LABELS.pause) : pad(c) ? '{Start}' : '{Esc} {[Pause]}';
+  touch(c) ? touchCap(TOUCH_LABELS.pause) : pad(c) ? padToken(c, 'pause') : '{Esc} {[Pause]}';
 
 /** The pause menu's Resume control. With Esc leaving fullscreen it is P and the Pause key instead. */
 export const resumeHint = (c: HintContext): string =>
@@ -76,6 +107,8 @@ function touchMenuHints(screen: HintScreen): string[] {
       return [choose, select, back];
     case 'controls':
       return [back];
+    case 'listen':
+      return [`${back} Cancel`];
     case 'pause':
       return [choose, select, `${touchCap(TOUCH_LABELS.pause)} Resume`];
     default:
@@ -109,6 +142,9 @@ function baseMenuHints(screen: HintScreen, c: HintContext): string[] {
       return [choose, select, `${backHint(c)} Back`];
     case 'controls':
       return [`${selectHint(c)} Back`, `${backHint(c)} Back`];
+    case 'listen':
+      // Esc cancels from the keyboard; on a pad it is Start held for a second, whatever Pause is bound to.
+      return pad(c) ? [`Hold ${padButtonToken(9, labels(c).family)} Cancel`] : ['{Esc} Cancel'];
     case 'pause':
       return [choose, select, `${resumeHint(c)} Resume`];
     default:
@@ -173,10 +209,10 @@ export function controlsTable(c: HintContext, onTouch: boolean): ControlsTable {
     head: ['Action', 'Keen-style', 'Modern', 'Gamepad'],
     rows: [
       ['Move', '{[←]} {[→]}', '{[←]} {[→]} {[A]} {[D]}', 'D-pad / stick'],
-      ['Jump', '{Ctrl}', '{[Z]}', '{A}'],
-      ['Pogo (toggle)', '{Alt}', '{[X]}', '{B} {Y}'],
-      ['Fizz', '{Space}', '{[C]}', '{X} {RT}'],
-      ['Menu', '{Esc} {[Pause]}', '{Esc} {[P]} {[Pause]}', '{Start}'],
+      ['Jump', '{Ctrl}', '{[Z]}', padTokens(c, 'jump')],
+      ['Pogo (toggle)', '{Alt}', '{[X]}', padTokens(c, 'pogo')],
+      ['Fizz', '{Space}', '{[C]}', padTokens(c, 'fire')],
+      ['Menu', '{Esc} {[Pause]}', '{Esc} {[P]} {[Pause]}', padTokens(c, 'pause')],
       ['Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu'],
       ...(c.fullscreen ? [['Fullscreen', '{[F]}', '{[F]}', '—']] : []),
     ],

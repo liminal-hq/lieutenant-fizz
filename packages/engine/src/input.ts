@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { buttonsToBits, DEFAULT_PAD_BINDINGS, type PadBindings } from './gamepad-bindings';
 import { NO_TOUCH, TouchState, type TouchHeld } from './touch';
 
 /** Input bits handed to the sim each fixed tick (mirrors `world::input` in the Rust sim). */
@@ -138,8 +139,15 @@ export function keysToBits(keys: ReadonlySet<string>): number {
   return b;
 }
 
-/** Standard-mapping gamepad to held bits; also reports whether Start is down. */
-export function padToBits(pad: Pick<Gamepad, 'buttons' | 'axes'>): {
+/**
+ * Standard-mapping gamepad to held bits; also reports whether the Pause button (Start by default) is
+ * down. The D-pad and the left stick are fixed; Jump, Pogo, Fizz and Pause follow `bindings`, which are
+ * the standard mapping's A, B and Y, X and RT, and Start until the player changes them.
+ */
+export function padToBits(
+  pad: Pick<Gamepad, 'buttons' | 'axes'>,
+  bindings: PadBindings = DEFAULT_PAD_BINDINGS,
+): {
   bits: number;
   start: boolean;
 } {
@@ -151,10 +159,11 @@ export function padToBits(pad: Pick<Gamepad, 'buttons' | 'axes'>): {
   if (b(15) || ax > 0.4) bits |= Input.RIGHT;
   if (b(12) || ay < -0.5) bits |= Input.UP;
   if (b(13) || ay > 0.5) bits |= Input.DOWN;
-  if (b(0)) bits |= Input.JUMP;
-  if (b(1) || b(3)) bits |= Input.POGO;
-  if (b(2) || b(7)) bits |= Input.FIRE;
-  return { bits, start: b(9) };
+  const held = buttonsToBits(bindings, pad);
+  if (held.jump) bits |= Input.JUMP;
+  if (held.pogo) bits |= Input.POGO;
+  if (held.fire) bits |= Input.FIRE;
+  return { bits, start: held.pause };
 }
 
 /**
@@ -212,11 +221,20 @@ export class InputManager {
   device: InputDevice = 'keyboard';
   private readonly deviceHandlers = new Set<(d: InputDevice) => void>();
   private readonly padLostHandlers = new Set<() => void>();
+  private readonly padChangeHandlers = new Set<() => void>();
   /** When true, held bits are suppressed (menus, dialogue) but commands still fire. */
   blocked = false;
   /** The touch controls' state. A DOM controller feeds it; its bits count only while touch is enabled. */
   readonly touch = new TouchState();
   private touchEnabled = false;
+  /** Which buttons do Jump, Pogo, Fizz and Pause. The D-pad and left stick are fixed. */
+  private padBindings: PadBindings = DEFAULT_PAD_BINDINGS;
+  /**
+   * Whether the pad drives the game. `listening` ignores it entirely (a screen is reading raw buttons to
+   * bind one); `holdoff` follows a listen and ignores it until every button is up, so the press that
+   * bound a button cannot also act as it.
+   */
+  private padGate: 'open' | 'listening' | 'holdoff' = 'open';
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (isFieldTarget(e.target as HTMLElement | null)) return;
@@ -307,6 +325,12 @@ export class InputManager {
     return () => this.deviceHandlers.delete(fn);
   }
 
+  /** Calls `fn` when a different pad becomes the one in use (the device can stay the gamepad, so `onDevice` does not fire). Returns an unsubscribe function. */
+  onPadChange(fn: () => void): () => void {
+    this.padChangeHandlers.add(fn);
+    return () => this.padChangeHandlers.delete(fn);
+  }
+
   /** Calls `fn` when the pad the player was using is unplugged. Returns an unsubscribe function. */
   onPadLost(fn: () => void): () => void {
     this.padLostHandlers.add(fn);
@@ -358,6 +382,36 @@ export class InputManager {
     return pickPad(pads, this.lastPad);
   }
 
+  /** Sets which buttons do Jump, Pogo, Fizz and Pause. A button held now does not act as its new action until it is released. */
+  setPadBindings(bindings: PadBindings): void {
+    this.padBindings = bindings;
+    this.prevStart = false;
+    if (this.padGate === 'open') this.padGate = 'holdoff';
+  }
+
+  /**
+   * Turns pad listening on or off. While on, the pad sends no bits and no Pause (a screen reads the raw
+   * buttons with `padButtons`); turning it off waits for every button to come up before the pad drives
+   * the game again.
+   */
+  setPadListening(on: boolean): void {
+    this.padGate = on ? 'listening' : 'holdoff';
+    this.prevStart = false;
+  }
+
+  /** The standard-mapping buttons held on any connected pad right now (all 0 to 15; the stick axes are not buttons). */
+  padButtons(): Set<number> {
+    const held = new Set<number>();
+    const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+    for (const gp of pads) {
+      if (!gp) continue;
+      gp.buttons.forEach((b, i) => {
+        if (b.pressed && i < 16) held.add(i);
+      });
+    }
+    return held;
+  }
+
   /** Held bits right now, without consuming the one-shot CONFIRM latch. */
   peek(): number {
     return this.read(false);
@@ -369,15 +423,19 @@ export class InputManager {
     let pad = false;
     let start = false;
     const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+    if (this.padGate === 'holdoff' && this.padButtons().size === 0) this.padGate = 'open';
     for (const gp of pads) {
       if (!gp) continue;
       pad = true;
-      const r = padToBits(gp);
+      if (this.padGate !== 'open') continue;
+      const r = padToBits(gp, this.padBindings);
       padBits |= r.bits;
       start ||= r.start;
       if (r.bits || r.start) {
+        const changed = this.lastPad !== gp.index;
         this.lastPad = gp.index;
         this.setDevice('pad-input');
+        if (changed) for (const h of this.padChangeHandlers) h();
       }
     }
     this.padConnected = pad;
