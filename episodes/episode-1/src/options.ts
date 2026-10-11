@@ -8,6 +8,7 @@ import {
   isStrength,
   MAX_STRENGTH,
 } from '@lieutenant-fizz/engine/haptic-strength';
+import { isPadModelKey } from '@lieutenant-fizz/engine/pad-model';
 import type { AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import type { KeyValueStorage } from '@lieutenant-fizz/engine/storage';
 import { DEFAULT_DENSITY, DENSITY_COUNT } from './menu-density';
@@ -45,6 +46,8 @@ export interface Options {
   lab: boolean;
   /** Controller rumble strength: 0 Off, 1 Light, 2 Medium, 3 Strong (the phone's strength is in the touch settings). */
   rumble: number;
+  /** Rumble strength per pad model, keyed by `vendorId:productId` (see `padModelKey`); a model with no entry uses `rumble`, lowered to the model's own start. */
+  rumblePads: Record<string, number>;
   /** Whether the haptics lab is available without `?debug`. Off by default. */
   hapticsLab: boolean;
   /** Fullscreen when a run starts or resumes: 0 Auto (touch devices), 1 On, 2 Off. */
@@ -56,7 +59,7 @@ export interface Options {
 }
 
 /** The keys of {@link Options} the Options screen can change. */
-export type SettingKey = keyof Options;
+export type SettingKey = Exclude<keyof Options, 'rumblePads'>;
 
 /** Volumes start at full, which is how the game sounded before there were options. */
 export const DEFAULT_OPTIONS: Readonly<Options> = {
@@ -69,6 +72,7 @@ export const DEFAULT_OPTIONS: Readonly<Options> = {
   motion: 0,
   lab: false,
   rumble: DEFAULT_STRENGTH,
+  rumblePads: {},
   hapticsLab: false,
   fullscreen: 0,
   awake: true,
@@ -77,6 +81,17 @@ export const DEFAULT_OPTIONS: Readonly<Options> = {
 
 const int = (v: unknown, lo: number, hi: number, fallback: number): number =>
   typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : fallback;
+
+/** The per-model rumble levels in stored options: entries with a model key and a valid level, anything else left out. */
+function parseRumblePads(v: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    for (const [key, level] of Object.entries(v)) {
+      if (isPadModelKey(key) && isStrength(level)) out[key] = level;
+    }
+  }
+  return out;
+}
 
 /** Parses stored options; any missing or invalid field falls back to its default. */
 export function parseOptions(json: string | null): Options {
@@ -94,6 +109,7 @@ export function parseOptions(json: string | null): Options {
       motion: int(raw['motion'], 0, MOTIONS.length - 1, d.motion),
       lab: typeof raw['lab'] === 'boolean' ? raw['lab'] : d.lab,
       rumble: isStrength(raw['rumble']) ? raw['rumble'] : d.rumble,
+      rumblePads: parseRumblePads(raw['rumblePads']),
       hapticsLab: typeof raw['hapticsLab'] === 'boolean' ? raw['hapticsLab'] : d.hapticsLab,
       fullscreen: int(raw['fullscreen'], 0, FULLSCREEN_COUNT - 1, d.fullscreen),
       awake: typeof raw['awake'] === 'boolean' ? raw['awake'] : d.awake,

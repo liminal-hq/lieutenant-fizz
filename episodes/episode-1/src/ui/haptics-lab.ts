@@ -25,6 +25,7 @@ import {
   hapticTuneDiff,
   hapticTuneJson,
   labStatus,
+  type RumbleProfile,
   newDraft,
   patternOf,
   phoneArrayText,
@@ -50,6 +51,8 @@ export interface HapticsLabHost {
   groups: CueGroup[];
   /** The cues, compiler constants and budget as they are now. */
   state(): HapticsLabState;
+  /** Which rumble profile the pad in use plays (`boost` or `plain`), or null when it plays the plain compile. */
+  padProfile?(): 'boost' | 'plain' | null;
   tune(patch: HapticsTunePatch): { applied: string[]; refused: string[] };
   audition(p: HapticPattern, target: Target, scale: number): PlayResult | null;
   caps(): BackendCaps;
@@ -97,6 +100,16 @@ function compileValue(state: HapticsLabState, spec: SliderSpec): number {
  * layout and styles, and is reached from the shell's Lab button or the Sound | Haptics switch.
  */
 export class HapticsLab {
+  /** The profile to compile the pad's segments with: the one the pad in use plays, with the lab's constants. */
+  private padProfile(state: HapticsLabState): RumbleProfile | undefined {
+    const kind = this.h.padProfile?.();
+    return kind === 'boost'
+      ? { kind, boost: state.boost }
+      : kind === 'plain'
+        ? { kind, plain: state.plain }
+        : undefined;
+  }
+
   readonly root: HTMLElement;
   private readonly switcher: HTMLElement;
   private readonly body: HTMLElement;
@@ -283,6 +296,7 @@ export class HapticsLab {
   private refreshStatus(): void {
     this.status.textContent = labStatus({
       caps: this.caps(),
+      choice: this.backend,
       tapped: this.h.tapped(),
       last: this.h.last(),
     });
@@ -353,7 +367,13 @@ export class HapticsLab {
       const sub = b.querySelector('.lab-sub');
       if (cue && sub) {
         sub.textContent = compiledLabel(
-          compileBoth(cue.pattern, this.strength, state.compile, state.rumble),
+          compileBoth(
+            cue.pattern,
+            this.strength,
+            state.compile,
+            state.rumble,
+            this.padProfile(state),
+          ),
         );
       }
       b.setAttribute('aria-pressed', String(id === this.picked));
@@ -449,7 +469,13 @@ export class HapticsLab {
       const state = this.h.state();
       const now = state.cues[this.picked];
       if (!now) return;
-      const c = compileBoth(now.pattern, this.strength, state.compile, state.rumble);
+      const c = compileBoth(
+        now.pattern,
+        this.strength,
+        state.compile,
+        state.rumble,
+        this.padProfile(state),
+      );
       const t = timeline(c);
       preview.replaceChildren(
         el('div', { class: 'lab-status' }, `phone ${phoneArrayText(c.phone)}`),
@@ -625,7 +651,7 @@ export class HapticsLab {
     };
     const ladder = (t: Target): void => {
       if (!this.caps()[t === 'device' ? 'device' : 'controller'].available) {
-        this.compareNote.textContent = `${t === 'device' ? 'Phone' : 'Controller'} cannot play here.`;
+        this.compareNote.textContent = `${t === 'device' ? 'Phone' : 'Pad'} cannot play here.`;
         return;
       }
       this.run(floorLadder(t), 'Floor ladder');
@@ -696,7 +722,7 @@ export class HapticsLab {
       const state = this.h.state();
       const cue = state.cues[this.picked];
       note.textContent = cue
-        ? `${this.picked}: ${compiledLabel(compileBoth(cue.pattern, this.strength, state.compile, state.rumble))}`
+        ? `${this.picked}: ${compiledLabel(compileBoth(cue.pattern, this.strength, state.compile, state.rumble, this.padProfile(state)))}`
         : '';
     };
     this.compileSyncs.push(redraw);

@@ -46,6 +46,14 @@ tauri-plugin-log = "2"
 log = "0.4"
 chrono = "0.4"
 
+# Gamepad rumble: plays the game's controller cues on a pad through evdev force feedback (Linux; elsewhere the
+# plugin has no native backend yet and the page's Gamepad API plays). The plugin never reads input, so it sits
+# beside the WebView's Gamepad API. It is unreleased and still moving, so it is pinned to a commit of
+# `feat/gamepad-haptics-plugin` (PR #86 in liminal-hq/tauri-plugins-workspace). Desktop only: the phone has no
+# pad backend, and leaving it out keeps the plugin and `evdev` out of the Android build.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-gamepad-haptics = { git = "https://github.com/liminal-hq/tauri-plugins-workspace", rev = "62621b5d80a9954ac1a8296297a1d39bcc30fb37" }
+
 [profile.release]
 opt-level = "s"
 lto = true

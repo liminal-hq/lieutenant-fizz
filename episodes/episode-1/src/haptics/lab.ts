@@ -5,8 +5,12 @@
 
 import type { HapticCaps } from '@lieutenant-fizz/engine/haptic-backends';
 import {
+  RUMBLE_BOOST,
+  RUMBLE_PLAIN,
   RUMBLE_COMPILE,
   VIBRATE_COMPILE,
+  compileBoostedRumble,
+  compilePlainRumble,
   compileRumble,
   compileVibrate,
   patternLength,
@@ -16,7 +20,9 @@ import {
   type HapticEvent,
   type HapticPattern,
   type Policy,
+  type RumbleBoost,
   type RumbleCompile,
+  type RumblePlain,
   type RumbleSegment,
   type VibrateCompile,
 } from '@lieutenant-fizz/engine/haptic-pattern';
@@ -32,6 +38,8 @@ export interface HapticsLabState {
   cues: Record<string, HapticCue>;
   compile: VibrateCompile;
   rumble: RumbleCompile;
+  boost: RumbleBoost;
+  plain: RumblePlain;
   plugin: PluginCompile;
   budget: { onMs: number; windowMs: number };
 }
@@ -45,6 +53,8 @@ export const HAPTICS_DEFAULTS: HapticsLabState = captureHapticsState({
   cues: FIZZ_HAPTICS.cues,
   compile: { ...VIBRATE_COMPILE },
   rumble: { ...RUMBLE_COMPILE },
+  boost: { ...RUMBLE_BOOST },
+  plain: { ...RUMBLE_PLAIN },
   plugin: { ...PLUGIN_COMPILE },
   budget: { onMs: 400, windowMs: 1000 },
 });
@@ -129,15 +139,27 @@ export interface Compiled {
   padMs: number;
 }
 
+/** How the pad in use plays rumble: boosted, lengthened (plain) or as compiled. */
+export type RumbleProfile =
+  { kind: 'boost'; boost: Readonly<RumbleBoost> } | { kind: 'plain'; plain: Readonly<RumblePlain> };
+
 /** Compiles a pattern for the phone's vibrator and for a controller with the given constants. */
 export function compileBoth(
   p: HapticPattern,
   scale: number,
   compile: Readonly<VibrateCompile>,
   rumble: Readonly<RumbleCompile>,
+  profile?: RumbleProfile,
 ): Compiled {
   const phone = compileVibrate(p, scale, compile);
-  const pad = compileRumble(p, scale, rumble);
+  // The pad's segments are what the desktop's gamepad plugin sends for the pad in use: boosted for a DualShock 3,
+  // lengthened for any other native pad, and the plain compile where `vibrationActuator` plays.
+  const pad =
+    profile?.kind === 'boost'
+      ? compileBoostedRumble(p, scale, rumble, profile.boost)
+      : profile?.kind === 'plain'
+        ? compilePlainRumble(p, scale, rumble, profile.plain)
+        : compileRumble(p, scale, rumble);
   const last = pad[pad.length - 1];
   return {
     phone,
@@ -334,6 +356,28 @@ export const COMPILE_SLIDERS: readonly SliderSpec[] = [
   S('Pad (rumble)', 'Pad minimum: weakest tap', ['rumble', 'tapBase'], 10, 200, 5, 'ms'),
   S('Pad (rumble)', 'Pad tap extra', ['rumble', 'tapSpan'], 0, 200, 5, 'ms'),
   S('Pad (rumble)', 'Segment length', ['rumble', 'slice'], 20, 200, 5, 'ms'),
+  S('Pad (boost)', 'Shortest segment', ['boost', 'minMs'], 10, 300, 5, 'ms'),
+  S('Pad (boost)', 'Heavy floor: weakest heavy motor', ['boost', 'heavyFloor'], 0, 1, 0.05),
+  S('Pad (boost)', 'Curve on the heavy motor (1 is linear)', ['boost', 'gamma'], 0.2, 1.5, 0.05),
+  S('Pad (boost)', 'Gain: after the curve', ['boost', 'gain'], 0.5, 2, 0.05),
+  S(
+    'Pad (boost)',
+    'Light fold: weak light into heavy (0 is off, so the plugin pulses the light motor)',
+    ['boost', 'lightFoldGain'],
+    0,
+    1.5,
+    0.05,
+  ),
+  S('Pad (boost)', 'Gap between segments', ['boost', 'gapMs'], 0, 100, 5, 'ms'),
+  S(
+    'Pad (plain)',
+    'Shortest segment (pads that are not a DualShock 3)',
+    ['plain', 'minMs'],
+    10,
+    300,
+    5,
+    'ms',
+  ),
   S('Phone (app plugin)', 'FLOOR: quietest played', ['plugin', 'floor'], 0, 1, 0.01),
   S(
     'Phone (app plugin)',
@@ -393,6 +437,8 @@ export interface HapticsTunePatch {
   >;
   compile?: Partial<VibrateCompile>;
   rumble?: Partial<RumbleCompile>;
+  boost?: Partial<RumbleBoost>;
+  plain?: Partial<RumblePlain>;
   plugin?: Partial<PluginCompile>;
   budget?: { onMs?: number; windowMs?: number };
 }
@@ -438,6 +484,10 @@ export function hapticTuneDiff(from: HapticsLabState, to: HapticsLabState): Hapt
   if (compile) out.compile = compile;
   const rumble = numbersDiff(from.rumble, to.rumble);
   if (rumble) out.rumble = rumble;
+  const boost = numbersDiff(from.boost, to.boost);
+  if (boost) out.boost = boost;
+  const plain = numbersDiff(from.plain, to.plain);
+  if (plain) out.plain = plain;
   const plugin = numbersDiff(from.plugin, to.plugin);
   if (plugin) out.plugin = plugin;
   const budget = numbersDiff(from.budget, to.budget);
@@ -454,6 +504,8 @@ export function countHapticChanges(diff: HapticsTunePatch): number {
     Object.keys(diff.cues ?? {}).length +
     Object.keys(diff.compile ?? {}).length +
     Object.keys(diff.rumble ?? {}).length +
+    Object.keys(diff.boost ?? {}).length +
+    Object.keys(diff.plain ?? {}).length +
     Object.keys(diff.plugin ?? {}).length +
     Object.keys(diff.budget ?? {}).length
   );
@@ -476,7 +528,7 @@ export interface BackendOption {
   reason?: string;
 }
 
-/** The four backend buttons, each with the reason it is disabled when its target cannot play. */
+/** The four backend buttons (Auto, Phone, Pad and Off), each with the reason it is disabled when its target cannot play. */
 export function backendOptions(caps: BackendCaps): BackendOption[] {
   const opt = (
     choice: BackendChoice,
@@ -497,7 +549,7 @@ export function backendOptions(caps: BackendCaps): BackendOption[] {
       'no phone vibrator or controller',
     ),
     opt('phone', 'Phone', caps.device.available, caps.device.reason),
-    opt('controller', 'Controller', caps.controller.available, caps.controller.reason),
+    opt('controller', 'Pad', caps.controller.available, caps.controller.reason),
     opt('off', 'Off', true, undefined),
   ];
 }
@@ -520,6 +572,8 @@ export function pickTarget(choice: BackendChoice, route: Route, caps: BackendCap
 
 export interface StatusInput {
   caps: BackendCaps;
+  /** The target chosen in the header; the status explains an unavailable target only when it is the one wanted. Auto when omitted. */
+  choice?: BackendChoice;
   /** Whether the page has had a tap (`navigator.userActivation.hasBeenActive`), or null when the browser does not say. */
   tapped: boolean | null;
   last?: Pick<PlayRecord, 'cue' | 'target' | 'ok' | 'tier' | 'reason' | 'compiled'> | undefined;
@@ -527,10 +581,30 @@ export interface StatusInput {
 
 /** One line for the header: whether the vibrator and a pad work, whether the page was tapped, and the last play. */
 export function labStatus(i: StatusInput): string {
-  const phone = i.caps.device.available ? 'phone yes' : `phone no (${i.caps.device.reason ?? '?'})`;
-  const pad = i.caps.controller.available
-    ? `pad ${i.caps.controller.name ?? 'yes'}`
-    : `pad no (${i.caps.controller.reason ?? '?'})`;
+  const choice = i.choice ?? 'auto';
+  const { device, controller } = i.caps;
+  // A target that cannot play is explained only when it is the one chosen, or in Auto when neither can.
+  const neither = !device.available && !controller.available;
+  const showPhone =
+    device.available ||
+    choice === 'phone' ||
+    (choice === 'auto' && !controller.available) ||
+    neither;
+  const showPad =
+    controller.available ||
+    choice === 'controller' ||
+    (choice === 'auto' && !device.available) ||
+    neither;
+  const phone = !showPhone
+    ? ''
+    : device.available
+      ? 'phone yes'
+      : `phone no (${device.reason ?? '?'})`;
+  const pad = !showPad
+    ? ''
+    : controller.available
+      ? `pad ${controller.name ?? 'yes'}`
+      : `pad no (${controller.reason ?? '?'})`;
   const tapped = i.tapped === null ? '' : i.tapped ? 'tapped yes' : 'tapped no: tap the page once';
   const l = i.last;
   const last = !l

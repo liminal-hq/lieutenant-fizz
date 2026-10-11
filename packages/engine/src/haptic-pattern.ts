@@ -368,3 +368,203 @@ export function compileRumble(
   }
   return out;
 }
+
+// ---------- Rumble boost ----------
+
+/**
+ * Tunable constants of the pad rumble boost, which reshapes compiled segments for a pad whose motors need more
+ * than `compileRumble` gives: a DualShock 3's heavy motor does nothing below about 0.4 and takes 80 to 100 ms to
+ * spin up, and its light motor is on or off (the gamepad plugin switches it fully on from `lightOn`) and is not
+ * felt in a pulse under about 100 ms.
+ */
+export interface RumbleBoost {
+  /** The shortest segment, in ms. */
+  minMs: number;
+  /** Any segment that plays the heavy motor is lifted to at least this level. */
+  heavyFloor: number;
+  /** The curve on the heavy motor above the floor: `heavyFloor + (1 − heavyFloor) × strong ^ gamma`. */
+  gamma: number;
+  /** Multiplies the heavy level after the curve (capped at 1). */
+  gain: number;
+  /** A light level under `lightOn` is dropped on an on/off motor; this folds it into the heavy motor at this gain. 0 turns the fold off. */
+  lightFoldGain: number;
+  /** The shortest silent gap between two segments, so two taps stay two taps. */
+  gapMs: number;
+}
+
+export const RUMBLE_BOOST: Readonly<RumbleBoost> = {
+  minMs: 90,
+  heavyFloor: 0.35,
+  gamma: 0.6,
+  gain: 1,
+  lightFoldGain: 0.9,
+  gapMs: 20,
+};
+
+/** The range each boost constant may take when tuned. */
+export const RUMBLE_BOOST_LIMITS: Readonly<Record<keyof RumbleBoost, readonly [number, number]>> = {
+  minMs: [10, 300],
+  heavyFloor: [0, 1],
+  gamma: [0.2, 1.5],
+  gain: [0.5, 2],
+  lightFoldGain: [0, 1.5],
+  gapMs: [0, 100],
+};
+
+/** The light level at and above which the gamepad plugin turns an on/off light motor fully on. */
+export const LIGHT_ON = 0.5;
+/** The heavy level under which a segment counts as not using the heavy motor. */
+const HEAVY_TINY = 0.02;
+/** The longest boosted pattern, in ms: inside the plugin's 3000 ms total and 2000 ms continuous limits. */
+export const BOOST_MAX_MS = 2000;
+
+/**
+ * Reshapes segments compiled at full strength for a pad with a stiff heavy motor and an on/off light one, then
+ * applies `scale` (the cue's strength times the Strength setting), so Strength lowers the boosted result.
+ *
+ * 1. A weak level under `LIGHT_ON` is folded into the heavy motor (`max(strong, weak × lightFoldGain)`), where
+ *    it can be felt; one at or over it stays on the light motor.
+ * 2. The heavy motor goes through the curve and floor, so a quiet tap still clears the motor's dead zone.
+ * 3. Each segment is at least `minMs` long and a gap of `gapMs` separates neighbours, which moves later
+ *    segments out; the pattern stops at `BOOST_MAX_MS`.
+ * 4. The levels are multiplied by `scale`. A light level that falls under `LIGHT_ON` by that is folded again.
+ *
+ * Returns whole milliseconds and levels in hundredths. Scale 0 or less is silent.
+ */
+export function boostRumble(
+  segments: readonly RumbleSegment[],
+  scale: number,
+  b: Readonly<RumbleBoost> = RUMBLE_BOOST,
+): RumbleSegment[] {
+  if (!(scale > 0)) return [];
+  const out: RumbleSegment[] = [];
+  let end = 0;
+  for (const seg of segments) {
+    const folds = b.lightFoldGain > 0 && seg.weak > 0 && seg.weak < LIGHT_ON;
+    const pre = folds ? Math.max(seg.strong, seg.weak * b.lightFoldGain) : seg.strong;
+    let heavy =
+      pre > HEAVY_TINY
+        ? Math.min(1, b.gain * (b.heavyFloor + (1 - b.heavyFloor) * Math.min(1, pre) ** b.gamma))
+        : 0;
+    let light = folds ? 0 : seg.weak;
+    heavy *= scale;
+    light *= scale;
+    if (b.lightFoldGain > 0 && light > 0 && light < LIGHT_ON) {
+      heavy = Math.max(heavy, light * b.lightFoldGain);
+      light = 0;
+    }
+    const at = Math.max(Math.round(seg.at), out.length > 0 ? end + b.gapMs : 0);
+    if (at >= BOOST_MAX_MS) break;
+    const duration = Math.min(BOOST_MAX_MS - at, Math.max(b.minMs, Math.round(seg.duration)));
+    if (duration < 1) break;
+    out.push({
+      at,
+      duration,
+      strong: hundredths(Math.min(1, heavy)),
+      weak: hundredths(Math.min(1, light)),
+    });
+    end = at + duration;
+  }
+  return out;
+}
+
+/**
+ * A pattern as a boosted pad plays it: compiled at full strength (so the boost sees what the cue is), boosted,
+ * then scaled. Strength under the compiler's `floor` plays nothing.
+ */
+export function compileBoostedRumble(
+  p: HapticPattern,
+  scale: number,
+  c: Readonly<RumbleCompile> = RUMBLE_COMPILE,
+  b: Readonly<RumbleBoost> = RUMBLE_BOOST,
+): RumbleSegment[] {
+  if (scale < c.floor) return [];
+  return boostRumble(compileRumble(p, 1, c), scale, b);
+}
+
+// ---------- Plain rumble profile and menu boost ----------
+
+/**
+ * The plain profile, for a pad whose motors are variable and need no reshaping (a DualShock 4): the compiled
+ * levels are kept exactly and only a segment shorter than `minMs` is lengthened, as far as the next segment
+ * allows, because a very short pulse is not felt on some pads.
+ */
+export interface RumblePlain {
+  /** The shortest segment, in ms. */
+  minMs: number;
+}
+
+export const RUMBLE_PLAIN: Readonly<RumblePlain> = { minMs: 90 };
+
+/** The range each plain constant may take when tuned. */
+export const RUMBLE_PLAIN_LIMITS: Readonly<Record<keyof RumblePlain, readonly [number, number]>> = {
+  minMs: [10, 300],
+};
+
+/**
+ * Lengthens each segment shorter than `minMs` to `minMs`, but never into the next segment (so a hum made of
+ * short slices keeps its length) and never past `BOOST_MAX_MS`. Levels and starts are untouched.
+ */
+export function lengthenRumble(
+  segments: readonly RumbleSegment[],
+  p: Readonly<RumblePlain> = RUMBLE_PLAIN,
+): RumbleSegment[] {
+  return segments.map((seg, i) => {
+    if (seg.duration >= p.minMs) return { ...seg };
+    const next = segments[i + 1];
+    const room = Math.min(BOOST_MAX_MS, next ? next.at : BOOST_MAX_MS) - seg.at;
+    return { ...seg, duration: Math.max(seg.duration, Math.min(p.minMs, room)) };
+  });
+}
+
+/** A pattern as a pad with the plain profile plays it: the plain compile, with short segments lengthened. */
+export function compilePlainRumble(
+  p: HapticPattern,
+  scale: number,
+  c: Readonly<RumbleCompile> = RUMBLE_COMPILE,
+  plain: Readonly<RumblePlain> = RUMBLE_PLAIN,
+): RumbleSegment[] {
+  return lengthenRumble(compileRumble(p, scale, c), plain);
+}
+
+/**
+ * How a menu cue is shaped on a boosted pad. The boost lifts every cue to the heavy floor and the menu's own
+ * boost then multiplies by 1.5, so every menu cue saturated; instead the heavy motor of a menu cue is
+ * `cap × relative × master`, where `relative` is the cue's strongest intensity over `reference` (the loudest
+ * menu cue), but at least `floor` while it plays so the quietest cue is still felt.
+ */
+export const MENU_BOOST = { cap: 0.8, floor: 0.35, reference: 0.5 } as const;
+
+/** The strongest intensity in a pattern. */
+export function patternPeak(p: HapticPattern): number {
+  let peak = 0;
+  for (const e of p.events) {
+    const v =
+      e.kind === 'transient'
+        ? e.intensity
+        : typeof e.intensity === 'number'
+          ? e.intensity
+          : Math.max(0, ...e.intensity.map((pt) => pt.v));
+    peak = Math.max(peak, v);
+  }
+  return peak;
+}
+
+/**
+ * A menu cue on a boosted pad: compiled and boosted at full strength (so it keeps the boost's length,
+ * gap and light fold), then its heavy motor is set by `MENU_BOOST`. `master` is the Rumble strength, 0 to 1.
+ */
+export function compileMenuRumble(
+  p: HapticPattern,
+  master: number,
+  c: Readonly<RumbleCompile> = RUMBLE_COMPILE,
+  b: Readonly<RumbleBoost> = RUMBLE_BOOST,
+): RumbleSegment[] {
+  if (!(master > 0)) return [];
+  const relative = Math.min(1, patternPeak(p) / MENU_BOOST.reference);
+  const level = Math.max(MENU_BOOST.floor, MENU_BOOST.cap * relative * Math.min(1, master));
+  return boostRumble(compileRumble(p, 1, c), 1, b).map((seg) => ({
+    ...seg,
+    strong: seg.strong > 0 ? hundredths(level) : 0,
+  }));
+}

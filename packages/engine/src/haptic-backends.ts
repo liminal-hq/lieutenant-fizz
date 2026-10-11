@@ -10,7 +10,9 @@ import {
   compileVibrate,
   totalTime,
   type HapticPattern,
+  type RumbleBoost,
   type RumbleCompile,
+  type RumblePlain,
   type RumbleSegment,
   type VibrateCompile,
 } from './haptic-pattern';
@@ -39,16 +41,31 @@ export interface PlayResult {
   ms: number;
 }
 
+/** What a backend may know about the cue it plays, beyond the pattern. */
+export interface PlayContext {
+  /** The cue is a menu cue; `master` is the strength setting, 0 to 1, without the menu boost. */
+  ui?: { master: number };
+}
+
 export interface HapticBackend {
   caps(): HapticCaps;
-  /** Plays a pattern, replacing whatever runs. `scale` is the cue's strength times the master. Never throws. */
-  play(p: HapticPattern, scale: number): PlayResult;
+  /**
+   * Plays a pattern, replacing whatever runs. `scale` is the cue's strength times the master. `ctx.ui` is
+   * set for a menu cue, with the master strength (0 to 1) it was scaled by. Never throws.
+   */
+  play(p: HapticPattern, scale: number, ctx?: PlayContext): PlayResult;
   /** Stops whatever runs. Never throws. */
   stop(): void;
   /** Changes the compiler constants while running (the lab and the console); absent where nothing compiles. */
   tune?(patch: Partial<VibrateCompile>): void;
   /** Changes the rumble compiler constants while running; absent where nothing rumbles. */
   tuneRumble?(patch: Partial<RumbleCompile>): void;
+  /** Changes the plain rumble profile's constants while running; absent where nothing lengthens. */
+  tunePlain?(patch: Partial<RumblePlain>): void;
+  /** Which rumble profile plays on the pad in use now, or absent when the backend has none. */
+  rumbleProfile?(): 'boost' | 'plain' | null;
+  /** Changes the pad rumble boost's constants while running; absent where nothing boosts (the web's `vibrationActuator`). */
+  tuneBoost?(patch: Partial<RumbleBoost>): void;
   /** Changes the plugin compiler's constants, for the Tauri plugin backend. */
   tunePlugin?(patch: Partial<PluginCompile>): void;
   dispose(): void;
@@ -311,6 +328,10 @@ export interface FakeBackend extends HapticBackend {
   readonly tuned: Partial<VibrateCompile>[];
   /** The rumble compiler patches it was given. */
   readonly tunedRumble: Partial<RumbleCompile>[];
+  /** The rumble boost patches it was given. */
+  readonly tunedBoost: Partial<RumbleBoost>[];
+  /** The plain rumble patches it was given. */
+  readonly tunedPlain: Partial<RumblePlain>[];
   /** The plugin compiler patches it was given. */
   readonly tunedPlugin: Partial<PluginCompile>[];
   stops: number;
@@ -327,6 +348,8 @@ export function fakeBackend(
     plays,
     tuned: [],
     tunedRumble: [],
+    tunedBoost: [],
+    tunedPlain: [],
     tunedPlugin: [],
     stops: 0,
     caps: () => ({
@@ -367,6 +390,13 @@ export function fakeBackend(
     tuneRumble(patch) {
       b.tunedRumble.push(patch);
     },
+    tuneBoost(patch) {
+      b.tunedBoost.push(patch);
+    },
+    tunePlain(patch) {
+      b.tunedPlain.push(patch);
+    },
+    rumbleProfile: () => 'boost',
     tunePlugin(patch) {
       b.tunedPlugin.push(patch);
     },

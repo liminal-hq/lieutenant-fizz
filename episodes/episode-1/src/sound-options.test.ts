@@ -171,6 +171,7 @@ describe('resetSound', () => {
       motion: 2,
       lab: true,
       rumble: 1,
+      rumblePads: {},
       hapticsLab: true,
       fullscreen: 2,
       awake: false,

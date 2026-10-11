@@ -34,6 +34,7 @@ import {
   hapticTuneDiff,
   hapticTuneJson,
   labStatus,
+  type BackendChoice,
   patternOf,
   phoneArrayText,
   pickTarget,
@@ -231,6 +232,13 @@ describe('sliders', () => {
       'rumble.tapBase',
       'rumble.tapSpan',
       'rumble.slice',
+      'boost.minMs',
+      'boost.heavyFloor',
+      'boost.gamma',
+      'boost.gain',
+      'boost.lightFoldGain',
+      'boost.gapMs',
+      'plain.minMs',
       'plugin.floor',
       'plugin.gamma',
       'plugin.gain',
@@ -343,6 +351,41 @@ describe('labStatus', () => {
     expect(s).toBe(
       'phone no (no vibrator) · pad no (no controller) · tapped no: tap the page once · last audition: waiting for a tap',
     );
+  });
+
+  it('explains an unavailable target only when it is the one chosen, or when neither can play', () => {
+    const padOnly: BackendCaps = {
+      device: { available: false, reason: 'no vibrator' },
+      controller: { available: true, name: 'Wireless Controller, bluetooth (gamepad:0)' },
+    };
+    const text = (choice: BackendChoice): string =>
+      labStatus({ caps: padOnly, choice, tapped: null });
+    expect(text('auto')).toBe('pad Wireless Controller, bluetooth (gamepad:0)');
+    expect(text('controller')).toBe('pad Wireless Controller, bluetooth (gamepad:0)');
+    expect(text('phone')).toBe(
+      'phone no (no vibrator) · pad Wireless Controller, bluetooth (gamepad:0)',
+    );
+    const neither: BackendCaps = {
+      device: { available: false, reason: 'no vibrator' },
+      controller: { available: false, reason: 'no controller' },
+    };
+    expect(labStatus({ caps: neither, choice: 'auto', tapped: null })).toBe(
+      'phone no (no vibrator) · pad no (no controller)',
+    );
+  });
+
+  it('lets the Pad be chosen whenever a pad can play, whatever the route', () => {
+    const padOnly: BackendCaps = {
+      device: { available: false, reason: 'no vibrator' },
+      controller: { available: true },
+    };
+    expect(backendOptions(padOnly).find((o) => o.choice === 'controller')).toMatchObject({
+      label: 'Pad',
+      enabled: true,
+    });
+    expect(pickTarget('controller', 'device', padOnly)).toBe('controller');
+    expect(pickTarget('auto', 'device', padOnly)).toBe('controller');
+    expect(pickTarget('phone', 'controller', padOnly)).toBeNull();
   });
 
   it('counts pad segments and leaves out a tap state the browser does not give', () => {
