@@ -10,7 +10,7 @@ use crate::ents::{ItemKind, Kind, St};
 use crate::levels::{CAVES, CITADEL, CRATER};
 use crate::text::{ev, Cap};
 use crate::tiles::*;
-use crate::world::{input::*, Mode, World, MANTLE_REACH, MANTLE_TIME};
+use crate::world::{input::*, Mode, World, MANTLE_REACH, MANTLE_TIME, POGO_DRAWN_HEIGHT};
 
 fn level(id: u8) -> World {
     let mut w = World::new();
@@ -3143,4 +3143,214 @@ fn shake_in_a_level_fades_at_two_per_second() {
     assert!((w.shake - expected).abs() < 1e-9, "shake {}", w.shake);
     run(&mut w, 60, 0);
     assert_eq!(w.shake, 0.0);
+}
+
+/// The head-bump clunks raised so far: caption events carrying `Cap::Clunk`.
+fn clunks(w: &World) -> usize {
+    events_of(w, ev::CAPTION)
+        .iter()
+        .filter(|e| e.c == f32::from(Cap::Clunk as u16))
+        .count()
+}
+
+#[test]
+fn hitting_a_ceiling_while_rising_clunks_once() {
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 5, FILL);
+    }
+    w.events.clear();
+    w.step(JUMP);
+    // Hold Jump and keep pressing up under the ceiling long after the bump.
+    run(&mut w, 120, JUMP | UP);
+    assert_eq!(clunks(&w), 1);
+}
+
+#[test]
+fn walking_under_a_low_ceiling_does_not_clunk() {
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 4, FILL);
+    }
+    w.events.clear();
+    run(&mut w, 60, RIGHT | UP);
+    assert!(w.p.b.on_ground);
+    assert_eq!(clunks(&w), 0);
+}
+
+#[test]
+fn falling_or_standing_against_a_ceiling_does_not_clunk() {
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 5, FILL);
+    }
+    // Starts with his head hard against the ceiling and no upward speed: he drops without a sound.
+    w.p.b.y = 5.0 - w.p.b.h - 1e-6;
+    w.p.b.vy = 0.0;
+    w.p.b.on_ground = false;
+    w.events.clear();
+    run(&mut w, 60, UP);
+    assert_eq!(clunks(&w), 0);
+}
+
+#[test]
+fn every_jump_into_a_ceiling_clunks_once() {
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 5, FILL);
+    }
+    w.events.clear();
+    for n in 1..=3 {
+        run(&mut w, 60, 0);
+        assert!(w.p.b.on_ground);
+        w.step(JUMP);
+        run(&mut w, 30, JUMP);
+        assert_eq!(clunks(&w), n, "after jump {n}");
+    }
+}
+
+#[test]
+fn climbing_into_a_ceiling_does_not_clunk() {
+    let mut w = arena();
+    for y in 2..5 {
+        w.map.set(4, y, VINE);
+    }
+    for x in 0..40 {
+        w.map.set(x, 5, FILL);
+    }
+    w.events.clear();
+    run(&mut w, 60, UP);
+    assert_eq!(clunks(&w), 0);
+}
+
+#[test]
+fn head_bump_raises_no_clunk_on_the_overworld_map() {
+    let mut w = World::new();
+    w.game_new();
+    w.events.clear();
+    run(&mut w, 120, UP | JUMP);
+    assert_eq!(clunks(&w), 0);
+}
+
+#[test]
+fn pogo_bouncing_into_a_slab_clunks_each_bounce() {
+    let mut w = arena();
+    for x in 0..40 {
+        for y in 5..8 {
+            w.map.set(x, y, FILL);
+        }
+    }
+    w.step(POGO);
+    assert!(w.p.pogo);
+    w.events.clear();
+    run(&mut w, 240, JUMP);
+    assert!(clunks(&w) >= 3, "clunks = {}", clunks(&w));
+}
+
+#[test]
+fn a_full_pogo_bounce_stops_with_the_drawn_head_under_the_slab() {
+    // Slab bottom at 10.0: the 1.4 body alone would top out near 9.77, but the drawn head is 2.0 tall.
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 10, FILL);
+    }
+    w.step(POGO);
+    w.events.clear();
+    let (mut bonks, mut top) = (0, 0.0_f64);
+    for _ in 0..400 {
+        w.step(JUMP);
+        bonks += usize::from(w.p.b.bonk);
+        top = top.max(w.p.b.y + POGO_DRAWN_HEIGHT);
+    }
+    let boings = events_of(&w, ev::CAPTION)
+        .iter()
+        .filter(|e| e.c == f32::from(Cap::Boing as u16))
+        .count();
+    assert!(bonks >= 4, "bonks = {bonks}");
+    assert!(
+        top <= 10.0,
+        "the drawn head stays under the slab, top = {top}"
+    );
+    assert!(top > 9.99, "and reaches it, top = {top}");
+    assert!(boings >= 4, "boings = {boings}");
+    assert!(
+        clunks(&w) + 1 >= boings && clunks(&w) <= boings,
+        "{} clunks, {boings} boings",
+        clunks(&w)
+    );
+}
+
+#[test]
+fn a_two_tile_corridor_keeps_the_pogo_usable_without_a_clunk_loop() {
+    // Floor top at 2, ceiling bottom at 4: the 2.0-tall head fits exactly.
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 4, FILL);
+    }
+    w.step(POGO);
+    w.events.clear();
+    let x0 = w.p.b.x;
+    for _ in 0..300 {
+        w.step(RIGHT | JUMP);
+        assert!(!body_overlaps_solid(&w));
+        assert!(
+            (w.p.b.y - 2.0).abs() < 0.05 || w.p.b.y > 2.0 && w.p.b.y < 2.1,
+            "y = {}",
+            w.p.b.y
+        );
+    }
+    assert!(
+        w.p.b.x > x0 + 5.0,
+        "still walks along: {} -> {}",
+        x0,
+        w.p.b.x
+    );
+    assert!(clunks(&w) <= 2, "clunks = {}", clunks(&w));
+}
+
+#[test]
+fn a_normal_jump_is_unaffected_by_the_pogo_head_box() {
+    // Off the stick, the body alone meets the ceiling: its top ends flush under row 5.
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 5, FILL);
+    }
+    w.step(JUMP);
+    let mut top = 0.0_f64;
+    for _ in 0..40 {
+        w.step(JUMP);
+        top = top.max(w.p.b.y + w.p.b.h);
+    }
+    assert!((top - 5.0).abs() < 0.01, "top = {top}");
+}
+
+#[test]
+fn a_low_pogo_bounce_under_a_high_slab_stays_silent() {
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 12, FILL);
+    }
+    w.step(POGO);
+    w.events.clear();
+    run(&mut w, 300, 0);
+    assert_eq!(clunks(&w), 0);
+}
+
+#[test]
+fn a_rise_into_a_ceiling_below_the_last_footing_still_clunks() {
+    // He stood on a high ledge, fell, then kicked off a wall (or let go of a ladder) and rose into a
+    // lower ceiling before landing: the rise gains height from where it started, so it clunks.
+    let mut w = arena();
+    for x in 0..40 {
+        w.map.set(x, 5, FILL);
+    }
+    w.p.rise_y = 30.0;
+    w.p.b.y = 3.0;
+    w.p.b.vy = 0.0;
+    w.p.b.on_ground = false;
+    w.events.clear();
+    w.step(0);
+    w.p.b.vy = 14.0;
+    run(&mut w, 40, 0);
+    assert_eq!(clunks(&w), 1);
 }

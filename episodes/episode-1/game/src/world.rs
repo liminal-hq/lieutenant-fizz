@@ -56,6 +56,19 @@ pub const WALL_KICK_UP: f64 = 19.0;
 pub const WALL_KICK_AWAY: f64 = 6.0;
 pub const WALL_KICK_COOLDOWN: f64 = 0.25;
 
+/// How fast Ben must be rising (tiles per second) when his head meets a ceiling for it to clunk.
+pub const HEAD_BUMP_MIN_SPEED: f64 = 1.0;
+
+/// How far Ben must have risen above his last footing when he meets the ceiling, so a bounce with no room to rise is silent.
+pub const HEAD_BUMP_MIN_RISE: f64 = 0.05;
+
+/// How tall Ben is drawn on the pogo stick (32 pixels), against his 1.4-tile body.
+pub const POGO_DRAWN_HEIGHT: f64 = 2.0;
+
+/// Whether a rising pogo bounce stops with the drawn head, not just the body, against a ceiling. Switch
+/// off to give the pogo the body's 1.4-tile height again.
+pub const POGO_HEAD_BOX: bool = true;
+
 /// Ladder climbing speed in tiles per second.
 pub const CLIMB_SPEED: f64 = 4.5;
 
@@ -188,6 +201,11 @@ pub struct Player {
     pub dead_sent: bool,
     pub inv: f64,
     pub squash: f64,
+    /// Whether this rise has already clunked, so one bounce or jump sounds once.
+    pub bumped: bool,
+    /// Where Ben's current rise began (his height at the last tick he was not rising), for telling a
+    /// real rise from a bounce with no room.
+    pub rise_y: f64,
     pub look_down: f64,
     pub look_up: f64,
     /// Holding a ladder: gravity and running are off and Up/Down move Ben along it.
@@ -222,6 +240,8 @@ impl Player {
             dead_sent: false,
             inv: 0.0,
             squash: 0.0,
+            bumped: false,
+            rise_y: 0.0,
             look_down: 0.0,
             look_up: 0.0,
             climb: false,
@@ -270,6 +290,8 @@ pub struct World {
     pub mode: Mode,
     pub game: Game,
     pub pogo_height: f64,
+    /// Whether a rising pogo's drawn head stops at a ceiling (starts as `POGO_HEAD_BOX`).
+    pub pogo_head_box: bool,
     pub held: u32,
     pub prev_held: u32,
     pub edge: u32,
@@ -377,6 +399,7 @@ impl World {
             mode: Mode::None,
             game: Game::fresh(),
             pogo_height: 6.6,
+            pogo_head_box: POGO_HEAD_BOX,
             held: 0,
             prev_held: 0,
             edge: 0,
@@ -437,6 +460,7 @@ impl World {
             mode: self.mode,
             game: self.game.clone(),
             pogo_height: self.pogo_height,
+            pogo_head_box: self.pogo_head_box,
             held: self.held,
             prev_held: self.prev_held,
             edge: self.edge,
@@ -1148,16 +1172,53 @@ impl World {
         if e & FIRE != 0 {
             self.fire();
         }
+        let rising = self.p.b.vy;
+        // Only a rising pogo has the taller head: walking, falling and standing use the body alone.
+        self.p.b.head = if self.pogo_head_box && self.p.pogo && rising > 0.0 {
+            POGO_DRAWN_HEIGHT - self.p.b.h
+        } else {
+            0.0
+        };
         self.p.b.phys(&self.map, &self.plats, dt);
+        self.p.b.head = 0.0;
         if self.p.b.bonk && self.p.pogo {
             self.p.b.vy = 0.0;
         }
+        self.tick_head_bump(rising);
         self.p.anim += if self.p.climb {
             self.p.b.vy.abs() + self.p.b.vx.abs()
         } else {
             self.p.b.vx.abs()
         } * dt;
         self.tick_mantle(ax);
+    }
+
+    /// Raises the "clunk" when Ben's head meets a ceiling while he rises, once per rise. The hit zeroes
+    /// his upward speed, so a held jump or a fall under the same ceiling does not repeat it, and
+    /// climbing (which sets his speed every tick) stays quiet. `bumped` also holds a pogo that bounces
+    /// again at once under a low ceiling to a single clunk until he stops bumping. `rising` is his
+    /// upward speed before the move.
+    fn tick_head_bump(&mut self, rising: f64) {
+        if self.p.b.vy <= 0.0 && !self.p.b.bonk {
+            self.p.bumped = false;
+        }
+        if rising <= 0.0 || self.p.b.on_ground {
+            self.p.rise_y = self.p.b.y;
+        }
+        // A rise that gains no height since it began (a pogo under a ceiling that just fits it,
+        // bouncing again at once from the floor) is not a bump, so a tight corridor does not rattle.
+        if self.p.bumped
+            || self.p.climb
+            || rising <= HEAD_BUMP_MIN_SPEED
+            || !self.p.b.bonk
+            || self.p.b.y - self.p.rise_y < HEAD_BUMP_MIN_RISE
+        {
+            return;
+        }
+        let b = &self.p.b;
+        let (x, y) = (b.x + b.w / 2.0, b.y + b.h);
+        self.p.bumped = true;
+        self.cap(x, y, Cap::Clunk);
     }
 
     /// Hazards, doors, items, enemy contact and the exit, at wherever Ben ended up this tick.

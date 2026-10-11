@@ -29,6 +29,9 @@ pub struct Body {
     pub on_plat: Option<usize>,
     pub hit_x: bool,
     pub bonk: bool,
+    /// Extra reach above the body's top that only the ceiling check sees (a pogo stick's drawn head);
+    /// 0 for everything else. The body is never pushed down by it.
+    pub head: f64,
 }
 
 impl Body {
@@ -118,10 +121,11 @@ impl Body {
                 }
             }
         } else if dy > 0.0 {
-            let cy = (self.y + self.h).floor() as i32;
+            let cy = (self.y + self.h + self.head).floor() as i32;
             for cx in x0..=x1 {
                 if map.solid(cx, cy, false, 0.0) {
-                    self.y = f64::from(cy) - self.h - 1e-6;
+                    // Stop with the head (plus any `head` reach) under the tile, never lowering the body.
+                    self.y = (f64::from(cy) - self.h - self.head - 1e-6).max(pb);
                     self.vy = 0.0;
                     self.bonk = true;
                     break;
@@ -380,6 +384,31 @@ mod tests {
         }
         assert!(bonked);
         assert!(b.y + b.h <= 5.0 + 1e-3);
+    }
+
+    #[test]
+    fn head_reach_stops_the_body_lower_and_never_pushes_it_down() {
+        let mut m = world();
+        m.set(5, 8, FLOOR);
+        let mut b = Body::new(5.0, 2.0, 0.7, 1.4);
+        b.head = 0.6;
+        b.vy = 28.0;
+        for _ in 0..30 {
+            b.fall(STEP, 22.0);
+            b.phys(&m, &[], STEP);
+        }
+        assert!(
+            b.y + b.h + b.head <= 8.0 + 1e-3,
+            "head under the tile, y = {}",
+            b.y
+        );
+        // With no room at all (the tile just above the head reach), the body stays put.
+        let mut c = Body::new(5.0, 6.5, 0.7, 1.4);
+        c.head = 0.6;
+        c.vy = 10.0;
+        let y0 = c.y;
+        c.phys(&m, &[], STEP);
+        assert!(c.bonk && c.y >= y0);
     }
 
     #[test]
