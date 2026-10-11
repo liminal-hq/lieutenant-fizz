@@ -69,7 +69,7 @@ async function toLastRow(page: Page, root: Menu, label: string): Promise<void> {
 
 test('the title menu ends with Quit game, and one Enter quits', async ({ page }) => {
   const errors = await open(page, 'title');
-  expect((await labels(page, TITLE)).at(-1)).toBe('Quit game');
+  expect((await labels(page, TITLE)).slice(-2)).toEqual(['Quit to launcher', 'Quit game']);
   await toLastRow(page, TITLE, 'Quit game');
   await pressUntil(page, 'Enter', () => true);
   await expect.poll(() => quits(page)).toBe(1);
@@ -80,7 +80,7 @@ test('the pause menu ends with Quit game, which asks twice', async ({ page }) =>
   const errors = await open(page, 'pause');
   const all = await labels(page, OVERLAY);
   expect(all.at(-1)).toBe('Quit game');
-  expect(all.at(-2)).toBe('Quit to title');
+  expect(all.slice(-3)).toEqual(['Quit to title', 'Quit to launcher', 'Quit game']);
   await toLastRow(page, OVERLAY, 'Quit game');
   const row = page.locator('#overlay .menu button.sel');
   await pressUntil(
@@ -121,7 +121,7 @@ test('the first tap on the pause menu times out, and moving off the row disarms 
     () =>
       !!document
         .querySelector('#overlay .menu button.sel')
-        ?.textContent?.startsWith('Quit to title'),
+        ?.textContent?.startsWith('Quit to launcher'),
   );
   await pressUntil(
     page,
@@ -131,6 +131,102 @@ test('the first tap on the pause menu times out, and moving off the row disarms 
   );
   await expect(val).toHaveCount(0);
   expect(await quits(page)).toBe(0);
+});
+
+const leaves = (page: Page): Promise<number> =>
+  page.evaluate(
+    () => (window as unknown as { __lfLauncherLeaves?: number }).__lfLauncherLeaves ?? 0,
+  );
+
+test('the title menu has Quit to launcher, which leaves on one Enter without quitting', async ({
+  page,
+}) => {
+  const errors = await open(page, 'title');
+  await toLastRow(page, TITLE, 'Quit to launcher');
+  await pressUntil(page, 'Enter', () => true);
+  await expect.poll(() => leaves(page)).toBe(1);
+  expect(await quits(page)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('Quit to launcher stays in the game with a message when the store cannot be written', async ({
+  page,
+}) => {
+  const errors = await open(page, 'title');
+  // The Tauri store adapter resolves `flush()` to false, rather than rejecting, when the file cannot be written.
+  await page.evaluate(() => {
+    const game = (window as unknown as { __lf: { store: { flush?: () => Promise<boolean> } } })
+      .__lf;
+    game.store.flush = async () => false;
+  });
+  await toLastRow(page, TITLE, 'Quit to launcher');
+  await pressUntil(page, 'Enter', () => true);
+  await expect(page.locator('#toast')).toContainText("Couldn't save");
+  expect(await leaves(page)).toBe(0);
+  expect(await quits(page)).toBe(0);
+  // The game is still running: the title menu answers.
+  await expect(page.locator(`${TITLE} button`).first()).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('the pause menu has Quit to launcher, which asks twice and then leaves', async ({ page }) => {
+  const errors = await open(page, 'pause');
+  await toLastRow(page, OVERLAY, 'Quit to launcher');
+  const armed = (): boolean =>
+    document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Tap again';
+  await pressUntil(page, 'Enter', armed);
+  expect(await leaves(page)).toBe(0);
+  // The armed row is Quit to launcher alone: Quit game below it is still plain.
+  await expect(
+    page.locator('#overlay .menu button', { hasText: 'Quit game' }).locator('.val'),
+  ).toHaveCount(0);
+  await pressUntil(page, 'Enter', () => true);
+  await expect.poll(() => leaves(page)).toBe(1);
+  expect(await quits(page)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('arming Quit to launcher does not arm Quit game, so one Enter on it only arms it', async ({
+  page,
+}) => {
+  await open(page, 'pause');
+  await toLastRow(page, OVERLAY, 'Quit to launcher');
+  await pressUntil(
+    page,
+    'Enter',
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Tap again',
+  );
+  await pressUntil(
+    page,
+    'ArrowDown',
+    () =>
+      !!document.querySelector('#overlay .menu button.sel')?.textContent?.startsWith('Quit game'),
+  );
+  await pressUntil(
+    page,
+    'Enter',
+    () => document.querySelector('#overlay .menu button.sel .val')?.textContent === 'Tap again',
+  );
+  expect(await quits(page)).toBe(0);
+  expect(await leaves(page)).toBe(0);
+});
+
+test('Android has Quit to launcher and no Quit game', async ({ page }) => {
+  const errors = await open(page, 'title', '&host=fake-android');
+  expect((await labels(page, TITLE)).at(-1)).toBe('Quit to launcher');
+  expect(await labels(page, TITLE)).not.toContain('Quit game');
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('pause'));
+  await settle(page);
+  expect((await labels(page, OVERLAY)).slice(-2)).toEqual(['Quit to title', 'Quit to launcher']);
+  expect(errors).toEqual([]);
+});
+
+test('the web build has no Quit to launcher on the title or the pause menu', async ({ page }) => {
+  await open(page, 'title', '');
+  expect(await labels(page, TITLE)).not.toContain('Quit to launcher');
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('pause'));
+  await settle(page);
+  expect(await labels(page, OVERLAY)).not.toContain('Quit to launcher');
 });
 
 test('the web build has no Quit game on the title or the pause menu', async ({ page }) => {

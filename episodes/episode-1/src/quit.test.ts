@@ -1,10 +1,10 @@
-// Tests for the Quit game row.
+// Tests for the Quit to launcher and Quit game rows.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it, vi } from 'vitest';
-import { QUIT_ARMED_VALUE, QUIT_GAME_ID, closeApp, withQuitRow } from './quit';
+import { QUIT_ARMED_VALUE, QUIT_GAME_ID, QUIT_LAUNCHER_ID, closeApp, withQuitRows } from './quit';
 import { RESET_ARM_MS, resetArmed } from './two-tap';
 
 const ROWS = [
@@ -12,23 +12,43 @@ const ROWS = [
   { id: 'options', label: 'Options' },
 ];
 
-describe('withQuitRow', () => {
+const NONE = { game: false, launcher: false };
+const DESKTOP = { game: true, launcher: true };
+const ANDROID = { game: false, launcher: true };
+
+describe('withQuitRows', () => {
   it('leaves the menu alone when the host cannot quit', () => {
-    expect(withQuitRow(ROWS, false, false, false)).toBe(ROWS);
-    expect(withQuitRow(ROWS, false, true, true)).toBe(ROWS);
+    expect(withQuitRows(ROWS, NONE, false, null)).toBe(ROWS);
+    expect(withQuitRows(ROWS, NONE, true, QUIT_GAME_ID)).toBe(ROWS);
   });
 
-  it('adds Quit game as the last row', () => {
-    const rows = withQuitRow(ROWS, true, false, false);
-    expect(rows.map((r) => r.label)).toEqual(['New Game', 'Options', 'Quit game']);
+  it('adds Quit to launcher and then Quit game on the desktop', () => {
+    const rows = withQuitRows(ROWS, DESKTOP, false, null);
+    expect(rows.map((r) => r.label)).toEqual([
+      'New Game',
+      'Options',
+      'Quit to launcher',
+      'Quit game',
+    ]);
+    expect(rows.at(-2)?.id).toBe(QUIT_LAUNCHER_ID);
     expect(rows.at(-1)?.id).toBe(QUIT_GAME_ID);
     expect(rows.at(-1)).not.toHaveProperty('value');
   });
 
-  it('shows the armed state only where a second tap is asked for', () => {
-    expect(withQuitRow(ROWS, true, true, false).at(-1)).not.toHaveProperty('value');
-    expect(withQuitRow(ROWS, true, true, true).at(-1)?.value).toBe(QUIT_ARMED_VALUE);
-    expect(withQuitRow(ROWS, true, false, true).at(-1)).not.toHaveProperty('value');
+  it('gives Android Quit to launcher and no Quit game', () => {
+    const rows = withQuitRows(ROWS, ANDROID, false, null);
+    expect(rows.map((r) => r.label)).toEqual(['New Game', 'Options', 'Quit to launcher']);
+  });
+
+  it('shows the armed state on the armed row only, and only where a second tap is asked for', () => {
+    const armed = withQuitRows(ROWS, DESKTOP, true, QUIT_LAUNCHER_ID);
+    expect(armed.at(-2)?.value).toBe(QUIT_ARMED_VALUE);
+    expect(armed.at(-1)).not.toHaveProperty('value');
+    const game = withQuitRows(ROWS, DESKTOP, true, QUIT_GAME_ID);
+    expect(game.at(-2)).not.toHaveProperty('value');
+    expect(game.at(-1)?.value).toBe(QUIT_ARMED_VALUE);
+    expect(withQuitRows(ROWS, DESKTOP, true, null).at(-1)).not.toHaveProperty('value');
+    expect(withQuitRows(ROWS, DESKTOP, false, QUIT_GAME_ID).at(-1)).not.toHaveProperty('value');
   });
 });
 

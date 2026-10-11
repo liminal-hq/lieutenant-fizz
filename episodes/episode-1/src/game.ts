@@ -150,7 +150,13 @@ import {
   styleName,
   type SoundRow,
 } from './sound-options';
-import { QUIT_GAME_ID, closeApp, withQuitRow } from './quit';
+import {
+  QUIT_GAME_ID,
+  QUIT_LAUNCHER_ID,
+  closeApp,
+  withQuitRows,
+  type QuitCapabilities,
+} from './quit';
 import { RESET_ARM_MS, resetArmed } from './two-tap';
 import { firstEnabled, type HapticsUrl, type UrlLocks, type WakeUrl } from './url-lock';
 import {
@@ -249,7 +255,7 @@ export interface GameOptions {
   keepAwake?: KeepAwakeBackend;
   /** What enters and leaves fullscreen and says whether Esc reaches the page; the web build uses the browser's. */
   fullscreenBackend?: FullscreenBackend;
-  /** What the host can do beyond the page; only the desktop app has `quit`, which adds Quit game to the title and pause menus. */
+  /** What the host can do beyond the page: `quit` (the desktop app) adds Quit game and `quitToLauncher` (the desktop and Android apps) adds Quit to launcher, both to the title and pause menus. */
   hostBackend?: HostBackend;
   /** Where saves and settings are kept, chosen at boot by `createStorage`; left out, the browser's `localStorage`. */
   storage?: KeyValueStorage;
@@ -347,6 +353,8 @@ export class Game {
   private pluginVibrator = false;
   /** When Reset had its first tap (in `performance.now()` milliseconds), or null. */
   private resetAt: number | null = null;
+  /** Which quit row the armed confirm belongs to (Quit to launcher or Quit game). */
+  private quitArmedId: string | null = null;
   /** The screen and sub-screen that Reset (or Quit game) was armed on: leaving them disarms it. */
   private resetWhere = '';
   /** What the editor reports as controls are moved: every drop is saved. */
@@ -1737,7 +1745,7 @@ export class Game {
         { id: 'options', label: 'Options' },
         { id: 'controls', label: 'Controls' },
       ];
-      return withQuitRow(rows, this.canQuit(), false, false);
+      return withQuitRows(rows, this.quitCaps(), false, null);
     }
     if (this.screen === 'pause') {
       const items: MenuItem[] = [
@@ -1749,7 +1757,8 @@ export class Game {
       ];
       if (this.sim.x.mode() === Mode.LEVEL) items.push({ id: 'leave', label: 'Leave level' });
       items.push({ id: 'quit', label: 'Quit to title' });
-      return withQuitRow(items, this.canQuit(), true, resetArmed(this.resetAt, performance.now()));
+      const armed = resetArmed(this.resetAt, performance.now()) ? this.quitArmedId : null;
+      return withQuitRows(items, this.quitCaps(), true, armed);
     }
     if (this.screen === 'card' && this.card) {
       const items: MenuItem[] = [{ id: 'primary', label: this.card.primaryLabel }];
@@ -2078,21 +2087,26 @@ export class Game {
     this.armReset();
   }
 
-  /** Whether the host can close the app, which is what puts Quit game on the menus. */
-  private canQuit(): boolean {
-    return this.hostBackend?.quit !== undefined;
+  /** What the host can do, which is what puts Quit to launcher and Quit game on the menus. */
+  private quitCaps(): QuitCapabilities {
+    return {
+      game: this.hostBackend?.quit !== undefined,
+      launcher: this.hostBackend?.quitToLauncher !== undefined,
+    };
   }
 
   /**
    * Quit game on the pause menu asks twice, so a stray tap does not close a game with unsaved progress: the
    * first tap arms the row ("Tap again") for a few seconds, the second quits. Moving off the row disarms it.
    */
-  private tapQuitApp(): void {
-    if (resetArmed(this.resetAt, performance.now())) {
+  private tapQuitApp(id: string = QUIT_GAME_ID): void {
+    if (resetArmed(this.resetAt, performance.now()) && this.quitArmedId === id) {
       this.disarmReset();
-      this.quitApp();
+      if (id === QUIT_LAUNCHER_ID) this.quitToLauncher();
+      else this.quitApp();
       return;
     }
+    this.quitArmedId = id;
     this.armReset();
   }
 
@@ -2109,6 +2123,34 @@ export class Game {
       });
       if (!closed)
         this.ui.toast("Couldn't save: storage is full or blocked, so the game stays open");
+    })();
+  }
+
+  /**
+   * Writes the settings and saves out, stops the game and goes back to the launcher page. Only reached where
+   * the host has `quitToLauncher`. The window stays as it is (fullscreen included): the launcher is in it too.
+   */
+  private quitToLauncher(): void {
+    const host = this.hostBackend;
+    if (!host?.quitToLauncher) return;
+    const store = this.store as Partial<FlushableStorage> | null;
+    void (async () => {
+      // `flush()` resolves false, rather than rejecting, when the store file cannot be written, and the pending
+      // data then lives only in this page's memory. Leaving would lose it, so stay in the game and say so.
+      let saved: boolean;
+      try {
+        saved = (await store?.flush?.()) !== false;
+      } catch (error) {
+        console.warn('Writing the store before leaving failed', error);
+        saved = false;
+      }
+      if (!saved) {
+        this.disarmReset();
+        this.ui.toast("Couldn't save: storage is full or blocked, so the game stays open");
+        return;
+      }
+      this.dispose();
+      host.quitToLauncher?.();
     })();
   }
 
@@ -2244,6 +2286,7 @@ export class Game {
         else if (id === 'load') this.openSaves('load');
         else if (id === 'options') this.openSub('options');
         else if (id === 'controls') this.openSub('controls');
+        else if (id === QUIT_LAUNCHER_ID) this.quitToLauncher();
         else if (id === QUIT_GAME_ID) this.quitApp();
       };
       if (this.titleAction) return;
@@ -2259,7 +2302,7 @@ export class Game {
       else if (id === 'options') this.openSub('options');
       else if (id === 'leave') this.enterMap();
       else if (id === 'quit') this.quitToTitle();
-      else if (id === QUIT_GAME_ID) this.tapQuitApp();
+      else if (id === QUIT_LAUNCHER_ID || id === QUIT_GAME_ID) this.tapQuitApp(id);
     } else if (this.screen === 'card' && this.card) {
       if (id === 'primary') this.card.primary();
       else this.card.secondary?.();
