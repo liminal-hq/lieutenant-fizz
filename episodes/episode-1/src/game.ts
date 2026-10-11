@@ -85,7 +85,14 @@ import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
 import { gestureFor, isLive } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
 import { viewPoint } from './map-panel';
-import { isPortrait, watchResize, type TouchGutters } from './layout';
+import {
+  isPortrait,
+  TOUCH_WORD_GLYPHS,
+  touchCount,
+  touchWordCap,
+  watchResize,
+  type TouchGutters,
+} from './layout';
 import { FullscreenControl, glyphGrid, type FullscreenPlace } from './fullscreen-button';
 import { touchFaces, type ShellScreen, type SubScreen, type TouchFaces } from './touch-menus';
 import { EPISODE } from './episode';
@@ -605,6 +612,13 @@ export class Game {
       labels: { dpad: 'Move', jump: 'Jump', pogo: 'Pogo', fire: 'Fizz', pause: 'Pause' },
       editLabels: { dpad: 'Move D-pad' },
       spec: touchSpec(this.touchSettings, undefined, this.chromeless()),
+      onPlaced: (face) => {
+        // The words on a face never outgrow it, whatever the type scale of the screen is.
+        for (const id of ['jump', 'pogo', 'fire'] as const) {
+          const cap = touchWordCap(face[id].r * 2, TOUCH_WORD_GLYPHS[id]);
+          this.touchUi.face(id).style.setProperty('--lf-word-cap', String(cap));
+        }
+      },
     });
     ui.setTouchOpacity(this.touchSettings.opacity);
     // The app's WebView allows autoplay, so its audio starts at boot; the web waits for a gesture.
@@ -1201,7 +1215,7 @@ export class Game {
       usb: s.get(State.HAS_USB) === 1,
     };
     this.hud = hud;
-    this.touchUi.setCount(String(hud.ammo));
+    this.touchUi.setCount(touchCount(hud.ammo));
     this.syncUi();
   }
   private hud: HudState | null = null;
@@ -1684,7 +1698,7 @@ export class Game {
     if (on === this.touchMode) return;
     this.touchMode = on;
     this.ui.setTouchMode(on);
-    if (this.hud) this.touchUi.setCount(String(this.hud.ammo));
+    if (this.hud) this.touchUi.setCount(touchCount(this.hud.ammo));
     this.onViewport();
     this.syncUi();
   }
@@ -3514,6 +3528,12 @@ export class Game {
   }
 
   /** Test hook: switches the phone title between its two layouts. */
+  /** Sets the Fizz count (to check how the count fits its touch face) and refreshes the HUD. */
+  debugAmmo(n: number): void {
+    this.sim.set(State.AMMO, n);
+    this.refreshHud();
+  }
+
   debugTitle(mode: TitleLayout): void {
     this.ui.setTitleLayout(mode);
   }
