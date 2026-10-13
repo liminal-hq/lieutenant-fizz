@@ -94,6 +94,13 @@ export default defineConfig({
       timeout: 240_000,
     },
     {
+      // The developer's play sample viewer.
+      command: 'bun run --cwd tools/sample-viewer dev --host 127.0.0.1 --port 5199 --strictPort',
+      url: 'http://127.0.0.1:5199',
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+    {
       // The static landing page, served as it is.
       command: 'python3 -m http.server 5197 --bind 127.0.0.1 --directory site',
       url: 'http://127.0.0.1:5197',
