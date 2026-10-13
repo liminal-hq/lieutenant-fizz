@@ -109,6 +109,11 @@ pub fn run() {
         .plugin(log_plugin())
         // The game's saves and settings are kept in a store file (`lf-data.json`) in the app data directory.
         .plugin(tauri_plugin_store::Builder::default().build())
+        // Saving a play sample: the system Save dialog, and writing the zip to the file chosen (or to the cache to share it).
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        // Sharing it: the system share sheet where there is one.
+        .plugin(tauri_plugin_share_sheet::init())
         // Play samples are written to a SQLite database (`play-samples.db`) as they are recorded.
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_phone_haptics::init())

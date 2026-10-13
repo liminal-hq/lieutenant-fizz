@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "sample-export",
+  "description": "Lets the window save a play sample's zip where the player chooses, and hand it to the share sheet from the app's cache.",
+  "windows": ["main"],
+  "permissions": [
+    "dialog:allow-save",
+    "fs:allow-write-file",
+    "fs:allow-remove",
+    "fs:allow-mkdir",
+    {
+      "identifier": "fs:scope",
+      "allow": [{ "path": "$CACHE/fizz-share" }, { "path": "$CACHE/fizz-share/**" }]
+    },
+    "share-sheet:default"
+  ]
+}
