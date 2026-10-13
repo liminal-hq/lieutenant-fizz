@@ -42,6 +42,10 @@
     "./frame-stats": "./src/frame-stats.ts",
     "./repeat": "./src/repeat.ts",
     "./sound-field": "./src/sound-field.ts",
+    "./session/indexeddb-store": "./src/session/indexeddb-store.ts",
+    "./session/recorder": "./src/session/recorder.ts",
+    "./session/specs": "./src/session/specs.ts",
+    "./session/store": "./src/session/store.ts",
     "./stinger": "./src/stinger.ts",
     "./storage": "./src/storage.ts",
     "./story-beats": "./src/story-beats.ts",
@@ -63,6 +67,7 @@
     "three": "^0.184.0"
   },
   "devDependencies": {
-    "@types/three": "^0.184.0"
+    "@types/three": "^0.184.0",
+    "fake-indexeddb": "^6.2.5"
   }
 }
