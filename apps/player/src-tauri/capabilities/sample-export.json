@@ -10,7 +10,7 @@
     "fs:allow-mkdir",
     {
       "identifier": "fs:scope",
-      "allow": [{ "path": "$CACHE/fizz-share" }, { "path": "$CACHE/fizz-share/**" }]
+      "allow": [{ "path": "$APPCACHE/fizz-share" }, { "path": "$APPCACHE/fizz-share/**" }]
     },
     "share-sheet:default"
   ]

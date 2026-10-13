@@ -38,8 +38,8 @@ export function realAppDeps(): AppDeps {
     },
     async sharePath(name) {
       const { remove, mkdir } = await import('@tauri-apps/plugin-fs');
-      const { cacheDir, join } = await import('@tauri-apps/api/path');
-      const dir = await join(await cacheDir(), SHARE_FOLDER);
+      const { appCacheDir, join } = await import('@tauri-apps/api/path');
+      const dir = await join(await appCacheDir(), SHARE_FOLDER);
       // An earlier share's file is cleared now and not straight after sharing: the target app may still be reading it.
       await remove(dir, { recursive: true }).catch(() => undefined);
       await mkdir(dir, { recursive: true });
