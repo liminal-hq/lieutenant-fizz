@@ -5,6 +5,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { crc32 } from '@lieutenant-fizz/engine/crc32';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Death, Ev, Input, Level, Mode, Out, RenderFlag, State, STRIDE } from './protocol';
 import { Sim, type SpriteRect } from './sim';
@@ -156,6 +157,24 @@ describe.skipIf(!built)('Episode 1 WASM sim', () => {
     expect(sim.get(State.TICK)).toBe(123_456);
     run(10);
     expect(sim.get(State.TICK)).toBe(123_466);
+  });
+
+  it('reads queued events without clearing them, and drains every one', () => {
+    sim.x.game_new();
+    sim.x.enter_level(Level.CRATER);
+    const all = sim.eventsSince(0);
+    expect(all.some((e) => e.kind === Ev.LEVEL_START)).toBe(true);
+    expect(sim.eventCount).toBe(all.length);
+    expect(sim.eventsSince(0)).toEqual(all);
+    expect(sim.eventsSince(1)).toEqual(all.slice(1));
+    expect(sim.eventsSince(all.length)).toEqual([]);
+    expect(sim.drainEvents()).toEqual(all);
+    expect(sim.eventCount).toBe(0);
+  });
+
+  it('checksums the module it loaded', () => {
+    expect(sim.wasmCrc).toMatch(/^[0-9a-f]{8}$/);
+    expect(sim.wasmCrc).toBe((crc32(readFileSync(wasmPath)) >>> 0).toString(16).padStart(8, '0'));
   });
 
   it('fingerprints each level, the same every time', () => {
