@@ -364,6 +364,7 @@ test('Options offers Touch controls on touch, and it opens the Touch controls sc
     'Sound',
     ...((await canVibrate(page)) ? ['Haptics'] : []),
     'Display',
+    'Play sample',
     'Captions',
     'Controls',
     'Text size',

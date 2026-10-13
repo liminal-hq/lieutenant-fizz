@@ -84,6 +84,7 @@ test('a desktop Options screen has no Touch controls row', async ({ page }) => {
   expect(labels).toEqual([
     'Sound',
     'Display',
+    'Play sample',
     'Captions',
     'Controls',
     'Text size',

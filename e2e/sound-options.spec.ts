@@ -51,6 +51,7 @@ test('Options > Sound: Left and Enter change the style, which is saved, and Esca
   expect(await labels(page)).toEqual([
     'Sound',
     'Display',
+    'Play sample',
     'Captions',
     'Controls',
     'Text size',
