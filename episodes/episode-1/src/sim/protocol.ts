@@ -80,6 +80,22 @@ export const State = {
   ATTRACT_PERIOD: 21,
   ATTRACT_IDX: 22,
   POGO_ON: 23,
+  /** How Ben last died (read-only); see `Death`. */
+  DEATH_CAUSE: 24,
+  /** What killed him (read-only): the tile id for spikes, chocolate and molten metal, the enemy kind for an enemy or a puff. */
+  DEATH_DETAIL: 25,
+} as const;
+
+/** The values of `State.DEATH_CAUSE`: 0 while alive, or when the cause is not known. */
+export const Death = {
+  NONE: 0,
+  FELL: 1,
+  SPIKES: 2,
+  CHOCOLATE: 3,
+  MOLTEN_METAL: 4,
+  ENEMY: 5,
+  PUFF: 6,
+  SHOT: 7,
 } as const;
 
 /** Sim modes returned by `mode()`. */
