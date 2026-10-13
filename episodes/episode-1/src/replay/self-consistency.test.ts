@@ -1,8 +1,10 @@
-// Records a run with the real play sample code on the built WASM, then replays what it wrote. It guards the
-// recorder, the entry inference and the sim's determinism together, and keeps passing when levels change.
+// Records a run with the real play sample code on the built WASM, then replays what it wrote.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
+
+// This guards the recorder, the entry inference and the sim's determinism together, and keeps passing when
+// levels change.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
