@@ -1,0 +1,23 @@
+{
+  "host": "tauri-android",
+  "screen": [1174, 528],
+  "dpr": 2.549999952316284,
+  "window": [1173, 527],
+  "browser": "WebView",
+  "browserVersion": "154",
+  "os": "Android",
+  "osVersion": "17",
+  "mobile": true,
+  "touchPoints": 5,
+  "game": "0.2.0",
+  "size": "M",
+  "opacity": 100,
+  "leftHanded": false,
+  "movedControls": false,
+  "touchMode": true,
+  "input": "touch",
+  "audio": "enhanced",
+  "musicVersion": "classic",
+  "sfxVersion": "classic",
+  "pixelScale": 6
+}
