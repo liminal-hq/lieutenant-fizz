@@ -28,6 +28,12 @@ export interface Entry {
   inferred: boolean;
 }
 
+/**
+ * How many ticks late an event of a sample recorded before revision 2 may be stamped: events were written when
+ * the game drained them once a frame, which after a hitch could be a few ticks after the step that raised them.
+ */
+export const LATE_TICKS = 15;
+
 /** The score of the next extra life: one hundred above the highest hundred reached. */
 export const nextLifeFor = (score: number): number => Math.floor(score / 100) * 100 + 100;
 
@@ -45,12 +51,42 @@ function lastBefore(
 }
 
 /**
+ * The `st` that holds the state a level was entered with. The recorder writes one on the first sampled tick of a
+ * level whenever the state differs from the last one written, and a death puts lives, ammo and score back to
+ * their entry values, so an `st` on the entering step (it may come just before the `level` event in the file) or
+ * in the three ticks after it is the entry state. When there is none, nothing had changed since the last `st`,
+ * which is then the entry state; for the first level of a session the first `st` after is.
+ */
+function entryState(events: readonly SessionEvent[], levelIndex: number): SessionEvent | null {
+  const tick = events[levelIndex]!.t;
+  // The `level` event of an older sample may be stamped a few ticks late, so look back that far, and take the
+  // earliest `st` there: the one written on the entering step.
+  let entering: SessionEvent | null = null;
+  for (let i = levelIndex - 1; i >= 0 && events[i]!.t >= tick - LATE_TICKS; i--) {
+    if (events[i]!.e === 'st') entering = events[i]!;
+  }
+  if (entering) return entering;
+  for (let i = levelIndex + 1; i < events.length && events[i]!.t <= tick + 3; i++) {
+    const e = events[i]!;
+    if (e.e === 'level') break;
+    if (e.e === 'st') return e;
+  }
+  const before = lastBefore(events, levelIndex, 'st');
+  if (before) return before;
+  for (let i = levelIndex + 1; i < events.length; i++) {
+    const e = events[i]!;
+    if (e.e === 'level') break;
+    if (e.e === 'st') return e;
+  }
+  return null;
+}
+
+/**
  * The entry state of the level whose `level` event is at `levelIndex`. A log of revision 2 or later has an
  * `enter` event right after it with everything written down at the time. Samples recorded before that have it
- * worked out here: the held input is the last `in` before the `level` event, and lives, ammo and score are the
- * last `st` before it (the previous attempt's final values, since a level is only entered from the map, where
- * they do not change), or, for the first level of a session, the first `st` after. The cleared-levels mask is
- * left at zero, which only matters on the map.
+ * worked out here: the held input is the last `in` before the `level` event, and lives, ammo and score come
+ * from the `st` that holds the entry state (see `entryState`). The cleared-levels mask is left at zero, which
+ * only matters on the map.
  */
 export function entryAt(events: readonly SessionEvent[], levelIndex: number): Entry | null {
   const level = events[levelIndex];
@@ -76,17 +112,7 @@ export function entryAt(events: readonly SessionEvent[], levelIndex: number): En
   // The nearest `in` before the level event, even when its word is zero.
   const lastIn = lastBefore(events, levelIndex, 'in');
   const held = lastIn ? num(lastIn, 'b') : 0;
-  let st = lastBefore(events, levelIndex, 'st');
-  if (!st) {
-    for (let i = levelIndex + 1; i < events.length; i++) {
-      const e = events[i]!;
-      if (e.e === 'level') break;
-      if (e.e === 'st') {
-        st = e;
-        break;
-      }
-    }
-  }
+  const st = entryState(events, levelIndex);
   if (!st) return null;
   const score = num(st, 'score');
   return {

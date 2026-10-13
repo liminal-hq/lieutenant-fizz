@@ -3,10 +3,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { num, type SessionEvent } from '@lieutenant-fizz/engine/session/log';
-import { State } from '../sim/protocol';
+import { num, type Session, type SessionEvent } from '@lieutenant-fizz/engine/session/log';
+import { Ev, State } from '../sim/protocol';
 import type { Sim } from '../sim/sim';
-import { entryAt, type Entry } from './entry';
+import { attemptsOf, type Attempt } from './attempts';
+import { entryAt, LATE_TICKS, type Entry } from './entry';
 
 /** How far a replayed position may be from a recorded one: the log rounds to two decimals, so half a hundredth each way plus a margin. */
 export const POS_TOLERANCE = 0.011;
@@ -27,22 +28,26 @@ export interface ReplayAttempt {
   startTick: number;
   /** The tick of the attempt's last recorded event. */
   endTick: number;
+  /** How the attempt ended and what the viewer shows of it (outcome, death, path, pauses). */
+  info: Attempt | null;
 }
 
 /** The first place a replay stopped matching the recording. */
 export interface Drift {
   tick: number;
-  kind: 'pos' | 'death';
+  kind: 'pos' | 'st' | 'death' | 'clear';
   recorded: string;
   replayed: string;
 }
 
-/** Every attempt in a log, in order. */
-export function findAttempts(events: readonly SessionEvent[]): ReplayAttempt[] {
+/** Every attempt in a session, in order. */
+export function findAttempts(session: Session): ReplayAttempt[] {
+  const events = session.events;
   const starts: number[] = [];
   events.forEach((e, i) => {
     if (e.e === 'level') starts.push(i);
   });
+  const infos = attemptsOf(session);
   return starts.map((index, n) => {
     const end = starts[n + 1] ?? events.length;
     const level = events[index]!;
@@ -55,8 +60,17 @@ export function findAttempts(events: readonly SessionEvent[]): ReplayAttempt[] {
       entry: entryAt(events, index),
       startTick: level.t,
       endTick: events[end - 1]?.t ?? level.t,
+      info: infos.length === starts.length ? (infos[n] ?? null) : null,
     };
   });
+}
+
+/** The recorded state at a tick: what the sim must read after the step that ended on it. */
+interface RecordedState {
+  lives: number;
+  ammo: number;
+  score: number;
+  pogo: number;
 }
 
 /**
@@ -64,6 +78,7 @@ export function findAttempts(events: readonly SessionEvent[]): ReplayAttempt[] {
  * a sim of its own. Replay ticks are the recorded ticks, so `tick` lines up with the log's `t`.
  */
 export class Replayer {
+  readonly events: readonly SessionEvent[];
   readonly attempts: ReplayAttempt[];
   /** The recorded tick the replay is at. */
   tick = 0;
@@ -71,25 +86,42 @@ export class Replayer {
   drift: Drift | null = null;
   /** The tick Ben died on in the replay, or null. */
   deathTick: number | null = null;
+  /** The tick the level was cleared on in the replay, or null. */
+  clearTick: number | null = null;
   /** How many recorded positions the replay has been compared against so far. */
   checked = 0;
 
+  private index = -1;
   private current: ReplayAttempt | null = null;
+  private late = 0;
   private readonly inTicks: number[] = [];
   private readonly inBits: number[] = [];
   private pos = new Map<number, { x: number; y: number }>();
+  private st = new Map<number, RecordedState>();
   private recordedDeath: SessionEvent | null = null;
+  private recordedClear: SessionEvent | null = null;
 
   constructor(
     readonly sim: Sim,
-    readonly events: readonly SessionEvent[],
+    session: Session,
   ) {
-    for (const e of events) {
+    this.events = session.events;
+    for (const e of this.events) {
       if (e.e !== 'in') continue;
       this.inTicks.push(e.t);
       this.inBits.push(num(e, 'b'));
     }
-    this.attempts = findAttempts(events);
+    this.attempts = findAttempts(session);
+  }
+
+  /** The attempt loaded now, or null. */
+  get attempt(): ReplayAttempt | null {
+    return this.current;
+  }
+
+  /** Which attempt is loaded, or -1. */
+  get attemptIndex(): number {
+    return this.index;
   }
 
   /** The input word the step that ends on `tick` ran with: the last `in` at or before it, zero before the first. */
@@ -109,11 +141,40 @@ export class Replayer {
     return found < 0 ? 0 : this.inBits[found]!;
   }
 
-  /** Starts attempt `i` from its entry state, so the next `step` is the level's first. */
+  /**
+   * Starts attempt `i` from its entry state, so the next `step` is the level's first. A sample that did not write
+   * its entry down may have stamped its `level` event a few ticks late, and Ben standing still at the start hides
+   * that until something else moves, so each of the last `LATE_TICKS` ticks is tried by running the whole attempt:
+   * the first that matches all the way is the start, and if none does, the one that matched longest.
+   */
   load(i: number): void {
     const attempt = this.attempts[i];
     const entry = attempt?.entry;
     if (!attempt || !entry) throw new Error(`attempt ${i} cannot be replayed`);
+    let best = 0;
+    if (entry.inferred) {
+      let longest = -1;
+      for (let k = 0; k <= LATE_TICKS; k++) {
+        this.begin(i, entry.tick - k);
+        this.run();
+        if (!this.drift) {
+          best = k;
+          break;
+        }
+        if (this.drift.tick > longest) {
+          longest = this.drift.tick;
+          best = k;
+        }
+      }
+    }
+    // Start again, fresh, from the start that was found (or the recorded one when the entry was written down).
+    this.begin(i, entry.tick - best);
+  }
+
+  /** Sets the sim up for attempt `i`, entered on `startTick`. */
+  private begin(i: number, startTick: number): void {
+    const attempt = this.attempts[i]!;
+    const entry = attempt.entry!;
     const { sim } = this;
     sim.x.game_new();
     sim.set(State.LIVES, entry.lives);
@@ -124,25 +185,46 @@ export class Replayer {
     if (entry.pogoH !== null) sim.set(State.POGO_HEIGHT, entry.pogoH);
     // A step with no mode set only takes the input, so the sim's previous input is what the entering step held.
     sim.x.enter_none();
-    sim.step(entry.held);
+    // An entry worked out afterwards takes the input in force on the start tick it is trying; a written one is exact.
+    sim.step(entry.inferred ? this.wordAt(startTick) : entry.held);
     sim.x.set_view(11.5, 6.5);
     sim.x.enter_level(entry.level);
     sim.drainEvents();
     // A Phantom's teleport reads the absolute tick, so the attempt starts on the tick it was entered on.
-    sim.set(State.TICK, entry.tick);
+    sim.set(State.TICK, startTick);
 
+    this.index = i;
     this.current = attempt;
-    this.tick = entry.tick;
+    this.tick = startTick;
+    this.late = entry.tick - startTick;
     this.drift = null;
     this.deathTick = null;
+    this.clearTick = null;
     this.checked = 0;
     this.pos = new Map();
+    this.st = new Map();
     this.recordedDeath = null;
+    this.recordedClear = null;
     for (let k = attempt.index; k < attempt.end; k++) {
       const e = this.events[k]!;
       if (e.e === 'pos') this.pos.set(e.t, { x: num(e, 'x'), y: num(e, 'y') });
-      else if (e.e === 'death' && !this.recordedDeath) this.recordedDeath = e;
+      else if (e.e === 'st') {
+        this.st.set(e.t, {
+          lives: num(e, 'lives'),
+          ammo: num(e, 'ammo'),
+          score: num(e, 'score'),
+          pogo: num(e, 'pogo'),
+        });
+      } else if (e.e === 'death' && !this.recordedDeath) this.recordedDeath = e;
+      else if (e.e === 'ev' && e['k'] === 'level_complete' && !this.recordedClear) {
+        this.recordedClear = e;
+      }
     }
+  }
+
+  /** The tick the entering step was stamped late by, in ticks (0 when it was stamped exactly). */
+  get lateBy(): number {
+    return this.late;
   }
 
   /** Runs one tick with the recorded input and compares it with the recording. */
@@ -150,39 +232,127 @@ export class Replayer {
     const { sim } = this;
     sim.step(this.wordAt(this.tick + 1));
     this.tick += 1;
-    sim.drainEvents();
-
-    const expected = this.pos.get(this.tick);
-    if (expected) this.checked += 1;
-    if (expected && !this.drift) {
-      const x = sim.get(State.PLAYER_X);
-      const y = sim.get(State.PLAYER_Y);
-      if (Math.abs(x - expected.x) > POS_TOLERANCE || Math.abs(y - expected.y) > POS_TOLERANCE) {
-        this.drift = {
-          tick: this.tick,
-          kind: 'pos',
-          recorded: `${expected.x}, ${expected.y}`,
-          replayed: `${x.toFixed(2)}, ${y.toFixed(2)}`,
-        };
-      }
+    for (const e of sim.drainEvents()) {
+      if (e.kind === Ev.LEVEL_COMPLETE && this.clearTick === null) this.noteClear();
     }
-    if (this.deathTick === null && sim.get(State.PLAYER_DEAD) === 1) {
-      this.deathTick = this.tick;
-      const recorded = this.recordedDeath?.t ?? null;
-      if (recorded !== this.tick && !this.drift) {
-        this.drift = {
-          tick: this.tick,
-          kind: 'death',
-          recorded: recorded === null ? 'no death' : `tick ${recorded}`,
-          replayed: `tick ${this.tick}`,
-        };
-      }
+
+    const pos = this.pos.get(this.tick);
+    if (pos) this.checkPos(pos);
+    const st = this.st.get(this.tick);
+    if (st) this.checkState(st);
+    if (this.deathTick === null && sim.get(State.PLAYER_DEAD) === 1) this.noteDeath();
+  }
+
+  private noteClear(): void {
+    this.clearTick = this.tick;
+    const recorded = this.recordedClear?.t ?? null;
+    // An event of an older sample may be stamped late; a stamped-exactly one must match.
+    const lateBy = this.current?.entry?.inferred ? LATE_TICKS : 0;
+    const ok = recorded !== null && this.tick <= recorded && this.tick >= recorded - lateBy;
+    if (!ok) {
+      this.mismatch({
+        tick: this.tick,
+        kind: 'clear',
+        recorded: recorded === null ? 'no clear' : `tick ${recorded}`,
+        replayed: `tick ${this.tick}`,
+      });
     }
   }
 
-  /** Runs until Ben dies or the attempt's recorded events run out. */
+  private noteDeath(): void {
+    this.deathTick = this.tick;
+    const recorded = this.recordedDeath?.t ?? null;
+    if (recorded !== this.tick) {
+      this.mismatch({
+        tick: this.tick,
+        kind: 'death',
+        recorded: recorded === null ? 'no death' : `tick ${recorded}`,
+        replayed: `tick ${this.tick}`,
+      });
+    }
+  }
+
+  private checkPos(expected: { x: number; y: number }): void {
+    this.checked += 1;
+    const x = this.sim.get(State.PLAYER_X);
+    const y = this.sim.get(State.PLAYER_Y);
+    if (Math.abs(x - expected.x) > POS_TOLERANCE || Math.abs(y - expected.y) > POS_TOLERANCE) {
+      this.mismatch({
+        tick: this.tick,
+        kind: 'pos',
+        recorded: `${expected.x}, ${expected.y}`,
+        replayed: `${x.toFixed(2)}, ${y.toFixed(2)}`,
+      });
+    }
+  }
+
+  private checkState(expected: RecordedState): void {
+    const { sim } = this;
+    const got: RecordedState = {
+      lives: sim.get(State.LIVES),
+      ammo: sim.get(State.AMMO),
+      score: sim.get(State.SCORE),
+      pogo: sim.get(State.POGO_ON),
+    };
+    if (
+      got.lives !== expected.lives ||
+      got.ammo !== expected.ammo ||
+      got.score !== expected.score ||
+      got.pogo !== expected.pogo
+    ) {
+      const text = (s: RecordedState): string =>
+        `lives ${s.lives}, ammo ${s.ammo}, score ${s.score}, pogo ${s.pogo}`;
+      this.mismatch({ tick: this.tick, kind: 'st', recorded: text(expected), replayed: text(got) });
+    }
+  }
+
+  /** Keeps the first mismatch only. */
+  private mismatch(d: Drift): void {
+    this.drift ??= d;
+  }
+
+  /**
+   * Runs until Ben dies or the attempt's recorded events run out, then checks that a death or a clear the
+   * recording has also happened in the replay.
+   */
   run(): void {
     const end = this.current?.endTick ?? 0;
     while (this.deathTick === null && this.tick < end) this.step();
+    this.checkEnd();
+  }
+
+  /** Whether the recording's death or clear is missing from the replay once it has run as far as the recording. */
+  private checkEnd(): void {
+    const end = this.current?.endTick ?? 0;
+    if (this.tick < end && this.deathTick === null) return;
+    if (this.recordedDeath && this.deathTick === null) {
+      this.mismatch({
+        tick: this.tick,
+        kind: 'death',
+        recorded: `tick ${this.recordedDeath.t}`,
+        replayed: 'no death',
+      });
+    }
+    if (this.recordedClear && this.clearTick === null && this.deathTick === null) {
+      this.mismatch({
+        tick: this.tick,
+        kind: 'clear',
+        recorded: `tick ${this.recordedClear.t}`,
+        replayed: 'no clear',
+      });
+    }
+  }
+
+  /**
+   * Moves to a tick of the loaded attempt: forward by running, backward by starting the attempt again and
+   * running up to it. A tick outside the attempt is moved into it.
+   */
+  seek(tick: number): void {
+    const attempt = this.current;
+    if (!attempt) return;
+    const first = attempt.startTick - this.late;
+    const target = Math.min(Math.max(Math.round(tick), first), attempt.endTick);
+    if (target < this.tick) this.begin(this.index, first);
+    while (this.tick < target) this.step();
   }
 }

@@ -78,7 +78,7 @@ async function record(sim: Sim, level: number, ticks: number, fresh = true) {
   const read = await store.read('r');
   if (!read) throw new Error('the recording was not stored');
   return {
-    events: sessionFromStore('r', read).events,
+    session: sessionFromStore('r', read),
     x: sim.get(State.PLAYER_X),
     y: sim.get(State.PLAYER_Y),
   };
@@ -104,9 +104,9 @@ describe.skipIf(!built)('a recorded run replays exactly', () => {
     ['the Citadel', Level.CITADEL],
   ] as const) {
     it(`matches every recorded position in ${name}`, async () => {
-      const { events } = await record(recorder, level, 600);
-      expect(events.filter((e) => e.e === 'pos').length).toBeGreaterThan(100);
-      const replayer = new Replayer(player, events);
+      const { session } = await record(recorder, level, 600);
+      expect(session.events.filter((e) => e.e === 'pos').length).toBeGreaterThan(100);
+      const replayer = new Replayer(player, session);
       expect(replayer.attempts).toHaveLength(1);
       replayer.load(0);
       replayer.run();
@@ -123,8 +123,8 @@ describe.skipIf(!built)('a recorded run replays exactly', () => {
     recorder.set(State.SCORE, 340);
     recorder.set(State.NEXT_LIFE, 400);
     recorder.set(State.TICK, 12_345);
-    const { events } = await record(recorder, Level.CAVES, 200, false);
-    const replayer = new Replayer(player, events);
+    const { session } = await record(recorder, Level.CAVES, 200, false);
+    const replayer = new Replayer(player, session);
     const entry = replayer.attempts[0]!.entry!;
     expect(entry).toMatchObject({
       level: Level.CAVES,
@@ -137,14 +137,16 @@ describe.skipIf(!built)('a recorded run replays exactly', () => {
       levelHash: recorder.levelHash(Level.CAVES),
     });
     replayer.load(0);
+    // The tick the attempt was entered on is restored, which a Phantom's teleport reads.
+    expect(player.get(State.TICK)).toBe(12_345);
     replayer.run();
     expect(replayer.drift).toBeNull();
     expect(replayer.checked).toBeGreaterThan(5);
   });
 
   it('ends in the same place the recorded run ended', async () => {
-    const { events, x, y } = await record(recorder, Level.CRATER, 450);
-    const replayer = new Replayer(player, events);
+    const { session, x, y } = await record(recorder, Level.CRATER, 450);
+    const replayer = new Replayer(player, session);
     replayer.load(0);
     // Run to the last tick of the recording, not just to its last event.
     while (replayer.tick < replayer.attempts[0]!.startTick + 450) replayer.step();
