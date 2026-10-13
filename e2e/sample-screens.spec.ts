@@ -3,12 +3,16 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { audit } from './audit';
-import { pressUntil } from './keys';
+import { readZip } from '../packages/engine/src/zip-test-util';
+import { pressUntil, settle } from './keys';
 
 interface Lf {
   debugShow(s: string): void;
+  startSample(): Promise<boolean>;
+  stopSample(): Promise<void>;
   sampling: boolean;
   debugState: { sub: string | null };
 }
@@ -126,7 +130,18 @@ test('starting shows the REC mark, stopping hides it, and the sample is saved, l
   await choose(page, await rows.first().locator('.lbl').innerText(), 'Saved sample');
   await expect(page.locator('#overlay .text')).toContainText('It was stopped normally');
 
-  // Delete asks twice; the first press only arms it.
+  // Move to Delete (Save zip is the first row), which asks twice: the first press only arms it.
+  for (let i = 0; i < 4; i += 1) {
+    const now = await page.locator('#overlay .menu button.sel .lbl').innerText();
+    if (now === 'Delete') break;
+    await pressUntil(
+      page,
+      'ArrowDown',
+      (was) => document.querySelector('#overlay .menu button.sel .lbl')?.textContent !== was,
+      now,
+    );
+  }
+  await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Delete');
   await pressUntil(
     page,
     'Enter',
@@ -141,5 +156,66 @@ test('starting shows the REC mark, stopping hides it, and the sample is saved, l
     () => document.querySelector('#overlay h2')?.textContent === 'Saved samples',
   );
   await expect(page.locator('#overlay .menu button')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+test('Save zip downloads the log and the specs, and nothing leaves the page for any other address', async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  const outside: string[] = [];
+  page.on('request', (r) => {
+    const url = r.url();
+    if (!url.startsWith(origin) && !url.startsWith('blob:') && !url.startsWith('data:'))
+      outside.push(url);
+  });
+  const errors = await boot(page);
+
+  // Record a little, then stop.
+  await lf(page, (g) => g.startSample());
+  await expect.poll(() => lf(page, (g) => g.sampling)).toBe(true);
+  await page.keyboard.press('ArrowDown');
+  await page.mouse.click(310, 210);
+  await lf(page, (g) => g.stopSample());
+  await expect.poll(() => lf(page, (g) => g.sampling)).toBe(false);
+
+  // Open the saved sample and read what its screen says before saving.
+  await openPlaySample(page);
+  await choose(page, 'Saved samples', 'Saved samples');
+  await choose(
+    page,
+    await page.locator('#overlay .menu button .lbl').first().innerText(),
+    'Saved sample',
+  );
+  await expect(page.locator('#overlay .text')).toContainText('The zip holds');
+  await expect(page.locator('#overlay .text')).toContainText('on Linux');
+  expect(await labels(page)).toContain('Save zip');
+
+  const started = page.waitForEvent('download');
+  await settle(page);
+  // Held for a few frames so the game sees it, and let go before it repeats.
+  await page.keyboard.down('Enter');
+  await page.waitForTimeout(150);
+  await page.keyboard.up('Enter');
+  const download = await started;
+  expect(download.suggestedFilename()).toMatch(/^fizz-session-[0-9a-f-]{8}\.zip$/);
+
+  const files = readZip(readFileSync(await download.path()));
+  expect(files.map((f) => f.name)).toEqual(['session.ndjson', 'specs.json']);
+  const lines = new TextDecoder().decode(files[0]!.data).split('\n').filter(Boolean);
+  expect(JSON.parse(lines[0]!)).toMatchObject({
+    v: 1,
+    startedAt: expect.stringMatching(/^\d{4}-/),
+  });
+  const events = lines.slice(1).map((l) => JSON.parse(l) as Record<string, unknown>);
+  expect(events.some((e) => e['e'] === 'key' && e['k'] === 'ArrowDown')).toBe(true);
+  expect(events.some((e) => e['e'] === 'ptr' && e['x'] === 310 && e['y'] === 210)).toBe(true);
+  const specs = JSON.parse(new TextDecoder().decode(files[1]!.data)) as Record<string, unknown>;
+  expect(specs).toMatchObject({ host: 'web', game: expect.any(String), size: expect.any(String) });
+  // The specs carry nothing that names a person or a device.
+  expect(JSON.stringify(specs)).not.toMatch(/Mozilla|userAgent|language|deviceId/i);
+
+  expect(outside).toEqual([]);
   expect(errors).toEqual([]);
 });
