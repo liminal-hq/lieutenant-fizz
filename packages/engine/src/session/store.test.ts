@@ -7,6 +7,7 @@ import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
 import { openIndexedDbStore } from './indexeddb-store';
+import { openSqliteStore, type SqlDb } from './sqlite-store';
 import { memoryStore, type SampleStore, type SessionHeader } from './store';
 
 const header = (id: string, startedAt = '2026-10-13T14:02:00-04:00'): SessionHeader => ({
@@ -15,6 +16,21 @@ const header = (id: string, startedAt = '2026-10-13T14:02:00-04:00'): SessionHea
   startedAt,
   specs: { host: 'web' },
 });
+
+// Node's own SQLite, where this Node has it, so the real SQL runs against a real engine.
+const nodeSqlite = await import('node:sqlite').catch(() => null);
+
+/** A Node SQLite database in the shape of the Tauri SQL plugin's `Database`. */
+function nodeDb(): SqlDb {
+  const db = new nodeSqlite!.DatabaseSync(':memory:');
+  return {
+    execute: async (query, bindings = []) => ({
+      rowsAffected: Number(db.prepare(query).run(...(bindings as never[])).changes),
+    }),
+    select: async <T>(query: string, bindings: unknown[] = []) =>
+      db.prepare(query).all(...(bindings as never[])) as T[],
+  };
+}
 
 const backends: [string, () => Promise<SampleStore>][] = [
   ['memory', async () => memoryStore()],
@@ -27,6 +43,9 @@ const backends: [string, () => Promise<SampleStore>][] = [
       return store;
     },
   ],
+  ...(nodeSqlite
+    ? [['sqlite', async () => openSqliteStore(nodeDb())] as [string, () => Promise<SampleStore>]]
+    : []),
 ];
 
 describe.each(backends)('the %s session store', (_name, open) => {
@@ -128,5 +147,64 @@ describe('the IndexedDB store', () => {
     expect(await throwing!.persist!()).toBe(false);
     const none = await openIndexedDbStore({ indexedDB: new IDBFactory() });
     expect(await none!.persist!()).toBe(false);
+  });
+});
+
+describe.skipIf(!nodeSqlite)('the SQLite store', () => {
+  it('counts a session from its chunks, so a crash between two writes leaves nothing out of step', async () => {
+    const db = nodeDb();
+    const store = await openSqliteStore(db);
+    await store.create(header('a'));
+    await store.append('a', 'one\n');
+    // A chunk that reached the disk with nothing else written after it.
+    await db.execute("INSERT INTO chunks (session_id, n, data) VALUES ('a', 1, 'two\n')");
+    const [info] = await store.list();
+    expect(info).toMatchObject({ chunks: 2, bytes: 8 });
+    expect((await store.read('a'))?.chunks).toEqual(['one\n', 'two\n']);
+  });
+
+  it('numbers chunks from zero with no gaps, even after another session’s chunks', async () => {
+    const db = nodeDb();
+    const store = await openSqliteStore(db);
+    await store.create(header('a'));
+    await store.create(header('b'));
+    await store.append('a', 'a0\n');
+    await store.append('b', 'b0\n');
+    await store.append('a', 'a1\n');
+    const rows = await db.select<{ session_id: string; n: number }>(
+      'SELECT session_id, n FROM chunks ORDER BY session_id, n',
+    );
+    expect(rows).toEqual([
+      { session_id: 'a', n: 0 },
+      { session_id: 'a', n: 1 },
+      { session_id: 'b', n: 0 },
+    ]);
+  });
+
+  it('removes a session’s chunks with it, and leaves no chunk for a session that is gone', async () => {
+    const db = nodeDb();
+    const store = await openSqliteStore(db);
+    await store.create(header('a'));
+    await store.append('a', 'x\n');
+    await store.remove('a');
+    expect(await db.select('SELECT * FROM chunks')).toEqual([]);
+    expect(await db.select('SELECT * FROM sessions')).toEqual([]);
+  });
+
+  it('keeps what is stored when opened again on the same database', async () => {
+    const db = nodeDb();
+    await (await openSqliteStore(db)).create(header('a'));
+    const again = await openSqliteStore(db);
+    expect((await again.list()).map((i) => i.id)).toEqual(['a']);
+  });
+
+  it('reports itself as sqlite, and keeps the header exactly', async () => {
+    const store = await openSqliteStore(nodeDb());
+    expect(store.kind).toBe('sqlite');
+    await store.create({ ...header('a'), specs: { screen: [2400, 1080], note: 'é "quoted"' } });
+    expect((await store.read('a'))?.header.specs).toEqual({
+      screen: [2400, 1080],
+      note: 'é "quoted"',
+    });
   });
 });

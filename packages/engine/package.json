@@ -49,6 +49,7 @@
     "./session/listeners": "./src/session/listeners.ts",
     "./session/recorder": "./src/session/recorder.ts",
     "./session/specs": "./src/session/specs.ts",
+    "./session/sqlite-store": "./src/session/sqlite-store.ts",
     "./session/store": "./src/session/store.ts",
     "./stinger": "./src/stinger.ts",
     "./storage": "./src/storage.ts",
@@ -68,6 +69,7 @@
     "@liminal-hq/undertone": "^0.2.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-log": "^2",
+    "@tauri-apps/plugin-sql": "^2",
     "@tauri-apps/plugin-store": "^2",
     "three": "^0.184.0"
   },
