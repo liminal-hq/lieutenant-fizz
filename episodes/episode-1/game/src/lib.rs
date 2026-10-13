@@ -175,6 +175,13 @@ pub extern "C" fn enter_level(id: u32) {
     w().enter_level(u8::try_from(id).unwrap_or(u8::MAX));
 }
 
+/// A fingerprint of a level's tiles and what is placed in it (see `LevelData::fingerprint`), so a recording
+/// can tell whether the level it was made on has changed since. An unknown id gives the first level's.
+#[no_mangle]
+pub extern "C" fn level_hash(id: u32) -> u32 {
+    levels::build_level(u8::try_from(id).unwrap_or(u8::MAX)).fingerprint()
+}
+
 #[no_mangle]
 pub extern "C" fn enter_map() {
     w().enter_map();
@@ -317,6 +324,9 @@ pub extern "C" fn state_set(i: u32, v: f64) {
             }
         }
         POGO_HEIGHT => s.pogo_height = v,
+        // Restores a recorded tick: a Phantom's teleport reads the absolute tick, so a replay of a level
+        // that started late in a session needs the tick it started on.
+        TICK => s.tick_count = v as u32,
         // Debug hooks: place Ben and snap the camera to him, so tooling can put him anywhere.
         PLAYER_X => {
             s.p.b.x = v;

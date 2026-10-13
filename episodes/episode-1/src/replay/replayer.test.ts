@@ -19,6 +19,12 @@ const fixture = (name: string): string =>
 // The attempts in the fixture ended in these deaths (the `death` event ticks of the real recording).
 const DEATH_TICKS = [4371, 5134, 5970, 7254, 7571, 7901];
 
+// The fingerprint of Fudge Bog (level 7) when the fixture was recorded. When the level is edited the recorded
+// run no longer applies to it, so the fixture tests skip with a note; the scripted-run tests keep guarding the
+// sim. Refresh the fixture from a new recording, then update this.
+const FUDGE_BOG_HASH = 0x975ce0f7;
+const CHANGED = 'Fudge Bog has been edited since the fixture was recorded; record a new one';
+
 describe('entry state from a log', () => {
   const events = parseLog(fixture('session.ndjson'));
   const levels = events.map((e, i) => (e.e === 'level' ? i : -1)).filter((i) => i >= 0);
@@ -65,7 +71,8 @@ describe.skipIf(!built)('replaying the real Fudge Bog sample', () => {
     events = parseLog(fixture('session.ndjson'));
   });
 
-  it('dies where the player died, on the same tick, in every attempt', () => {
+  it('dies where the player died, on the same tick, in every attempt', (ctx) => {
+    if (sim.levelHash(7) !== FUDGE_BOG_HASH) ctx.skip(CHANGED);
     const replayer = new Replayer(sim, events);
     expect(replayer.attempts).toHaveLength(6);
     replayer.attempts.forEach((_, i) => {
@@ -87,7 +94,8 @@ describe.skipIf(!built)('replaying the real Fudge Bog sample', () => {
     expect(replayer.drift).toMatchObject({ kind: 'pos', tick: target!.t });
   });
 
-  it('can be loaded again and gives the same run', () => {
+  it('can be loaded again and gives the same run', (ctx) => {
+    if (sim.levelHash(7) !== FUDGE_BOG_HASH) ctx.skip(CHANGED);
     const replayer = new Replayer(sim, events);
     replayer.load(2);
     replayer.run();

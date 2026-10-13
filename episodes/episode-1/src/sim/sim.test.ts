@@ -147,4 +147,23 @@ describe.skipIf(!built)('Episode 1 WASM sim', () => {
     expect(sim.render(1, RenderFlag.CULLING)).toBeGreaterThan(100);
     expect(sim.out[Out.LIGHTING]).toBe(0);
   });
+
+  it('restores a recorded tick through state_set, and steps on from it', () => {
+    sim.x.game_new();
+    sim.x.enter_level(Level.CRATER);
+    sim.drainEvents();
+    sim.set(State.TICK, 123_456);
+    expect(sim.get(State.TICK)).toBe(123_456);
+    run(10);
+    expect(sim.get(State.TICK)).toBe(123_466);
+  });
+
+  it('fingerprints each level, the same every time', () => {
+    const prints = Array.from({ length: 15 }, (_, id) => sim.levelHash(id));
+    expect(prints.map((_, id) => sim.levelHash(id))).toEqual(prints);
+    expect(new Set(prints).size).toBe(15);
+    prints.forEach((p) => expect(p).toBeGreaterThanOrEqual(0));
+    // An id past the last level gets the first level's fingerprint, as `enter_level` does.
+    expect(sim.levelHash(200)).toBe(sim.levelHash(0));
+  });
 });

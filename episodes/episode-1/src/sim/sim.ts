@@ -26,6 +26,7 @@ export interface SimExports {
   game_new(): void;
   load_attract(idx: number, still: number): void;
   enter_level(id: number): void;
+  level_hash(id: number): number;
   enter_map(): void;
   enter_none(): void;
   set_view(halfW: number, halfH: number): void;
@@ -97,6 +98,14 @@ export class Sim {
     const w = this.x.thumb_w();
     const h = this.x.thumb_h();
     return { w, h, cells: this.views.u8('thumb', this.x.thumb_ptr(), w * h) };
+  }
+
+  /**
+   * A fingerprint of a level's tiles and what is placed in it. It changes when the level is edited, so a
+   * recording can tell its level is no longer the one it was made on. It does not cover the rules.
+   */
+  levelHash(id: number): number {
+    return this.x.level_hash(id) >>> 0;
   }
 
   /** The overworld area id at a tile position. */

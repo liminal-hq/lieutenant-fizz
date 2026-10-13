@@ -3461,3 +3461,89 @@ fn recording_the_cause_changes_nothing_the_simulation_does() {
         assert_eq!(a.game.lives, b.game.lives, "tick {t}");
     }
 }
+
+/// Where the first Phantom of a level lands when Ben steps up beside it on the given absolute tick.
+fn phantom_landing(id: u8, tick: u32) -> Option<(f64, f64)> {
+    let mut w = level(id);
+    let j = w.ents.iter().position(|e| e.kind == Kind::Phantom)?;
+    w.tick_count = tick;
+    w.ents[j].cd = 0.0;
+    w.ents[j].stun = 0.0;
+    // A Phantom teleports out of the way of one of Fizz's shots, so put a shot right beside it.
+    let (x, y) = (w.ents[j].b.x + 0.4, w.ents[j].b.y + 0.7);
+    w.shots.push(crate::ents::Shot {
+        x,
+        y,
+        vx: 0.0,
+        vy: 0.0,
+        ben: true,
+        life: 1.0,
+        sprite: crate::sprites::Spr::Bubble as u16,
+        g: false,
+        last: -1,
+    });
+    w.step(0);
+    Some((w.ents[j].b.x, w.ents[j].b.y))
+}
+
+#[test]
+fn a_phantoms_teleport_follows_the_absolute_tick() {
+    // The direction a Phantom jumps reads the absolute tick, so a replay of a level entered late in a session
+    // has to restore that tick. The same tick always gives the same landing, and across the ticks of a short
+    // stretch at least one Phantom level lands in more than one place.
+    let mut differs = false;
+    for id in 0..crate::levels::LEVEL_COUNT {
+        let landings: Vec<_> = (7000..7040)
+            .filter_map(|t| phantom_landing(id, t))
+            .collect();
+        if landings.is_empty() {
+            continue;
+        }
+        for t in 7000..7040 {
+            assert_eq!(
+                phantom_landing(id, t),
+                phantom_landing(id, t),
+                "level {id}, tick {t}"
+            );
+        }
+        differs |= landings.iter().any(|l| *l != landings[0]);
+    }
+    assert!(
+        differs,
+        "no Phantom level reads the tick any more; the replay can drop the restore"
+    );
+}
+
+#[test]
+fn a_levels_fingerprint_is_stable_and_follows_its_tiles_and_spawns() {
+    use crate::levels::{build_level, LEVEL_COUNT};
+    let prints: Vec<u32> = (0..LEVEL_COUNT)
+        .map(|id| build_level(id).fingerprint())
+        .collect();
+    for id in 0..LEVEL_COUNT {
+        assert_eq!(
+            prints[usize::from(id)],
+            build_level(id).fingerprint(),
+            "level {id}"
+        );
+    }
+    let mut sorted = prints.clone();
+    sorted.sort_unstable();
+    sorted.dedup();
+    assert_eq!(
+        sorted.len(),
+        prints.len(),
+        "every level has its own fingerprint"
+    );
+
+    let mut edited = build_level(CRATER);
+    let before = edited.fingerprint();
+    let t = edited.map.get(10, 6);
+    edited
+        .map
+        .set(10, 6, if t == CRACKED { EMPTY } else { CRACKED });
+    assert_ne!(edited.fingerprint(), before, "a changed tile");
+    let mut moved = build_level(CRATER);
+    moved.spawns[0].x += 1.0;
+    assert_ne!(moved.fingerprint(), before, "a moved spawn");
+}
