@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./atlas": "./src/atlas.ts",
+    "./app-saver": "./src/app-saver.ts",
     "./audio": "./src/audio.ts",
     "./audio-tune": "./src/audio-tune.ts",
     "./back-guard": "./src/back-guard.ts",
@@ -68,6 +69,8 @@
   "dependencies": {
     "@liminal-hq/undertone": "^0.2.0",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-fs": "^2",
     "@tauri-apps/plugin-log": "^2",
     "@tauri-apps/plugin-sql": "^2",
     "@tauri-apps/plugin-store": "^2",

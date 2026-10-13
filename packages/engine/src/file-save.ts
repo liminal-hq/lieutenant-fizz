@@ -3,16 +3,22 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-/** How a share ended. `unknown` is a share the browser started but did not report on. */
-export type ShareOutcome = 'shared' | 'cancelled' | 'failed';
+import { openAppSaver } from './app-saver';
+import { detectHostKind, hostEnvOf } from './host';
+
+/** How a share ended. `unknown` is a share that started and the system did not say more (Android and Windows often do not). */
+export type ShareOutcome = 'shared' | 'cancelled' | 'unknown' | 'failed';
+
+/** How a save ended. `cancelled` is the player closing the Save dialog, which is a choice and not a failure. */
+export type SaveOutcome = 'saved' | 'cancelled' | 'failed';
 
 /**
  * What the game saves a file with. The web build uses the browser; the apps swap in their own (the system
  * Save dialog, the share sheet). Both calls are made from a tap, since browsers only allow them from one.
  */
 export interface FileSaver {
-  /** Saves the file where the player chooses or to Downloads; resolves whether it was saved. */
-  save(bytes: Uint8Array, name: string, mime: string): Promise<boolean>;
+  /** Saves the file where the player chooses or to Downloads; resolves how it ended. */
+  save(bytes: Uint8Array, name: string, mime: string): Promise<SaveOutcome>;
   /** Whether a share menu is available for a file. */
   canShare(name: string, mime: string): boolean;
   /** Opens the system share menu for the file. */
@@ -51,9 +57,9 @@ export function webSaver(env: WebSaverEnv): FileSaver {
         env.document.body.removeChild(a);
         // The download has started by now; the address is freed a little later so it is never freed too soon.
         env.setTimeout(() => env.URL.revokeObjectURL(url), 10_000);
-        return true;
+        return 'saved';
       } catch {
-        return false;
+        return 'failed';
       }
     },
     canShare(name, mime) {
@@ -89,4 +95,14 @@ export function pageSaver(): FileSaver | null {
     File,
     setTimeout: (fn, ms) => window.setTimeout(fn, ms),
   });
+}
+
+/**
+ * The saver for where the game is running: the system dialogs and share sheet in the apps, the browser's own
+ * download and Web Share on the web, or null where neither exists. Asking what can be shared takes a moment in
+ * the apps, so this resolves once it is known.
+ */
+export async function openSaver(): Promise<FileSaver | null> {
+  if (detectHostKind(hostEnvOf()).startsWith('tauri')) return openAppSaver();
+  return pageSaver();
 }

@@ -3962,12 +3962,12 @@ export class Game {
   private async loadReview(id: string): Promise<void> {
     try {
       const { countEvents, exportName } = await import('@lieutenant-fizz/engine/session/export');
-      const { pageSaver } = await import('@lieutenant-fizz/engine/file-save');
+      const { openSaver } = await import('@lieutenant-fizz/engine/file-save');
       const read = await (await this.sampleStoreFor()).read(id);
       if (!read || this.reviewId !== id) return;
       const counts = countEvents(read.chunks);
       this.reviewDetail = { events: counts.total, kinds: counts.kinds, specs: read.header.specs };
-      this.fileSaver ??= pageSaver();
+      this.fileSaver ??= await openSaver();
       this.canShareSample =
         this.fileSaver?.canShare(exportName('fizz', id), 'application/zip') ?? false;
     } catch (err) {
@@ -3982,13 +3982,13 @@ export class Game {
     if (this.sample?.recorder.sessionId === id) return;
     try {
       const { sessionZip, exportName } = await import('@lieutenant-fizz/engine/session/export');
-      const { pageSaver } = await import('@lieutenant-fizz/engine/file-save');
+      const { openSaver } = await import('@lieutenant-fizz/engine/file-save');
       const read = await (await this.sampleStoreFor()).read(id);
       if (!read) {
         this.ui.toast('That sample is gone');
         return;
       }
-      const saver = (this.fileSaver ??= pageSaver());
+      const saver = (this.fileSaver ??= await openSaver());
       if (!saver) {
         this.ui.toast('This device cannot save the file');
         return;
@@ -4000,11 +4000,10 @@ export class Game {
         if (outcome === 'failed') this.ui.toast('The share did not start');
         else if (outcome === 'shared') this.ui.toast('Shared');
       } else {
-        this.ui.toast(
-          (await saver.save(bytes, name, 'application/zip'))
-            ? `Saved ${name}`
-            : 'The file was not saved',
-        );
+        // Closing the Save dialog is a choice, so it says nothing.
+        const outcome = await saver.save(bytes, name, 'application/zip');
+        if (outcome === 'saved') this.ui.toast(`Saved ${name}`);
+        else if (outcome === 'failed') this.ui.toast('The file was not saved');
       }
     } catch (err) {
       console.warn('A play sample could not be saved', err);

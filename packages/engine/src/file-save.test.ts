@@ -45,7 +45,7 @@ const bytes = Uint8Array.from([1, 2, 3, 4]);
 describe('webSaver.save', () => {
   it('downloads through a link with the file name, then frees the address later', async () => {
     const { saver, log, timers } = setup();
-    expect(await saver.save(bytes, 'fizz-session-x.zip', 'application/zip')).toBe(true);
+    expect(await saver.save(bytes, 'fizz-session-x.zip', 'application/zip')).toBe('saved');
     expect(log).toEqual([
       'url 4 application/zip',
       'append',
@@ -58,7 +58,7 @@ describe('webSaver.save', () => {
 
   it('says so when the browser will not let it click', async () => {
     const { saver } = setup({}, true);
-    expect(await saver.save(bytes, 'x.zip', 'application/zip')).toBe(false);
+    expect(await saver.save(bytes, 'x.zip', 'application/zip')).toBe('failed');
   });
 });
 
