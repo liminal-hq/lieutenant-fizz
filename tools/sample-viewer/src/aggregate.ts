@@ -5,7 +5,7 @@
 
 import type { Session } from '@lieutenant-fizz/engine/session/log';
 import { attemptsOf, type Attempt } from '../../../episodes/episode-1/src/replay/attempts';
-import { causeText, INPUT_BITS } from './names';
+import { causeText, INPUT_BITS } from '../../../episodes/episode-1/src/replay/names';
 
 export interface LevelStat {
   id: number;

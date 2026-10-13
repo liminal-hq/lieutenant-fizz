@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { Death, Input } from '../../../episodes/episode-1/src/sim/protocol';
+import { Death, Input } from '../sim/protocol';
 
 /** How Ben died, by the `death` events' `cause`. */
 export const CAUSE_NAMES: Record<number, string> = {
