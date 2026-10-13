@@ -10,6 +10,7 @@
     "./back-guard": "./src/back-guard.ts",
     "./back-peek": "./src/back-peek.ts",
     "./credits": "./src/credits.ts",
+    "./crc32": "./src/crc32.ts",
     "./episode": "./src/episode.ts",
     "./font/fizz.css": "./src/font/fizz.css",
     "./font/scale": "./src/font/scale.ts",

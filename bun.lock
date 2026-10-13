@@ -55,6 +55,16 @@
         "fake-indexeddb": "^6.2.5",
       },
     },
+    "tools/sample-viewer": {
+      "name": "@lieutenant-fizz/sample-viewer",
+      "version": "0.1.0",
+      "dependencies": {
+        "@lieutenant-fizz/engine": "workspace:*",
+      },
+      "devDependencies": {
+        "vite": "^8.0.0",
+      },
+    },
   },
   "packages": {
     "@cacheable/memory": ["@cacheable/memory@2.2.0", "", { "dependencies": { "@cacheable/utils": "^2.5.0", "@keyv/bigmap": "^1.3.1", "hookified": "^1.15.1", "keyv": "^5.6.0" } }, "sha512-CTLKqLItRCEixEAewD3/j9DB3/o96gpTPD4eJ1v+DGOlxZRZncRQkGYqqnAGCscYd6RNeXfGeiuCphsPtqyIfQ=="],
@@ -104,6 +114,8 @@
     "@lieutenant-fizz/episode-1": ["@lieutenant-fizz/episode-1@workspace:episodes/episode-1"],
 
     "@lieutenant-fizz/player": ["@lieutenant-fizz/player@workspace:apps/player"],
+
+    "@lieutenant-fizz/sample-viewer": ["@lieutenant-fizz/sample-viewer@workspace:tools/sample-viewer"],
 
     "@liminal-hq/plugin-gamepad-haptics": ["@liminal-hq/plugin-gamepad-haptics@0.1.0", "", { "dependencies": { "@tauri-apps/api": "^2.10.0" } }, "sha512-TpPDU0Db8wv6SkZfheB8U8/iDw9WA2lO/CAg4CxGlSJ2h54+4gkXJREWD9d5HXTHCf8BkPJvB4Gp5wRKr2/SuA=="],
 
