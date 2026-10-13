@@ -10,7 +10,7 @@ use crate::ents::{ItemKind, Kind, St};
 use crate::levels::{CAVES, CITADEL, CRATER};
 use crate::text::{ev, Cap};
 use crate::tiles::*;
-use crate::world::{input::*, Mode, World, MANTLE_REACH, MANTLE_TIME, POGO_DRAWN_HEIGHT};
+use crate::world::{death, input::*, Mode, World, MANTLE_REACH, MANTLE_TIME, POGO_DRAWN_HEIGHT};
 
 fn level(id: u8) -> World {
     let mut w = World::new();
@@ -3353,4 +3353,111 @@ fn a_rise_into_a_ceiling_below_the_last_footing_still_clunks() {
     w.p.b.vy = 14.0;
     run(&mut w, 40, 0);
     assert_eq!(clunks(&w), 1);
+}
+
+// ---------- How Ben died ----------
+
+#[test]
+fn ben_has_no_death_cause_while_alive_or_when_killed_without_one() {
+    let mut w = level(CRATER);
+    assert_eq!((w.p.death_cause, w.p.death_detail), (0, 0));
+    w.kill();
+    assert!(w.p.dead > 0.0);
+    assert_eq!((w.p.death_cause, w.p.death_detail), (0, 0));
+}
+
+#[test]
+fn chocolate_and_spikes_record_their_tile() {
+    let mut w = level(CRATER);
+    w.p.b.x = 30.0;
+    w.p.b.y = 2.4;
+    w.step(0);
+    assert_eq!(w.p.death_cause, death::CHOCOLATE);
+    assert_eq!(w.p.death_detail, u16::from(CHOC));
+
+    let mut w = level(CRATER);
+    let spike_x = (0..192)
+        .find(|&x| (0..28).any(|y| w.map.get(x, y) == SPIKE))
+        .unwrap();
+    w.p.b.x = f64::from(spike_x) + 0.1;
+    w.p.b.y = 4.0;
+    w.step(0);
+    assert_eq!(w.p.death_cause, death::SPIKES);
+    assert_eq!(w.p.death_detail, u16::from(SPIKE));
+}
+
+#[test]
+fn molten_metal_is_not_called_chocolate() {
+    let mut w = level(crate::levels::COCOA_FOUNDRY);
+    w.ents.clear();
+    w.p.b.x = 44.0;
+    w.p.b.y = 4.0;
+    run(&mut w, 60, 0);
+    assert_eq!(w.p.death_cause, death::MOLTEN_METAL);
+    assert_eq!(w.p.death_detail, u16::from(FURNACE));
+}
+
+#[test]
+fn falling_out_of_the_world_is_a_fall() {
+    let mut w = level(CRATER);
+    w.p.b.y = -2.0;
+    w.step(0);
+    assert_eq!(w.p.death_cause, death::FELL);
+    assert_eq!(w.p.death_detail, 0);
+}
+
+#[test]
+fn touching_an_enemy_records_its_kind() {
+    let mut w = level(CRATER);
+    let gi = w.ents.iter().position(|e| e.kind == Kind::Gloop).unwrap();
+    w.ents[gi].stun = 0.0;
+    w.ents[gi].b.vx = 0.0;
+    w.p.inv = 0.0;
+    // Beside it, not on its head.
+    w.p.b.x = w.ents[gi].b.x;
+    w.p.b.y = w.ents[gi].b.y;
+    w.p.b.vy = 0.0;
+    w.step(0);
+    assert!(w.p.dead > 0.0, "a gloop kills on contact");
+    assert_eq!(w.p.death_cause, death::ENEMY);
+    assert_eq!(w.p.death_detail, Kind::Gloop as u16);
+}
+
+#[test]
+fn the_first_cause_stands_once_ben_is_dead() {
+    let mut w = level(CRATER);
+    w.p.b.x = 30.0;
+    w.p.b.y = 2.4;
+    w.step(0);
+    assert_eq!(w.p.death_cause, death::CHOCOLATE);
+    w.kill_by(death::SHOT, 0);
+    assert_eq!(
+        w.p.death_cause,
+        death::CHOCOLATE,
+        "a second kill changes nothing"
+    );
+}
+
+#[test]
+fn recording_the_cause_changes_nothing_the_simulation_does() {
+    // Two identical worlds, one with a stale cause already stored: no rule reads it, so a long run with
+    // the same inputs ends in the same place.
+    let script = |t: usize| match t % 40 {
+        0..=19 => RIGHT,
+        20..=24 => RIGHT | JUMP,
+        _ => 0,
+    };
+    let mut a = level(CRATER);
+    let mut b = level(CRATER);
+    b.p.death_cause = 99;
+    b.p.death_detail = 12345;
+    for t in 0..900 {
+        a.step(script(t));
+        b.step(script(t));
+        assert_eq!(a.tick_count, b.tick_count);
+        assert_eq!((a.p.b.x, a.p.b.y), (b.p.b.x, b.p.b.y), "tick {t}");
+        assert_eq!(a.p.dead, b.p.dead, "tick {t}");
+        assert_eq!(a.game.score, b.game.score, "tick {t}");
+        assert_eq!(a.game.lives, b.game.lives, "tick {t}");
+    }
 }

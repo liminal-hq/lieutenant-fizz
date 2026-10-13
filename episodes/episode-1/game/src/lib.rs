@@ -245,6 +245,12 @@ pub mod state {
     pub const ATTRACT_IDX: u32 = 22;
     /// Whether Ben's pogo toggle is on (read-only; 0 outside a level).
     pub const POGO_ON: u32 = 23;
+    /// How Ben last died (read-only): 0 unknown or alive, 1 fell, 2 spikes, 3 chocolate, 4 molten metal,
+    /// 5 an enemy, 6 a pod's puff, 7 a shot. No rule reads it.
+    pub const DEATH_CAUSE: u32 = 24;
+    /// What killed him (read-only): the tile id for spikes, chocolate and molten metal, the enemy kind
+    /// (its position in `ents::Kind`) for an enemy or a puff, else 0.
+    pub const DEATH_DETAIL: u32 = 25;
 }
 
 #[no_mangle]
@@ -281,6 +287,8 @@ pub extern "C" fn state_get(i: u32) -> f64 {
         ATTRACT_PERIOD => f64::from(s.attract_period()),
         ATTRACT_IDX => f64::from(s.attract_idx),
         POGO_ON => b(s.p.pogo),
+        DEATH_CAUSE => f64::from(s.p.death_cause),
+        DEATH_DETAIL => f64::from(s.p.death_detail),
         _ => 0.0,
     }
 }
