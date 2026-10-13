@@ -45,6 +45,7 @@
     "./repeat": "./src/repeat.ts",
     "./file-save": "./src/file-save.ts",
     "./sound-field": "./src/sound-field.ts",
+    "./replay/transport": "./src/replay/transport.ts",
     "./session/export": "./src/session/export.ts",
     "./session/indexeddb-store": "./src/session/indexeddb-store.ts",
     "./session/listeners": "./src/session/listeners.ts",
