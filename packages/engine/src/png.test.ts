@@ -5,7 +5,8 @@
 
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { chunk, crc32, encodePngRgba } from './png';
+import { crc32 } from './crc32';
+import { chunk, encodePngRgba } from './png';
 
 interface Chunk {
   type: string;
