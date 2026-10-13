@@ -30,6 +30,10 @@ export type SubScreen =
   | 'display'
   | 'touch'
   | 'touchEdit'
+  | 'sample'
+  | 'sampleInfo'
+  | 'samples'
+  | 'sampleReview'
   | null;
 
 export interface TouchFaces {

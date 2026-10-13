@@ -16,6 +16,18 @@ import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics
 import { detectHostKind, hostEnvOf, type HostBackend } from '@lieutenant-fizz/engine/host';
 import { readSpecs, specsEnvOf } from '@lieutenant-fizz/engine/session/specs';
 import type { SampleHandle } from './sample/start';
+import type { SampleStore, SessionInfo } from '@lieutenant-fizz/engine/session/store';
+import {
+  ACTIVE_SAMPLE_KEY,
+  CONSENT_PAGES,
+  consentItems,
+  reviewItems,
+  reviewText,
+  sampleItems,
+  sampleRowOf,
+  sessionItems,
+  sessionOf,
+} from './sample-options';
 import { GAME_VERSION } from './version';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import { BackPeek } from '@lieutenant-fizz/engine/back-peek';
@@ -552,6 +564,15 @@ export class Game {
   /** The running play sample, or null. Its code is loaded only when one starts, so with samples off nothing of it exists. */
   private sample: SampleHandle | null = null;
   private sampleStarting = false;
+  /** Which page of the consent is showing, from 0. */
+  private consentPage = 0;
+  /** The samples saved on this device, or null while they are being read. */
+  private sampleList: SessionInfo[] | null = null;
+  /** The saved sample whose screen is open. */
+  private reviewId = '';
+  /** How many samples a crash or a closed app left open, found at launch. */
+  private leftOpen = 0;
+  private sampleStoreOnce: Promise<SampleStore> | null = null;
   private menuIdxNow = 0;
   private get menuIdx(): number {
     return this.menuIdxNow;
@@ -772,6 +793,14 @@ export class Game {
     this.unwatchBack = this.watchBack();
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('pagehide', this.onVisibility);
+    // A pointer to a session means the last page closed with one still recording: say so, once, without loading it.
+    if (this.store?.getItem(ACTIVE_SAMPLE_KEY)) {
+      this.leftOpen = 1;
+      window.setTimeout(
+        () => this.ui.toast('A play sample was left open: Options > Play sample'),
+        2000,
+      );
+    }
   }
 
   /** Builds the atlas, loads the WASM sim and starts the loop on the title screen. */
@@ -1866,6 +1895,7 @@ export class Game {
       ...(this.hapticsShown() ? [{ id: 'haptics', label: 'Haptics' }] : []),
       ...(this.anyPadSeen ? [{ id: 'controller', label: 'Controller' }] : []),
       ...(displayShown(this.displayCaps()) ? [{ id: 'display', label: 'Display' }] : []),
+      { id: 'sample', label: 'Play sample' },
       row('Captions', 'captions'),
       row('Controls', 'layout'),
       row('Text size', 'text'),
@@ -1897,6 +1927,7 @@ export class Game {
         };
       if (id === 'controller') return { id, label, value: controllerLinkValue(this.padBindings) };
       if (id === 'display') return { id, label, value: displayLinkValue(this.urlLocks(), o) };
+      if (id === 'sample') return { id, label, value: this.sample ? 'Recording' : 'Off' };
       return key ? { id, label, kind: 'choice', value: text(key) } : { id, label };
     });
   }
@@ -1955,6 +1986,20 @@ export class Game {
         this.touchSettings,
         this.touchRowList,
         resetArmed(this.resetAt, performance.now()),
+      );
+    if (this.sub === 'sample')
+      return sampleItems({
+        recording: this.sample !== null,
+        stored: this.sampleList?.length ?? null,
+        leftOpen: this.leftOpen,
+      });
+    if (this.sub === 'sampleInfo') return consentItems(this.consentPage);
+    if (this.sub === 'samples')
+      return sessionItems(this.sampleList, this.sample?.recorder.sessionId ?? '');
+    if (this.sub === 'sampleReview')
+      return reviewItems(
+        resetArmed(this.resetAt, performance.now()),
+        this.sample?.recorder.sessionId === this.reviewId,
       );
     if (this.sub === 'saves') return this.slotItems();
     if (this.sub === 'touchEdit') return [];
@@ -2611,9 +2656,43 @@ export class Game {
       else this.stepDisplayRow(row, 1);
       return;
     }
+    if (this.sub === 'sample') {
+      const row = sampleRowOf(id);
+      if (row === 'back') this.closeSub();
+      else if (row === 'start') {
+        this.consentPage = 0;
+        this.openSub('sampleInfo');
+      } else if (row === 'stop') void this.stopSample().then(() => this.refreshSamples());
+      else if (row === 'list') this.openSub('samples');
+      return;
+    }
+    if (this.sub === 'sampleInfo') {
+      if (id === 'consent:back') this.closeSub();
+      else if (id === 'consent:next') {
+        this.consentPage = Math.min(this.consentPage + 1, CONSENT_PAGES.length - 1);
+        this.menuIdx = 0;
+        this.syncUi();
+      } else if (id === 'consent:start') void this.startFromConsent();
+      return;
+    }
+    if (this.sub === 'samples') {
+      const session = sessionOf(id);
+      if (id === 'back') this.closeSub();
+      else if (session) {
+        this.reviewId = session;
+        this.openSub('sampleReview');
+      }
+      return;
+    }
+    if (this.sub === 'sampleReview') {
+      if (id === 'review:back') this.closeSub();
+      else if (id === 'review:delete') this.tapDeleteSample();
+      return;
+    }
     if (this.sub === 'options') {
       if (id === 'back') this.closeSub();
       else if (id === 'sound') this.openSound();
+      else if (id === 'sample') this.openSample();
       else if (id === 'haptics') this.openHaptics();
       else if (id === 'controller') this.openController();
       else if (id === 'display') this.openDisplay();
@@ -3385,6 +3464,10 @@ export class Game {
       this.sub === 'haptics' ||
       this.sub === 'controller' ||
       this.sub === 'display' ||
+      this.sub === 'sample' ||
+      this.sub === 'sampleInfo' ||
+      this.sub === 'samples' ||
+      this.sub === 'sampleReview' ||
       this.sub === 'touch';
     ui.showTitle(onTitle && !this.sub ? items : null, sel, onTitle && this.sub === 'controls');
     const editing = this.sub === 'touchEdit' && (onTitle || s === 'pause');
@@ -3401,18 +3484,26 @@ export class Game {
           ? this.saveMode === 'save'
             ? 'Save game'
             : 'Load game'
-          : this.sub === 'touch'
-            ? 'Touch controls'
-            : this.sub === 'sound'
-              ? 'Sound'
-              : this.sub === 'haptics'
-                ? 'Haptics'
-                : this.sub === 'controller'
-                  ? 'Controller'
-                  : this.sub === 'display'
-                    ? 'Display'
-                    : 'Options',
-        text: '',
+          : this.sub === 'sample'
+            ? 'Play sample'
+            : this.sub === 'sampleInfo'
+              ? (CONSENT_PAGES[this.consentPage]?.title ?? 'Play sample')
+              : this.sub === 'samples'
+                ? 'Saved samples'
+                : this.sub === 'sampleReview'
+                  ? 'Saved sample'
+                  : this.sub === 'touch'
+                    ? 'Touch controls'
+                    : this.sub === 'sound'
+                      ? 'Sound'
+                      : this.sub === 'haptics'
+                        ? 'Haptics'
+                        : this.sub === 'controller'
+                          ? 'Controller'
+                          : this.sub === 'display'
+                            ? 'Display'
+                            : 'Options',
+        text: this.sampleText(),
         items,
         sel,
         screen: saves ? 'saves' : this.remap.kind === 'listening' ? 'listen' : 'options',
@@ -3770,21 +3861,27 @@ export class Game {
     this.sampleStarting = true;
     try {
       const { startPlaySample } = await import('./sample/start');
-      const handle = await startPlaySample({
-        view: {
-          get: (i) => this.sim.get(i),
-          inLevel: () => this.sim.x.mode() === Mode.LEVEL,
-          levelName: (id) => LEVELS[id]?.name ?? '',
-          captionName: (i) => this.captionNames[i] ?? '',
-          toastName: (i) => this.toastNames[i] ?? '',
-          pads: () => (typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : []),
+      const handle = await startPlaySample(
+        {
+          view: {
+            get: (i) => this.sim.get(i),
+            inLevel: () => this.sim.x.mode() === Mode.LEVEL,
+            levelName: (id) => LEVELS[id]?.name ?? '',
+            captionName: (i) => this.captionNames[i] ?? '',
+            toastName: (i) => this.toastNames[i] ?? '',
+            pads: () =>
+              typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [],
+          },
+          pointer: this.store,
+          specs: () => this.sampleSpecs(),
+          tick: () => this.sim.get(State.TICK),
+          locate: (x, y, target) => this.locateForSample(x, y, target),
         },
-        pointer: this.store,
-        specs: () => this.sampleSpecs(),
-        tick: () => this.sim.get(State.TICK),
-        locate: (x, y, target) => this.locateForSample(x, y, target),
-      });
+        await this.sampleStoreFor(),
+      );
       this.sample = handle;
+      this.ui.showSampleMark(true);
+      this.syncUi();
       // The first events say where the session began.
       handle.recorder.record('rs', { w: window.innerWidth, h: window.innerHeight });
       handle.sample.screen(this.screen);
@@ -3804,7 +3901,79 @@ export class Game {
     const running = this.sample;
     if (!running) return;
     this.sample = null;
+    this.ui.showSampleMark(false);
+    this.syncUi();
     await running.stop();
+  }
+
+  /** The store samples are kept in, opened once and shared by recording, listing and deleting. */
+  private sampleStoreFor(): Promise<SampleStore> {
+    if (this.sample) return Promise.resolve(this.sample.store);
+    this.sampleStoreOnce ??= import('./sample/start').then((m) => m.chooseStore());
+    return this.sampleStoreOnce;
+  }
+
+  /** Opens the Play sample screen and reads what is saved. */
+  private openSample(): void {
+    this.openSub('sample');
+    void this.refreshSamples();
+  }
+
+  /** Reads the saved samples from the store and redraws. A store that cannot be read counts as empty. */
+  private async refreshSamples(): Promise<void> {
+    try {
+      const store = await this.sampleStoreFor();
+      this.sampleList = await store.list();
+    } catch (err) {
+      console.warn('Saved play samples could not be read', err);
+      this.sampleList = [];
+    }
+    const current = this.sample?.recorder.sessionId ?? '';
+    this.leftOpen = this.sampleList.filter((s) => !s.ended && s.id !== current).length;
+    this.syncUi();
+  }
+
+  /** The last consent page was agreed to: starts recording and leaves the screens. */
+  private async startFromConsent(): Promise<void> {
+    if (!(await this.startSample())) {
+      this.ui.toast('The play sample could not start');
+      return;
+    }
+    this.leaveSubs();
+    this.ui.toast('Recording a play sample');
+    void this.refreshSamples();
+  }
+
+  /** Delete on a saved sample's screen asks twice, then removes it and goes back to the list. */
+  private tapDeleteSample(): void {
+    if (this.sample?.recorder.sessionId === this.reviewId) return;
+    if (!resetArmed(this.resetAt, performance.now())) {
+      this.armReset();
+      return;
+    }
+    this.disarmReset();
+    const id = this.reviewId;
+    void (async () => {
+      try {
+        await (await this.sampleStoreFor()).remove(id);
+      } catch (err) {
+        console.warn('A play sample could not be deleted', err);
+      }
+      await this.refreshSamples();
+      if (this.sub === 'sampleReview') this.closeSub();
+    })();
+  }
+
+  /** The words above a Play sample screen's rows: the consent page, or one saved sample. */
+  private sampleText(): string {
+    if (this.sub === 'sample')
+      return 'Records a play session to help test the levels. It is off unless you start it.';
+    if (this.sub === 'sampleInfo') return CONSENT_PAGES[this.consentPage]?.text ?? '';
+    if (this.sub === 'sampleReview') {
+      const info = this.sampleList?.find((s) => s.id === this.reviewId);
+      return info ? reviewText(info, this.sample?.recorder.sessionId === info.id) : '';
+    }
+    return '';
   }
 
   /** What a play sample says about the device and the game, read once at its start. */
