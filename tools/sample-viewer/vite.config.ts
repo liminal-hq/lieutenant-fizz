@@ -1,3 +1,8 @@
+// Vite config for the play sample viewer, a developer tool that is not part of any shipped build.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import { defineConfig } from 'vite';
 
 // A developer tool: it is served by `bun run dev:viewer` or opened from `dist`, and it is never part of the
