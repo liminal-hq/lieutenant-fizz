@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lieutenant Fizz play sample viewer</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Play sample viewer</h1>
+      <p class="note">
+        A developer tool. It reads the zips here in the page and sends nothing anywhere.
+      </p>
+    </header>
+
+    <main>
+      <section id="load" aria-labelledby="load-h">
+        <h2 id="load-h">Load samples</h2>
+        <label id="drop" for="files">
+          <span>Drop sample zips here, or choose them</span>
+          <input id="files" type="file" accept=".zip,application/zip" multiple />
+        </label>
+        <ul id="problems" aria-live="polite"></ul>
+        <ul id="sessions"></ul>
+        <button id="clear" type="button" hidden>Clear all</button>
+      </section>
+
+      <div id="results" hidden>
+        <section aria-labelledby="levels-h">
+          <h2 id="levels-h">Levels</h2>
+          <table id="levels"></table>
+        </section>
+
+        <div class="cols">
+          <section aria-labelledby="buttons-h">
+            <h2 id="buttons-h">Buttons pressed</h2>
+            <div id="buttons" class="bars"></div>
+          </section>
+          <section aria-labelledby="causes-h">
+            <h2 id="causes-h">Lives lost by</h2>
+            <div id="causes" class="bars"></div>
+          </section>
+          <section aria-labelledby="spots-h">
+            <h2 id="spots-h">Worst spots</h2>
+            <ol id="spots"></ol>
+          </section>
+        </div>
+
+        <section aria-labelledby="map-h">
+          <h2 id="map-h">Paths through a level</h2>
+          <label
+            >Level
+            <select id="level"></select
+          ></label>
+          <canvas
+            id="map"
+            width="1200"
+            height="480"
+            role="img"
+            aria-label="Where players went in the level"
+          ></canvas>
+          <p id="legend" class="note"></p>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
