@@ -43,6 +43,7 @@
     "./repeat": "./src/repeat.ts",
     "./sound-field": "./src/sound-field.ts",
     "./session/indexeddb-store": "./src/session/indexeddb-store.ts",
+    "./session/listeners": "./src/session/listeners.ts",
     "./session/recorder": "./src/session/recorder.ts",
     "./session/specs": "./src/session/specs.ts",
     "./session/store": "./src/session/store.ts",
