@@ -3,10 +3,10 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { parseSession, type Session } from '@lieutenant-fizz/engine/session/log';
+import { readZip } from '@lieutenant-fizz/engine/zip-read';
 import { summarise, type Summary } from './aggregate';
 import { boundsOf, drawPaths } from './charts';
-import { parseSession, type Session } from './session';
-import { readZip } from './zip-read';
 
 /** Builds an element. Text is always set as text, never as markup: every name here comes from a file. */
 function h<K extends keyof HTMLElementTagNameMap>(

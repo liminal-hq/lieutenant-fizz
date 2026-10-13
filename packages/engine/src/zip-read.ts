@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { crc32 } from '@lieutenant-fizz/engine/crc32';
+import { crc32 } from './crc32';
 
 export interface ZipEntry {
   name: string;

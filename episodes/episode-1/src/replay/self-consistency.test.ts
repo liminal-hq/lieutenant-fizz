@@ -8,13 +8,13 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { sessionFromStore } from '@lieutenant-fizz/engine/session/log';
 import { SessionRecorder } from '@lieutenant-fizz/engine/session/recorder';
 import { memoryStore } from '@lieutenant-fizz/engine/session/store';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PlaySample, type SampleView } from '../sample/play-sample';
 import { Input, Level, Mode, State } from '../sim/protocol';
 import { Sim, type SpriteRect } from '../sim/sim';
-import { parseLog } from './log';
 import { Replayer } from './replayer';
 
 const wasmPath = fileURLToPath(new URL('../wasm/sim.wasm', import.meta.url));
@@ -75,8 +75,13 @@ async function record(sim: Sim, level: number, ticks: number, fresh = true) {
     sim.drainEvents();
   }
   await rec.flush();
-  const text = ((await store.read('r'))?.chunks ?? []).join('');
-  return { events: parseLog(text), x: sim.get(State.PLAYER_X), y: sim.get(State.PLAYER_Y) };
+  const read = await store.read('r');
+  if (!read) throw new Error('the recording was not stored');
+  return {
+    events: sessionFromStore('r', read).events,
+    x: sim.get(State.PLAYER_X),
+    y: sim.get(State.PLAYER_Y),
+  };
 }
 
 // These tests run against the real WASM (built by `bun run build:wasm`); CI builds it first.

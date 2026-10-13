@@ -5,16 +5,22 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { parseSession, type SessionEvent } from '@lieutenant-fizz/engine/session/log';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Sim, type SpriteRect } from '../sim/sim';
 import { entryAt } from './entry';
-import { parseLog, type LogEvent } from './log';
 import { Replayer } from './replayer';
 
 const wasmPath = fileURLToPath(new URL('../wasm/sim.wasm', import.meta.url));
 const built = existsSync(wasmPath);
-const fixture = (name: string): string =>
-  readFileSync(new URL(`./fixtures/fudge-bog/${name}`, import.meta.url), 'utf8');
+const fixtureFile = (name: string): Uint8Array =>
+  new Uint8Array(readFileSync(new URL(`./fixtures/fudge-bog/${name}`, import.meta.url)));
+/** The fixture's events, read the way a zip's files are. */
+const fixtureEvents = (): SessionEvent[] =>
+  parseSession('fudge-bog', [
+    { name: 'session.ndjson', data: fixtureFile('session.ndjson') },
+    { name: 'specs.json', data: fixtureFile('specs.json') },
+  ]).events;
 
 // The attempts in the fixture ended in these deaths (the `death` event ticks of the real recording).
 const DEATH_TICKS = [4371, 5134, 5970, 7254, 7571, 7901];
@@ -26,7 +32,7 @@ const FUDGE_BOG_HASH = 0x975ce0f7;
 const CHANGED = 'Fudge Bog has been edited since the fixture was recorded; record a new one';
 
 describe('entry state from a log', () => {
-  const events = parseLog(fixture('session.ndjson'));
+  const events = fixtureEvents();
   const levels = events.map((e, i) => (e.e === 'level' ? i : -1)).filter((i) => i >= 0);
 
   it('finds the six attempts at Fudge Bog', () => {
@@ -58,7 +64,7 @@ describe('entry state from a log', () => {
 // These tests run against the real WASM (built by `bun run build:wasm`); CI builds it first.
 describe.skipIf(!built)('replaying the real Fudge Bog sample', () => {
   let sim: Sim;
-  let events: LogEvent[];
+  let events: SessionEvent[];
 
   const fakeRects = (names: string[]): Record<string, SpriteRect> =>
     Object.fromEntries(
@@ -68,7 +74,7 @@ describe.skipIf(!built)('replaying the real Fudge Bog sample', () => {
   beforeAll(async () => {
     sim = await Sim.load(readFileSync(wasmPath));
     sim.setSprites(fakeRects(sim.spriteNames()));
-    events = parseLog(fixture('session.ndjson'));
+    events = fixtureEvents();
   });
 
   it('dies where the player died, on the same tick, in every attempt', (ctx) => {

@@ -3,9 +3,9 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { attemptsOf, type Attempt } from './attempts';
+import type { Session } from '@lieutenant-fizz/engine/session/log';
+import { attemptsOf, type Attempt } from '../../../episodes/episode-1/src/replay/attempts';
 import { causeText, INPUT_BITS } from './names';
-import type { Session } from './session';
 
 export interface LevelStat {
   id: number;

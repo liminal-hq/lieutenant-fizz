@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { Session } from './session';
+import type { Session } from '@lieutenant-fizz/engine/session/log';
 
 export type Outcome = 'clear' | 'died' | 'left' | 'open';
 

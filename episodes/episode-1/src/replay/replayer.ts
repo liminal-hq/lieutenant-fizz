@@ -3,10 +3,10 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { num, type SessionEvent } from '@lieutenant-fizz/engine/session/log';
 import { State } from '../sim/protocol';
 import type { Sim } from '../sim/sim';
 import { entryAt, type Entry } from './entry';
-import { num, type LogEvent } from './log';
 
 /** How far a replayed position may be from a recorded one: the log rounds to two decimals, so half a hundredth each way plus a margin. */
 export const POS_TOLERANCE = 0.011;
@@ -38,7 +38,7 @@ export interface Drift {
 }
 
 /** Every attempt in a log, in order. */
-export function findAttempts(events: readonly LogEvent[]): ReplayAttempt[] {
+export function findAttempts(events: readonly SessionEvent[]): ReplayAttempt[] {
   const starts: number[] = [];
   events.forEach((e, i) => {
     if (e.e === 'level') starts.push(i);
@@ -78,11 +78,11 @@ export class Replayer {
   private readonly inTicks: number[] = [];
   private readonly inBits: number[] = [];
   private pos = new Map<number, { x: number; y: number }>();
-  private recordedDeath: LogEvent | null = null;
+  private recordedDeath: SessionEvent | null = null;
 
   constructor(
     readonly sim: Sim,
-    readonly events: readonly LogEvent[],
+    readonly events: readonly SessionEvent[],
   ) {
     for (const e of events) {
       if (e.e !== 'in') continue;

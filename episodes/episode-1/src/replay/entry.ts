@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { num, type LogEvent } from './log';
+import { num, type SessionEvent } from '@lieutenant-fizz/engine/session/log';
 
 /** What the sim needs to be in before `enter_level` so the level starts as it did for the player. */
 export interface Entry {
@@ -32,7 +32,11 @@ export interface Entry {
 export const nextLifeFor = (score: number): number => Math.floor(score / 100) * 100 + 100;
 
 /** The nearest event of a kind before `index`, or null. */
-function lastBefore(events: readonly LogEvent[], index: number, kind: string): LogEvent | null {
+function lastBefore(
+  events: readonly SessionEvent[],
+  index: number,
+  kind: string,
+): SessionEvent | null {
   for (let i = index - 1; i >= 0; i--) {
     const e = events[i]!;
     if (e.e === kind) return e;
@@ -48,7 +52,7 @@ function lastBefore(events: readonly LogEvent[], index: number, kind: string): L
  * they do not change), or, for the first level of a session, the first `st` after. The cleared-levels mask is
  * left at zero, which only matters on the map.
  */
-export function entryAt(events: readonly LogEvent[], levelIndex: number): Entry | null {
+export function entryAt(events: readonly SessionEvent[], levelIndex: number): Entry | null {
   const level = events[levelIndex];
   if (!level || level.e !== 'level') return null;
 
