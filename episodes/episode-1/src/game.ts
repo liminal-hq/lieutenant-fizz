@@ -13,7 +13,10 @@ import type { AudioTune, TuneReport } from '@lieutenant-fizz/engine/audio-tune';
 import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
 import { padDisplayName, padModelKey, parseGamepadId } from '@lieutenant-fizz/engine/pad-model';
 import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics';
-import type { HostBackend } from '@lieutenant-fizz/engine/host';
+import { detectHostKind, hostEnvOf, type HostBackend } from '@lieutenant-fizz/engine/host';
+import { readSpecs, specsEnvOf } from '@lieutenant-fizz/engine/session/specs';
+import type { SampleHandle } from './sample/start';
+import { GAME_VERSION } from './version';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import { BackPeek } from '@lieutenant-fizz/engine/back-peek';
 import type { PredictiveBackBackend } from '@lieutenant-fizz/engine/predictive-back';
@@ -336,7 +339,15 @@ const BEN_BODY = 0.6;
 
 /** The Episode 1 game shell: boots the engine, runs the loop and drives the screen flow. */
 export class Game {
-  screen: Screen = 'loading';
+  private screenNow: Screen = 'loading';
+  get screen(): Screen {
+    return this.screenNow;
+  }
+  set screen(to: Screen) {
+    if (to === this.screenNow) return;
+    this.screenNow = to;
+    this.sample?.sample.screen(to);
+  }
   private readonly sim: Sim;
   private readonly atlas: Atlas;
   private readonly renderer: InstancedRenderer;
@@ -538,9 +549,29 @@ export class Game {
   private dlgI = 0;
   private typed = 0;
   private card: Card | null = null;
-  private menuIdx = 0;
+  /** The running play sample, or null. Its code is loaded only when one starts, so with samples off nothing of it exists. */
+  private sample: SampleHandle | null = null;
+  private sampleStarting = false;
+  private menuIdxNow = 0;
+  private get menuIdx(): number {
+    return this.menuIdxNow;
+  }
+  private set menuIdx(i: number) {
+    if (i === this.menuIdxNow) return;
+    this.menuIdxNow = i;
+    // The label is looked up only while a sample is recording: building the rows costs a little.
+    if (this.sample) this.sample.sample.menu(i, this.menuItems()[i]?.label);
+  }
   /** A screen opened from the title or pause menu; the menu underneath keeps its place. */
-  private sub: SubScreen = null;
+  private subNow: SubScreen = null;
+  private get sub(): SubScreen {
+    return this.subNow;
+  }
+  private set sub(to: SubScreen) {
+    if (to === this.subNow) return;
+    this.subNow = to;
+    this.sample?.sample.sub(to);
+  }
   /** The screens underneath `sub`, each with the row to put the selection back on, innermost last. */
   private subStack: { sub: SubScreen; idx: number }[] = [];
   private saveMode: 'save' | 'load' = 'load';
@@ -917,7 +948,9 @@ export class Game {
     this.haptics.setAttract(screen === 'title' && !this.sub && this.visible);
     if (screen === 'play' || screen === 'title') {
       this.alpha = this.stepper.advance(dt, () => {
-        sim.step(screen === 'play' ? this.input.poll() : 0);
+        const bits = screen === 'play' ? this.input.poll() : 0;
+        sim.step(bits);
+        this.sample?.sample.tick(bits);
       });
       if (screen === 'play') {
         this.levelSeconds += dt;
@@ -1072,6 +1105,7 @@ export class Game {
 
   private onEvent(e: { kind: number; a: number; b: number; c: number }): void {
     const sim = this.sim;
+    this.sample?.sample.simEvent(e);
     switch (e.kind) {
       case Ev.CAPTION:
         this.caption(e.a, e.b, e.c);
@@ -1450,6 +1484,7 @@ export class Game {
     this.audio.setMode(effectiveAudio(this.audioUrl, o));
     this.audio.setMusicVolume(volumeOf(o.music));
     this.audio.setMusicStyle(musicVersionOf(o));
+    this.sample?.sample.settings(o);
     this.audio.setMusic(o.music > 0);
     this.audio.setSfxVolume(volumeOf(o.sfx));
     this.audio.setSfx(o.sfx > 0);
@@ -3718,6 +3753,90 @@ export class Game {
 
   debugTitle(mode: TitleLayout): void {
     this.ui.setTitleLayout(mode);
+  }
+
+  /** Whether a play sample is being recorded now. */
+  get sampling(): boolean {
+    return this.sample !== null;
+  }
+
+  /**
+   * Starts recording a play sample, loading its code the first time. Resolves whether it started; a store that
+   * cannot be opened or a session that cannot be created leaves the game as it was.
+   */
+  async startSample(): Promise<boolean> {
+    if (this.sample) return true;
+    if (this.sampleStarting) return false;
+    this.sampleStarting = true;
+    try {
+      const { startPlaySample } = await import('./sample/start');
+      const handle = await startPlaySample({
+        view: {
+          get: (i) => this.sim.get(i),
+          inLevel: () => this.sim.x.mode() === Mode.LEVEL,
+          levelName: (id) => LEVELS[id]?.name ?? '',
+          captionName: (i) => this.captionNames[i] ?? '',
+          toastName: (i) => this.toastNames[i] ?? '',
+          pads: () => (typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : []),
+        },
+        pointer: this.store,
+        specs: () => this.sampleSpecs(),
+        tick: () => this.sim.get(State.TICK),
+        locate: (x, y, target) => this.locateForSample(x, y, target),
+      });
+      this.sample = handle;
+      // The first events say where the session began.
+      handle.recorder.record('rs', { w: window.innerWidth, h: window.innerHeight });
+      handle.sample.screen(this.screen);
+      handle.sample.sub(this.sub);
+      handle.sample.settings(this.settings);
+      return true;
+    } catch (err) {
+      console.warn('The play sample could not start', err);
+      return false;
+    } finally {
+      this.sampleStarting = false;
+    }
+  }
+
+  /** Stops the play sample, writing what is waiting. Resolves when it is stored. */
+  async stopSample(): Promise<void> {
+    const running = this.sample;
+    if (!running) return;
+    this.sample = null;
+    await running.stop();
+  }
+
+  /** What a play sample says about the device and the game, read once at its start. */
+  private sampleSpecs(): Record<string, unknown> {
+    const t = this.touchSettings;
+    return readSpecs(specsEnvOf(detectHostKind(hostEnvOf())), {
+      game: GAME_VERSION,
+      size: t.size,
+      opacity: t.opacity,
+      leftHanded: t.leftHanded,
+      movedControls: this.touchUi.placed?.custom ?? false,
+      touchMode: this.touchMode,
+      input: this.input.device,
+      audio: effectiveAudio(this.audioUrl, this.settings),
+      musicVersion: musicVersionOf(this.settings),
+      sfxVersion: sfxVersionOf(this.settings),
+      pixelScale: this.pixelScale,
+    });
+  }
+
+  /** Names what a pointer landed on for a play sample: a touch control, a menu row by its label, a named part of the page, or nothing. */
+  private locateForSample(x: number, y: number, target: unknown): string | null {
+    const control = this.touchMode ? this.touchUi.controlAt(x, y) : null;
+    if (control) return `ctl:${control}`;
+    const el = target instanceof Element ? target : null;
+    const row = el?.closest('.menu button');
+    if (row) {
+      const label = row.querySelector('.lbl')?.textContent?.trim();
+      return label ? `menu:${label}` : 'menu';
+    }
+    const named = el?.closest('[id]')?.id;
+    return named ? `ui:${named}` : null;
   }
 
   /** Test hook: opens a screen directly, so layout checks can visit each one. */
