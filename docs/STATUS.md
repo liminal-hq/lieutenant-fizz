@@ -71,6 +71,7 @@ Written down in `docs/` before any code, and iterated in pull requests. None of 
 - **Tauri app and launcher** (`docs/APP.md`): one Android and desktop app for every episode, with a game-style launcher (a carousel of episodes plus an App settings stop) that replaces each episode's title screen when launched from the app, global options with per-episode overrides, a launch contract, `.fizzsave` export and import, and the chosen app icon.
 - **Mobile** (`docs/MOBILE.md`, built in the slices of `docs/MOBILE_PLAN.md`, web first): the phone title, glass D-pad and Jump, Pogo and Fizz buttons, a phone layout for every screen, and haptics through an upgraded Tauri haptics plugin, driven by the same events as audio and captions.
 - **Play samples** (`docs/ENGINE_SPEC.md` section 7.1): an opt-in, complete record of a play session for playtesting, saved as you play and exported as a zip, with a developer viewer. Specified; the code follows in later pull requests.
+- **Replaying play samples** (`docs/ENGINE_SPEC.md` section 7.2): re-running a recorded session on the real sim, with watch screens in the game and the viewer and comments for a developer to export. The replay core is built and proven on a real phone recording (all six Fudge Bog deaths on the recorded ticks); the screens, exact entry records and Phantom levels follow.
 - **Design export:** `design/` was refreshed with the launcher, mobile and app icon artboards, the launcher art generator and the haptics plugin proposal.
 
 ## Known gaps and deviations
