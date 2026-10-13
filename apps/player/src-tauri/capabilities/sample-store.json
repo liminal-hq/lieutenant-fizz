@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "sample-store",
+  "description": "Lets the window keep a play sample in its own SQLite database while it is recorded.",
+  "windows": ["main"],
+  "permissions": ["sql:allow-load", "sql:allow-execute", "sql:allow-select", "sql:allow-close"]
+}
