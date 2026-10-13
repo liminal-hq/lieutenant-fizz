@@ -16,6 +16,7 @@ import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics
 import { detectHostKind, hostEnvOf, type HostBackend } from '@lieutenant-fizz/engine/host';
 import { readSpecs, specsEnvOf } from '@lieutenant-fizz/engine/session/specs';
 import type { SampleHandle } from './sample/start';
+import type { FileSaver } from '@lieutenant-fizz/engine/file-save';
 import type { SampleStore, SessionInfo } from '@lieutenant-fizz/engine/session/store';
 import {
   ACTIVE_SAMPLE_KEY,
@@ -23,6 +24,7 @@ import {
   consentItems,
   reviewItems,
   reviewText,
+  type ReviewDetail,
   sampleItems,
   sampleRowOf,
   sessionItems,
@@ -570,6 +572,12 @@ export class Game {
   private sampleList: SessionInfo[] | null = null;
   /** The saved sample whose screen is open. */
   private reviewId = '';
+  /** What the open sample's screen knows of its log (event counts and specs), once it has been read. */
+  private reviewDetail: ReviewDetail | null = null;
+  /** The system can share a file, so the open sample's screen offers Share. */
+  private canShareSample = false;
+  /** What saves and shares a sample's zip: the browser's, until the apps bring their own. */
+  private fileSaver: FileSaver | null = null;
   /** How many samples a crash or a closed app left open, found at launch. */
   private leftOpen = 0;
   private sampleStoreOnce: Promise<SampleStore> | null = null;
@@ -1997,10 +2005,11 @@ export class Game {
     if (this.sub === 'samples')
       return sessionItems(this.sampleList, this.sample?.recorder.sessionId ?? '');
     if (this.sub === 'sampleReview')
-      return reviewItems(
-        resetArmed(this.resetAt, performance.now()),
-        this.sample?.recorder.sessionId === this.reviewId,
-      );
+      return reviewItems({
+        armed: resetArmed(this.resetAt, performance.now()),
+        recording: this.sample?.recorder.sessionId === this.reviewId,
+        canShare: this.canShareSample,
+      });
     if (this.sub === 'saves') return this.slotItems();
     if (this.sub === 'touchEdit') return [];
     if (this.screen === 'title') {
@@ -2680,13 +2689,18 @@ export class Game {
       if (id === 'back') this.closeSub();
       else if (session) {
         this.reviewId = session;
+        this.reviewDetail = null;
+        this.canShareSample = false;
         this.openSub('sampleReview');
+        void this.loadReview(session);
       }
       return;
     }
     if (this.sub === 'sampleReview') {
       if (id === 'review:back') this.closeSub();
       else if (id === 'review:delete') this.tapDeleteSample();
+      else if (id === 'review:save') void this.saveReviewZip(false);
+      else if (id === 'review:share') void this.saveReviewZip(true);
       return;
     }
     if (this.sub === 'options') {
@@ -3944,6 +3958,60 @@ export class Game {
     void this.refreshSamples();
   }
 
+  /** Reads the open sample's log for what its screen says (event counts, specs) and whether it can be shared. */
+  private async loadReview(id: string): Promise<void> {
+    try {
+      const { countEvents, exportName } = await import('@lieutenant-fizz/engine/session/export');
+      const { pageSaver } = await import('@lieutenant-fizz/engine/file-save');
+      const read = await (await this.sampleStoreFor()).read(id);
+      if (!read || this.reviewId !== id) return;
+      const counts = countEvents(read.chunks);
+      this.reviewDetail = { events: counts.total, kinds: counts.kinds, specs: read.header.specs };
+      this.fileSaver ??= pageSaver();
+      this.canShareSample =
+        this.fileSaver?.canShare(exportName('fizz', id), 'application/zip') ?? false;
+    } catch (err) {
+      console.warn('A play sample could not be read', err);
+    }
+    this.syncUi();
+  }
+
+  /** Builds the open sample's zip and saves it (or opens the share menu with it), then says what happened. */
+  private async saveReviewZip(share: boolean): Promise<void> {
+    const id = this.reviewId;
+    if (this.sample?.recorder.sessionId === id) return;
+    try {
+      const { sessionZip, exportName } = await import('@lieutenant-fizz/engine/session/export');
+      const { pageSaver } = await import('@lieutenant-fizz/engine/file-save');
+      const read = await (await this.sampleStoreFor()).read(id);
+      if (!read) {
+        this.ui.toast('That sample is gone');
+        return;
+      }
+      const saver = (this.fileSaver ??= pageSaver());
+      if (!saver) {
+        this.ui.toast('This device cannot save the file');
+        return;
+      }
+      const name = exportName('fizz', id);
+      const bytes = await sessionZip(read);
+      if (share) {
+        const outcome = await saver.share(bytes, name, 'application/zip');
+        if (outcome === 'failed') this.ui.toast('The share did not start');
+        else if (outcome === 'shared') this.ui.toast('Shared');
+      } else {
+        this.ui.toast(
+          (await saver.save(bytes, name, 'application/zip'))
+            ? `Saved ${name}`
+            : 'The file was not saved',
+        );
+      }
+    } catch (err) {
+      console.warn('A play sample could not be saved', err);
+      this.ui.toast('The file was not saved');
+    }
+  }
+
   /** Delete on a saved sample's screen asks twice, then removes it and goes back to the list. */
   private tapDeleteSample(): void {
     if (this.sample?.recorder.sessionId === this.reviewId) return;
@@ -3971,7 +4039,9 @@ export class Game {
     if (this.sub === 'sampleInfo') return CONSENT_PAGES[this.consentPage]?.text ?? '';
     if (this.sub === 'sampleReview') {
       const info = this.sampleList?.find((s) => s.id === this.reviewId);
-      return info ? reviewText(info, this.sample?.recorder.sessionId === info.id) : '';
+      return info
+        ? reviewText(info, this.sample?.recorder.sessionId === info.id, this.reviewDetail)
+        : '';
     }
     return '';
   }

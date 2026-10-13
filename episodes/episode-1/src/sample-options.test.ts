@@ -10,6 +10,7 @@ import {
   ACTIVE_SAMPLE_KEY,
   CONSENT_PAGES,
   consentItems,
+  eventsText,
   reviewItems,
   reviewText,
   sampleItems,
@@ -19,6 +20,7 @@ import {
   sessionOf,
   sessionRowId,
   sizeText,
+  specsText,
   startedText,
 } from './sample-options';
 
@@ -154,17 +156,67 @@ describe('sessionItems', () => {
 });
 
 describe('the screen for one sample', () => {
-  it('asks twice to delete, and cannot delete the one recording', () => {
-    expect(reviewItems(false, false)[0]).toMatchObject({ label: 'Delete', disabled: false });
-    expect(reviewItems(true, false)[0]?.value).toBe('Tap again');
-    expect(reviewItems(false, true)[0]?.disabled).toBe(true);
+  const state = { armed: false, recording: false, canShare: false };
+
+  it('offers Save zip, Delete that asks twice, and Back, and Share only where there is a share menu', () => {
+    expect(reviewItems(state).map((i) => i.label)).toEqual(['Save zip', 'Delete', 'Back']);
+    expect(reviewItems({ ...state, canShare: true }).map((i) => i.label)).toEqual([
+      'Save zip',
+      'Share',
+      'Delete',
+      'Back',
+    ]);
+    expect(
+      reviewItems({ ...state, armed: true }).find((i) => i.id === 'review:delete')?.value,
+    ).toBe('Tap again');
   });
 
-  it('says when it started, how big it is, and how it ended', () => {
-    expect(reviewText(info(), false)).toBe(
-      'Started Oct 13, 14:02. 3.1 MB in 90 saved parts. It was stopped normally.',
+  it('cannot save, share or delete the sample being recorded', () => {
+    const rows = reviewItems({ ...state, recording: true, canShare: true });
+    for (const id of ['review:save', 'review:share', 'review:delete'])
+      expect(rows.find((i) => i.id === id)?.disabled).toBe(true);
+    expect(rows.find((i) => i.id === 'review:back')?.disabled).toBeUndefined();
+  });
+
+  const detail = {
+    events: 24118,
+    kinds: { ptr: 18402, pos: 3920, ev: 700, screen: 1096 },
+    specs: {
+      browser: 'WebView',
+      browserVersion: '141',
+      os: 'Android',
+      osVersion: '15',
+      screen: [2400, 1080],
+    },
+  };
+
+  it('says when it started, how big it is and how it ended, before the file has been read', () => {
+    expect(reviewText(info(), false, null)).toBe(
+      'Started Oct 13, 14:02. 3.1 MB. It was stopped normally.',
     );
-    expect(reviewText(info({ ended: false }), false)).toContain('left open');
-    expect(reviewText(info({ ended: false }), true)).toContain('being recorded now');
+    expect(reviewText(info({ ended: false }), false, null)).toContain('left open');
+    expect(reviewText(info({ ended: false }), true, null)).toContain('being recorded now');
+  });
+
+  it('says what the zip holds once the file has been read', () => {
+    const text = reviewText(info(), false, detail);
+    expect(text).toContain('24,118 events');
+    expect(text).toContain('18,402 pointer, 3,920 path, 700 game, 1,096 screen and menu');
+    expect(text).toContain('WebView 141 on Android 15, 2400×1080');
+  });
+});
+
+describe('eventsText and specsText', () => {
+  it('leaves out a group with no events, and groups the kinds', () => {
+    expect(eventsText({ key: 5, pad: 1, ax: 2, in: 3 })).toBe('5 key, 3 pad, 3 game');
+    expect(eventsText({})).toBe('');
+  });
+
+  it('writes the specs in one line and copes with missing parts', () => {
+    expect(
+      specsText({ browser: 'Chrome', browserVersion: '141', os: 'Linux', screen: [1920, 1080] }),
+    ).toBe('Chrome 141 on Linux, 1920×1080');
+    expect(specsText({ os: 'Android' })).toBe('Android');
+    expect(specsText({})).toBe('');
   });
 });

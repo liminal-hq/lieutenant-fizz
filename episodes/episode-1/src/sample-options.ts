@@ -131,25 +131,85 @@ export function sessionItems(list: readonly SessionInfo[] | null, recordingId: s
   return [...rows, { id: 'back', label: 'Back' }];
 }
 
-/** The rows of one session's screen: Delete asks twice, then Back. */
-export function reviewItems(armed: boolean, recording: boolean): MenuItem[] {
+/** What the review screen shows about a session beyond its size, read from the stored log. */
+export interface ReviewDetail {
+  events: number;
+  /** How many events of each kind, as the log names them. */
+  kinds: Record<string, number>;
+  /** The specs recorded with the session. */
+  specs: Record<string, unknown>;
+}
+
+/** What the rows of one session's screen depend on. */
+export interface ReviewState {
+  /** The first press of Delete was made. */
+  armed: boolean;
+  /** This is the session being recorded now: it cannot be saved or deleted until it is stopped. */
+  recording: boolean;
+  /** The system has a share menu for a file. */
+  canShare: boolean;
+}
+
+/** The rows of one session's screen: Save zip, Share where there is a share menu, Delete (asks twice) and Back. */
+export function reviewItems(s: ReviewState): MenuItem[] {
   return [
+    { id: 'review:save', label: 'Save zip', disabled: s.recording },
+    ...(s.canShare ? [{ id: 'review:share', label: 'Share', disabled: s.recording }] : []),
     {
       id: 'review:delete',
       label: 'Delete',
-      disabled: recording,
-      ...(armed ? { value: 'Tap again' } : {}),
+      disabled: s.recording,
+      ...(s.armed ? { value: 'Tap again' } : {}),
     },
     { id: 'review:back', label: 'Back' },
   ];
 }
 
-/** What the screen for one session says: when it started, its size, and whether it was cut short. */
-export function reviewText(info: SessionInfo, recording: boolean): string {
+const KIND_GROUPS: [string, string[]][] = [
+  ['pointer', ['ptr']],
+  ['key', ['key']],
+  ['pad', ['pad', 'ax']],
+  ['path', ['pos']],
+  ['game', ['in', 'st', 'death', 'ev', 'level']],
+  ['screen and menu', ['screen', 'sub', 'menu', 'opt', 'vis', 'rs']],
+];
+
+/** The events in words, by group, leaving out a group that has none: "18,402 pointer, 3,920 path, 1,796 game". */
+export function eventsText(kinds: Record<string, number>): string {
+  return KIND_GROUPS.map(
+    ([name, list]) => [name, list.reduce((n, k) => n + (kinds[k] ?? 0), 0)] as const,
+  )
+    .filter(([, n]) => n > 0)
+    .map(([name, n]) => `${n.toLocaleString('en-CA')} ${name}`)
+    .join(', ');
+}
+
+/** The specs in one line: "WebView 141 on Android 15, 2400×1080". Missing parts are left out. */
+export function specsText(specs: Record<string, unknown>): string {
+  const str = (v: unknown): string =>
+    typeof v === 'string' || typeof v === 'number' ? String(v) : '';
+  const browser = [str(specs['browser']), str(specs['browserVersion'])].filter(Boolean).join(' ');
+  const os = [str(specs['os']), str(specs['osVersion'])].filter(Boolean).join(' ');
+  const screen = Array.isArray(specs['screen']) ? (specs['screen'] as unknown[]).join('×') : '';
+  return [browser && os ? `${browser} on ${os}` : browser || os, screen].filter(Boolean).join(', ');
+}
+
+/**
+ * What the screen for one session says: when it started, its size, what is in the file (once read) and how it
+ * ended. The player reads this before saving.
+ */
+export function reviewText(
+  info: SessionInfo,
+  recording: boolean,
+  detail: ReviewDetail | null,
+): string {
   const state = recording
     ? 'It is being recorded now.'
     : info.ended
       ? 'It was stopped normally.'
       : 'It was left open, by a crash or a closed app; what was written is kept.';
-  return `Started ${startedText(info.startedAt)}. ${sizeText(info.bytes)} in ${info.chunks} saved parts. ${state}`;
+  const head = `Started ${startedText(info.startedAt)}. ${sizeText(info.bytes)}.`;
+  if (!detail) return `${head} ${state}`;
+  const inside = `The zip holds ${detail.events.toLocaleString('en-CA')} events (${eventsText(detail.kinds)}) and the specs (${specsText(detail.specs)}).`;
+  return `${head} ${inside} ${state}`;
 }
