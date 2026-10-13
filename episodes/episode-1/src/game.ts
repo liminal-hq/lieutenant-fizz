@@ -244,7 +244,7 @@ import type { HapticsLab } from './ui/haptics-lab';
 import type { LabId, LabShell } from './ui/lab-shell';
 import type { SoundLab } from './ui/sound-lab';
 import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
-import { Sim } from './sim/sim';
+import { Sim, type SimEvent } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
 import {
   CINE,
@@ -711,6 +711,7 @@ export class Game {
           const cap = touchWordCap(face[id].r * 2, TOUCH_WORD_GLYPHS[id]);
           this.touchUi.face(id).style.setProperty('--lf-word-cap', String(cap));
         }
+        this.noteTouchLayout();
       },
     });
     ui.setTouchOpacity(this.touchSettings.opacity);
@@ -1004,19 +1005,19 @@ export class Game {
     } else if (screen === 'credits') {
       this.stepper.reset();
       this.alpha = 1;
-      sim.drainEvents().forEach((e) => this.onEvent(e));
+      this.drainSim().forEach((e) => this.onEvent(e));
       this.tickCredits(dt);
     } else if (screen === 'stinger') {
       this.stepper.reset();
       this.alpha = 1;
-      sim.drainEvents().forEach((e) => this.onEvent(e));
+      this.drainSim().forEach((e) => this.onEvent(e));
       this.tickStinger(dt);
     } else if (screen === 'cine') {
       this.alpha = this.stepper.advance(dt, () => this.cine.tick(STEP));
     } else {
       this.stepper.reset();
       this.alpha = 1;
-      sim.drainEvents().forEach((e) => this.onEvent(e));
+      this.drainSim().forEach((e) => this.onEvent(e));
     }
     if (this.touchMode) this.touchUi.frame(performance.now());
     this.haptics.flush();
@@ -1137,12 +1138,20 @@ export class Game {
   // ---------- Events from the sim ----------
 
   private handleEvents(): void {
-    for (const e of this.sim.drainEvents()) this.onEvent(e);
+    for (const e of this.drainSim()) this.onEvent(e);
+  }
+
+  /**
+   * Empties the sim's event queue. A play sample has written every event a step raised already (at that step's
+   * tick); it first writes any that no step raised, so each is recorded once.
+   */
+  private drainSim(): SimEvent[] {
+    this.sample?.sample.beforeDrain();
+    return this.sim.drainEvents();
   }
 
   private onEvent(e: { kind: number; a: number; b: number; c: number }): void {
     const sim = this.sim;
-    this.sample?.sample.simEvent(e);
     switch (e.kind) {
       case Ev.CAPTION:
         this.caption(e.a, e.b, e.c);
@@ -2463,6 +2472,7 @@ export class Game {
   private applyTouchSettings(next: TouchSettings): void {
     this.touchSettings = next;
     this.touchUi.setSpec(touchSpec(next, undefined, this.chromeless()));
+    this.noteTouchLayout();
     this.ui.setTouchOpacity(next.opacity);
     this.ui.setTouchGutters(this.touchGutters());
     writeTouchSettings(this.store, next);
@@ -2925,6 +2935,7 @@ export class Game {
   /** Places the controls again when fullscreen or an installed display mode comes or goes. */
   private syncLift(): void {
     this.touchUi.setSpec(touchSpec(this.touchSettings, undefined, this.chromeless()));
+    this.noteTouchLayout();
     this.ui.setTouchGutters(this.touchGutters());
   }
 
@@ -3879,6 +3890,9 @@ export class Game {
         {
           view: {
             get: (i) => this.sim.get(i),
+            eventCount: () => this.sim.eventCount,
+            eventsSince: (from) => this.sim.eventsSince(from),
+            levelHash: (id) => this.sim.levelHash(id),
             inLevel: () => this.sim.x.mode() === Mode.LEVEL,
             levelName: (id) => LEVELS[id]?.name ?? '',
             captionName: (i) => this.captionNames[i] ?? '',
@@ -3901,6 +3915,7 @@ export class Game {
       handle.sample.screen(this.screen);
       handle.sample.sub(this.sub);
       handle.sample.settings(this.settings);
+      this.noteTouchLayout();
       return true;
     } catch (err) {
       console.warn('The play sample could not start', err);
@@ -3908,6 +3923,13 @@ export class Game {
     } finally {
       this.sampleStarting = false;
     }
+  }
+
+  /** Tells a running play sample where the touch controls are (it writes only a change). */
+  private noteTouchLayout(): void {
+    const running = this.sample;
+    if (!running) return;
+    running.sample.touch(this.touchUi.layoutInfo());
   }
 
   /** Stops the play sample, writing what is waiting. Resolves when it is stored. */
@@ -4050,6 +4072,9 @@ export class Game {
     const t = this.touchSettings;
     return readSpecs(specsEnvOf(detectHostKind(hostEnvOf())), {
       game: GAME_VERSION,
+      // The recording's revision, and a checksum of the sim it was made on (the same checksum, the same rules).
+      rec: 2,
+      sim: this.sim.wasmCrc,
       size: t.size,
       opacity: t.opacity,
       leftHanded: t.leftHanded,

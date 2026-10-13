@@ -20,6 +20,10 @@ export interface Entry {
   done: number;
   /** The input word held on the step that entered the level; it becomes the sim's previous input. */
   held: number;
+  /** The sim's pogo height at entry, when the log has it. */
+  pogoH: number | null;
+  /** The level's fingerprint when it was entered, when the log has it. */
+  levelHash: number | null;
   /** True when the values were worked out from other events, not written down at the time. */
   inferred: boolean;
 }
@@ -37,15 +41,33 @@ function lastBefore(events: readonly LogEvent[], index: number, kind: string): L
 }
 
 /**
- * The entry state of the level whose `level` event is at `levelIndex`. Samples recorded before the entry state
- * was written down have it worked out here: the held input is the last `in` before the `level` event, and lives,
- * ammo and score are the last `st` before it (the previous attempt's final values, since a level is only
- * entered from the map, where they do not change), or, for the first level of a session, the first `st` after.
- * The cleared-levels mask is left at zero, which only matters on the map.
+ * The entry state of the level whose `level` event is at `levelIndex`. A log of revision 2 or later has an
+ * `enter` event right after it with everything written down at the time. Samples recorded before that have it
+ * worked out here: the held input is the last `in` before the `level` event, and lives, ammo and score are the
+ * last `st` before it (the previous attempt's final values, since a level is only entered from the map, where
+ * they do not change), or, for the first level of a session, the first `st` after. The cleared-levels mask is
+ * left at zero, which only matters on the map.
  */
 export function entryAt(events: readonly LogEvent[], levelIndex: number): Entry | null {
   const level = events[levelIndex];
   if (!level || level.e !== 'level') return null;
+
+  const enter = events[levelIndex + 1];
+  if (enter?.e === 'enter' && num(enter, 'id', -1) === num(level, 'id')) {
+    return {
+      level: num(level, 'id'),
+      tick: level.t,
+      lives: num(enter, 'lives'),
+      ammo: num(enter, 'ammo'),
+      score: num(enter, 'score'),
+      next: num(enter, 'next'),
+      done: num(enter, 'done'),
+      held: num(enter, 'held'),
+      pogoH: typeof enter['pogoH'] === 'number' ? enter['pogoH'] : null,
+      levelHash: typeof enter['lvh'] === 'number' ? enter['lvh'] : null,
+      inferred: false,
+    };
+  }
 
   // The nearest `in` before the level event, even when its word is zero.
   const lastIn = lastBefore(events, levelIndex, 'in');
@@ -72,6 +94,8 @@ export function entryAt(events: readonly LogEvent[], levelIndex: number): Entry 
     next: nextLifeFor(score),
     done: 0,
     held,
+    pogoH: null,
+    levelHash: null,
     inferred: true,
   };
 }

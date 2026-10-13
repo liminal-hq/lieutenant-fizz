@@ -61,7 +61,7 @@ export interface ConsentPage {
 export const CONSENT_PAGES: readonly ConsentPage[] = [
   {
     title: 'What is recorded',
-    text: 'Every key, button and touch, with exactly where and when, on every screen, including touches that miss and touches in the menus. Where Ben is as you play, the screens you visit, and what happens in the game. Your screen size, browser and system, and the date, time and time zone you start.',
+    text: 'Every key, button and touch, with exactly where and when, on every screen, including touches that miss and touches in the menus. Where Ben is as you play, the screens you visit, and what happens in the game. Your screen size, browser and system, where your touch controls sit, and the date, time and time zone you start.',
   },
   {
     title: 'What is not recorded',

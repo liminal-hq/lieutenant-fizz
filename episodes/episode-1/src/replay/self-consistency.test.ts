@@ -35,7 +35,7 @@ function script(i: number): number {
 }
 
 /** Records `ticks` of the script in a level with the real adapter, and returns the log's events and the end position. */
-async function record(sim: Sim, level: number, ticks: number) {
+async function record(sim: Sim, level: number, ticks: number, fresh = true) {
   const store = memoryStore();
   const rec = new SessionRecorder({
     store,
@@ -49,6 +49,9 @@ async function record(sim: Sim, level: number, ticks: number) {
   await rec.start({});
   const view: SampleView = {
     get: (i) => sim.get(i),
+    eventCount: () => sim.eventCount,
+    eventsSince: (from) => sim.eventsSince(from),
+    levelHash: (id) => sim.levelHash(id),
     inLevel: () => sim.x.mode() === Mode.LEVEL,
     levelName: (id) => `Level ${id}`,
     captionName: (i) => `cap${i}`,
@@ -57,15 +60,19 @@ async function record(sim: Sim, level: number, ticks: number) {
   };
   const sample = new PlaySample(rec, view);
 
-  sim.x.game_new();
+  // A caller that has set the game up itself (its own lives and tick) asks for no fresh game.
+  if (fresh) sim.x.game_new();
   sim.x.set_view(11.5, 6.5);
   sim.x.enter_level(level);
-  for (const e of sim.drainEvents()) sample.simEvent(e);
+  sample.beforeDrain();
+  sim.drainEvents();
   for (let i = 0; i < ticks; i++) {
     const bits = script(i);
     sim.step(bits);
     sample.tick(bits);
-    for (const e of sim.drainEvents()) sample.simEvent(e);
+    // The game drains once a frame; here that is every step, which is its tightest case.
+    sample.beforeDrain();
+    sim.drainEvents();
   }
   await rec.flush();
   const text = ((await store.read('r'))?.chunks ?? []).join('');
@@ -103,6 +110,32 @@ describe.skipIf(!built)('a recorded run replays exactly', () => {
       expect(replayer.checked).toBeGreaterThan(5);
     });
   }
+
+  it('starts from the entry state the recording wrote down, not one worked out afterwards', async () => {
+    recorder.x.game_new();
+    recorder.set(State.LIVES, 2);
+    recorder.set(State.AMMO, 9);
+    recorder.set(State.SCORE, 340);
+    recorder.set(State.NEXT_LIFE, 400);
+    recorder.set(State.TICK, 12_345);
+    const { events } = await record(recorder, Level.CAVES, 200, false);
+    const replayer = new Replayer(player, events);
+    const entry = replayer.attempts[0]!.entry!;
+    expect(entry).toMatchObject({
+      level: Level.CAVES,
+      lives: 2,
+      ammo: 9,
+      score: 340,
+      next: 400,
+      tick: 12_345,
+      inferred: false,
+      levelHash: recorder.levelHash(Level.CAVES),
+    });
+    replayer.load(0);
+    replayer.run();
+    expect(replayer.drift).toBeNull();
+    expect(replayer.checked).toBeGreaterThan(5);
+  });
 
   it('ends in the same place the recorded run ended', async () => {
     const { events, x, y } = await record(recorder, Level.CRATER, 450);

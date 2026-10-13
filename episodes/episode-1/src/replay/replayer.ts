@@ -121,12 +121,15 @@ export class Replayer {
     sim.set(State.SCORE, entry.score);
     sim.set(State.NEXT_LIFE, entry.next);
     sim.set(State.DONE_MASK, entry.done);
+    if (entry.pogoH !== null) sim.set(State.POGO_HEIGHT, entry.pogoH);
     // A step with no mode set only takes the input, so the sim's previous input is what the entering step held.
     sim.x.enter_none();
     sim.step(entry.held);
     sim.x.set_view(11.5, 6.5);
     sim.x.enter_level(entry.level);
     sim.drainEvents();
+    // A Phantom's teleport reads the absolute tick, so the attempt starts on the tick it was entered on.
+    sim.set(State.TICK, entry.tick);
 
     this.current = attempt;
     this.tick = entry.tick;

@@ -7,15 +7,16 @@ import { SessionRecorder } from '@lieutenant-fizz/engine/session/recorder';
 import { memoryStore } from '@lieutenant-fizz/engine/session/store';
 import { describe, expect, it } from 'vitest';
 import { Ev, State } from '../sim/protocol';
-import { PATH_EVERY, PlaySample, type SampleView } from './play-sample';
+import { PATH_EVERY, PlaySample, type SampleEvent, type SampleView } from './play-sample';
 
-async function setup(initial: Record<number, number> = {}) {
+async function setup(initial: Record<number, number> = {}, waiting: SampleEvent[] = []) {
   const store = memoryStore();
+  const clock = { tick: 0 };
   const rec = new SessionRecorder({
     store,
     now: () => 0,
     wall: () => new Date(2026, 9, 13),
-    tick: () => 0,
+    tick: () => clock.tick,
     newId: () => 's',
     setTimeout: () => 0,
     clearTimeout: () => {},
@@ -23,8 +24,13 @@ async function setup(initial: Record<number, number> = {}) {
   await rec.start({});
   const values: Record<number, number> = { ...initial };
   const level = { on: true };
+  // The sim's event queue: tests push what a step raised, and clear it as the game's drain does.
+  const queue: SampleEvent[] = [...waiting];
   const view: SampleView = {
     get: (i) => values[i] ?? 0,
+    eventCount: () => queue.length,
+    eventsSince: (from) => queue.slice(from),
+    levelHash: (id) => 0x9000_0000 + id,
     inLevel: () => level.on,
     levelName: (id) => `Level ${id}`,
     captionName: (i) => `cap${i}`,
@@ -40,7 +46,7 @@ async function setup(initial: Record<number, number> = {}) {
       .filter(Boolean)
       .map((l) => JSON.parse(l) as Record<string, unknown>);
   };
-  return { sample, values, level, events };
+  return { sample, values, level, events, queue, clock };
 }
 
 describe('PlaySample.tick', () => {
@@ -142,7 +148,7 @@ describe('PlaySample events', () => {
     sample.simEvent({ kind: Ev.CAPTION, a: 9, b: 10.123, c: 20 });
     sample.simEvent({ kind: Ev.TOAST, a: 1, b: 0, c: 0 });
     sample.simEvent({ kind: 99, a: 0, b: 0, c: 0 });
-    const got = await events();
+    const got = (await events()).filter((e) => e.e !== 'enter');
     expect(got.map((e) => e.e)).toEqual(['level', 'ev', 'level', 'ev', 'ev', 'ev']);
     expect(got[0]).toMatchObject({ id: 4, name: 'Level 4', attempt: 1 });
     expect(got[2]).toMatchObject({ attempt: 2 });
@@ -150,5 +156,94 @@ describe('PlaySample events', () => {
     expect(got[3]).toMatchObject({ k: 'caption', n: 'cap9', b: 10.12 });
     expect(got[4]).toMatchObject({ k: 'toast', n: 'toast1' });
     expect(got[5]).toMatchObject({ k: 'kind99' });
+  });
+
+  it('writes the state a level was entered with right after its start, and the input held on that step', async () => {
+    const { sample, values, events } = await setup({
+      [State.LIVES]: 2,
+      [State.AMMO]: 14,
+      [State.SCORE]: 513,
+      [State.NEXT_LIFE]: 600,
+      [State.DONE_MASK]: 5,
+      [State.POGO_HEIGHT]: 6.6049,
+    });
+    sample.tick(18);
+    values[State.LIVES] = 1;
+    sample.simEvent({ kind: Ev.LEVEL_START, a: 7, b: 0, c: 0 });
+    const got = await events();
+    const at = got.findIndex((e) => e.e === 'level');
+    expect(got[at + 1]).toMatchObject({
+      e: 'enter',
+      id: 7,
+      lives: 1,
+      ammo: 14,
+      score: 513,
+      next: 600,
+      done: 5,
+      pogoH: 6.6,
+      held: 18,
+      lvh: 0x9000_0007,
+    });
+  });
+});
+
+describe('PlaySample event ticks', () => {
+  it('stamps each event with the tick of the step that raised it', async () => {
+    const { sample, queue, clock, events } = await setup();
+    queue.push({ kind: Ev.TOAST, a: 1, b: 0, c: 0 });
+    clock.tick = 100;
+    sample.tick(0);
+    queue.push({ kind: Ev.TOAST, a: 2, b: 0, c: 0 });
+    clock.tick = 101;
+    sample.tick(0);
+    const toasts = (await events()).filter((e) => e.e === 'ev');
+    expect(toasts.map((e) => [e.t, e.a])).toEqual([
+      [100, 1],
+      [101, 2],
+    ]);
+  });
+
+  it('writes an event raised outside any step once, then counts from the emptied queue', async () => {
+    const { sample, queue, clock, events } = await setup();
+    clock.tick = 50;
+    queue.push({ kind: Ev.TOAST, a: 1, b: 0, c: 0 });
+    sample.beforeDrain();
+    queue.length = 0;
+    clock.tick = 51;
+    sample.tick(0);
+    queue.push({ kind: Ev.TOAST, a: 2, b: 0, c: 0 });
+    clock.tick = 52;
+    sample.tick(0);
+    expect((await events()).filter((e) => e.e === 'ev').map((e) => [e.t, e.a])).toEqual([
+      [50, 1],
+      [52, 2],
+    ]);
+  });
+
+  it('leaves out events that were already waiting when the sample started', async () => {
+    const { sample, queue, events } = await setup({}, [{ kind: Ev.TOAST, a: 9, b: 0, c: 0 }]);
+    sample.tick(0);
+    queue.push({ kind: Ev.TOAST, a: 3, b: 0, c: 0 });
+    sample.tick(0);
+    expect((await events()).filter((e) => e.e === 'ev').map((e) => e.a)).toEqual([3]);
+  });
+});
+
+describe('PlaySample touch layout', () => {
+  it('writes the layout when it changes, not when it is written again', async () => {
+    const { sample, events } = await setup();
+    const layout = {
+      w: 844,
+      h: 390,
+      insets: { top: 0, right: 0, bottom: 0, left: 0 },
+      spec: { scale: 1 },
+    };
+    sample.touch(layout);
+    sample.touch({ ...layout });
+    sample.touch({ ...layout, spec: { scale: 1.2 } });
+    const got = (await events()).filter((e) => e.e === 'touch');
+    expect(got).toHaveLength(2);
+    expect(got[0]).toMatchObject({ w: 844, h: 390, spec: { scale: 1 } });
+    expect(got[1]).toMatchObject({ spec: { scale: 1.2 } });
   });
 });
