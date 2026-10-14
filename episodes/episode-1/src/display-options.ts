@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Want } from '@lieutenant-fizz/engine/lifecycle-policy';
-import { densityName } from './menu-density';
+import { densityName } from '@lieutenant-fizz/engine/menu/density';
 import { stepOption, type Options } from './options';
 import type { MenuItem } from './ui';
 import { NO_LOCKS, linkValue, lockedItem, type UrlLocks, type WakeUrl } from './url-lock';

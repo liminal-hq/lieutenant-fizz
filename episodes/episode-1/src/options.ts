@@ -4,127 +4,89 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import {
-  DEFAULT_STRENGTH,
-  isStrength,
-  MAX_STRENGTH,
-} from '@lieutenant-fizz/engine/haptic-strength';
-import { isPadModelKey } from '@lieutenant-fizz/engine/pad-model';
+  DEFAULT_GLOBAL_OPTIONS,
+  METER_BLOCKS,
+  parseGlobalOptions,
+  stepGlobalOption,
+  type GlobalKey,
+  type GlobalOptions,
+} from '@lieutenant-fizz/engine/options';
+import {
+  readOptionsFile,
+  resolveRaw,
+  setValue,
+  writeOptionsFile,
+  type Scope,
+} from '@lieutenant-fizz/engine/options-file';
 import type { AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import type { KeyValueStorage } from '@lieutenant-fizz/engine/storage';
-import { DEFAULT_DENSITY, DENSITY_COUNT } from './menu-density';
 
-/** Storage key for the options; the version lives inside the saved JSON. */
+/**
+ * Storage key for this episode's options as an older build saved them (the version lives inside the saved JSON).
+ * The shared options file (`lf-options-v1`, see the engine's `options-file.ts`) holds them now: the first read
+ * carries them over, and each save keeps this key up to date with what the episode sees, so an older build and
+ * the browser checks still find them.
+ */
 export const OPTIONS_KEY = 'lf-ep1-options-v1';
 
-/** Blocks on a volume meter. A level of 0 is silent and 8 is full volume. */
-export const METER_BLOCKS = 8;
+/** This episode's name in the shared options file. */
+export const EPISODE_ID = 'episode-1';
 
 export const LAYOUTS = ['Keen-style', 'Modern'] as const;
-export const TEXT_SIZES = ['Normal', 'Large'] as const;
-export const MOTIONS = ['System', 'Reduced', 'Full'] as const;
-/** The stored sound style: Auto follows the game's default, the others are the player's choice. */
-export const AUDIO_CHOICES = ['Auto', 'Classic', 'Enhanced'] as const;
-/** How many fullscreen settings are stored (Auto, On, Off; the names are in `display-options.ts`). */
-const FULLSCREEN_COUNT = 3;
 
-export interface Options {
-  /** Music volume, 0 to 8. */
-  music: number;
-  /** Sound effect volume, 0 to 8. */
-  sfx: number;
-  /** Sound style: 0 Auto (the game's default), 1 Classic, 2 Enhanced. */
-  audio: number;
-  /** Which arrangement of the music plays: 0 Auto (the game's default), 1 Classic, 2 Enhanced. */
-  musicVersion: number;
-  /** Which sound effects play: 0 Auto (the game's default), 1 Classic, 2 Enhanced. */
-  sfxVersion: number;
+/** The options only this episode has: they are saved in its own section, never as an app-wide value. */
+export const EPISODE_KEYS = ['captions', 'layout', 'lab', 'hapticsLab'] as const;
+
+/** What only this episode has. */
+export interface EpisodeOptions {
   /** Floating sound captions on or off. */
   captions: boolean;
   /** Which keyboard layout the hints and Controls table show: 0 Keen-style, 1 Modern. */
   layout: number;
-  /** Text size: 0 normal, 1 large (one scale step up). */
-  text: number;
-  /** Motion: 0 follows the system setting, 1 is reduced, 2 is full. */
-  motion: number;
   /** Whether the sound lab is available without `?debug`. Off by default. */
   lab: boolean;
-  /** Controller rumble strength: 0 Off, 1 Light, 2 Medium, 3 Strong (the phone's strength is in the touch settings). */
-  rumble: number;
-  /** Rumble strength per pad model, keyed by `vendorId:productId` (see `padModelKey`); a model with no entry uses `rumble`, lowered to the model's own start. */
-  rumblePads: Record<string, number>;
   /** Whether the haptics lab is available without `?debug`. Off by default. */
   hapticsLab: boolean;
-  /** Fullscreen when a run starts or resumes: 0 Auto (touch devices), 1 On, 2 Off. */
-  fullscreen: number;
-  /** Whether the screen is kept on while playing and watching. On by default. */
-  awake: boolean;
-  /** Menu row spacing on touch devices: 0 Compact, 1 Cozy, 2 Comfy (`menu-density.ts` has the heights). */
-  density: number;
 }
+
+/** Every option the Options screens show: the app-wide ones, and this episode's own. */
+export type Options = GlobalOptions & EpisodeOptions;
 
 /** The keys of {@link Options} the Options screen can change. */
 export type SettingKey = Exclude<keyof Options, 'rumblePads'>;
 
 /** Volumes start at full, which is how the game sounded before there were options. */
 export const DEFAULT_OPTIONS: Readonly<Options> = {
-  music: METER_BLOCKS,
-  sfx: METER_BLOCKS,
-  audio: 0,
-  musicVersion: 0,
-  sfxVersion: 0,
+  ...DEFAULT_GLOBAL_OPTIONS,
   captions: true,
   layout: 0,
-  text: 0,
-  motion: 0,
   lab: false,
-  rumble: DEFAULT_STRENGTH,
-  rumblePads: {},
   hapticsLab: false,
-  fullscreen: 0,
-  awake: true,
-  density: DEFAULT_DENSITY,
 };
 
 const int = (v: unknown, lo: number, hi: number, fallback: number): number =>
   typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : fallback;
 
-/** The per-model rumble levels in stored options: entries with a model key and a valid level, anything else left out. */
-function parseRumblePads(v: unknown): Record<string, number> {
-  const out: Record<string, number> = {};
-  if (v && typeof v === 'object' && !Array.isArray(v)) {
-    for (const [key, level] of Object.entries(v)) {
-      if (isPadModelKey(key) && isStrength(level)) out[key] = level;
-    }
-  }
-  return out;
+/** The options in a stored record; any missing or invalid field falls back to its default. */
+export function parseOptionsRaw(raw: Readonly<Record<string, unknown>> | null): Options {
+  const d = DEFAULT_OPTIONS;
+  return {
+    ...parseGlobalOptions(raw),
+    captions: typeof raw?.['captions'] === 'boolean' ? raw['captions'] : d.captions,
+    layout: int(raw?.['layout'], 0, LAYOUTS.length - 1, d.layout),
+    lab: typeof raw?.['lab'] === 'boolean' ? raw['lab'] : d.lab,
+    hapticsLab: typeof raw?.['hapticsLab'] === 'boolean' ? raw['hapticsLab'] : d.hapticsLab,
+  };
 }
 
-/** Parses stored options; any missing or invalid field falls back to its default. */
+/** Parses options saved as one blob (`{v: 1, ...fields}`); any missing or invalid field falls back to its default. */
 export function parseOptions(json: string | null): Options {
-  const d = DEFAULT_OPTIONS;
   try {
     const raw = (json ? JSON.parse(json) : null) as Record<string, unknown> | null;
-    if (!raw || typeof raw !== 'object' || raw['v'] !== 1) return { ...d };
-    return {
-      music: int(raw['music'], 0, METER_BLOCKS, d.music),
-      sfx: int(raw['sfx'], 0, METER_BLOCKS, d.sfx),
-      audio: int(raw['audio'], 0, AUDIO_CHOICES.length - 1, d.audio),
-      musicVersion: int(raw['musicVersion'], 0, AUDIO_CHOICES.length - 1, d.musicVersion),
-      sfxVersion: int(raw['sfxVersion'], 0, AUDIO_CHOICES.length - 1, d.sfxVersion),
-      captions: typeof raw['captions'] === 'boolean' ? raw['captions'] : d.captions,
-      layout: int(raw['layout'], 0, LAYOUTS.length - 1, d.layout),
-      text: int(raw['text'], 0, TEXT_SIZES.length - 1, d.text),
-      motion: int(raw['motion'], 0, MOTIONS.length - 1, d.motion),
-      lab: typeof raw['lab'] === 'boolean' ? raw['lab'] : d.lab,
-      rumble: isStrength(raw['rumble']) ? raw['rumble'] : d.rumble,
-      rumblePads: parseRumblePads(raw['rumblePads']),
-      hapticsLab: typeof raw['hapticsLab'] === 'boolean' ? raw['hapticsLab'] : d.hapticsLab,
-      fullscreen: int(raw['fullscreen'], 0, FULLSCREEN_COUNT - 1, d.fullscreen),
-      awake: typeof raw['awake'] === 'boolean' ? raw['awake'] : d.awake,
-      density: int(raw['density'], 0, DENSITY_COUNT - 1, d.density),
-    };
+    if (!raw || typeof raw !== 'object' || raw['v'] !== 1) return parseOptionsRaw(null);
+    return parseOptionsRaw(raw);
   } catch {
-    return { ...d };
+    return parseOptionsRaw(null);
   }
 }
 
@@ -133,20 +95,42 @@ export function serialiseOptions(o: Options): string {
 }
 
 type Reader = Pick<KeyValueStorage, 'getItem'>;
-type Writer = Pick<KeyValueStorage, 'setItem'>;
+type Store = Pick<KeyValueStorage, 'getItem' | 'setItem'>;
 
+const LEGACY = [{ episode: EPISODE_ID, key: OPTIONS_KEY }] as const;
+
+/** The options this episode sees: the app-wide values with its own overrides on top. */
 export function readOptions(store: Reader | null): Options {
   try {
-    return parseOptions(store?.getItem(OPTIONS_KEY) ?? null);
+    const file = readOptionsFile(store, LEGACY, EPISODE_KEYS);
+    return parseOptionsRaw(resolveRaw(file, EPISODE_ID, EPISODE_KEYS));
   } catch {
-    return { ...DEFAULT_OPTIONS };
+    return parseOptionsRaw(null);
   }
 }
 
-export function writeOptions(store: Writer | null, o: Options): boolean {
+/**
+ * Saves what changed. The file is read again first and only the options that differ from what is saved are
+ * written, in `scope` (every episode by default, or this one alone), so the launcher and the game never overwrite
+ * each other's changes. An option only this episode has always goes in its own section. Returns false when the
+ * store would not take it.
+ */
+export function writeOptions(store: Store | null, o: Options, scope: Scope = 'global'): boolean {
+  if (!store) return false;
   try {
-    store?.setItem(OPTIONS_KEY, serialiseOptions(o));
-    return !!store;
+    let file = readOptionsFile(store, LEGACY, EPISODE_KEYS);
+    const before = parseOptionsRaw(resolveRaw(file, EPISODE_ID, EPISODE_KEYS));
+    for (const key of Object.keys(o) as (keyof Options)[]) {
+      if (JSON.stringify(o[key]) !== JSON.stringify(before[key])) {
+        file = setValue(file, scope, EPISODE_ID, key, o[key], EPISODE_KEYS);
+      }
+    }
+    const saved = writeOptionsFile(store, file);
+    store.setItem(
+      OPTIONS_KEY,
+      serialiseOptions(parseOptionsRaw(resolveRaw(file, EPISODE_ID, EPISODE_KEYS))),
+    );
+    return saved;
   } catch {
     return false;
   }
@@ -187,38 +171,36 @@ export function reducedMotion(o: Pick<Options, 'motion'>, system: boolean): bool
   return o.motion === 1 || (o.motion === 0 && system);
 }
 
-/** The number of values a choice option cycles through. */
-const CHOICES: Partial<Record<SettingKey, number>> = {
-  audio: AUDIO_CHOICES.length,
-  musicVersion: AUDIO_CHOICES.length,
-  sfxVersion: AUDIO_CHOICES.length,
-  captions: 2,
-  lab: 2,
-  hapticsLab: 2,
-  fullscreen: FULLSCREEN_COUNT,
-  awake: 2,
-  density: DENSITY_COUNT,
-  rumble: MAX_STRENGTH + 1,
-  layout: LAYOUTS.length,
-  text: TEXT_SIZES.length,
-  motion: MOTIONS.length,
-};
-
 const mod = (v: number, n: number): number => ((v % n) + n) % n;
+
+const GLOBAL_STEP_KEYS: readonly GlobalKey[] = [
+  'music',
+  'sfx',
+  'audio',
+  'musicVersion',
+  'sfxVersion',
+  'text',
+  'motion',
+  'fullscreen',
+  'awake',
+  'density',
+  'rumble',
+];
 
 /**
  * Changes one option by a step: meters clamp between 0 and 8, and choices wrap around. `wrapMeter`
  * lets Enter on a meter go from full back to silent, as in the design.
  */
 export function stepOption(o: Options, key: SettingKey, delta: number, wrapMeter = false): Options {
-  if (key === 'music' || key === 'sfx') {
-    const next = wrapMeter ? mod(o[key] + delta, METER_BLOCKS + 1) : o[key] + delta;
-    return { ...o, [key]: Math.min(METER_BLOCKS, Math.max(0, next)) };
-  }
-  const n = CHOICES[key] ?? 1;
   if (key === 'captions') return { ...o, captions: !o.captions };
   if (key === 'lab') return { ...o, lab: !o.lab };
   if (key === 'hapticsLab') return { ...o, hapticsLab: !o.hapticsLab };
-  if (key === 'awake') return { ...o, awake: !o.awake };
-  return { ...o, [key]: mod(o[key] + delta, n) };
+  if (key === 'layout') return { ...o, layout: mod(o.layout + delta, LAYOUTS.length) };
+  if (GLOBAL_STEP_KEYS.includes(key)) {
+    return {
+      ...o,
+      ...stepGlobalOption(o, key as Exclude<GlobalKey, 'rumblePads'>, delta, wrapMeter),
+    };
+  }
+  return o;
 }

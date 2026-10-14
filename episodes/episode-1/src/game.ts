@@ -123,6 +123,7 @@ import { attractFade, attractLabel, nextAttract } from './attract';
 import { backAction, backEnabled, escAction, pauseAction, peekPlan } from './back';
 import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
 import { touchWordCap } from '@lieutenant-fizz/engine/font/scale';
+import { METER_BLOCKS, MOTIONS, TEXT_SIZES } from '@lieutenant-fizz/engine/options';
 import { gestureFor, isLive } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
 import { viewPoint } from './map-panel';
@@ -139,20 +140,17 @@ import { EPISODE } from './episode';
 import {
   DEFAULT_OPTIONS,
   LAYOUTS,
-  METER_BLOCKS,
-  MOTIONS,
   readOptions,
   musicVersionOf,
   reducedMotion,
   sfxVersionOf,
   stepOption,
-  TEXT_SIZES,
   volumeOf,
   writeOptions,
   type Options,
   type SettingKey,
 } from './options';
-import { densityRow } from './menu-density';
+import { densityRow } from '@lieutenant-fizz/engine/menu/density';
 import {
   displayItems,
   displayLinkValue,

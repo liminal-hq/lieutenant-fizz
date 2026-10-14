@@ -11,7 +11,7 @@ import {
   densityName,
   densityOf,
   densityRow,
-} from './menu-density';
+} from './density';
 
 describe('DENSITIES', () => {
   it('names Compact, Cozy and Comfy at 36, 40 and 48 dp, in the order they are stored', () => {
