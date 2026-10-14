@@ -5,6 +5,7 @@
 @import '@lieutenant-fizz/engine/menu/keys.css';
 @import '@lieutenant-fizz/engine/menu/logo.css';
 @import '@lieutenant-fizz/engine/menu/scroll.css';
+@import '@lieutenant-fizz/engine/menu/slots.css';
 @import '@lieutenant-fizz/engine/touch-ui.css';
 
 /* The room the on-screen controls take beside the menu: set by the page, only where they would sit over it. */
@@ -93,6 +94,18 @@ body {
 }
 #launcher .menu[hidden] {
   display: none;
+}
+
+/* A save's row is taller than a plain one: its picture and two lines set the height. */
+#launcher .menu button.slot,
+#launcher .menu button.slot .plate {
+  height: auto;
+  min-height: var(--lf-menu-row, 40px);
+}
+@media (pointer: coarse) {
+  #launcher .menu button.slot {
+    height: auto;
+  }
 }
 
 /* A scrolling menu lays every row out at one height (set by the page). */

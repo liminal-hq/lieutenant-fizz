@@ -22,6 +22,8 @@ export function menuScaleVars(
     '--lf-n-head': String(steps.head),
     '--lf-n-hint': String(steps.hint),
     '--lf-cw-mul': String(steps.bullet),
+    // How many pixels a save thumbnail pixel covers: the game's save slots draw it double at the larger text sizes.
+    '--lf-thumb': String(steps.item >= 4 ? 2 : 1),
     '--lf-pad-x': `${sidePadding(width)}px`,
     '--lf-pad-y': `${verticalPadding(height)}px`,
     // How far the hint bar stands above the bottom edge: 4% of the height, from 16 to 36 px.

@@ -76,6 +76,15 @@
     ]
   },
   "saves": {
+    "overworld": "overworld.json",
+    "levels": 15,
+    "areas": [
+      "Crater Fields",
+      "Marshmallow Meadows",
+      "Rock Candy Reach",
+      "Frosting Frontier",
+      "Gumdrop Isle"
+    ],
     "auto": "lf-ep1-save-v1",
     "slots": [
       "lf-ep1-slot-1",

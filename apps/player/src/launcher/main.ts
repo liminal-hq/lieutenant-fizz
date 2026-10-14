@@ -41,6 +41,7 @@ import { cueOf } from './cues';
 import { readUnlocked } from './dev-unlock';
 import { fullscreenKey, shouldStartFullscreen } from './desktop';
 import { applyEffects } from './effects';
+import { parseOverworld, type OverworldData } from './slot-info';
 import { optionsSourceOf, readGlobal, resetGlobal, volumeOf, writeGlobal } from './options';
 import type { GlobalOptions } from '@lieutenant-fizz/engine/options';
 import { RESET_ARM_MS } from '@lieutenant-fizz/engine/two-tap';
@@ -105,6 +106,8 @@ const toast = await createToast({ kind: host.kind, snackbar, ...(await tauriCall
 interface EpisodeFiles {
   info: EpisodeInfo | undefined;
   theme: MenuThemeData | undefined;
+  /** The overworld the Load game screen draws slots from, when the episode has one. */
+  overworld: OverworldData | undefined;
   base: URL;
 }
 async function loadJson<T>(url: URL): Promise<T | undefined> {
@@ -126,14 +129,18 @@ await Promise.all(
       loadJson<EpisodeInfo>(new URL('episode.json', base)),
       loadJson<MenuThemeData>(new URL('theme.json', base)),
     ]);
-    files.set(stop.id, { info, theme, base });
+    const overworldFile = info?.saves.overworld;
+    const overworld = overworldFile
+      ? parseOverworld(await loadJson<unknown>(new URL(overworldFile, base)))
+      : undefined;
+    files.set(stop.id, { info, theme, overworld, base });
   }),
 );
 // The app-wide options (read from the shared file, carried over from an older build's the first time).
 const optionsSource = optionsSourceOf([...files.values()].map((f) => f.info));
 let options = readGlobal(store, optionsSource);
 const saves: Record<string, SaveSummary> = {};
-for (const [id, f] of files) if (f.info) saves[id] = readSaves(store, f.info);
+for (const [id, f] of files) if (f.info) saves[id] = readSaves(store, f.info, f.overworld);
 
 // Leaving for the debug menu from About comes back to About, not to the first screen.
 const RETURN_KEY = 'lf-launcher-return-v1';
@@ -187,7 +194,7 @@ const savesDeps: SavesDeps = {
   flush: async () => (await flushable(store)?.flush()) !== false,
   refresh: () => {
     const next: Record<string, SaveSummary> = {};
-    for (const [id, f] of files) if (f.info) next[id] = readSaves(store, f.info);
+    for (const [id, f] of files) if (f.info) next[id] = readSaves(store, f.info, f.overworld);
     dispatch({ type: 'saves', saves: next });
   },
 };

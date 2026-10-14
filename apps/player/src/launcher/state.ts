@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Launch, LaunchSlot } from '@lieutenant-fizz/engine/launch';
+import type { SlotRow } from '@lieutenant-fizz/engine/menu/slot-row';
 import {
   DEFAULT_GLOBAL_OPTIONS,
   stepGlobalOption,
@@ -126,6 +127,8 @@ export interface Row {
   readonly kind?: 'meter' | 'choice';
   /** Lit blocks of a meter, 0 to 8. */
   readonly meter?: number;
+  /** A save drawn as the game's Load game screen draws it: picture, two lines and a pip for each level. */
+  readonly slot?: SlotRow;
   /** A strip of names with one lit, drawn as a heading rather than a row. */
   readonly tabs?: { readonly names: readonly string[]; readonly active: number };
 }
@@ -200,6 +203,7 @@ export function rowsOf(state: LauncherState): readonly Row[] {
         id: `slot:${e.slot}`,
         label: slotLabel(e.slot),
         value: formatSaved(e.at),
+        ...(e.row ? { slot: e.row } : {}),
       })),
       { id: 'back', label: 'Back' },
     ];

@@ -38,6 +38,9 @@ import {
   teaserScene,
   type SceneArt,
 } from './launcher-scenes';
+import { Sim } from '../episodes/episode-1/src/sim/sim';
+import { THUMB_PALETTE } from '../episodes/episode-1/src/thumb';
+import { AREA_NAMES, LEVEL_TOTAL } from '../episodes/episode-1/src/slots';
 import { TITLE_CARD } from '../episodes/episode-1/src/title-card';
 import { defineSprites } from '../episodes/episode-1/src/sprites/catalog';
 
@@ -95,6 +98,36 @@ export function runnerFrames(sprites: ReadonlyMap<string, Grid>): Grid[] {
   });
 }
 
+const toBase64 = (bytes: Uint8Array): string => Buffer.from(bytes).toString('base64');
+
+/**
+ * The overworld the save slots draw their thumbnails from: one byte a tile, the area of each tile (for the place a
+ * save was made in) and the colours. It comes from the built sim (`bun run build:wasm`); without one it is left
+ * out, and the launcher then draws its slots without a thumbnail or a place.
+ */
+async function overworldData(): Promise<Uint8Array | undefined> {
+  const wasm = join(root, 'episodes/episode-1/src/wasm/sim.wasm');
+  if (!existsSync(wasm)) {
+    console.warn(
+      'No built sim (run `bun run build:wasm`): the overworld data is not written or checked.',
+    );
+    return undefined;
+  }
+  const sim = await Sim.load(readFileSync(wasm));
+  const t = sim.overworldThumb();
+  const areas = new Uint8Array(t.w * t.h);
+  for (let y = 0; y < t.h; y++)
+    for (let x = 0; x < t.w; x++) areas[y * t.w + x] = sim.areaOf(x + 0.5, y + 0.5);
+  const data = {
+    w: t.w,
+    h: t.h,
+    cells: toBase64(t.cells),
+    areas: toBase64(areas),
+    palette: THUMB_PALETTE,
+  };
+  return new TextEncoder().encode(`${JSON.stringify(data)}\n`);
+}
+
 /** What the launcher needs to lay a scene out: its size, the sky's top colour and each layer's picture and speed. */
 function sceneInfo(scene: SceneArt, prefix: string): object {
   return {
@@ -126,7 +159,7 @@ interface Built {
 }
 
 /** Every file the launcher needs, for every episode that has a menu look. */
-export function build(): Built[] {
+export async function build(): Promise<Built[]> {
   const all = new Map(defineSprites().map((d) => [d.name, d.grid]));
   const soda = all.get('soda');
   const theme = episodeMenuTheme(soda);
@@ -185,6 +218,10 @@ export function build(): Built[] {
       poses: [...TITLE_BEN_POSES],
     },
     saves: {
+      // What the Load game screen draws a slot from: the overworld (needs the built sim) and the names of its areas.
+      overworld: 'overworld.json',
+      levels: LEVEL_TOTAL,
+      areas: [...AREA_NAMES],
       auto: SAVE_KEY,
       slots: Array.from({ length: SLOT_COUNT }, (_, i) => slotKey((i + 1) as 1 | 2 | 3 | 4)),
     },
@@ -205,6 +242,8 @@ export function build(): Built[] {
     { path: 'episode-1/ben-title.png', bytes: stripPng(titleBenFrames(all)) },
     ...sceneFiles('episode-1/', 'scene-', episode1),
   );
+  const overworld = await overworldData();
+  if (overworld) out.push({ path: 'episode-1/overworld.json', bytes: overworld });
   // The scenes that belong to the app, not to an episode: App settings by night, and an episode that is not out.
   for (const [name, scene] of [
     ['night', nightScene(all)],
@@ -218,10 +257,10 @@ export function build(): Built[] {
   return out;
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const check = process.argv.includes('--check');
   let stale = false;
-  for (const { path, bytes } of build()) {
+  for (const { path, bytes } of await build()) {
     const file = join(OUT, path);
     const have = existsSync(file) ? readFileSync(file) : undefined;
     const same = have !== undefined && Buffer.compare(Buffer.from(bytes), have) === 0;
@@ -243,4 +282,4 @@ function main(): void {
   if (check) console.log('Launcher art is up to date.');
 }
 
-if (import.meta.main) main();
+if (import.meta.main) await main();

@@ -232,14 +232,13 @@ import {
   type SlotId,
 } from './save';
 import {
-  areaName,
   slotBrief,
   slotDetail,
   slotName,
   slotTitle,
-  summarise,
   type SlotSummary,
-} from './slots';
+} from '@lieutenant-fizz/engine/menu/slot-text';
+import { areaName, summarise } from './slots';
 import { thumbDataUrl } from './thumb';
 import type { HapticsLab } from './ui/haptics-lab';
 import type { LabId, LabShell } from './ui/lab-shell';
@@ -275,8 +274,8 @@ import {
   type MenuItem,
   type OptionKey,
   type Prompt,
-  type SlotRow,
 } from './ui';
+import type { SlotRow } from '@lieutenant-fizz/engine/menu/slot-row';
 import { EPISODE_1_MENU, episodeMenuTheme } from './menu-theme';
 import { createMenuSounds } from '@lieutenant-fizz/engine/menu/sounds';
 

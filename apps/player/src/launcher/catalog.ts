@@ -4,7 +4,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { LaunchSlot } from '@lieutenant-fizz/engine/launch';
+import type { SlotRow } from '@lieutenant-fizz/engine/menu/slot-row';
 import type { KeyValueStorage } from '@lieutenant-fizz/engine/storage';
+import { readProgress, slotRowOf, type OverworldData } from './slot-info';
 
 /** One entry of `site/episodes.json`: the list the website and the launcher share. */
 export interface EpisodeEntry {
@@ -85,13 +87,24 @@ export interface EpisodeInfo {
   card?: { kicker: string; words: readonly string[]; episode: string; name: string };
   /** Where the episode's options are kept: its name in the options file, its old key and the options only it has. */
   options?: { episode: string; legacyKey: string; ownKeys: readonly string[] };
-  saves: { auto: string; slots: readonly string[] };
+  saves: {
+    auto: string;
+    slots: readonly string[];
+    /** The overworld the slots' thumbnails and places come from, relative to the episode's folder. */
+    overworld?: string;
+    /** How many levels the episode has, for the cleared pips. */
+    levels?: number;
+    /** The names of the overworld's areas, by area id. */
+    areas?: readonly string[];
+  };
 }
 
 /** One save the launcher found: where it is and when it was written. */
 export interface SaveEntry {
   slot: LaunchSlot;
   at: number;
+  /** The slot as the game's Load game screen draws it, when the episode says enough to draw one. */
+  row?: SlotRow;
 }
 
 /** The saves an episode has, and which is newest (what Continue loads). */
@@ -106,30 +119,26 @@ export const NO_SAVES: SaveSummary = { entries: [], newest: undefined };
 export const slotLabel = (slot: LaunchSlot): string =>
   slot === 'auto' ? 'Autosave' : `Slot ${slot}`;
 
-/** When a save was written, from the stored JSON, or undefined when it is not a save the game would load. */
-function savedAt(json: string | null): number | undefined {
-  if (!json) return undefined;
-  try {
-    const raw = JSON.parse(json) as { at?: unknown; progress?: unknown } | null;
-    if (!raw || typeof raw !== 'object' || !raw.progress || typeof raw.progress !== 'object') {
-      return undefined;
-    }
-    return typeof raw.at === 'number' && Number.isFinite(raw.at) ? raw.at : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 /**
- * The saves an episode has. Only the time each was written is read: the game itself checks a save in full when
- * it loads one. Like the game, the newest is the latest `at`, and a tie goes to the later slot.
+ * The saves an episode has. Only what the Load game screen shows is read: the game itself checks a save in full when
+ * it loads one. Like the game, the newest is the latest `at`, and a tie goes to the later slot. With the overworld,
+ * each save also gets its row (thumbnail, place, pips and numbers) as the game draws it.
  */
-export function readSaves(store: Pick<KeyValueStorage, 'getItem'>, info: EpisodeInfo): SaveSummary {
+export function readSaves(
+  store: Pick<KeyValueStorage, 'getItem'>,
+  info: EpisodeInfo,
+  overworld?: OverworldData,
+): SaveSummary {
   const keys: [LaunchSlot, string][] = [
     ['auto', info.saves.auto],
     ...info.saves.slots.map((key, i): [LaunchSlot, string] => [(i + 1) as LaunchSlot, key]),
   ];
   const entries: SaveEntry[] = [];
+  const ctx = {
+    levels: info.saves.levels ?? 0,
+    areas: info.saves.areas ?? [],
+    ...(overworld ? { overworld } : {}),
+  };
   for (const [slot, key] of keys) {
     let json: string | null = null;
     try {
@@ -137,8 +146,13 @@ export function readSaves(store: Pick<KeyValueStorage, 'getItem'>, info: Episode
     } catch {
       /* an unreadable store has no saves */
     }
-    const at = savedAt(json);
-    if (at !== undefined) entries.push({ slot, at });
+    const progress = readProgress(json);
+    if (!progress) continue;
+    entries.push({
+      slot,
+      at: progress.at,
+      ...(ctx.levels > 0 ? { row: slotRowOf(slot, progress, ctx) } : {}),
+    });
   }
   let newest: SaveEntry | undefined;
   for (const e of entries) if (!newest || e.at >= newest.at) newest = e;

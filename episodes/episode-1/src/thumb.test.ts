@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { thumbPixels, type ThumbData } from './thumb';
+import type { ThumbData } from '@lieutenant-fizz/engine/menu/overworld-thumb';
+import { thumbPixels } from './thumb';
 
 /** A 4x3 map: row 0 (south) is grass of area 1, row 1 has a river and a node, row 2 is grass. */
 const data: ThumbData = {

@@ -11,6 +11,7 @@ import {
   type RowsOptions,
 } from '@lieutenant-fizz/engine/menu/rows';
 import type { BenFrame } from '@lieutenant-fizz/engine/menu/title-ben';
+import { fillSlot, type SlotRow } from '@lieutenant-fizz/engine/menu/slot-row';
 import { MenuScroller } from '@lieutenant-fizz/engine/menu/scroller';
 import { swipeDirection } from '@lieutenant-fizz/engine/menu/swipe';
 import type { Stop } from './catalog';
@@ -23,6 +24,7 @@ export const APP_VERSION: string = typeof __APP_VERSION__ === 'string' ? __APP_V
 
 /** A row as drawn: the shared row, and a strip of tab names for the Settings heading. */
 interface LauncherItem extends RowItem {
+  slot?: SlotRow;
   tabs?: { names: readonly string[]; active: number };
 }
 
@@ -310,6 +312,7 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
         ...(r.kind ? { kind: r.kind } : {}),
         ...(r.meter !== undefined ? { meter: r.meter } : {}),
         ...(r.tabs ? { tabs: r.tabs } : {}),
+        ...(r.slot ? { slot: r.slot } : {}),
         ...(value ? { value } : {}),
         ...(r.disabled ? { disabled: true } : {}),
       };
@@ -325,8 +328,10 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
       bullet,
       decorate: (button, item) => {
         if (item.tabs) button.classList.add('tabstrip');
+        if (item.slot) button.classList.add('slot');
       },
       fill: (plate, item, state) => {
+        if (item.slot) return fillSlot(plate, item.slot);
         if (!item.tabs) return fillPlate(plate, item, state.selected);
         item.tabs.names.forEach((name, k) => {
           const tab = make('span', k === item.tabs?.active ? 'tab on' : 'tab');

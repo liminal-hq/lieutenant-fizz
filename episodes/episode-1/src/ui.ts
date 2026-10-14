@@ -41,6 +41,7 @@ import {
 } from './layout';
 import { isTap } from '@lieutenant-fizz/engine/menu/scroll';
 import { MenuScroller } from '@lieutenant-fizz/engine/menu/scroller';
+import { fillSlot, type SlotRow } from '@lieutenant-fizz/engine/menu/slot-row';
 import { TITLE_CARD } from './title-card';
 import { pillItems, type PillIcon } from './hud';
 import { StoryMeasurer, type StoryMeasure } from './story-measure';
@@ -49,19 +50,6 @@ import './ui.css';
 
 /** How the title is laid out on a phone: one column, or the logo and the menu on opposite sides. */
 export type TitleLayout = 'column' | 'split';
-
-/** A save slot shown as a row: thumbnail, two lines of text and the cleared-level pips. */
-export interface SlotRow {
-  title: string;
-  detail: string;
-  /** A shorter second line for narrow windows. */
-  brief: string;
-  /** PNG data URL of the mini overworld; empty for an empty slot. */
-  thumb: string;
-  empty: boolean;
-  cleared: number;
-  total: number;
-}
 
 export interface MenuItem {
   /** A stable id the game acts on, so labels can change without breaking the menu. */
@@ -1192,7 +1180,7 @@ export class Ui {
       },
       fill: (plate, it, { selected }) => {
         if (it.slot) {
-          this.fillSlot(plate, it.slot);
+          fillSlot(plate, it.slot);
           return;
         }
         const l = el('span', { class: 'lbl' });
@@ -1230,25 +1218,6 @@ export class Ui {
         if (steppers) plate.append(stepper(1));
       },
     });
-  }
-
-  /** A save slot's content: thumbnail, two text lines and one pip per level. */
-  private fillSlot(into: HTMLElement, s: SlotRow): void {
-    const thumb = s.empty
-      ? el('span', { class: 'thumb none' })
-      : el('img', { class: 'thumb', alt: '', src: s.thumb });
-    const text = el('span', { class: 'txt' });
-    const l1 = el('span', { class: 'l1' });
-    l1.textContent = s.title;
-    const l2 = el('span', { class: 'l2 full' });
-    l2.textContent = s.detail;
-    const brief = el('span', { class: 'l2 brief' });
-    brief.textContent = s.brief;
-    text.append(l1, l2, brief);
-    const pips = el('span', { class: 'pips-row' });
-    for (let k = 0; k < s.total; k++) pips.append(el('i', { class: k < s.cleared ? 'on' : '' }));
-    if (s.empty) pips.hidden = true;
-    into.append(thumb, text, pips);
   }
 
   showTitle(items: MenuItem[] | null, sel: number, controls: boolean): void {
