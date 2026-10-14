@@ -312,22 +312,18 @@ function keepClearOfControls(): void {
 }
 
 const view = createView(root, {
-  cardOf: (stop) => {
-    if (stop.kind === 'app') {
-      return {
-        kicker: 'App settings',
-        words: ['Lieutenant', 'Fizz'],
-        line: `Version ${APP_VERSION}`,
-      };
-    }
+  // The series logo: the first episode's, which every stop shares.
+  logo: () => {
+    const card = [...files.values()].find((f) => f.info?.card)?.info?.card;
+    return card ? { kicker: card.kicker, words: card.words } : undefined;
+  },
+  // What the carousel says: the episode's name, or App settings.
+  nameOf: (stop) => {
+    if (stop.kind === 'app') return 'App settings';
     if (!stop.playable) {
-      return {
-        kicker: 'Coming soon',
-        words: ['???'],
-        line: stop.title ? `Episode ${stop.number} · ${stop.title}` : `Episode ${stop.number}`,
-      };
+      return stop.title ? `Episode ${stop.number} · ${stop.title}` : `Episode ${stop.number}`;
     }
-    return files.get(stop.id)?.info?.card;
+    return files.get(stop.id)?.info?.card?.line;
   },
   onActivate: (row) => dispatch({ type: 'activate', row }),
   onMove: () => menuCue('move'),

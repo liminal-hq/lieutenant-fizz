@@ -47,7 +47,8 @@ body {
   pointer-events: auto;
 }
 
-#launcher h1 {
+#launcher h1,
+#launcher h2 {
   --n: var(--lf-n-head);
   margin: 0;
   font-weight: 700;
@@ -162,6 +163,10 @@ body {
 #launcher.lf-title .wordmark span {
   white-space: nowrap;
 }
+/* The series logo starts over the carousel's name, not over its arrow. */
+#launcher.lf-title .head {
+  margin-left: 44px;
+}
 #launcher.lf-title .hero .w {
   display: inline;
 }
@@ -177,8 +182,15 @@ body {
   align-items: center;
   gap: calc(var(--n) * 3px);
 }
-#launcher .carousel h1 {
+#launcher .carousel h2 {
   flex: 0 1 auto;
+  white-space: nowrap;
+}
+/* On a short window the episode's name takes the menu's size, so it stays on one line beside the arrows. */
+@media (max-height: 420px) {
+  #launcher .carousel h2 {
+    --n: var(--lf-n);
+  }
 }
 #launcher .arrow {
   --n: var(--lf-n-head);
@@ -203,7 +215,7 @@ body {
   opacity: 0.4;
   cursor: default;
 }
-#launcher .carousel[data-sub='true'] h1 {
+#launcher .carousel[data-sub='true'] h2 {
   margin-left: 0;
 }
 #launcher .pips {
