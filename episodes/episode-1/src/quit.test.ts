@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { QUIT_ARMED_VALUE, QUIT_GAME_ID, QUIT_LAUNCHER_ID, withQuitRows } from './quit';
-import { RESET_ARM_MS, resetArmed } from './two-tap';
+import { RESET_ARM_MS, resetArmed } from '@lieutenant-fizz/engine/two-tap';
 
 const ROWS = [
   { id: 'new', label: 'New Game' },

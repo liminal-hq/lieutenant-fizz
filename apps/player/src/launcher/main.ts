@@ -39,7 +39,8 @@ import { cueOf } from './cues';
 import { readUnlocked } from './dev-unlock';
 import { fullscreenKey, shouldStartFullscreen } from './desktop';
 import { applyEffects } from './effects';
-import { EPISODE_1_OPTIONS_KEY, SILENT, createLauncherSound, type LauncherSound } from './sound';
+import { optionsSourceOf, readGlobal, volumeOf } from './options';
+import { SILENT, createLauncherSound, type LauncherSound } from './sound';
 import { currentStop, hasBack, initialState, reduce, type Action } from './state';
 import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { createStrip, type Strip } from './strip';
@@ -118,6 +119,9 @@ await Promise.all(
     files.set(stop.id, { info, theme, base });
   }),
 );
+// The app-wide options (read from the shared file, carried over from an older build's the first time).
+const optionsSource = optionsSourceOf([...files.values()].map((f) => f.info));
+const options = readGlobal(store, optionsSource);
 const saves: Record<string, SaveSummary> = {};
 for (const [id, f] of files) if (f.info) saves[id] = readSaves(store, f.info);
 
@@ -248,11 +252,12 @@ function applyTheme(): void {
   view.setBullet(b ? bulletImageOf(found.data, new URL(b.src, found.base).href) : undefined);
   // The audio of the look it replaces is let go, so stepping through stops does not pile up audio contexts.
   sound.dispose();
-  sound = createLauncherSound(found.data, store, host.kind !== 'web');
+  sound = createLauncherSound(found.data, volumeOf(options.sfx), host.kind !== 'web');
   haptics.dispose();
   haptics = createLauncherHaptics({
     data: found.data,
     store,
+    rumble: options.rumble,
     kind: host.kind,
     touchCapable: matchMedia('(pointer: coarse)').matches,
     activePad: () => Array.from(navigator.getGamepads?.() ?? []).find((pad) => pad) ?? null,
@@ -369,13 +374,7 @@ if (
   session &&
   shouldStartFullscreen({
     kind: host.kind,
-    options: ((): string | null => {
-      try {
-        return store.getItem(EPISODE_1_OPTIONS_KEY);
-      } catch {
-        return null;
-      }
-    })(),
+    fullscreen: options.fullscreen,
     session,
   })
 ) {

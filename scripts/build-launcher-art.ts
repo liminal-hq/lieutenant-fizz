@@ -28,6 +28,7 @@ import {
 import { EPISODE_1_MENU, episodeMenuTheme } from '../episodes/episode-1/src/menu-theme';
 import { SFX } from '../episodes/episode-1/src/audio/patterns';
 import { FIZZ_HAPTICS } from '../episodes/episode-1/src/haptics/fizz-haptics';
+import { EPISODE_ID, EPISODE_KEYS, OPTIONS_KEY } from '../episodes/episode-1/src/options';
 import { SAVE_KEY, SLOT_COUNT, slotKey } from '../episodes/episode-1/src/save';
 import { defineSprites } from '../episodes/episode-1/src/sprites/catalog';
 
@@ -236,6 +237,9 @@ export function build(): Built[] {
   // What the launcher cannot import: the page that runs the episode and where its saves are kept.
   const info = {
     page: 'episode-1/index.html',
+    // Where the episode's options are kept, so the launcher can carry an older save over and tell the episode's own
+    // options from the app-wide ones.
+    options: { episode: EPISODE_ID, legacyKey: OPTIONS_KEY, ownKeys: [...EPISODE_KEYS] },
     strip: { src: 'strip.png', width: STRIP_W, height: STRIP_H },
     runner: { src: 'ben.png', width: 16, height: 24, frames: 3 },
     saves: {

@@ -1,5 +1,15 @@
 {
   "page": "episode-1/index.html",
+  "options": {
+    "episode": "episode-1",
+    "legacyKey": "lf-ep1-options-v1",
+    "ownKeys": [
+      "captions",
+      "layout",
+      "lab",
+      "hapticsLab"
+    ]
+  },
   "strip": {
     "src": "strip.png",
     "width": 640,

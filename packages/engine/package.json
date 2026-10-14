@@ -77,6 +77,7 @@
     "./story-pages": "./src/story-pages.ts",
     "./tauri-log": "./src/tauri-log.ts",
     "./touch": "./src/touch.ts",
+    "./two-tap": "./src/two-tap.ts",
     "./zip": "./src/zip.ts",
     "./zip-read": "./src/zip-read.ts",
     "./touch-layout": "./src/touch-layout.ts",

@@ -4,11 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { gamepadBackend, vibrateBackend } from '@lieutenant-fizz/engine/haptic-backends';
-import {
-  DEFAULT_STRENGTH,
-  isStrength,
-  strengthScale,
-} from '@lieutenant-fizz/engine/haptic-strength';
+import { strengthScale } from '@lieutenant-fizz/engine/haptic-strength';
 import { GameHaptics, routeFor, type Route } from '@lieutenant-fizz/engine/haptics';
 import type { HapticTable } from '@lieutenant-fizz/engine/haptic-pattern';
 import type { HostKind } from '@lieutenant-fizz/engine/host';
@@ -17,7 +13,6 @@ import type { MenuCue, MenuHaptics } from '@lieutenant-fizz/engine/menu/sounds';
 import type { MenuThemeData } from '@lieutenant-fizz/engine/menu/theme';
 import type { KeyValueStorage } from '@lieutenant-fizz/engine/storage';
 import { readTouchSettings } from '@lieutenant-fizz/engine/touch-settings';
-import { EPISODE_1_OPTIONS_KEY } from './sound';
 
 /** The menu's haptics, and a way to let go of what they use. */
 export interface LauncherHaptics {
@@ -39,17 +34,6 @@ export const NO_HAPTICS: LauncherHaptics = {
   setActive: () => {},
   dispose: () => {},
 };
-
-/** The controller's rumble level, 0 (Off) to 3 (Strong), from Episode 1's saved options: the default when there are none. */
-export function rumbleLevelFromOptions(json: string | null): number {
-  try {
-    const raw = (json ? JSON.parse(json) : null) as Record<string, unknown> | null;
-    if (!raw || typeof raw !== 'object' || raw['v'] !== 1) return DEFAULT_STRENGTH;
-    return isStrength(raw['rumble'] as number) ? (raw['rumble'] as number) : DEFAULT_STRENGTH;
-  } catch {
-    return DEFAULT_STRENGTH;
-  }
-}
 
 /**
  * The strength of each target. The phone's comes from the touch settings and counts only where a touch screen
@@ -98,7 +82,10 @@ export function createMenuHaptics(host: HapticsHost, cues: MenuHaptics): Launche
 
 export interface LauncherHapticsDeps {
   data: MenuThemeData;
+  /** Where the player's touch settings are kept (the phone's strength). */
   store: Pick<KeyValueStorage, 'getItem'>;
+  /** The controller's rumble level, 0 (Off) to 3 (Strong): the app-wide Rumble option. */
+  rumble: number;
   kind: HostKind;
   /** The device has a touch screen (a phone, or a laptop with one). */
   touchCapable: boolean;
@@ -118,16 +105,10 @@ export function createLauncherHaptics(deps: LauncherHapticsDeps): LauncherHaptic
   const host = new GameHaptics(table, performance);
   const webPad = gamepadBackend(deps.activePad);
   host.setBackends({ device: vibrateBackend(navigator), controller: webPad });
-  let saved: string | null = null;
-  try {
-    saved = deps.store.getItem(EPISODE_1_OPTIONS_KEY);
-  } catch {
-    /* an unreadable store has no saved options: the defaults */
-  }
   const scales = hapticScales({
     touchCapable: deps.touchCapable,
     phoneStrength: readTouchSettings(deps.store as KeyValueStorage).hapticStrength,
-    rumbleLevel: rumbleLevelFromOptions(saved),
+    rumbleLevel: deps.rumble,
   });
   host.setScale(scales.device, scales.controller);
   let disposed = false;

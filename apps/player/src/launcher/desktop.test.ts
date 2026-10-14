@@ -4,9 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { fullscreenChoice, fullscreenKey, shouldStartFullscreen } from './desktop';
+import { fullscreenKey, shouldStartFullscreen } from './desktop';
 
-const options = (fullscreen: number) => JSON.stringify({ v: 1, fullscreen });
 const session = () => {
   const data = new Map<string, string>();
   return {
@@ -15,22 +14,10 @@ const session = () => {
   };
 };
 
-describe('the saved Fullscreen choice', () => {
-  it('reads Auto, On and Off, and is Auto when nothing is saved or it cannot be read', () => {
-    expect(fullscreenChoice(options(0))).toBe('auto');
-    expect(fullscreenChoice(options(1))).toBe('on');
-    expect(fullscreenChoice(options(2))).toBe('off');
-    expect(fullscreenChoice(null)).toBe('auto');
-    expect(fullscreenChoice('not json')).toBe('auto');
-    expect(fullscreenChoice(JSON.stringify({ v: 2, fullscreen: 1 }))).toBe('auto');
-    expect(fullscreenChoice(JSON.stringify({ v: 1, fullscreen: 'on' }))).toBe('auto');
-  });
-});
-
 describe('starting fullscreen', () => {
   it('happens on the desktop app when the choice is On, once for each run of the app', () => {
     const s = session();
-    const start = { kind: 'tauri-desktop' as const, options: options(1), session: s };
+    const start = { kind: 'tauri-desktop' as const, fullscreen: 1, session: s };
     expect(shouldStartFullscreen(start)).toBe(true);
     // Coming back from a game: the player may have left fullscreen, so it is not asked for again.
     expect(shouldStartFullscreen(start)).toBe(false);
@@ -43,13 +30,13 @@ describe('starting fullscreen', () => {
       expect(
         shouldStartFullscreen({
           kind: 'tauri-desktop',
-          options: options(choice),
+          fullscreen: choice,
           session: session(),
         }),
       ).toBe(false);
     }
     for (const kind of ['web', 'tauri-android', 'tauri-ios'] as const) {
-      expect(shouldStartFullscreen({ kind, options: options(1), session: session() })).toBe(false);
+      expect(shouldStartFullscreen({ kind, fullscreen: 1, session: session() })).toBe(false);
     }
   });
 
@@ -62,9 +49,9 @@ describe('starting fullscreen', () => {
         throw new Error('blocked');
       },
     };
-    expect(
-      shouldStartFullscreen({ kind: 'tauri-desktop', options: options(1), session: broken }),
-    ).toBe(true);
+    expect(shouldStartFullscreen({ kind: 'tauri-desktop', fullscreen: 1, session: broken })).toBe(
+      true,
+    );
   });
 });
 

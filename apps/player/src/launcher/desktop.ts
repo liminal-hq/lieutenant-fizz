@@ -8,21 +8,10 @@ import type { HostKind } from '@lieutenant-fizz/engine/host';
 /** Remembers, for this run of the app, that the saved fullscreen choice has been applied. */
 export const FULLSCREEN_START_KEY = 'lf-launcher-fs-v1';
 
-/** The saved Fullscreen option: Auto, On or Off, from Episode 1's saved options (until there is a shared model). */
-export function fullscreenChoice(json: string | null): 'auto' | 'on' | 'off' {
-  try {
-    const raw = (json ? JSON.parse(json) : null) as Record<string, unknown> | null;
-    if (!raw || typeof raw !== 'object' || raw['v'] !== 1) return 'auto';
-    return raw['fullscreen'] === 1 ? 'on' : raw['fullscreen'] === 2 ? 'off' : 'auto';
-  } catch {
-    return 'auto';
-  }
-}
-
 export interface FullscreenStart {
   kind: HostKind;
-  /** The saved options JSON, or null when there are none. */
-  options: string | null;
+  /** The saved Fullscreen option: 0 Auto, 1 On, 2 Off. */
+  fullscreen: number;
   /** Lasts as long as the app run: `sessionStorage`. */
   session: Pick<Storage, 'getItem' | 'setItem'>;
 }
@@ -41,7 +30,7 @@ export function shouldStartFullscreen(start: FullscreenStart): boolean {
   } catch {
     /* no session storage: fall back to asking every time */
   }
-  return !done && fullscreenChoice(start.options) === 'on';
+  return !done && start.fullscreen === 1;
 }
 
 /** The parts of a key event the fullscreen keys read. */

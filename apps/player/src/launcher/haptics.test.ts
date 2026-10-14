@@ -5,13 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { MENU_CUES } from '@lieutenant-fizz/engine/menu/sounds';
-import {
-  NO_HAPTICS,
-  createMenuHaptics,
-  hapticScales,
-  rumbleLevelFromOptions,
-  type HapticsHost,
-} from './haptics';
+import { NO_HAPTICS, createMenuHaptics, hapticScales, type HapticsHost } from './haptics';
 
 function fakeHost() {
   const log: string[] = [];
@@ -78,14 +72,5 @@ describe('the strength of the haptics', () => {
       device: 0,
       controller: 0,
     });
-  });
-
-  it('reads the Rumble option from the saved options, and is Strong when nothing is saved or it cannot be read', () => {
-    expect(rumbleLevelFromOptions(JSON.stringify({ v: 1, rumble: 1 }))).toBe(1);
-    expect(rumbleLevelFromOptions(JSON.stringify({ v: 1, rumble: 0 }))).toBe(0);
-    expect(rumbleLevelFromOptions(null)).toBe(3);
-    expect(rumbleLevelFromOptions('nope')).toBe(3);
-    expect(rumbleLevelFromOptions(JSON.stringify({ v: 1, rumble: 9 }))).toBe(3);
-    expect(rumbleLevelFromOptions(JSON.stringify({ v: 2, rumble: 1 }))).toBe(3);
   });
 });

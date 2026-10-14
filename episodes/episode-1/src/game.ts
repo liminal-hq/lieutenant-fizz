@@ -221,7 +221,7 @@ import {
 } from './sound-options';
 import { QUIT_GAME_ID, QUIT_LAUNCHER_ID, withQuitRows, type QuitCapabilities } from './quit';
 import { closeApp } from '@lieutenant-fizz/engine/close-app';
-import { RESET_ARM_MS, resetArmed } from './two-tap';
+import { RESET_ARM_MS, resetArmed } from '@lieutenant-fizz/engine/two-tap';
 import { firstEnabled, type HapticsUrl, type UrlLocks, type WakeUrl } from './url-lock';
 import {
   applyProgress,
