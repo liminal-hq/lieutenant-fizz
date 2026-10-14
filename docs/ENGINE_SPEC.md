@@ -26,7 +26,7 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 - The **pixel budget** is 3840 × 2160 canvas pixels; larger desktop canvases are scaled down (Soft) or divided by `k` (Sharp). Width is not capped. The maths is in `packages/engine/src/view-scale.ts`.
 
 ### 3.2 Atlas — Proven
-- Sprites are authored as palette-indexed grids (`sprites.js`, a small pixel DSL), then packed into one 2048² atlas at 4 texels per logical pixel.
+- Sprites are authored as palette-indexed grids (`sprites.js`, a small pixel DSL), then packed into one 2048² atlas at 4 texels per logical pixel, in shelves, tallest sprites first (a shelf is as tall as its tallest sprite, so catalog order wasted most of every shelf: Episode 1's 232 sprites reach 0.42 of the atlas height sorted, against 0.60 unsorted). `sprites.test.ts` keeps the lowest sprite under 0.65 of the height.
 - Filtering is `NearestFilter` for min and mag, with mipmaps off.
 - Every sprite has a 1-pixel extruded border; tile sprites clamp edge height for seamless normals.
 - A second atlas with the same layout holds the generated normal maps (§5.1).
