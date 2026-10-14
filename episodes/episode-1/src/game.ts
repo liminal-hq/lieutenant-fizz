@@ -1100,6 +1100,7 @@ export class Game {
         lighting: false,
         lightCount: 0,
         sky: false,
+        sun: undefined,
       };
     }
     this.ui.setSky(frame.sky);

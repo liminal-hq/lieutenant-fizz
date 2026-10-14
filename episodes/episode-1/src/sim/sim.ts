@@ -172,7 +172,7 @@ export class Sim {
 
   /** Per-frame facts: instance count, camera, light count, clear colour, ambient. */
   get out(): Float32Array {
-    return this.views.f32('out', this.x.out_ptr(), 16);
+    return this.views.f32('out', this.x.out_ptr(), Out.LEN);
   }
 
   /** The first `n` instances (n * 20 floats) of the shared instance buffer. */

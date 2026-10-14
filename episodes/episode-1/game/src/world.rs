@@ -389,7 +389,7 @@ pub struct World {
     pub lights_col: [f32; 48],
     pub events: EventQueue,
     pub spr: Vec<SpriteRect>,
-    pub out: [f32; 16],
+    pub out: [f32; crate::render::out::LEN],
 }
 
 pub fn sign(x: f64) -> f64 {
@@ -488,7 +488,7 @@ impl World {
             lights_col: [0.0; 48],
             events: EventQueue::new(256),
             spr: vec![SpriteRect::default(); crate::sprites::SPRITE_NAMES.len()],
-            out: [0.0; 16],
+            out: [0.0; crate::render::out::LEN],
             fun: Fun::default(),
         }
     }
@@ -550,7 +550,7 @@ impl World {
             lights_col: [0.0; 48],
             events: EventQueue::new(256),
             spr: Vec::new(),
-            out: [0.0; 16],
+            out: [0.0; crate::render::out::LEN],
             fun: self.fun,
         }
     }

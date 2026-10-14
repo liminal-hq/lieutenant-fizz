@@ -167,6 +167,15 @@ describe.skipIf(!built)('Episode 1 WASM sim', () => {
     expect(sim.out[Out.LIGHTING]).toBe(0);
   });
 
+  it('gives the shell room for a sun, and writes none in a level', () => {
+    sim.x.game_new();
+    sim.x.enter_level(Level.CRATER);
+    sim.render(1, RenderFlag.CULLING);
+    const o = sim.out;
+    expect(o.length).toBe(Out.LEN);
+    expect(Array.from(o.slice(Out.SUN_X, Out.SUN_B + 1))).toEqual([0, 0, 0, 0, 0, 0]);
+  });
+
   it('restores a recorded tick through state_set, and steps on from it', () => {
     sim.x.game_new();
     sim.x.enter_level(Level.CRATER);

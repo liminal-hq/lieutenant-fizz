@@ -34,6 +34,16 @@ pub mod out {
     pub const AMB_B: usize = 11;
     pub const LIGHTING: usize = 12;
     pub const SKY_GLOW: usize = 13;
+    /// The direction to the sun in sprite space (x right, y up, z out of the screen), then its colour. A
+    /// colour of zero is no sun, and is what levels, the title and the cinematic write.
+    pub const SUN_X: usize = 14;
+    pub const SUN_Y: usize = 15;
+    pub const SUN_Z: usize = 16;
+    pub const SUN_R: usize = 17;
+    pub const SUN_G: usize = 18;
+    pub const SUN_B: usize = 19;
+    /// How many floats the shell reads; the rest are for later.
+    pub const LEN: usize = 32;
 }
 
 pub enum Layer {
@@ -345,6 +355,7 @@ impl World {
         self.out[out::AMB_G] = amb[1];
         self.out[out::AMB_B] = amb[2];
         self.out[out::LIGHTING] = f32::from(u8::from(bio.is_some()));
+        self.out[out::SUN_X..=out::SUN_B].fill(0.0);
         self.out[out::WORLD] = 0.0;
         let view = [
             cx - self.half_w - 1.0,

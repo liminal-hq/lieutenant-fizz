@@ -52,6 +52,15 @@ export const Out = {
   AMB_B: 11,
   LIGHTING: 12,
   SKY_GLOW: 13,
+  /** The direction to the sun (x right, y up, z out of the screen) then its colour; zero colour is no sun. */
+  SUN_X: 14,
+  SUN_Y: 15,
+  SUN_Z: 16,
+  SUN_R: 17,
+  SUN_G: 18,
+  SUN_B: 19,
+  /** How many floats the sim writes for the shell to read. */
+  LEN: 32,
 } as const;
 
 /** Indices for `state_get` / `state_set`. */

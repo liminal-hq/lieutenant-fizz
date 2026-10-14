@@ -404,6 +404,22 @@ fn overworld_walk_prompt_and_enter_level() {
 }
 
 #[test]
+fn render_writes_no_sun_in_a_level_whatever_was_left_in_the_out_array() {
+    use crate::render::out;
+    let mut w = World::new();
+    w.game_new();
+    w.enter_level(CRATER);
+    w.out[out::SUN_R] = 1.0;
+    w.out[out::SUN_Z] = 1.0;
+    w.render(1.0, 0);
+    assert!(
+        w.out[out::SUN_X..=out::SUN_B].iter().all(|&v| v == 0.0),
+        "a level has no sun"
+    );
+    assert_eq!(w.out.len(), out::LEN);
+}
+
+#[test]
 fn ben_comes_back_to_the_map_at_his_levels_doorstep_with_its_prompt_up() {
     use crate::levels::PtKind;
     let mut w = World::new();

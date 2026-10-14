@@ -72,6 +72,7 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 - Two ambient profiles per biome:
   - **Day** (default): bright ambient, lights at 55–60%.
   - **Night**: low ambient, full-strength lights, and a gradient sky drawn behind a transparent canvas.
+- **Sun:** an optional directional light, `FrameState.sun` (a unit direction towards it in sprite space, x right, y up, z out of the screen, and a colour). Its light on a sprite is `colour * max(dot(normal, direction), 0)`, added to the ambient, so it brings out the relief the normal maps hold; a flat sprite faces +z and takes `colour * direction.z`. It costs one uniform pair and one dot product per fragment and no light slot. The sim writes it into the `out` array after the first fourteen values (`out::SUN_X..SUN_B`, with `out::LEN` = 32 floats in all); a zero colour is no sun, which is what levels, the title and the cinematic write. `readSun` in `sim/draw.ts` turns it into the frame's sun.
 - Emissive flag (alpha + 2) bypasses lighting for UI-like sprites (crystals, exit, items, effects).
 - Optional posterise step: lighting is quantised to quarter steps.
 - **Planned:** cast shadows (2D shadow-volume or SDF pass).
