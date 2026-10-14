@@ -153,14 +153,10 @@ export class CommentsUi {
         return null;
       }
     })();
+    // The draft was saved from the zip's comments plus every change since (an edit, a deletion, a new comment), so
+    // it is the whole set: its version of a comment wins, and one it lacks was deleted.
     const local = draft ? parseComments(draft) : null;
-    if (local) {
-      const have = new Set(file.comments.map((c) => c.id));
-      const more = local.file.comments.filter((c) => !have.has(c.id));
-      if (more.length) {
-        file = { ...file, comments: [...file.comments, ...more].sort((a, b) => a.tick - b.tick) };
-      }
-    }
+    if (local) file = { ...file, comments: local.file.comments };
     return file;
   }
 
@@ -232,6 +228,10 @@ export class CommentsUi {
       this.editing = null;
       this.dom.text.value = '';
       this.dom.submit.textContent = 'Add comment';
+      // The place chosen was the deleted comment's: the next new comment does not inherit it.
+      this.place = null;
+      this.panel()?.setPending(null);
+      this.syncPlace();
     }
     this.save();
     this.render();
@@ -245,12 +245,16 @@ export class CommentsUi {
       : 'No place chosen: the comment is about the moment.';
   }
 
+  /** The attempt a comment is about: the one it names, else the one whose ticks hold it. */
+  private attemptFor(c: Comment): Attempt | undefined {
+    return c.attempt !== undefined
+      ? this.attempts.find((x) => x.order === c.attempt)
+      : this.attempts.find((x) => c.tick >= x.startTick && c.tick <= x.endTick);
+  }
+
   /** A comment's moment in words: "Fudge Bog, try 3, 0:12.4". */
   private moment(c: Comment): string {
-    const a =
-      c.attempt !== undefined
-        ? this.attempts.find((x) => x.order === c.attempt)
-        : this.attempts.find((x) => c.tick >= x.startTick && c.tick <= x.endTick);
+    const a = this.attemptFor(c);
     return a
       ? `${a.level}, try ${a.attempt}, ${clockText(c.tick - a.startTick)}`
       : `tick ${c.tick}`;
@@ -266,8 +270,9 @@ export class CommentsUi {
       go.type = 'button';
       go.textContent = `${i + 1}. ${this.moment(c)}`;
       go.setAttribute('aria-label', `Go to comment ${i + 1}, ${this.moment(c)}`);
+      const about = this.attemptFor(c);
       go.addEventListener('click', () => {
-        if (c.attempt !== undefined) this.panel()?.goto(c.attempt, c.tick);
+        if (about) this.panel()?.goto(about.order, c.tick);
       });
       const body = document.createElement('p');
       body.className = 'comment-text';
@@ -289,8 +294,8 @@ export class CommentsUi {
       del.addEventListener('click', () => this.remove(c));
       li.append(go, body, who, edit, del);
       list.append(li);
-      if (c.at && c.attempt !== undefined) {
-        pins.push({ x: c.at.x, y: c.at.y, label: String(i + 1), attempt: c.attempt });
+      if (c.at && about) {
+        pins.push({ x: c.at.x, y: c.at.y, label: String(i + 1), attempt: about.order });
       }
     });
     if (!this.file.comments.length) {

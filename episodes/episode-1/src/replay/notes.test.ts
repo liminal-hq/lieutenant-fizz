@@ -111,6 +111,25 @@ describe('notesMarkdown', () => {
     );
   });
 
+  it('knows a button held, and the counts, from before the attempt began', () => {
+    const s = sessionOf('fizz.zip', [
+      { t: 10, e: 'st', lives: 3, ammo: 9, score: 40, pogo: 0 },
+      { t: 20, e: 'in', b: 2 },
+      { t: 100, e: 'level', id: 7, name: 'Fudge Bog', attempt: 1 },
+      { t: 400, e: 'death', cause: 6, detail: 5, x: 15, y: 4 },
+    ]);
+    const c = addComment(
+      emptyComments({ id: s.id, startedAt: '' }),
+      { tick: 150, text: 'Held right from the start.', level: 7, attempt: 0 },
+      when,
+      id,
+    );
+    const text = notesMarkdown({ session: s, comments: c });
+    expect(text).toContain('- Holding: Right.');
+    expect(text).toContain('- Lives 3, ammo 9, score 40.');
+    expect(text).not.toContain('Holding no button');
+  });
+
   it('says so when there are no comments, and is the same each time', () => {
     const empty = emptyComments({ id: 'x', startedAt: '' });
     const a = notesMarkdown({ session: session(), comments: empty });

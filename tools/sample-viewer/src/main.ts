@@ -57,7 +57,7 @@ const comments = new CommentsUi(
     status: $('comments-status'),
   },
   () => panel,
-  (s) => entriesBySession.get(s.name) ?? [],
+  (s) => entriesBySession.get(s.id) ?? [],
 );
 
 // The c key starts a comment at the moment the replay is at, unless a field has the cursor.
@@ -274,7 +274,7 @@ async function load(files: FileList | File[]): Promise<void> {
       }
       sessions.push(session);
       // The zip's own files are kept as they came, so an export can put them back byte for byte.
-      entriesBySession.set(session.name, entries);
+      entriesBySession.set(session.id, entries);
     } catch (err) {
       problems.append(
         h('li', { text: err instanceof Error ? err.message : `${file.name} could not be read` }),

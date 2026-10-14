@@ -252,6 +252,49 @@ test('comments: added at the moment, with a place, edited, deleted, and `c` star
   expect(errors).toEqual([]);
 });
 
+test('an edit and a deletion made to an exported run are still there when the same zip is opened again', async ({
+  page,
+}) => {
+  const { errors } = await open(page);
+  await load(page, 'fizz.zip', await fixtureZip());
+  await page.getByRole('button', { name: 'Watch fizz.zip' }).click();
+  const items = page.locator('#comment-list li');
+  for (const [tick, text] of [
+    [4150, 'First one.'],
+    [4300, 'Second one.'],
+  ] as const) {
+    await scrubTo(page, tick);
+    await page.locator('#comment-text').fill(text);
+    await page.getByRole('button', { name: 'Add comment' }).click();
+  }
+  await expect(items).toHaveCount(2);
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export with comments' }).click(),
+  ]);
+  const exported = Buffer.from(readFileSync((await download.path())!));
+
+  // The same browser opens the exported zip: the comments are in it. One is edited and the other deleted.
+  await page.reload();
+  await load(page, 'notes.zip', exported);
+  await page.getByRole('button', { name: 'Watch notes.zip' }).click();
+  await expect(items).toHaveCount(2);
+  await page.getByRole('button', { name: 'Edit comment 1' }).click();
+  await page.locator('#comment-text').fill('First one, changed.');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await page.getByRole('button', { name: 'Delete comment 2' }).click();
+  await expect(items).toHaveCount(1);
+
+  // Opened again, the zip still has both, and the browser's draft says what was done to them.
+  await page.reload();
+  await load(page, 'notes.zip', exported);
+  await page.getByRole('button', { name: 'Watch notes.zip' }).click();
+  await expect(items).toHaveCount(1);
+  await expect(items.first()).toContainText('First one, changed.');
+  await expect(page.locator('#comment-list')).not.toContainText('Second one.');
+  expect(errors).toEqual([]);
+});
+
 test('exports the run with its comments and notes, and a new page reads them back', async ({
   page,
   browser,

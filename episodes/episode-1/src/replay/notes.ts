@@ -37,10 +37,11 @@ function contextOf(events: readonly SessionEvent[], a: Attempt, tick: number): s
   const nearby: string[] = [];
   for (const e of events) {
     if (e.t > tick + CONTEXT_TICKS) break;
-    if (e.t < a.startTick) continue;
+    // The state and the buttons held carry in from before the attempt: a button already down when the level
+    // began has no event of its own until it changes. Only what is close by is limited to the attempt.
     if (e.e === 'st' && e.t <= tick) st = e;
     else if (e.e === 'in' && e.t <= tick) held = num(e, 'b');
-    if (e.t < tick - CONTEXT_TICKS) continue;
+    if (e.t < a.startTick || e.t < tick - CONTEXT_TICKS) continue;
     const when = clockText(e.t - a.startTick);
     if (e.e === 'death') {
       nearby.push(
