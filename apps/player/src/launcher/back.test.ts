@@ -22,7 +22,7 @@ function fakeBackend() {
       return () => void log.push('stopped');
     },
   };
-  return { backend, log, gesture: () => handlers?.invoked() };
+  return { backend, log, gesture: () => handlers?.invoked(), frames: () => handlers };
 }
 
 describe('Back on the launcher', () => {
@@ -43,6 +43,28 @@ describe('Back on the launcher', () => {
     back.sync(false);
     expect(log).toEqual(['can:false', 'can:true', 'can:false']);
     gesture();
+    expect(backs).toBe(1);
+  });
+
+  it('passes the frames of the gesture on for the peek, and a completed gesture goes back', async () => {
+    const { backend, frames } = fakeBackend();
+    const seen: string[] = [];
+    let backs = 0;
+    await createLauncherBack({
+      backend,
+      onBack: () => void backs++,
+      peek: {
+        started: (edge) => void seen.push(`started:${edge}`),
+        progress: (p, edge) => void seen.push(`progress:${p}:${edge}`),
+        cancelled: () => void seen.push('cancelled'),
+      },
+    });
+    const h = frames();
+    h?.started?.('left');
+    h?.progress?.(0.4, 'left');
+    h?.cancelled?.();
+    h?.invoked();
+    expect(seen).toEqual(['started:left', 'progress:0.4:left', 'cancelled']);
     expect(backs).toBe(1);
   });
 

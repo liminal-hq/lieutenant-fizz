@@ -17,6 +17,7 @@ import { createPredictiveBack } from '@lieutenant-fizz/engine/predictive-back';
 import { createStorage } from '@lieutenant-fizz/engine/storage';
 import episodesFile from '../../../../site/episodes.json';
 import { createLauncherBack } from './back';
+import { createLauncherPeek } from './peek';
 import {
   readSaves,
   stopsOf,
@@ -98,7 +99,16 @@ const back = await createLauncherBack({
     host.kind === 'web'
       ? new BackGuard(() => dispatch({ type: 'back' }), window.history, window)
       : undefined,
-  onBack: () => dispatch({ type: 'back' }),
+  // A completed gesture goes back, then the peek's copy is dropped.
+  onBack: () => {
+    dispatch({ type: 'back' });
+    peek.end();
+  },
+  peek: {
+    started: (edge) => peek.started(edge),
+    progress: (progress, edge) => peek.progress(progress, edge),
+    cancelled: () => peek.cancelled(),
+  },
 });
 
 const deps = {
@@ -162,6 +172,25 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('pad-back', () => dispatch({ type: 'back' }));
 document.addEventListener('pad-left', () => dispatch({ type: 'stop', dir: -1 }));
 document.addEventListener('pad-right', () => dispatch({ type: 'stop', dir: 1 }));
+
+// The Back gesture's peek: the screen being left slides away over the one Back goes to.
+const peek = createLauncherPeek({
+  root,
+  ui,
+  canPeek: () => hasBack(state),
+  showParent: () => view.render(reduce(state, { type: 'back' }).state),
+  showCurrent: () => view.render(state),
+  reducedMotion: () => matchMedia('(prefers-reduced-motion: reduce)').matches,
+});
+
+// `?debug` leaves the pieces in reach of a browser check.
+if (new URLSearchParams(location.search).has('debug')) {
+  (window as unknown as { __launcher: unknown }).__launcher = {
+    peek,
+    dispatch,
+    state: () => state,
+  };
+}
 
 // The window's text scale, now and when it changes.
 let strip: Strip | undefined;

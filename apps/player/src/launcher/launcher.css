@@ -236,3 +236,36 @@ body {
     animation: none;
   }
 }
+
+/* A Back-gesture peek: a copy of the screen being left slides away and fades over the screen Back goes to, which is
+   drawn behind it and takes no taps until the peek ends. The look comes from the page as `--lf-peek-x` and
+   `--lf-peek-a`; it follows the finger with no transition and glides back over 200 ms when the gesture is cancelled.
+   The edge the copy leaves behind fades in over `--lf-peek-feather` (a share of its width). */
+.peek-ghost {
+  pointer-events: none;
+  transform: translateX(var(--lf-peek-x, 0%));
+  opacity: var(--lf-peek-a, 1);
+  will-change: transform, opacity;
+  --lf-peek-feather: 0%;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--lf-peek-feather));
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--lf-peek-feather));
+}
+.peek-ghost[data-peek-edge='right'] {
+  -webkit-mask-image: linear-gradient(to left, transparent 0, #000 var(--lf-peek-feather));
+  mask-image: linear-gradient(to left, transparent 0, #000 var(--lf-peek-feather));
+}
+.peek-ghost[data-peek='settle'] {
+  transition:
+    transform 200ms ease-out,
+    opacity 200ms ease-out;
+}
+/* The screen Back goes to crossfades against the copy, and none of it is drawn while the copy is nearly whole, so
+   its text cannot show through. After a cancelled gesture it fades out as the copy returns. */
+#ui[data-peeking] #launcher:not(.peek-ghost) {
+  pointer-events: none;
+  opacity: var(--lf-peek-parent-a, 0);
+  visibility: var(--lf-peek-parent-v, hidden);
+}
+#ui[data-peeking='settle'] #launcher:not(.peek-ghost) {
+  transition: opacity 200ms ease-out;
+}

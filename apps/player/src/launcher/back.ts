@@ -3,7 +3,10 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { PredictiveBackBackend } from '@lieutenant-fizz/engine/predictive-back';
+import type {
+  PredictiveBackBackend,
+  PredictiveBackHandlers,
+} from '@lieutenant-fizz/engine/predictive-back';
 
 export interface LauncherBackDeps {
   /** The Android gesture; absent on every other host. */
@@ -12,6 +15,8 @@ export interface LauncherBackDeps {
   guard?: { set(want: boolean): void };
   /** Goes back one screen. */
   onBack(): void;
+  /** The frames of the gesture before it completes, which drive the peek. */
+  peek?: Omit<PredictiveBackHandlers, 'invoked'>;
 }
 
 export interface LauncherBack {
@@ -37,7 +42,7 @@ export async function createLauncherBack(deps: LauncherBackDeps): Promise<Launch
   let released = false;
   let stop: (() => void) | undefined;
   if (backend) {
-    stop = await backend.onGesture({ invoked: onBack });
+    stop = await backend.onGesture({ ...deps.peek, invoked: onBack });
   }
   return {
     sync(canGoBack) {
