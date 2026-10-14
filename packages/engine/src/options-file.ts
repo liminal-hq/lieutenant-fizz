@@ -111,6 +111,14 @@ export function clearOverrides(
   return { ...file, episodes: { ...file.episodes, [episode]: kept } };
 }
 
+/** The file with these app-wide values dropped, which puts each back to its default. */
+export function clearGlobal(file: OptionsFile, keys: readonly string[]): OptionsFile {
+  return {
+    ...file,
+    global: Object.fromEntries(Object.entries(file.global).filter(([k]) => !keys.includes(k))),
+  };
+}
+
 /** The file with every app-wide value dropped, which puts each back to its default (episodes' own overrides stay). */
 export function resetGlobal(file: OptionsFile): OptionsFile {
   return { ...file, global: {} };
@@ -125,8 +133,9 @@ export interface LegacyOptions {
 
 /**
  * The file made from options saved the old way (one blob for each episode, `{v: 1, ...fields}`). The first
- * episode's app-wide values seed `global` (a player's choices carry over exactly); every episode's own options go
- * in its section. A blob that is not a version 1 record is ignored.
+ * episode's app-wide values seed `global`; a later episode's value that differs from it becomes that episode's
+ * override, so each episode plays as the player had it. Every episode's own options go in its section. A blob that
+ * is not a version 1 record is ignored.
  */
 export function migrateLegacy(
   legacy: readonly LegacyOptions[],
@@ -147,6 +156,7 @@ export function migrateLegacy(
       if (key === 'v') continue;
       if (episodeKeys.includes(key)) own[key] = value;
       else if (!seeded) file.global[key] = value;
+      else if (JSON.stringify(file.global[key]) !== JSON.stringify(value)) own[key] = value;
     }
     seeded = true;
     if (Object.keys(own).length > 0) file.episodes[episode] = own;
@@ -178,9 +188,27 @@ export function readOptionsFile(
   }
 }
 
-/** Saves the file. Returns false when the store would not take it. */
-export function writeOptionsFile(store: Writer | null, file: OptionsFile): boolean {
+/** Whether the text saved is an options file from a newer version of the app, which this one must leave alone. */
+function fromNewerVersion(saved: string | null): boolean {
+  if (saved === null) return false;
   try {
+    const raw: unknown = JSON.parse(saved);
+    return isRecord(raw) && typeof raw['v'] === 'number' && raw['v'] > 1;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Saves the file. Returns false when the store would not take it, or when the file held was written by a newer
+ * version of the app (a downgrade must not overwrite what it cannot read: that is the player's options).
+ */
+export function writeOptionsFile(
+  store: (Writer & Partial<Reader>) | null,
+  file: OptionsFile,
+): boolean {
+  try {
+    if (fromNewerVersion(store?.getItem?.(OPTIONS_FILE_KEY) ?? null)) return false;
     store?.setItem(OPTIONS_FILE_KEY, serialiseOptionsFile(file));
     return !!store;
   } catch {

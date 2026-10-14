@@ -9,11 +9,13 @@ import type { MenuThemeData } from '@lieutenant-fizz/engine/menu/theme';
 
 /** The menu's sounds, and a way to let go of the audio they use. */
 export interface LauncherSound extends MenuSoundPlayer {
+  /** Sets the volume of the effects, 0 to 1 (a level above silence; silence is a player of nothing). */
+  setLevel(level: number): void;
   dispose(): void;
 }
 
 /** A player that makes no sound. */
-export const SILENT: LauncherSound = { cue: () => {}, dispose: () => {} };
+export const SILENT: LauncherSound = { cue: () => {}, setLevel: () => {}, dispose: () => {} };
 
 /**
  * The menu sounds for a theme: silent when the theme has none (or the player turned sound effects off), and
@@ -34,6 +36,7 @@ export function createLauncherSound(
   audio.setSfxVolume(level);
   return {
     ...createMenuSounds(data.sounds, (effect) => audio.play(effect)),
+    setLevel: (next) => audio.setSfxVolume(next),
     dispose: () => audio.dispose(),
   };
 }

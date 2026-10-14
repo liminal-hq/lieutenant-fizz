@@ -186,11 +186,14 @@ const deps = {
     save: (key: string, value: number | boolean) => {
       const ok = writeGlobal(store, optionsSource, key, value);
       if (ok) applyOptions(readGlobal(store, optionsSource));
+      // The screen goes back to what is held when the write failed.
+      else dispatch({ type: 'options', options });
       return ok;
     },
     reset: (keys: readonly string[]) => {
       const ok = resetGlobal(store, optionsSource, keys);
       if (ok) applyOptions(readGlobal(store, optionsSource));
+      else dispatch({ type: 'options', options });
       return ok;
     },
   },
@@ -277,18 +280,13 @@ ui.append(touchLayer);
 // eslint-disable-next-line prefer-const -- assigned once below, after the view and `dispatch` it acts on exist
 let touch: LauncherTouch | undefined;
 
-/**
- * Pads the menu away from a side's controls only where they would sit over it (the menu reaches down below the
- * top of that side's highest control), so a short menu keeps the whole width.
- */
+/** Pads the page away from the controls on each side, so the menu and its heading start beside them. */
 function keepClearOfControls(): void {
-  const room = touch?.room() ?? { left: 0, right: 0, leftTop: 0, rightTop: 0 };
-  const bottom =
-    document.querySelector('#launcher .menu:not(.pinned)')?.getBoundingClientRect().bottom ?? 0;
-  const px = (side: number, top: number): string => `${top > 0 && bottom > top ? side : 0}px`;
+  // Every screen sits beside the controls, as the game's menus do, so the text lines up from screen to screen.
+  const room = touch?.room() ?? { left: 0, right: 0 };
   const style = document.documentElement.style;
-  style.setProperty('--lf-touch-left', px(room.left, room.leftTop));
-  style.setProperty('--lf-touch-right', px(room.right, room.rightTop));
+  style.setProperty('--lf-touch-left', `${room.left}px`);
+  style.setProperty('--lf-touch-right', `${room.right}px`);
 }
 
 const view = createView(root, {
@@ -329,10 +327,12 @@ function applyOptions(next: GlobalOptions): void {
   const before = options;
   options = next;
   // The sound and the haptics are made for a level, so a changed level makes them again.
-  if (next.sfx !== before.sfx || next.rumble !== before.rumble) {
+  // Going to or from silence makes or drops the player; any other change only sets the level on the one there is.
+  if (next.sfx <= 0 !== before.sfx <= 0) {
     themed = undefined;
     applyTheme();
-  }
+  } else if (next.sfx !== before.sfx) sound.setLevel(volumeOf(next.sfx));
+  if (next.rumble !== before.rumble) haptics.setRumble(next.rumble);
   applyLook();
   view.relayout();
 }

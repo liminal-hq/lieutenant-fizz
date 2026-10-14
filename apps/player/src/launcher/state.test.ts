@@ -404,3 +404,13 @@ describe('the Saves screen', () => {
     });
   });
 });
+
+describe('a failed Settings save', () => {
+  it('goes back to the options held', () => {
+    const app = toApp(start());
+    const s = press(app, 'settings').state;
+    const changed = reduce(s, { type: 'step', row: 'opt:music', dir: -1 }).state;
+    expect(changed.options.music).toBe(s.options.music - 1);
+    expect(reduce(changed, { type: 'options', options: s.options }).state.options).toBe(s.options);
+  });
+});

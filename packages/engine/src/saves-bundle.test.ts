@@ -154,6 +154,13 @@ describe('merging a bundle into the saves held', () => {
     expect(plan).toMatchObject({ writes: {}, imported: 0, skipped: 0, ignored: 4 });
   });
 
+  it('ignores a save dated far in the future, which would win every later merge', () => {
+    const now = Date.parse('2026-10-14T00:00:00Z');
+    const plan = planImport(memoryStorage(), bundleOf({ s1: save(1e15), s2: save(now) }), EP, now);
+    expect(plan).toMatchObject({ imported: 1, ignored: 1 });
+    expect(Object.keys(plan.writes)).toEqual(['s2']);
+  });
+
   it('does not let a key named like an object property through', () => {
     const plan = planImport(
       memoryStorage(),

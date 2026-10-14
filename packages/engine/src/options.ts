@@ -5,10 +5,11 @@
 
 import { DEFAULT_STRENGTH, isStrength, MAX_STRENGTH } from './haptic-strength';
 import { DEFAULT_DENSITY, DENSITY_COUNT } from './menu/density';
+import { METER_BLOCKS } from './menu/rows';
 import { isPadModelKey } from './pad-model';
 
-/** Blocks on a volume meter. A level of 0 is silent and 8 is full volume. */
-export const METER_BLOCKS = 8;
+/** Blocks on a volume meter (defined with the row drawing that shows them). A level of 0 is silent and 8 is full volume. */
+export { METER_BLOCKS };
 
 /** The stored sound style: Auto follows the episode's default, the others are the player's choice. */
 export const AUDIO_CHOICES = ['Auto', 'Classic', 'Enhanced'] as const;

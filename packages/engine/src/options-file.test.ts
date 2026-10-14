@@ -120,7 +120,7 @@ describe('carrying over options an older build saved', () => {
     expect(f.episodes['a']).toEqual({ layout: 1, captions: false });
   });
 
-  it("takes the global values from the first episode only, and every episode's own options", () => {
+  it('takes the global values from the first episode, and gives a later episode that differs its own override', () => {
     const f = migrateLegacy(
       [
         { episode: 'a', json: blob({ music: 3 }) },
@@ -129,7 +129,26 @@ describe('carrying over options an older build saved', () => {
       OWN,
     );
     expect(f.global).toEqual({ music: 3 });
-    expect(f.episodes['b']).toEqual({ layout: 1 });
+    expect(f.episodes['b']).toEqual({ music: 1, layout: 1 });
+    // A later episode that agrees with the global value needs no override.
+    const same = migrateLegacy(
+      [
+        { episode: 'a', json: blob({ music: 3 }) },
+        { episode: 'b', json: blob({ music: 3, layout: 1 }) },
+      ],
+      OWN,
+    );
+    expect(same.episodes['b']).toEqual({ layout: 1 });
+  });
+
+  it('leaves a file from a newer version unwritten, so a downgrade keeps the options', () => {
+    const newer = JSON.stringify({ v: 2, global: { music: 3 } });
+    const store = memoryStorage({ [OPTIONS_FILE_KEY]: newer });
+    expect(writeOptionsFile(store, EMPTY_OPTIONS_FILE)).toBe(false);
+    expect(store.getItem(OPTIONS_FILE_KEY)).toBe(newer);
+    // Damaged text has nothing worth keeping, so it is replaced.
+    const damaged = memoryStorage({ [OPTIONS_FILE_KEY]: '{oops' });
+    expect(writeOptionsFile(damaged, EMPTY_OPTIONS_FILE)).toBe(true);
   });
 
   it('skips a blob that is missing, unreadable or another version', () => {

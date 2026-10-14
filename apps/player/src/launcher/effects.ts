@@ -65,7 +65,7 @@ export async function applyEffects(effects: readonly Effect[], deps: EffectDeps)
       else void Promise.resolve(flushable(deps.store)?.flush()).catch(() => {});
     } else if (effect.kind === 'export-saves' || effect.kind === 'import-saves') {
       // One file dialog at a time: a second tap while one is open does nothing.
-      if (filing.has(deps) || !deps.saves) return;
+      if (filing.has(deps) || !deps.saves) continue;
       filing.add(deps);
       try {
         const message = await (effect.kind === 'export-saves'

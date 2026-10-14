@@ -142,6 +142,9 @@ export function parseBundle(bytes: Uint8Array): ParsedBundle {
   };
 }
 
+/** How far past now a save's time may be (the clock of another device is not exact) before it is not believed. */
+export const FUTURE_SLACK_MS = 24 * 60 * 60 * 1000;
+
 /** What an import would do. */
 export interface ImportPlan {
   /** The saves to write, by store key: each is newer than the one already there, or has none to replace. */
@@ -156,13 +159,14 @@ export interface ImportPlan {
 
 /**
  * Plans merging a bundle into the saves held now. Each slot is taken on its own, and the newest `at` wins (a tie keeps
- * what is held), so an old bundle never replaces newer play. Only the keys the installed episodes keep their saves
+ * what is held), so an old bundle never replaces newer play, and a save dated well past `now` is ignored. Only the keys the installed episodes keep their saves
  * under are used, whatever the file says.
  */
 export function planImport(
   store: Reader,
   bundle: SaveBundle,
   episodes: readonly EpisodeSaveKeys[],
+  now: number = Date.now(),
 ): ImportPlan {
   const plan: ImportPlan = { writes: {}, imported: 0, skipped: 0, ignored: 0 };
   const known = new Map(episodes.map((e) => [e.id, new Set(e.keys)]));
@@ -170,7 +174,8 @@ export function planImport(
     const keys = known.get(id);
     for (const [key, text] of Object.entries(entry.saves)) {
       const at = keys?.has(key) ? savedAtOf(text) : undefined;
-      if (at === undefined) {
+      // A time well in the future would win every later merge, so it is not a save worth keeping.
+      if (at === undefined || at > now + FUTURE_SLACK_MS) {
         plan.ignored++;
         continue;
       }

@@ -86,6 +86,8 @@ export type Action =
   | { type: 'step'; row: RowId; dir: -1 | 1 }
   /** Jump to a tab by tapping its name on the strip. */
   | { type: 'pick-tab'; tab: SettingsTab }
+  /** The options held are these (a save failed, so the screen goes back to them). */
+  | { type: 'options'; options: GlobalOptions }
   /** The saves held changed (an import): the new summaries, by episode id. */
   | { type: 'saves'; saves: Readonly<Record<string, SaveSummary>> }
   /** The first tap on Reset timed out. */
@@ -292,6 +294,8 @@ function slotOf(row: RowId): LaunchSlot | undefined {
  */
 function reduceScreen(state: LauncherState, action: Action): Step {
   if (action.type === 'disarm') return unchanged(state);
+  if (action.type === 'options')
+    return { state: { ...state, options: action.options }, effects: [] };
   if (action.type === 'saves') return { state: { ...state, saves: action.saves }, effects: [] };
   if (action.type === 'pick-tab') {
     return state.screen === 'settings' && action.tab !== state.tab

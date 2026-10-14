@@ -17,7 +17,12 @@ export interface CloseSteps {
  * caller can say so, and a second try flushes again. Resolves `true` once `quit` has been asked for.
  */
 export async function closeApp(steps: CloseSteps): Promise<boolean> {
-  await steps.exitFullscreen();
+  // A window that will not leave fullscreen still closes: the flush and the quit are what matter.
+  try {
+    await steps.exitFullscreen();
+  } catch (error) {
+    console.warn('Leaving fullscreen failed', error);
+  }
   if (steps.flush && !(await steps.flush())) return false;
   await steps.quit();
   return true;

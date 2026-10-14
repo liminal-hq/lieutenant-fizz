@@ -21,6 +21,8 @@ export interface LauncherHaptics {
   flush(): void;
   /** The device in use changed: a pad in use takes the cues, otherwise the phone does. */
   setDevice(device: InputDevice): void;
+  /** The controller's rumble level changed, 0 (Off) to 3 (Strong). */
+  setRumble(level: number): void;
   /** The page went to the background or came back. */
   setActive(on: boolean): void;
   dispose(): void;
@@ -31,6 +33,7 @@ export const NO_HAPTICS: LauncherHaptics = {
   cue: () => {},
   flush: () => {},
   setDevice: () => {},
+  setRumble: () => {},
   setActive: () => {},
   dispose: () => {},
 };
@@ -71,6 +74,7 @@ export function createMenuHaptics(host: HapticsHost, cues: MenuHaptics): Launche
     setDevice(device) {
       host.setRoute(routeFor(device));
     },
+    setRumble() {},
     setActive(on) {
       host.setActive(on);
     },
@@ -136,6 +140,9 @@ export function createLauncherHaptics(deps: LauncherHapticsDeps): LauncherHaptic
   const menu = createMenuHaptics(host, theme.cues);
   return {
     ...menu,
+    setRumble(level) {
+      host.setScale(scales.device, strengthScale(level));
+    },
     dispose() {
       disposed = true;
       menu.dispose();

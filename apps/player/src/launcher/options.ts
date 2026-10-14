@@ -9,6 +9,7 @@ import {
   type GlobalOptions,
 } from '@lieutenant-fizz/engine/options';
 import {
+  clearGlobal,
   readOptionsFile,
   setValue,
   writeOptionsFile,
@@ -75,11 +76,7 @@ export function resetGlobal(
 ): boolean {
   if (!store) return false;
   try {
-    const file = readFile(store, source);
-    const global = Object.fromEntries(
-      Object.entries(file.global).filter(([k]) => !keys.includes(k)),
-    );
-    return writeOptionsFile(store, { ...file, global });
+    return writeOptionsFile(store, clearGlobal(readFile(store, source), keys));
   } catch {
     return false;
   }
