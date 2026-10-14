@@ -41,6 +41,7 @@ import {
 } from './layout';
 import { isTap } from '@lieutenant-fizz/engine/menu/scroll';
 import { MenuScroller } from '@lieutenant-fizz/engine/menu/scroller';
+import { TITLE_CARD } from './title-card';
 import { pillItems, type PillIcon } from './hud';
 import { StoryMeasurer, type StoryMeasure } from './story-measure';
 import type { BenFrame, BenPose } from './titleBen';
@@ -291,9 +292,9 @@ export class Ui {
       { id: 'rotate', class: 'lf screen', hidden: '' },
       '<div><h2>Rotate your phone</h2><p>Lieutenant Fizz plays in landscape.</p></div>',
     );
-    this.title = el('div', { id: 'title', class: 'lf screen', hidden: '' });
-    this.title.innerHTML = `<div class="head"><h1 class="wordmark"><span class="kicker">Ben Blaze in</span><span class="logo"><span class="hero"><span class="w">Lieutenant</span> <span class="w">Fizz</span></span><img class="ben" alt="" hidden></span></h1>
-      <p class="episode">Episode 1 · The Cocoa Caper</p></div>`;
+    this.title = el('div', { id: 'title', class: 'lf screen lf-title', hidden: '' });
+    this.title.innerHTML = `<div class="head"><h1 class="wordmark"><span class="kicker">${TITLE_CARD.kicker}</span><span class="logo"><span class="hero">${TITLE_CARD.words.map((w) => `<span class="w">${w}</span>`).join(' ')}</span><img class="ben" alt="" hidden></span></h1>
+      <p class="episode">${TITLE_CARD.line}</p></div>`;
     this.benEl = need(this.title, '.ben') as HTMLImageElement;
     this.heroEl = need(this.title, '.hero');
     this.menuEl = el('div', { class: 'menu' });

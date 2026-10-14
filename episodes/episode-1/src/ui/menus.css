@@ -1,5 +1,6 @@
 @import '@lieutenant-fizz/engine/menu/rows.css';
 @import '@lieutenant-fizz/engine/menu/keys.css';
+@import '@lieutenant-fizz/engine/menu/logo.css';
 @import '@lieutenant-fizz/engine/menu/scroll.css';
 
 /* A scrolling list lays every row out at the height of its tallest (`--lf-menu-unit`, set by the shell),

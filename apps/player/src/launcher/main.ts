@@ -310,6 +310,7 @@ function keepClearOfControls(): void {
 }
 
 const view = createView(root, {
+  cardOf: (id) => files.get(id)?.info?.card,
   onActivate: (row) => dispatch({ type: 'activate', row }),
   onMove: () => menuCue('move'),
   onStop: (dir) => dispatch({ type: 'stop', dir }),

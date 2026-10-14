@@ -3,6 +3,7 @@
 @import '@lieutenant-fizz/engine/menu/tokens.css';
 @import '@lieutenant-fizz/engine/menu/rows.css';
 @import '@lieutenant-fizz/engine/menu/keys.css';
+@import '@lieutenant-fizz/engine/menu/logo.css';
 @import '@lieutenant-fizz/engine/menu/scroll.css';
 @import '@lieutenant-fizz/engine/touch-ui.css';
 
@@ -154,6 +155,21 @@ body {
 #launcher .menu button.tabstrip.sel .tab.on {
   color: #fff;
   border-bottom-color: #fff;
+}
+
+/* The wordmark stays on one line at the largest scale that fits (the page sizes it), unlike the game's narrow title,
+   and a short touch screen drops the lines around it to leave the menu its room. */
+#launcher.lf-title .wordmark span {
+  white-space: nowrap;
+}
+#launcher.lf-title .hero .w {
+  display: inline;
+}
+@media (pointer: coarse) and (max-height: 420px) {
+  #launcher.lf-title .kicker,
+  #launcher.lf-title .episode {
+    display: none;
+  }
 }
 
 /* The carousel's heading: the previous and next arrows either side of the stop's name, and a pip for each stop. */

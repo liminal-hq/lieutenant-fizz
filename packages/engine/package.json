@@ -21,6 +21,7 @@
     "./saves-bundle": "./src/saves-bundle.ts",
     "./menu/density": "./src/menu/density.ts",
     "./menu/keys.css": "./src/menu/keys.css",
+    "./menu/logo.css": "./src/menu/logo.css",
     "./menu/paint": "./src/menu/paint.ts",
     "./menu/rows": "./src/menu/rows.ts",
     "./menu/rows.css": "./src/menu/rows.css",

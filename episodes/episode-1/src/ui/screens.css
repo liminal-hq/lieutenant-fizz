@@ -47,30 +47,6 @@
   );
 }
 
-#title .head {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-#title .wordmark {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  font-weight: 700;
-}
-#title .wordmark span {
-  display: block;
-}
-#title .kicker {
-  --n: var(--lf-n-small);
-  color: var(--lf-accent);
-  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
-}
-#title .logo {
-  position: relative;
-  width: max-content;
-}
 #title .ben {
   position: absolute;
   image-rendering: pixelated;
@@ -105,30 +81,6 @@
   #attractTag {
     display: none;
   }
-}
-
-#title .hero {
-  --n: var(--lf-n-logo);
-  line-height: calc(var(--lf-cell) * var(--n));
-  margin-bottom: calc(var(--n) * 2px);
-  color: #fff;
-  text-shadow:
-    0 calc(var(--n) * 1px) 0 var(--lf-rose),
-    0 calc(var(--n) * 2px) 0 #000;
-}
-#title .hero .w {
-  display: inline;
-}
-@media (max-width: 719px) {
-  #title .hero .w {
-    display: block;
-  }
-}
-#title .episode {
-  --n: var(--lf-n-small);
-  margin: 0;
-  color: var(--lf-muted);
-  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
 }
 
 /* A Back-gesture peek: a copy of the screen being left slides away and fades over the screen Back goes to,

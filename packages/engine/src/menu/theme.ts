@@ -20,6 +20,12 @@ export interface MenuColours {
   muted?: string;
   /** Text on the plate. */
   ink?: string;
+  /** The wordmark's letters (white by default). */
+  logo?: string;
+  /** The wordmark's edge, the line under the letters (rose by default). */
+  logoEdge?: string;
+  /** The small line above the wordmark (the accent by default). */
+  kicker?: string;
 }
 
 /**
@@ -49,6 +55,9 @@ const COLOUR_VARS: readonly (readonly [keyof MenuColours, string])[] = [
   ['accent', '--lf-accent'],
   ['muted', '--lf-muted'],
   ['ink', '--lf-ink'],
+  ['logo', '--lf-logo'],
+  ['logoEdge', '--lf-logo-edge'],
+  ['kicker', '--lf-kicker'],
 ];
 
 /** The custom properties a theme sets: only those it gives, so the page's defaults fill the rest. */

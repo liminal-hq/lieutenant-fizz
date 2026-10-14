@@ -41,7 +41,16 @@ export function stopTitle(state: LauncherState): string {
   return stop.title ? `Episode ${stop.number} · ${stop.title}` : `Episode ${stop.number}`;
 }
 
+/** The words of a wordmark. */
+export interface Card {
+  kicker: string;
+  words: readonly string[];
+  line: string;
+}
+
 export interface ViewHooks {
+  /** The wordmark of an episode, or undefined when it has none (then its heading is plain text). */
+  cardOf?(episode: string): Card | undefined;
   onActivate(row: RowId): void;
   /** The player moved the cursor (the pad, keyboard or a tab: not the page's own focus). */
   onMove(): void;
@@ -73,9 +82,13 @@ export interface View {
 const make = <K extends keyof HTMLElementTagNameMap>(
   tag: K,
   className?: string,
+  text?: string,
+  children?: readonly Node[],
 ): HTMLElementTagNameMap[K] => {
   const node = document.createElement(tag);
   if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  if (children) node.append(...children);
   return node;
 };
 
@@ -181,6 +194,21 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     true,
   );
 
+  /**
+   * Sizes the logo to the largest whole scale (from the engine's 5 down to 2) whose heading fits the width between
+   * the arrows and takes no more than about a third of the window's height, so the menu keeps its room.
+   */
+  const fitLogo = (on: boolean): void => {
+    const style = root.style;
+    style.removeProperty('--lf-n-logo');
+    if (!on) return;
+    const room = header.clientWidth - prev.offsetWidth - next.offsetWidth - 16;
+    for (let n = 5; n >= 2; n--) {
+      style.setProperty('--lf-n-logo', String(n));
+      if (title.scrollWidth <= room && header.offsetHeight <= innerHeight * 0.34) return;
+    }
+  };
+
   const draw = (state: LauncherState): void => {
     const rows = rowsOf(state);
     const had =
@@ -189,7 +217,31 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     ids = rows.map((r) => r.id);
     const home = state.screen === 'home';
     header.dataset['sub'] = home ? '' : 'true';
-    title.textContent = home ? stopTitle(state) : SCREEN_TITLES[state.screen];
+    const stop = currentStop(state);
+    const card = home && stop.kind === 'episode' ? hooks.cardOf?.(stop.id) : undefined;
+    root.classList.toggle('lf-title', !!card);
+    title.classList.toggle('wordmark', !!card);
+    if (card) {
+      title.replaceChildren(
+        make('span', 'kicker', card.kicker),
+        make('span', 'logo', undefined, [
+          make(
+            'span',
+            'hero',
+            undefined,
+            card.words.flatMap((w, i) => [
+              ...(i > 0 ? [document.createTextNode(' ')] : []),
+              make('span', 'w', w),
+            ]),
+          ),
+        ]),
+        make('span', 'episode', card.line),
+      );
+      title.setAttribute('aria-label', `${card.words.join(' ')}, ${card.line}`);
+    } else {
+      title.removeAttribute('aria-label');
+      title.textContent = home ? stopTitle(state) : SCREEN_TITLES[state.screen];
+    }
     prev.hidden = next.hidden = pips.hidden = !home;
     // The carousel loops, so both arrows work wherever there is more than one stop.
     prev.disabled = next.disabled = state.stops.length < 2;
@@ -255,6 +307,7 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     menu.querySelectorAll<HTMLElement>('button').forEach((b, i) => {
       b.dataset['i'] = String(i + offset);
     });
+    fitLogo(!!card);
     mark(free < 0 ? undefined : ids[at]);
     fit();
     // Keep the pad's place; on first load there is nothing to keep, so the first row is only highlighted.

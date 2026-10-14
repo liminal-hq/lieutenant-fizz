@@ -1,5 +1,13 @@
 {
   "page": "episode-1/index.html",
+  "card": {
+    "kicker": "Ben Blaze in",
+    "words": [
+      "Lieutenant",
+      "Fizz"
+    ],
+    "line": "Episode 1 · The Cocoa Caper"
+  },
   "options": {
     "episode": "episode-1",
     "legacyKey": "lf-ep1-options-v1",

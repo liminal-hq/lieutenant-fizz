@@ -30,6 +30,7 @@ import { SFX } from '../episodes/episode-1/src/audio/patterns';
 import { FIZZ_HAPTICS } from '../episodes/episode-1/src/haptics/fizz-haptics';
 import { EPISODE_ID, EPISODE_KEYS, OPTIONS_KEY } from '../episodes/episode-1/src/options';
 import { SAVE_KEY, SLOT_COUNT, slotKey } from '../episodes/episode-1/src/save';
+import { TITLE_CARD } from '../episodes/episode-1/src/title-card';
 import { defineSprites } from '../episodes/episode-1/src/sprites/catalog';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -237,6 +238,8 @@ export function build(): Built[] {
   // What the launcher cannot import: the page that runs the episode and where its saves are kept.
   const info = {
     page: 'episode-1/index.html',
+    // The words of the wordmark, drawn by the launcher with the same logo style as the game's title.
+    card: { kicker: TITLE_CARD.kicker, words: [...TITLE_CARD.words], line: TITLE_CARD.line },
     // Where the episode's options are kept, so the launcher can carry an older save over and tell the episode's own
     // options from the app-wide ones.
     options: { episode: EPISODE_ID, legacyKey: OPTIONS_KEY, ownKeys: [...EPISODE_KEYS] },
