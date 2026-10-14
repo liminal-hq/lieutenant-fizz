@@ -97,6 +97,17 @@ test('a loaded sample is watched in the page, with the game’s layers and the h
   expect(errors).toEqual([]);
 });
 
+test('Clear all closes the replay of the samples it clears', async ({ page }) => {
+  const { errors } = await open(page);
+  await load(page, 'fizz.zip', await fixtureZip());
+  await page.getByRole('button', { name: 'Watch fizz.zip' }).click();
+  await expect(page.locator('#replay-section')).toBeVisible();
+  await page.getByRole('button', { name: 'Clear all' }).click();
+  await expect(page.locator('#replay-section')).toBeHidden();
+  expect(await replay(page)).toBeNull();
+  expect(errors).toEqual([]);
+});
+
 test('a worst spot has a Watch that goes to a moment before that death', async ({ page }) => {
   const { errors } = await open(page);
   await load(page, 'fizz.zip', await fixtureZip());

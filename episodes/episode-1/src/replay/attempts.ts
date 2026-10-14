@@ -14,7 +14,7 @@ export interface PathPoint {
 }
 
 export interface Attempt {
-  /** The session it came from, by file name. */
+  /** The session it came from, by its id (two files can have the same name). */
   session: string;
   /** Where it is among the session's attempts, from 0: the same as its place among the replay's attempts. */
   order: number;
@@ -59,7 +59,7 @@ export function attemptsOf(session: Session): Attempt[] {
     if (e.e === 'level') {
       finish('left', null);
       cur = {
-        session: session.name,
+        session: session.id,
         order: out.length,
         levelId: num(e['id']),
         level: typeof e['name'] === 'string' && e['name'] ? e['name'] : `Level ${num(e['id'])}`,

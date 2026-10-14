@@ -53,7 +53,11 @@ function watchButton(
   at: { order?: number; tick?: number },
   label: string,
 ): HTMLElement | string {
-  if (!findAttempts(session).some((a) => a.entry)) return '';
+  // A button for one attempt needs that attempt to be replayable, not just some other attempt in the session.
+  const attempts = findAttempts(session);
+  const playable =
+    at.order === undefined ? attempts.some((a) => a.entry) : !!attempts[at.order]?.entry;
+  if (!playable) return '';
   const b = h('button', { text: 'Watch' });
   b.type = 'button';
   b.setAttribute('aria-label', label);
@@ -162,7 +166,7 @@ function render(): void {
     ...summary.spots.slice(0, 12).map((s) => {
       // Watching a spot goes to the first death there, a moment before it.
       const ref = s.refs[0];
-      const session = ref ? sessions.find((x) => x.name === ref.session) : undefined;
+      const session = ref ? sessions.find((x) => x.id === ref.session) : undefined;
       return h(
         'li',
         { class: 'spot-row' },
@@ -258,6 +262,8 @@ drop.addEventListener('drop', (e) => {
 });
 $('level').addEventListener('change', () => drawMap(summarise(sessions)));
 $('clear').addEventListener('click', () => {
+  // A replay of a sample that is no longer loaded closes with it.
+  panel?.close();
   sessions.length = 0;
   $('problems').replaceChildren();
   render();
