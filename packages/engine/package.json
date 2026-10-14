@@ -47,6 +47,7 @@
     "./gamepad-remap": "./src/gamepad-remap.ts",
     "./haptic-backends": "./src/haptic-backends.ts",
     "./haptic-pattern": "./src/haptic-pattern.ts",
+    "./music-songs": "./src/music-songs.ts",
     "./options": "./src/options.ts",
     "./options-file": "./src/options-file.ts",
     "./pad-model": "./src/pad-model.ts",
