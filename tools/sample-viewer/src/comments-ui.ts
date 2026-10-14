@@ -216,6 +216,9 @@ export class CommentsUi {
     this.anchor = null;
     this.dom.text.value = c.text;
     this.dom.submit.textContent = 'Save changes';
+    // A place is chosen on the picture of the comment's own attempt, so go there first.
+    const about = this.attemptFor(c);
+    if (about) this.panel()?.goto(about.order, c.tick);
     this.place = c.at ?? null;
     this.panel()?.setPending(this.place);
     this.syncPlace();
@@ -226,6 +229,8 @@ export class CommentsUi {
     this.file = removeComment(this.file, c.id);
     if (this.editing === c.id) {
       this.editing = null;
+      // The moment held when the edit began belonged to the deleted comment too.
+      this.anchor = null;
       this.dom.text.value = '';
       this.dom.submit.textContent = 'Add comment';
       // The place chosen was the deleted comment's: the next new comment does not inherit it.
@@ -315,13 +320,16 @@ export class CommentsUi {
     const session = this.session;
     if (!p || !session) return;
     this.dom.status.textContent = 'Making the zip…';
+    // The comments as they are now: a replay of another sample opened while the verdicts load must not change
+    // what this export holds.
+    const file = this.file;
     try {
       const verdicts = await p.verdicts(session);
-      const notes = notesMarkdown({ session, comments: this.file, verdicts });
+      const notes = notesMarkdown({ session, comments: file, verdicts });
       const zip = await bundleZip(
         this.entries(session),
         [
-          { name: COMMENTS_FILE, data: encoder.encode(serialiseComments(this.file)) },
+          { name: COMMENTS_FILE, data: encoder.encode(serialiseComments(file)) },
           { name: NOTES_FILE, data: encoder.encode(notes) },
         ],
         startedDate(session.startedAt),
@@ -335,7 +343,14 @@ export class CommentsUi {
       a.click();
       a.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      const n = this.file.comments.length;
+      // The draft kept the comments until they were exported: they are in the zip now, and a stale draft would
+      // hide what a newer copy of it holds. A change made after this writes a new one.
+      try {
+        storage()?.removeItem(DRAFT_KEY + session.id);
+      } catch {
+        // A store that refuses leaves the draft where it was.
+      }
+      const n = file.comments.length;
       this.dom.status.textContent = `Saved ${name} with ${n} ${n === 1 ? 'comment' : 'comments'}.`;
     } catch (err) {
       this.dom.status.textContent = `The zip could not be made: ${err instanceof Error ? err.message : String(err)}`;

@@ -243,6 +243,8 @@ test('comments: added at the moment, with a place, edited, deleted, and `c` star
   // Editing changes the words, and deleting removes one.
   await page.getByRole('button', { name: 'Edit comment 1' }).click();
   await expect(page.locator('#comment-text')).toHaveValue('Starts too fast here.');
+  // Editing goes to the comment's own moment, since its place is chosen on that picture.
+  await expect.poll(async () => (await replay(page))!.tick).toBe(4150);
   await page.locator('#comment-text').fill('Starts a little too fast.');
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(items.first()).toContainText('Starts a little too fast.');
@@ -273,6 +275,12 @@ test('an edit and a deletion made to an exported run are still there when the sa
     page.getByRole('button', { name: 'Export with comments' }).click(),
   ]);
   const exported = Buffer.from(readFileSync((await download.path())!));
+  // The comments are in the zip, so the browser's draft of them is let go.
+  const drafts = (): Promise<string[]> =>
+    page.evaluate(() =>
+      Object.keys(localStorage).filter((k) => k.startsWith('lf-viewer-comments:')),
+    );
+  await expect.poll(drafts).toEqual([]);
 
   // The same browser opens the exported zip: the comments are in it. One is edited and the other deleted.
   await page.reload();
