@@ -157,9 +157,13 @@ export function audioChoice(o: Pick<Options, 'audio'>): AudioMode | undefined {
   return o.audio === 1 ? 'classic' : o.audio === 2 ? 'enhanced' : undefined;
 }
 
-/** The version of the sound effects and of the music Auto picks. Classic is the sound the game has always had. */
-export const SFX_VERSION_DEFAULT: AudioMode = 'classic';
-export const MUSIC_VERSION_DEFAULT: AudioMode = 'classic';
+/**
+ * The version of the sound effects and of the music Auto picks: Enhanced, the reshaped effects and the songs. A
+ * player who chose Classic (or Enhanced) has a stored choice, which these do not touch. Classic is still the
+ * sound the game has always had, one step away in Options > Sound.
+ */
+export const SFX_VERSION_DEFAULT: AudioMode = 'enhanced';
+export const MUSIC_VERSION_DEFAULT: AudioMode = 'enhanced';
 
 /** The version of the music in use: the player's choice, or the default while it is on Auto. */
 export function musicVersionOf(o: Pick<Options, 'musicVersion'>): AudioMode {

@@ -93,7 +93,7 @@ describe('options storage', () => {
     expect(parseOptions('{"v":1,"sfxVersion":2}').sfxVersion).toBe(2);
     expect(parseOptions('{"v":1,"sfxVersion":7}').sfxVersion).toBe(0);
     expect(parseOptions('{"v":1,"sfxVersion":"2"}').sfxVersion).toBe(0);
-    expect(sfxVersionOf({ sfxVersion: 0 })).toBe('classic');
+    expect(sfxVersionOf({ sfxVersion: 0 })).toBe('enhanced');
     expect(sfxVersionOf({ sfxVersion: 1 })).toBe('classic');
     expect(sfxVersionOf({ sfxVersion: 2 })).toBe('enhanced');
   });
