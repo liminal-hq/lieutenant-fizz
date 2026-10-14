@@ -11,11 +11,18 @@ import type { MenuThemeData } from '@lieutenant-fizz/engine/menu/theme';
 export interface LauncherSound extends MenuSoundPlayer {
   /** Sets the volume of the effects, 0 to 1 (a level above silence; silence is a player of nothing). */
   setLevel(level: number): void;
+  /** Plays what happens in the scenery (a pickup, a stomp, a shot or a hit), when the theme has a sound for it. */
+  action(name: string): void;
   dispose(): void;
 }
 
 /** A player that makes no sound. */
-export const SILENT: LauncherSound = { cue: () => {}, setLevel: () => {}, dispose: () => {} };
+export const SILENT: LauncherSound = {
+  cue: () => {},
+  setLevel: () => {},
+  action: () => {},
+  dispose: () => {},
+};
 
 /**
  * The menu sounds for a theme: silent when the theme has none (or the player turned sound effects off), and
@@ -37,6 +44,10 @@ export function createLauncherSound(
   return {
     ...createMenuSounds(data.sounds, (effect) => audio.play(effect)),
     setLevel: (next) => audio.setSfxVolume(next),
+    action: (name) => {
+      const effect = data.actions?.[name];
+      if (effect) audio.play(effect);
+    },
     dispose: () => audio.dispose(),
   };
 }
