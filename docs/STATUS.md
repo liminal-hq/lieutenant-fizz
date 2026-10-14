@@ -69,7 +69,7 @@ Saves, options and touch settings go through `KeyValueStorage` (`packages/engine
 `.github/workflows/release.yml` builds the Linux packages (deb, rpm and AppImage for x86_64 and aarch64), an unsigned universal macOS dmg, unsigned Windows installers (msi and NSIS, x64 and arm64) and a signed Android APK and AAB when a `vX.Y.Z` tag is pushed, and publishes one release with them, led by the hand-written notes in `docs/releases/<version>.md`. 0.1.0 is the first; its notes list what is in it and what is untried. Google Play comes later. See `docs/APP.md`, "Releases".
 
 ## Planned
-Written down in `docs/` before any code, and iterated in pull requests. None of it is built.
+Written down in `docs/` before any code, and iterated in pull requests. The launcher and the mobile work are mostly built (see "Done and verified" and the mobile entry under "Known gaps and deviations"); the entries below say what is still to come.
 - **Tauri app and launcher** (`docs/APP.md`): one Android and desktop app for every episode, with a game-style launcher (a carousel of episodes plus an App settings stop) that replaces each episode's title screen when launched from the app, global options with per-episode overrides, a launch contract, `.fizzsave` export and import, and the chosen app icon.
 - **Mobile** (`docs/MOBILE.md`, built in the slices of `docs/MOBILE_PLAN.md`, web first): the phone title, glass D-pad and Jump, Pogo and Fizz buttons, a phone layout for every screen, and haptics through an upgraded Tauri haptics plugin, driven by the same events as audio and captions.
 - **Design export:** `design/` was refreshed with the launcher, mobile and app icon artboards, the launcher art generator and the haptics plugin proposal.
