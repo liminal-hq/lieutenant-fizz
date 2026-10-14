@@ -132,15 +132,10 @@ import {
   type OptionScope,
 } from './option-scope';
 import { gestureFor, isLive } from './lifecycle-rules';
+import { isPortrait } from '@lieutenant-fizz/engine/portrait';
 import { Cinematic, CINE_TALL } from './cine';
 import { viewPoint } from './map-panel';
-import {
-  isPortrait,
-  TOUCH_WORD_GLYPHS,
-  touchCount,
-  watchResize,
-  type TouchGutters,
-} from './layout';
+import { TOUCH_WORD_GLYPHS, touchCount, watchResize, type TouchGutters } from './layout';
 import { FullscreenControl, glyphGrid, type FullscreenPlace } from './fullscreen-button';
 import { touchFaces, type ShellScreen, type SubScreen, type TouchFaces } from './touch-menus';
 import { EPISODE } from './episode';

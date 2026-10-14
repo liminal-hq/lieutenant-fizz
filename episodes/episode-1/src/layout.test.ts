@@ -10,7 +10,6 @@ import {
   captionPosition,
   creditsTransform,
   headCandidates,
-  isPortrait,
   layoutVars,
   NO_GUTTERS,
   promptClear,
@@ -207,14 +206,6 @@ describe('watchResize on a phone', () => {
     expect(win.handlers.size).toBe(2);
     stop();
     expect(win.handlers.size).toBe(0);
-  });
-});
-
-describe('isPortrait', () => {
-  it('is true only when taller than wide', () => {
-    expect(isPortrait(390, 844)).toBe(true);
-    expect(isPortrait(844, 390)).toBe(false);
-    expect(isPortrait(600, 600)).toBe(false);
   });
 });
 

@@ -46,6 +46,7 @@ import { densityRow } from '@lieutenant-fizz/engine/menu/density';
 import { SILENT, createLauncherSound, type LauncherSound } from './sound';
 import { currentStop, hasBack, initialState, reduce, type Action } from './state';
 import { createSnackbar, createToast, type ToastDeps } from './toast';
+import { isPortrait } from '@lieutenant-fizz/engine/portrait';
 import { createStrip, type Strip } from './strip';
 import { createLauncherHaptics, NO_HAPTICS, type LauncherHaptics } from './haptics';
 import { createLauncherTouch, type LauncherTouch } from './touch';
@@ -222,9 +223,20 @@ ui.append(keys);
 // Which device the player last used decides the hints: keys for a keyboard and mouse, buttons for a pad, none for touch.
 // A phone starts with its on-screen controls; any other device starts on the keyboard until a touch.
 let device: InputDevice = matchMedia('(pointer: coarse)').matches ? 'touch' : 'keyboard';
+// The game is landscape: a touch device held upright gets a "Rotate your phone" screen over the page.
+const rotate = document.createElement('div');
+rotate.id = 'rotate';
+rotate.hidden = true;
+rotate.innerHTML =
+  '<div><h2>Rotate your phone</h2><p>Lieutenant Fizz plays in landscape.</p></div>';
+ui.append(rotate);
+const showRotate = (): void => {
+  rotate.hidden = !(device === 'touch' && isPortrait(innerWidth, innerHeight));
+};
 const useDevice = (next: InputDevice): void => {
   if (next === device) return;
   device = next;
+  showRotate();
   haptics.setDevice(device);
   touch?.setActive(device === 'touch');
   keepClearOfControls();
@@ -303,6 +315,7 @@ function applyOptions(next: GlobalOptions): void {
     applyTheme();
   }
   applyLook();
+  view.relayout();
 }
 
 /** The options that shape the page itself. */
@@ -409,9 +422,14 @@ const scale = (): void => {
   strip?.resize(innerHeight);
   touch?.relayout();
   keepClearOfControls();
+  view.relayout();
 };
 scale();
-addEventListener('resize', scale);
+showRotate();
+addEventListener('resize', () => {
+  scale();
+  showRotate();
+});
 
 // The demo strip, from the first episode that has one.
 for (const f of files.values()) {

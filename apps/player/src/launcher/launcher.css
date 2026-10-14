@@ -3,6 +3,7 @@
 @import '@lieutenant-fizz/engine/menu/tokens.css';
 @import '@lieutenant-fizz/engine/menu/rows.css';
 @import '@lieutenant-fizz/engine/menu/keys.css';
+@import '@lieutenant-fizz/engine/menu/scroll.css';
 @import '@lieutenant-fizz/engine/touch-ui.css';
 
 /* The room the on-screen controls take beside the menu: set by the page, only where they would sit over it. */
@@ -54,6 +55,8 @@ body {
 }
 
 #launcher .menu {
+  /* Never squeezed by the column: the scroller measures how far the page overruns and cuts the menu itself. */
+  flex: none;
   align-self: flex-start;
   min-width: min(100%, calc(var(--n) * 11 * 14px));
 }
@@ -78,6 +81,12 @@ body {
   #launcher .menu button {
     height: var(--lf-menu-row, 40px);
   }
+}
+
+/* A scrolling menu lays every row out at one height (set by the page). */
+#launcher .menu[data-unit] > button {
+  height: var(--lf-menu-unit);
+  min-height: var(--lf-menu-unit);
 }
 
 /* A value (the version) sits at the plate's right edge. */
@@ -330,4 +339,30 @@ body {
   #ui .keys {
     display: none;
   }
+}
+
+/* A touch device held upright: the page is landscape, so a plain screen asks for the phone to be turned. */
+#rotate {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #000;
+  padding: var(--lf-pad-y) var(--lf-pad-x);
+}
+#rotate[hidden] {
+  display: none;
+}
+#rotate h2 {
+  --n: var(--lf-n-head);
+  margin: 0 0 calc(var(--lf-n) * 6px);
+  color: var(--lf-accent);
+}
+#rotate p {
+  --n: var(--lf-n);
+  margin: 0;
+  color: var(--lf-muted);
 }

@@ -185,9 +185,6 @@ export const TOUCH_COUNT_MAX = 999;
 export const touchCount = (ammo: number): string =>
   String(Math.min(TOUCH_COUNT_MAX, Math.max(0, Math.trunc(ammo) || 0)));
 
-/** Whether a window of this size is taller than it is wide (a phone held upright). */
-export const isPortrait = (width: number, height: number): boolean => height > width;
-
 /** The credits roll's transform for a given distance travelled, in whole CSS pixels. */
 export const creditsTransform = (viewport: number, offset: number): string =>
   `translateY(${Math.round(viewport - offset)}px)`;

@@ -9,6 +9,7 @@ import {
   type BulletImage,
   type RowItem,
 } from '@lieutenant-fizz/engine/menu/rows';
+import { MenuScroller } from '@lieutenant-fizz/engine/menu/scroller';
 import { swipeDirection } from '@lieutenant-fizz/engine/menu/swipe';
 import { currentStop, rowsOf, type LauncherState, type RowId } from './state';
 
@@ -57,6 +58,8 @@ export interface View {
   activateSelected(): void;
   /** The row selected now. */
   selectedRow(): RowId | undefined;
+  /** Lays the menu out again for a new window size, touch controls or row height, scrolling it if it no longer fits. */
+  relayout(): void;
   /** Whether focus is on one of the menu's rows. */
   rowHasFocus(): boolean;
 }
@@ -99,6 +102,16 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
   pips.setAttribute('aria-hidden', 'true');
   const menu = make('div', 'menu');
   root.replaceChildren(header, pips, menu);
+  // A menu taller than the room scrolls, with chevrons at its edges (as the game's does).
+  const scroller = new MenuScroller();
+  scroller.attach(root, menu);
+  const fit = (): void => {
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const row = Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--lf-menu-row'),
+    );
+    scroller.fit([root], { minRow: touch ? row || 40 : 0 });
+  };
 
   prev.addEventListener('click', () => hooks.onStop(-1));
   next.addEventListener('click', () => hooks.onStop(1));
@@ -119,7 +132,10 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     if (!id) return;
     const moved = id !== selected;
     mark(id);
-    if (moved && !quiet) hooks.onMove();
+    if (moved && !quiet) {
+      scroller.reveal(menu);
+      hooks.onMove();
+    }
   });
 
   // A swipe sideways steps to the next or previous stop.
@@ -210,6 +226,7 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
       },
     });
     mark(free < 0 ? undefined : ids[at]);
+    fit();
     // Keep the pad's place; on first load there is nothing to keep, so the first row is only highlighted.
     if (had && free >= 0) {
       quiet = true;
@@ -248,6 +265,7 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     selectedRow() {
       return selected;
     },
+    relayout: fit,
     rowHasFocus() {
       return !!document.activeElement && menu.contains(document.activeElement);
     },
