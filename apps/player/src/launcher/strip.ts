@@ -6,7 +6,7 @@
 import type { StripArt } from './catalog';
 
 /** How much of the window's height the strip may take. */
-export const STRIP_SHARE = 0.42;
+export const STRIP_SHARE = 0.55;
 
 /** The most the strip is scaled up. */
 export const MAX_STRIP_SCALE = 5;

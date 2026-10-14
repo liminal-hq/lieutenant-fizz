@@ -165,8 +165,8 @@ body {
   background-position: 0 0;
   image-rendering: pixelated;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to top, #000 62%, transparent);
-  mask-image: linear-gradient(to top, #000 62%, transparent);
+  -webkit-mask-image: linear-gradient(to top, #000 80%, transparent);
+  mask-image: linear-gradient(to top, #000 80%, transparent);
   animation: lf-strip-scroll 26s linear infinite;
 }
 .strip .ben {

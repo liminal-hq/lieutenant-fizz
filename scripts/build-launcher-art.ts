@@ -64,7 +64,7 @@ export function stripPng(frames: readonly Grid[]): Uint8Array {
 /** The width of the demo strip, which tiles: what leaves on the right comes back on the left. */
 export const STRIP_W = 640;
 /** The height of the demo strip. */
-export const STRIP_H = 144;
+export const STRIP_H = 192;
 
 /** Copies a sprite onto the pen, top left corner at (x, y). Transparent pixels leave what is there. */
 function blit(pen: Pen, grid: Grid, x: number, y: number): void {
@@ -86,9 +86,10 @@ function lcg(seed: number): () => number {
 }
 
 /**
- * Episode 1's demo strip: a dusk sky dithered from black to the horizon's red, stars, a moon, hills, Crater
- * Fields' ground with crystals standing on it, a floating ledge with pickups, and clouds. It is drawn from the
- * game's own sprites and tiles, 640 by 144 pixels, and tiles sideways.
+ * Episode 1's demo strip: a dusk sky dithered from deep blue through magenta to the horizon's red, with stars, a
+ * planet, a moon and clouds, two rows of hills, Crater Fields' ground with crystals standing on it, and a floating
+ * ledge with pickups. It is drawn from the game's own sprites and tiles, 640 by 192 pixels, and tiles sideways.
+ * The sky fills the strip's top, so nothing about it is empty black.
  */
 export function episode1Strip(sprites: ReadonlyMap<string, Grid>): Pen {
   const get = (name: string): Grid => {
@@ -97,9 +98,11 @@ export function episode1Strip(sprites: ReadonlyMap<string, Grid>): Pen {
     return g;
   };
   const pen = new Pen(STRIP_W, STRIP_H);
-  // The sky, a dither between bands, black at the top to red at the horizon.
-  const bands: Colour[] = ['k', 'B', 'M', 'r'];
-  const horizon = 108;
+  // Where the ground starts, and the horizon just above it. Ground-level things stand on `ground`.
+  const ground = STRIP_H - 32;
+  const horizon = ground - 4;
+  // The sky, a dither between bands from the top down: deep blue, magenta, then the horizon's red.
+  const bands: Colour[] = ['B', 'B', 'M', 'r'];
   const bayer = [0, 2, 3, 1];
   for (let y = 0; y < horizon; y++) {
     const t = (y / horizon) * (bands.length - 1);
@@ -110,36 +113,42 @@ export function episode1Strip(sprites: ReadonlyMap<string, Grid>): Pen {
       pen.px(x, y, bands[lo + (frac > threshold ? 1 : 0)] ?? 'r');
     }
   }
-  // Stars in the dark upper half.
+  // Stars, thickest in the upper sky.
   const rand = lcg(2026);
-  for (let i = 0; i < 46; i++) {
+  for (let i = 0; i < 90; i++) {
     const x = Math.floor(rand() * STRIP_W);
-    const y = Math.floor(rand() * 54);
+    const y = Math.floor(rand() * rand() * (horizon - 24));
     pen.px(x, y, rand() < 0.3 ? 'c' : 'W');
   }
-  blit(pen, get('moon'), 500, 14);
+  blit(pen, get('planet'), 330, 30);
+  blit(pen, get('moon'), 520, 22);
+  // Clouds at three heights.
+  blit(pen, get('cloud'), 70, 56);
+  blit(pen, get('cloud'), 226, 92);
+  blit(pen, get('cloud'), 400, 48);
+  blit(pen, get('cloud'), 566, 98);
   // Two rows of hills, the far ones fainter. Each is a sum of waves that fit the strip's width, so it tiles.
   const hill = (base: number, wave: [number, number, number][], colour: Colour): void => {
     for (let x = 0; x < STRIP_W; x++) {
       let h = base;
       for (const [cycles, size, phase] of wave)
         h += size * Math.sin((2 * Math.PI * cycles * x) / STRIP_W + phase);
-      for (let y = Math.round(horizon - h); y < 112; y++) pen.px(x, y, colour);
+      for (let y = Math.round(horizon - h); y < ground; y++) pen.px(x, y, colour);
     }
   };
   hill(
-    22,
+    34,
     [
-      [2, 9, 0.4],
-      [5, 4, 1.7],
+      [2, 12, 0.4],
+      [5, 6, 1.7],
     ],
     'B',
   );
   hill(
-    12,
+    18,
     [
-      [3, 6, 2.1],
-      [7, 3, 0.2],
+      [3, 8, 2.1],
+      [7, 4, 0.2],
     ],
     'b',
   );
@@ -147,8 +156,8 @@ export function episode1Strip(sprites: ReadonlyMap<string, Grid>): Pen {
   const top = get('craterTop');
   const fill = get('craterFill');
   for (let x = 0; x < STRIP_W; x += 16) {
-    blit(pen, top, x, 112);
-    blit(pen, fill, x, 128);
+    blit(pen, top, x, ground);
+    blit(pen, fill, x, ground + 16);
   }
   // Crystals standing on the ground, and a ledge in the air with pickups on and over it.
   const crystals: [string, number][] = [
@@ -160,15 +169,13 @@ export function episode1Strip(sprites: ReadonlyMap<string, Grid>): Pen {
     ['crysM', 552],
     ['crysC', 604],
   ];
-  for (const [name, x] of crystals) blit(pen, get(name), x, 96);
+  for (const [name, x] of crystals) blit(pen, get(name), x, ground - 16);
   const ledge = get('craterPlat');
-  for (const x of [248, 264, 280]) blit(pen, ledge, x, 76);
-  blit(pen, get('cookie'), 256, 60);
-  blit(pen, get('soda'), 272, 60);
-  blit(pen, get('cheezie'), 464, 88);
-  blit(pen, get('choc'), 160, 90);
-  blit(pen, get('cloud'), 90, 34);
-  blit(pen, get('cloud'), 380, 24);
+  for (const x of [248, 264, 280]) blit(pen, ledge, x, ground - 36);
+  blit(pen, get('cookie'), 256, ground - 52);
+  blit(pen, get('soda'), 272, ground - 52);
+  blit(pen, get('cheezie'), 464, ground - 24);
+  blit(pen, get('choc'), 160, ground - 22);
   return pen;
 }
 
