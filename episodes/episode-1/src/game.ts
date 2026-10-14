@@ -243,7 +243,8 @@ import { thumbDataUrl } from './thumb';
 import type { HapticsLab } from './ui/haptics-lab';
 import type { LabId, LabShell } from './ui/lab-shell';
 import type { SoundLab } from './ui/sound-lab';
-import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
+import { drawSimFrame, renderSim } from './sim/draw';
+import { Ev, Mode, Out, State, STEP, Table } from './sim/protocol';
 import { Sim, type SimEvent } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
 import {
@@ -1052,66 +1053,41 @@ export class Game {
 
   private draw(): void {
     const sim = this.sim;
-    let flags = 0;
-    if (this.opts.night) flags |= RenderFlag.NIGHT;
-    if (this.opts.culling) flags |= RenderFlag.CULLING;
-    if (this.opts.stress) flags |= RenderFlag.STRESS;
-    sim.render(this.alpha, flags);
-    const o = sim.out;
-    let count = o[Out.COUNT] ?? 0;
-    let camX = o[Out.CAM_X] ?? 0;
-    let camY = o[Out.CAM_Y] ?? 0;
-    let clear: [number, number, number, number] = [
-      o[Out.CLEAR_R] ?? 0,
-      o[Out.CLEAR_G] ?? 0,
-      o[Out.CLEAR_B] ?? 0,
-      o[Out.CLEAR_A] ?? 1,
-    ];
-    let ambient: [number, number, number] = [
-      o[Out.AMB_R] ?? 1,
-      o[Out.AMB_G] ?? 1,
-      o[Out.AMB_B] ?? 1,
-    ];
-    let lighting = (o[Out.LIGHTING] ?? 0) > 0.5 && this.opts.lighting && !this.flatDraw;
-    let lightCount = o[Out.LIGHTS] ?? 0;
-    let sky = (o[Out.SKY_GLOW] ?? 0) > 0.5;
+    let frame = renderSim(sim, this.alpha, {
+      night: this.opts.night,
+      culling: this.opts.culling,
+      stress: this.opts.stress,
+      lighting: this.opts.lighting && !this.flatDraw,
+    });
     const buf = sim.instanceBuffer;
     if (this.screen === 'cine') {
       this.writer.rebind(buf);
       this.writer.reset();
       this.cine.draw(this.writer);
-      count = this.writer.n;
-      camX = 0;
-      camY = 0;
-      clear = [0, 0, 0, 1];
-      ambient = [1, 1, 1];
-      lighting = false;
-      lightCount = 0;
-      sky = false;
+      frame = {
+        count: this.writer.n,
+        camX: 0,
+        camY: 0,
+        clear: [0, 0, 0, 1],
+        ambient: [1, 1, 1],
+        lighting: false,
+        lightCount: 0,
+        sky: false,
+      };
     }
-    this.ui.setSky(sky);
-    const info = this.renderer.render({
-      instances: buf,
-      count,
-      camX,
-      camY,
+    this.ui.setSky(frame.sky);
+    const info = drawSimFrame(this.renderer, sim, buf, frame, {
       halfW: this.halfW,
       halfH: this.halfH,
-      clear,
-      ambient,
-      lighting,
       normals: this.opts.normals,
       poster: this.opts.poster,
-      lightCount,
-      lightPos: sim.lightPos,
-      lightCol: sim.lightCol,
     });
     this.lastCount = info.instances;
     this.lastCalls = info.calls;
-    this.camDrawn.x = camX;
-    this.camDrawn.y = camY;
+    this.camDrawn.x = frame.camX;
+    this.camDrawn.y = frame.camY;
     if (this.touchMode && this.ui.promptShown) {
-      this.ui.dockPrompt(this.benAnchor(camX, camY), this.touchUi.boxes());
+      this.ui.dockPrompt(this.benAnchor(frame.camX, frame.camY), this.touchUi.boxes());
     }
   }
 
