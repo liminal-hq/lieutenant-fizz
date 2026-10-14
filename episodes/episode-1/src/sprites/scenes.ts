@@ -42,14 +42,17 @@ export function owGrassFrost(seed: number): Grid {
   });
 }
 
-/** A fluffy marshmallow bush. */
+/** A cotton-candy tree: a big fluffy head on a short stem, standing 24 pixels tall. */
 export function owPuff(v: number): Grid {
-  const p = new Pen(16, 16);
-  p.ell(8, 10, 6.2, 4.6, 'W');
-  p.ell(v ? 5 : 11, 8.5, 3.2, 3, 'W');
-  p.ell(8, 11.5, 5, 2.2, 'L');
+  const p = new Pen(16, 24);
+  p.rect(7, 17, 2, 6, 'N');
+  p.ell(8, 10, 6.4, 8.5, 'W');
+  p.ell(v ? 5 : 11, 8, 3.2, 4, 'W');
+  p.ell(8, 15, 5, 3, 'L');
   p.px(v ? 4 : 10, 8, 'm');
   p.px(8, 9, 'm');
+  p.px(6, 13, 'm');
+  p.px(v ? 11 : 4, 5, 'm');
   return p.outline();
 }
 
@@ -61,18 +64,18 @@ export function owPuffRock(): Grid {
   return p.outline();
 }
 
-/** A spire of rock candy. */
+/** A spire of rock candy, 24 pixels tall. */
 export function owCandy(v: number): Grid {
-  const p = new Pen(16, 16);
+  const p = new Pen(16, 24);
   const [a, b, top] = v ? ([6, 11, 3] as const) : ([5, 12, 1] as const);
-  for (let y = top; y < 15; y++) {
+  for (let y = top; y < 22; y++) {
     const w = Math.min(y - top + 1, 4);
     for (let x = -w; x <= w; x++) {
       const px = Math.floor((a + b) / 2) + x;
       p.px(px, y, x < -w / 3 ? 'W' : x < w / 3 ? 'c' : 'C');
     }
   }
-  p.rect(6, 14, 5, 1, 'D');
+  p.rect(6, 22, 5, 1, 'D');
   return p.outline();
 }
 
@@ -85,19 +88,20 @@ export function owCandyRock(): Grid {
   return p.outline();
 }
 
-/** A sprinkle tree: a cone of pink frosting with a white swirl. */
+/** A sprinkle tree: a tall cone of pink frosting with a white swirl, 24 pixels tall. */
 export function owFrost(v: number): Grid {
-  const p = new Pen(16, 16);
-  p.rect(7, 12, 2, 3, 'N');
+  const p = new Pen(16, 24);
+  p.rect(7, 19, 2, 4, 'N');
   p.fn((x, y) => {
-    if (y > 12 || y < 1) return undefined;
-    const w = (y - 0.5) * 0.55;
+    if (y > 19 || y < 1) return undefined;
+    const w = (y - 0.5) * 0.4;
     const d = x + 0.5 - 8;
     if (Math.abs(d) > w) return undefined;
     return (y + (v ? 1 : 0)) % 4 === 0 ? 'W' : d < 0 ? 'm' : 'M';
   });
-  p.px(v ? 6 : 9, 6, 'y');
-  p.px(v ? 9 : 6, 9, 'c');
+  p.px(v ? 6 : 9, 9, 'y');
+  p.px(v ? 9 : 6, 14, 'c');
+  p.px(v ? 7 : 8, 5, 'c');
   return p.outline();
 }
 
@@ -120,6 +124,72 @@ export function owPath(seed: number): Grid {
   });
 }
 
+/** The bank where land meets water to its south: a short brown face, a solid lip and then a darker, dithered wall. */
+export function owBank(): Grid {
+  return new Pen(16, 6).fn((x, y) => (y < 2 ? 'N' : (x + y) % 2 === 0 ? 'N' : 'k'));
+}
+
+/** A thin dirt lip along the top of a tile (flip it for the bottom): a solid row and a dithered one. */
+export function owLipH(): Grid {
+  return new Pen(16, 2).fn((x, y) => (y === 0 || x % 2 === 0 ? 'N' : undefined));
+}
+
+/** A thin dirt lip down the left of a tile (flip it for the right). */
+export function owLipV(): Grid {
+  return new Pen(2, 16).fn((x, y) => (x === 0 || y % 2 === 0 ? 'N' : undefined));
+}
+
+/** A glint on the water: a few bright pixels that come and go. */
+export function owGlint(): Grid {
+  const p = new Pen(16, 16);
+  p.px(3, 4, 'W');
+  p.px(4, 4, 'W');
+  p.px(11, 9, 'c');
+  p.px(12, 9, 'W');
+  p.px(7, 13, 'W');
+  return p;
+}
+
+/** A small thing on the grass: a flower (two kinds), pebbles, or a tuft, 8 pixels square. */
+export function owDecal(kind: number): Grid {
+  const p = new Pen(8, 8);
+  switch (kind) {
+    case 0:
+      p.rect(4, 5, 1, 3, 'g');
+      p.px(3, 3, 'm');
+      p.px(5, 3, 'm');
+      p.px(4, 2, 'm');
+      p.px(4, 4, 'm');
+      p.px(4, 3, 'y');
+      break;
+    case 1:
+      p.rect(3, 5, 1, 3, 'g');
+      p.px(2, 3, 'W');
+      p.px(4, 3, 'W');
+      p.px(3, 2, 'W');
+      p.px(3, 4, 'W');
+      p.px(3, 3, 'y');
+      break;
+    case 2:
+      p.px(2, 5, 'L');
+      p.px(3, 5, 'D');
+      p.px(5, 6, 'L');
+      p.px(6, 6, 'D');
+      p.px(4, 3, 'D');
+      break;
+    default:
+      p.px(2, 6, 'g');
+      p.px(3, 5, 'g');
+      p.px(3, 6, 'g');
+      p.px(4, 4, 'g');
+      p.px(4, 5, 'g');
+      p.px(5, 6, 'g');
+      p.px(6, 5, 'g');
+      break;
+  }
+  return p;
+}
+
 export function owRiver(f: number): Grid {
   return new Pen(16, 16).fn((x, y) =>
     Math.sin(x * 0.6 + y * 0.9 + f * 2.5) > 0.85 ? 'y' : (x + y * 2 + f) % 7 === 0 ? 'R' : 'N',
@@ -127,13 +197,13 @@ export function owRiver(f: number): Grid {
 }
 
 export function owTree(v: number): Grid {
-  const p = new Pen(16, 16);
-  p.rect(7, 11, 2, 4, 'N');
+  const p = new Pen(16, 24);
+  p.rect(7, 18, 2, 6, 'N');
   const c1 = v ? 'm' : 'c';
   const c2 = v ? 'M' : 'C';
   p.fn((x, y) => {
-    if (y > 11 || y < 1) return undefined;
-    const w = Math.min(y - 0.5, 12 - y) * 0.75;
+    if (y > 19 || y < 1) return undefined;
+    const w = Math.min(y - 0.5, 20 - y) * 0.62;
     const d = x + 0.5 - 8;
     if (Math.abs(d) <= w) return d < -w / 3 ? 'W' : d < w / 3 ? c1 : c2;
     return undefined;
@@ -149,33 +219,45 @@ export function owRock(): Grid {
   return p.outline();
 }
 
-/** A small overworld house with a coloured roof. */
+/** A small overworld house with a coloured roof, standing 24 pixels tall. */
 export function owHouse(roof: 'red' | 'blue'): Grid {
-  const p = new Pen(16, 16);
+  const p = new Pen(16, 24);
   const [a, b] = roof === 'red' ? (['r', 'R'] as const) : (['b', 'B'] as const);
-  p.rect(2, 7, 12, 8, 'W');
-  p.rect(1, 6, 14, 2, b);
-  p.rect(3, 4, 10, 2, a);
-  p.rect(5, 2, 6, 2, a);
-  p.rect(7, 10, 3, 5, 'N');
-  p.rect(3, 9, 3, 3, 'c');
-  p.rect(11, 9, 2, 3, 'c');
-  p.rect(11, 1, 2, 3, 'D');
+  p.rect(2, 15, 12, 9, 'W');
+  p.rect(1, 14, 14, 2, b);
+  p.rect(3, 11, 10, 3, a);
+  p.rect(4, 8, 8, 3, a);
+  p.rect(6, 5, 4, 3, a);
+  p.rect(7, 18, 3, 6, 'N');
+  p.rect(3, 17, 3, 3, 'c');
+  p.rect(11, 17, 2, 3, 'c');
+  p.rect(11, 3, 2, 5, 'D');
   return p.outline();
 }
 
-/** A shop: a striped awning over a counter, with a sign on top. */
+/** A shop: a sign above a striped awning over a counter, standing 24 pixels tall. */
 export function owShop(): Grid {
-  const p = new Pen(16, 16);
-  p.rect(2, 8, 12, 7, 'y');
-  p.fn((x, y) => (y >= 5 && y <= 7 && x >= 1 && x <= 14 ? (x % 4 < 2 ? 'r' : 'W') : undefined));
-  p.rect(4, 1, 8, 3, 'N');
-  p.rect(5, 2, 2, 1, 'y');
-  p.rect(8, 2, 3, 1, 'y');
-  p.rect(6, 10, 4, 5, 'N');
-  p.rect(3, 10, 2, 2, 'c');
-  p.rect(11, 10, 2, 2, 'c');
+  const p = new Pen(16, 24);
+  p.rect(2, 12, 12, 11, 'y');
+  p.fn((x, y) => (y >= 9 && y <= 12 && x >= 1 && x <= 14 ? (x % 4 < 2 ? 'r' : 'W') : undefined));
+  p.rect(3, 1, 10, 6, 'N');
+  p.rect(5, 3, 2, 1, 'y');
+  p.rect(8, 3, 3, 1, 'y');
+  p.rect(6, 16, 4, 7, 'N');
+  p.rect(3, 15, 2, 3, 'c');
+  p.rect(11, 15, 2, 3, 'c');
   return p.outline();
+}
+
+/** A dithered shadow: a flattened ellipse of black pixels on every other cell, to lay under something. */
+export function owShadow(w: number, h: number): Grid {
+  const p = new Pen(w, h);
+  p.fn((x, y) => {
+    const dx = (x + 0.5 - w / 2) / (w / 2);
+    const dy = (y + 0.5 - h / 2) / (h / 2);
+    return dx * dx + dy * dy <= 1 && (x + y) % 2 === 0 ? 'k' : undefined;
+  });
+  return p;
 }
 
 /** A fountain in the town square, running with fudge. */

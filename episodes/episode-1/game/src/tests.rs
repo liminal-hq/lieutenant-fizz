@@ -391,6 +391,8 @@ fn overworld_walk_prompt_and_enter_level() {
     w.step(0);
     let prompts = events_of(&w, ev::MAP_PROMPT);
     assert_eq!(prompts.last().unwrap().a, 1.0);
+    // A press only opens a level once the map is armed (see `MAP_ARM_SECS`).
+    w.map_arm = 0.0;
     w.step(JUMP);
     assert_eq!(w.mode, Mode::Level);
     assert_eq!(w.level_id, CRATER);
@@ -399,6 +401,542 @@ fn overworld_walk_prompt_and_enter_level() {
         w.game.map_pos.is_some(),
         "map position remembered for the return trip"
     );
+}
+
+#[test]
+fn the_map_is_lit_by_day_with_a_sun_that_leaves_flat_ground_at_full_brightness() {
+    use crate::render::out;
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    // Night does not reach the map: it is the same lit daytime either way.
+    for flags in [0, crate::render::flags::NIGHT] {
+        w.render(1.0, flags);
+        assert_eq!(w.out[out::LIGHTING], 1.0, "the map is lit");
+        let z = w.out[out::SUN_Z];
+        assert!(z > 0.5, "the sun is up");
+        for i in 0..3 {
+            let flat = w.out[out::AMB_R + i] + w.out[out::SUN_R + i] * z;
+            assert!(
+                (flat - 1.0).abs() < 1e-4,
+                "channel {i}: flat ground is at {flat}, not full brightness"
+            );
+        }
+        assert!(w.out[out::LIGHTS] >= 1.0, "the map has lights");
+    }
+}
+
+/// A map world with each sprite the overworld draws given its own atlas coordinate, so instances can be told
+/// apart: the ground at 0.05, a shadow at 0.2, a tree at 0.4, Ben at 0.62.
+fn map_world_with_known_sprites() -> World {
+    use crate::sprites::Spr;
+    use lf_sim::SpriteRect;
+    let mut w = map_world();
+    let rect = |u: f32, h: f32| SpriteRect {
+        u,
+        v: u,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h,
+    };
+    w.spr[Spr::OwGrass as usize] = rect(0.05, 16.0);
+    w.spr[Spr::OwShadowS as usize] = rect(0.2, 4.0);
+    w.spr[Spr::OwTree0 as usize] = rect(0.4, 24.0);
+    w.spr[Spr::OwTree1 as usize] = rect(0.4, 24.0);
+    w.spr[Spr::BenMap0 as usize] = rect(0.62, 16.0);
+    w.spr[Spr::BenMap1 as usize] = rect(0.62, 16.0);
+    w.half_w = 11.0;
+    w.half_h = 6.5;
+    w
+}
+
+#[test]
+fn on_the_map_what_is_further_north_is_drawn_first_so_ben_walks_behind_trees() {
+    use lf_sim::STRIDE;
+    let mut w = map_world_with_known_sprites();
+    // Open ground in Crater Fields (the column cleared of the map's own trees): a tree three tiles north of
+    // Ben and one three tiles south.
+    for x in 8..=12 {
+        for y in 4..=16 {
+            w.map.set(x, y, GRASS);
+        }
+    }
+    for (x, y) in [(10, 13), (10, 7)] {
+        w.map.set(x, y, TREE);
+    }
+    w.p.b.x = 10.2;
+    w.p.b.y = 10.2;
+    w.cam_x = 10.5;
+    w.cam_y = 10.5;
+    w.pcx = 10.5;
+    w.pcy = 10.5;
+    w.render(1.0, crate::render::flags::CULLING);
+    let data = w.inst.as_slice();
+    let n = w.inst.len();
+    let u = |i: usize| data[i * STRIDE + 16];
+    let y = |i: usize| data[i * STRIDE + 13];
+    let ben = (0..n).find(|&i| u(i) == 0.62).expect("Ben is drawn");
+    // The trees in Ben's column (the rest of the view has the map's own).
+    let trees: Vec<usize> = (0..n)
+        .filter(|&i| u(i) == 0.4 && (data[i * STRIDE + 12] - 10.5).abs() < 1e-4)
+        .collect();
+    let north = trees
+        .iter()
+        .copied()
+        .find(|&i| y(i) > y(ben))
+        .expect("the north tree");
+    let south = trees
+        .iter()
+        .copied()
+        .find(|&i| y(i) < y(ben))
+        .expect("the south tree");
+    assert!(
+        north < ben,
+        "a tree north of Ben is behind him: drawn first"
+    );
+    assert!(
+        south > ben,
+        "a tree south of Ben is in front of him: drawn after"
+    );
+    // All the ground goes down before anything that stands on it.
+    let first_object = (0..n)
+        .find(|&i| [0.2, 0.4, 0.62].contains(&u(i)))
+        .expect("something stands on the ground");
+    assert!((0..n).filter(|&i| u(i) == 0.05).all(|i| i < first_object));
+    // A tree stands on its tile's bottom edge: 24 pixels tall, so its centre is 0.75 above the tile's base.
+    assert!((y(north) - (13.0 + 0.75)).abs() < 1e-4);
+}
+
+#[test]
+fn every_tree_and_ben_have_a_shadow_drawn_just_under_them() {
+    use lf_sim::STRIDE;
+    let mut w = map_world_with_known_sprites();
+    w.map.set(12, 11, TREE);
+    w.p.b.x = 10.2;
+    w.p.b.y = 10.2;
+    w.cam_x = 10.5;
+    w.cam_y = 10.5;
+    w.pcx = 10.5;
+    w.pcy = 10.5;
+    w.render(1.0, crate::render::flags::CULLING);
+    let data = w.inst.as_slice();
+    let n = w.inst.len();
+    let u = |i: usize| data[i * STRIDE + 16];
+    let mut seen = 0;
+    for i in (0..n).filter(|&i| u(i) == 0.4 || u(i) == 0.62) {
+        assert_eq!(u(i - 1), 0.2, "instance {i}: a shadow comes just before it");
+        seen += 1;
+    }
+    assert!(seen >= 2, "the tree and Ben");
+}
+
+#[test]
+fn a_tall_tree_just_below_the_view_still_reaches_into_it() {
+    use lf_sim::STRIDE;
+    let mut w = map_world_with_known_sprites();
+    // The view's bottom edge is at 13.2; a tree on row 12 stands on 12 and rises to 13.5, into the view.
+    w.map.set(10, 12, TREE);
+    w.p.b.x = 10.2;
+    w.p.b.y = 19.2;
+    w.cam_x = 10.5;
+    w.cam_y = 19.7;
+    w.pcx = 10.5;
+    w.pcy = 19.7;
+    w.render(1.0, crate::render::flags::CULLING);
+    let data = w.inst.as_slice();
+    let n = w.inst.len();
+    assert!(
+        (0..n)
+            .any(|i| data[i * STRIDE + 16] == 0.4 && (data[i * STRIDE + 13] - 12.75).abs() < 1e-4),
+        "the tree on row 12 is drawn"
+    );
+}
+
+#[test]
+fn every_level_has_its_own_landmark() {
+    let mut icons: Vec<u16> = crate::levels::LEVELS
+        .iter()
+        .map(|l| l.icon as u16)
+        .collect();
+    let n = icons.len();
+    icons.sort_unstable();
+    icons.dedup();
+    assert_eq!(icons.len(), n, "no two levels share an icon");
+}
+
+#[test]
+fn a_landmark_stands_behind_whoever_is_north_of_its_node_and_a_flag_shows_the_levels_state() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = map_world_with_known_sprites();
+    let rect = |u: f32, h: f32| SpriteRect {
+        u,
+        v: u,
+        uw: 0.01,
+        vh: 0.01,
+        w: 32.0,
+        h,
+    };
+    let (i, pt) = w
+        .points
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, p)| p.kind == crate::levels::PtKind::Level && !p.big)
+        .expect("a level node");
+    let icon = crate::levels::LEVELS[usize::from(pt.level)].icon;
+    w.spr[icon as usize] = rect(0.81, 32.0);
+    w.spr[Spr::OwFlagHolder as usize] = rect(0.83, 16.0);
+    w.spr[Spr::OwFlag as usize] = rect(0.87, 16.0);
+    // Ben on the tile just north of the node, as when he walks down a path to it.
+    stand_on(&mut w, i);
+    w.p.b.y = pt.y + 1.3;
+    w.cam_x = pt.x + 0.5;
+    w.cam_y = pt.y + 0.5;
+    w.pcx = w.cam_x;
+    w.pcy = w.cam_y;
+    w.render(1.0, crate::render::flags::CULLING);
+    let data = w.inst.as_slice();
+    let n = w.inst.len();
+    let u = |k: usize| data[k * STRIDE + 16];
+    let at = |v: f32| (0..n).find(|&k| (u(k) - v).abs() < 1e-6);
+    let lm = at(0.81).expect("the landmark is drawn");
+    let ben = at(0.62).expect("Ben is drawn");
+    assert!(lm < ben, "the landmark is behind Ben, north of its node");
+    // Base-anchored: 32 pixels tall on a point 0.35 above the node tile's bottom edge.
+    assert!((data[lm * STRIDE + 13] - (pt.y as f32 + 0.35 + 1.0)).abs() < 1e-3);
+    // A level not yet cleared has a bare pole and no flag.
+    assert!(at(0.83).is_some(), "the holder for an uncleared level");
+    assert!(
+        (0..n).all(|k| (u(k) - 0.87).abs() > 1e-6),
+        "no flag on an uncleared level"
+    );
+}
+
+#[test]
+fn a_level_cleared_for_the_first_time_has_its_flag_thrown_to_the_pole_and_a_replay_does_not() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = map_world_with_known_sprites();
+    let rect = |u: f32| SpriteRect {
+        u,
+        v: u,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h: 16.0,
+    };
+    w.spr[Spr::OwFlagHolder as usize] = rect(0.83);
+    w.spr[Spr::OwFlag as usize] = rect(0.87);
+    let pt = w
+        .points
+        .iter()
+        .copied()
+        .find(|p| p.kind == crate::levels::PtKind::Level && !p.big)
+        .expect("a level node");
+    let pole = (f64::from(pt.x as f32) + 1.1, f64::from(pt.y as f32) + 1.4);
+    let flag_at = |w: &World| {
+        let data = w.inst.as_slice();
+        (0..w.inst.len())
+            .find(|&k| (data[k * STRIDE + 16] - 0.87).abs() < 1e-6)
+            .map(|k| {
+                (
+                    f64::from(data[k * STRIDE + 12]),
+                    f64::from(data[k * STRIDE + 13]),
+                )
+            })
+    };
+    // Cleared for the first time: the flag leaves Ben, goes up and arrives on the pole.
+    w.fresh_clear = Some(pt.level);
+    w.game.set_done(pt.level);
+    w.enter_map();
+    w.map_arm = 0.0;
+    w.p.b.x = pt.x + 3.0;
+    w.p.b.y = pt.y + 3.0;
+    w.cam_x = pt.x + 0.5;
+    w.cam_y = pt.y + 0.5;
+    w.pcx = w.cam_x;
+    w.pcy = w.cam_y;
+    assert!(w.flag_throw.is_some());
+    w.render(1.0, crate::render::flags::CULLING);
+    let start = flag_at(&w).expect("the flag is in flight");
+    assert!(
+        (start.0 - pole.0).abs() > 1.0,
+        "it starts away from the pole"
+    );
+    for _ in 0..30 {
+        w.step(0);
+    }
+    w.render(1.0, crate::render::flags::CULLING);
+    let mid = flag_at(&w).expect("still in flight");
+    assert!(
+        mid.1 > pole.1.min(start.1),
+        "it arcs above the straight line"
+    );
+    for _ in 0..60 {
+        w.step(0);
+    }
+    assert!(w.flag_throw.is_none(), "the throw is over");
+    w.render(1.0, crate::render::flags::CULLING);
+    let end = flag_at(&w).expect("the flag stands on the pole");
+    assert!((end.0 - pole.0).abs() < 1e-3 && (end.1 - pole.1).abs() < 1e-3);
+    // Entering the map again without a new clear throws nothing.
+    w.enter_map();
+    assert!(w.flag_throw.is_none());
+}
+
+/// Where the first instance with atlas coordinate `u` is, as (x, y, x scale, y scale), among those drawn.
+fn instance_of(w: &World, u: f32, near: (f64, f64)) -> Option<(f32, f32, f32, f32)> {
+    use lf_sim::STRIDE;
+    let data = w.inst.as_slice();
+    (0..w.inst.len())
+        .map(|i| {
+            let b = &data[i * STRIDE..(i + 1) * STRIDE];
+            (b[16], b[12], b[13], b[0], b[5])
+        })
+        .find(|&(iu, x, y, _, _)| {
+            iu == u && (f64::from(x) - near.0).abs() < 0.01 && (f64::from(y) - near.1).abs() < 0.01
+        })
+        .map(|(_, x, y, sx, sy)| (x, y, sx, sy))
+}
+
+#[test]
+fn water_gets_a_bank_face_under_land_to_its_north_and_thin_lips_on_its_other_land_sides() {
+    use crate::sprites::Spr;
+    use lf_sim::SpriteRect;
+    let mut w = map_world_with_known_sprites();
+    let rect = |u: f32, wd: f32, h: f32| SpriteRect {
+        u,
+        v: u,
+        uw: 0.01,
+        vh: 0.01,
+        w: wd,
+        h,
+    };
+    w.spr[Spr::OwBank as usize] = rect(0.7, 16.0, 6.0);
+    w.spr[Spr::OwLipH as usize] = rect(0.71, 16.0, 2.0);
+    w.spr[Spr::OwLipV as usize] = rect(0.72, 2.0, 16.0);
+    // The horizontal river runs along rows 22 and 23; the vertical one along columns 24 and 25.
+    w.p.b.x = 18.2;
+    w.p.b.y = 22.2;
+    w.cam_x = 18.5;
+    w.cam_y = 22.5;
+    w.pcx = 18.5;
+    w.pcy = 22.5;
+    w.half_w = 14.0;
+    w.half_h = 7.0;
+    w.render(1.0, crate::render::flags::CULLING);
+    // Row 23 has land to its north (row 24): a bank face on its top edge.
+    let bank =
+        instance_of(&w, 0.7, (10.5, 23.0 + 1.0 - 3.0 / 16.0)).expect("a bank face at (10,23)");
+    assert!(bank.3 > 0.0, "upright");
+    // Row 22 has land to its south (row 21): a lip along its bottom edge, flipped over.
+    let lip = instance_of(&w, 0.71, (10.5, 22.0 + 1.0 / 16.0)).expect("a bottom lip at (10,22)");
+    assert!(
+        lip.3 < 0.0,
+        "turned over, so its solid row is on the outside"
+    );
+    // Column 24 (row 15) has land to its west: a lip down its left; column 25 has land to its east: one down its right.
+    assert!(
+        instance_of(&w, 0.72, (24.0 + 1.0 / 16.0, 15.5)).is_some(),
+        "a left lip at (24,15)"
+    );
+    let right = instance_of(&w, 0.72, (26.0 - 1.0 / 16.0, 15.5)).expect("a right lip at (25,15)");
+    assert!(right.2 < 0.0, "mirrored");
+    // No bank face where the land is not to the north: the tile north of (24,15) is water too.
+    assert!(instance_of(&w, 0.7, (24.5, 15.0 + 1.0 - 3.0 / 16.0)).is_none());
+}
+
+#[test]
+fn a_path_has_an_edge_where_it_meets_something_else() {
+    use crate::sprites::Spr;
+    use lf_sim::SpriteRect;
+    let mut w = map_world_with_known_sprites();
+    w.spr[Spr::OwLipH as usize] = SpriteRect {
+        u: 0.71,
+        v: 0.71,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h: 2.0,
+    };
+    w.spr[Spr::OwPath as usize] = SpriteRect {
+        u: 0.9,
+        v: 0.9,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h: 16.0,
+    };
+    // The street east of the tower runs along row 16, with houses on its north side and grass to its south.
+    w.p.b.x = 9.2;
+    w.p.b.y = 15.2;
+    w.cam_x = 9.5;
+    w.cam_y = 15.5;
+    w.pcx = 9.5;
+    w.pcy = 15.5;
+    w.render(1.0, crate::render::flags::CULLING);
+    assert!(
+        instance_of(&w, 0.71, (9.5, 16.0 + 1.0 - 1.0 / 16.0)).is_some(),
+        "an edge on the north side"
+    );
+    assert!(
+        instance_of(&w, 0.71, (9.5, 16.0 + 1.0 / 16.0)).is_some(),
+        "an edge on the south side"
+    );
+    // Between two path tiles there is none: (8,16) and (9,16) share a side.
+    assert!(
+        instance_of(&w, 0.9, (9.5, 16.5)).is_some(),
+        "the path tile itself is drawn"
+    );
+}
+
+#[test]
+fn the_ground_takes_three_looks_so_the_speckle_does_not_repeat_in_a_grid() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = map_world_with_known_sprites();
+    for (spr, u) in [
+        (Spr::OwGrass, 0.05),
+        (Spr::OwGrassB, 0.06),
+        (Spr::OwGrassC, 0.07),
+    ] {
+        w.spr[spr as usize] = SpriteRect {
+            u,
+            v: u,
+            uw: 0.01,
+            vh: 0.01,
+            w: 16.0,
+            h: 16.0,
+        };
+    }
+    w.cam_x = 14.5;
+    w.cam_y = 10.5;
+    w.pcx = 14.5;
+    w.pcy = 10.5;
+    w.render(1.0, crate::render::flags::CULLING);
+    let data = w.inst.as_slice();
+    let count = |u: f32| {
+        (0..w.inst.len())
+            .filter(|&i| data[i * STRIDE + 16] == u)
+            .count()
+    };
+    for u in [0.05, 0.06, 0.07] {
+        assert!(
+            count(u) >= 20,
+            "look {u} is used on a good share of the ground: {}",
+            count(u)
+        );
+    }
+}
+
+#[test]
+fn the_maps_light_eases_between_areas_and_the_sun_stays_put() {
+    use crate::render::out;
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    let here = w.map_amb;
+    // Into Rock Candy Reach (the north-east), a long way from Crater Fields.
+    w.p.b.x = 40.0;
+    w.p.b.y = 30.0;
+    w.step(0);
+    assert_ne!(w.map_amb, here, "the light starts to move");
+    assert!(
+        w.map_amb != crate::levels::map_ambient(crate::levels::AREA_ROCK_CANDY_REACH),
+        "but it eases in and does not jump"
+    );
+    for _ in 0..180 {
+        w.step(0);
+    }
+    for (a, b) in w.map_amb.iter().zip(crate::levels::map_ambient(
+        crate::levels::AREA_ROCK_CANDY_REACH,
+    )) {
+        assert!((a - b).abs() < 0.01, "after a few seconds it has settled");
+    }
+    w.render(1.0, 0);
+    let flat = w.out[out::AMB_R] + w.out[out::SUN_R] * w.out[out::SUN_Z];
+    assert!((flat - 1.0).abs() < 1e-4);
+}
+
+#[test]
+fn render_writes_no_sun_in_a_level_whatever_was_left_in_the_out_array() {
+    use crate::render::out;
+    let mut w = World::new();
+    w.game_new();
+    w.enter_level(CRATER);
+    w.out[out::SUN_R] = 1.0;
+    w.out[out::SUN_Z] = 1.0;
+    w.render(1.0, 0);
+    assert!(
+        w.out[out::SUN_X..=out::SUN_B].iter().all(|&v| v == 0.0),
+        "a level has no sun"
+    );
+    assert_eq!(w.out.len(), out::LEN);
+}
+
+#[test]
+fn ben_comes_back_to_the_map_at_his_levels_doorstep_with_its_prompt_up() {
+    use crate::levels::PtKind;
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    let nodes: Vec<_> = w
+        .points
+        .iter()
+        .copied()
+        .enumerate()
+        .filter(|(_, p)| matches!(p.kind, PtKind::Level | PtKind::Saucer))
+        .collect();
+    assert!(nodes.len() >= 16, "every level node and the saucer");
+    for (i, pt) in nodes {
+        w.enter_map();
+        w.enter_level(pt.level);
+        w.enter_map();
+        w.events.clear();
+        w.step(0);
+        let d = (w.p.b.x + 0.3 - (pt.x + 0.5)).hypot(w.p.b.y + 0.3 - (pt.y + 0.5));
+        assert!(
+            d < 0.95,
+            "node {i} at {},{}: Ben is {d:.2} tiles from it, outside its reach",
+            pt.x,
+            pt.y
+        );
+        assert_eq!(
+            w.near,
+            Some(i),
+            "node {i}: its prompt is up on the first step"
+        );
+        assert!(
+            !events_of(&w, ev::MAP_PROMPT).is_empty(),
+            "node {i}: a prompt is raised on the first step"
+        );
+    }
+}
+
+#[test]
+fn a_press_that_closed_a_card_does_not_reopen_the_level_but_the_next_one_does() {
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    w.enter_level(CRATER);
+    w.enter_map();
+    // The press is still down (or lands a moment later): the map is not armed yet.
+    w.step(JUMP);
+    assert_eq!(
+        w.mode,
+        Mode::Map,
+        "a press straight after returning opens nothing"
+    );
+    w.step(0);
+    // Half a second on, a fresh press opens it.
+    for _ in 0..30 {
+        w.step(0);
+    }
+    w.step(JUMP);
+    assert_eq!(w.mode, Mode::Level);
+    assert_eq!(w.level_id, CRATER);
 }
 
 #[test]
@@ -563,6 +1101,7 @@ fn a_locked_level_point_refuses_entry_until_its_requirement_is_met() {
     let pt = w.points[i];
     w.p.b.x = pt.x + 0.2;
     w.p.b.y = pt.y + 0.2;
+    w.map_arm = 0.0;
     w.step(0);
     w.step(JUMP);
     assert_eq!(w.mode, Mode::Map, "locked level did not start");
@@ -1314,6 +1853,7 @@ fn map_world() -> World {
     let mut w = World::new();
     w.game_new();
     w.enter_map();
+    w.map_arm = 0.0;
     w.events.clear();
     w
 }
@@ -1323,6 +1863,8 @@ fn stand_on(w: &mut World, i: usize) {
     w.p.b.x = pt.x + 0.2;
     w.p.b.y = pt.y + 0.2;
     w.near = None;
+    // These tests press straight away: the map is already armed (see `MAP_ARM_SECS`).
+    w.map_arm = 0.0;
 }
 
 #[test]
@@ -2670,6 +3212,7 @@ fn the_saucer_opens_from_the_map_and_leaving_it_clears_nothing() {
     w.enter_map();
     w.p.b.x = 8.2;
     w.p.b.y = 10.2;
+    w.map_arm = 0.0;
     w.step(0);
     w.step(JUMP);
     assert_eq!(w.mode, Mode::Level);
@@ -2734,24 +3277,19 @@ fn crater_corners_has_solid_buildings_and_signs_that_speak_when_approached() {
     let mut w = World::new();
     w.game_new();
     w.enter_map();
-    for (x, y) in [
-        (17, 4),
-        (19, 4),
-        (21, 4),
-        (18, 8),
-        (20, 8),
-        (22, 8),
-        (23, 6),
-    ] {
+    for (x, y) in [(7, 17), (9, 17), (11, 17), (4, 17), (4, 15)] {
         assert!(
             w.map.solid(x, y, false, 0.0),
             "building at {x},{y} blocks the way"
         );
     }
-    for (i, x) in [17.0, 19.0, 22.0].into_iter().enumerate() {
+    for (i, (x, y)) in [(8.0, 16.0), (11.0, 16.0), (4.0, 16.0)]
+        .into_iter()
+        .enumerate()
+    {
         w.events.clear();
         w.p.b.x = x + 0.2;
-        w.p.b.y = 6.2;
+        w.p.b.y = y + 0.2;
         w.step(0);
         assert!(
             events_of(&w, ev::MAP_PROMPT)
@@ -3546,4 +4084,33 @@ fn a_levels_fingerprint_is_stable_and_follows_its_tiles_and_spawns() {
     let mut moved = build_level(CRATER);
     moved.spawns[0].x += 1.0;
     assert_ne!(moved.fingerprint(), before, "a moved spawn");
+}
+
+#[test]
+fn a_new_game_forgets_a_flag_that_was_waiting_to_be_thrown() {
+    let mut w = World::new();
+    w.game_new();
+    w.game.set_done(0);
+    w.fresh_clear = Some(0);
+    w.game_new();
+    w.game.set_done(0);
+    w.enter_map();
+    assert!(
+        w.flag_throw.is_none(),
+        "nothing is thrown for the old session's clear"
+    );
+}
+
+#[test]
+fn the_maps_lights_follow_what_has_been_cleared_while_ben_is_on_it() {
+    let mut w = map_world();
+    let lit = |w: &World| w.map_lights.len();
+    let before = lit(&w);
+    // Clearing every level opens every teleporter pad that needs one.
+    for l in 0..crate::levels::LEVEL_COUNT {
+        w.game.set_done(l);
+    }
+    w.step(0);
+    assert!(lit(&w) > before, "a pad that has just opened is lit");
+    assert_eq!(w.map_lights_done, w.game.done);
 }

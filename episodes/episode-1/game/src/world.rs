@@ -21,6 +21,27 @@ use lf_sim::{
 
 pub const MAX_INSTANCES: usize = 120_000;
 
+/// How long after Ben is back on the map a press is ignored. The press that closed the end card or the
+/// game over card may still be down, and it must not open the level straight away: it takes a new one.
+pub const MAP_ARM_SECS: f64 = 0.4;
+/// How long the flag takes to fly from Ben to the pole of a level cleared for the first time.
+pub const FLAG_THROW_SECS: f64 = 0.9;
+
+/// Whether a 0.6-tile body at `(x, y)` on the map stands clear of rivers, trees, rocks and buildings, and
+/// inside the map.
+fn map_body_free(map: &TileMap, (x, y): (f64, f64)) -> bool {
+    // Off the map entirely (a hand-edited save) is no better than inside a rock.
+    x >= 0.0
+        && y >= 0.0
+        && x + 0.6 < f64::from(map.w)
+        && y + 0.6 < f64::from(map.h)
+        && [(0.0, 0.0), (0.6, 0.0), (0.0, 0.6), (0.6, 0.6)]
+            .iter()
+            .all(|(dx, dy)| {
+                !map.solid((x + dx).floor() as i32, (y + dy).floor() as i32, false, 0.0)
+            })
+}
+
 /// How far a press must have dropped from its raised position before it can crush Ben: its
 /// bottom is then within about a tile of the floor.
 pub const PRESS_DANGER_DROP: f64 = 1.6;
@@ -358,7 +379,23 @@ pub struct World {
     pub points: Vec<MapPoint>,
     /// Which overworld area each part of the map belongs to (map scene only).
     pub areas: Vec<levels::AreaRect>,
+    /// The area of every overworld tile, row by row from the south, worked out when the map is entered so
+    /// drawing it does not search the areas for each tile each frame.
+    pub map_areas: Vec<u8>,
     pub near: Option<usize>,
+    /// Seconds left before the map takes a press to open a level, so the press that closed a card
+    /// does not open the level again the moment Ben is back.
+    pub map_arm: f64,
+    /// The level cleared for the first time, until the map is next entered and its flag is thrown.
+    pub fresh_clear: Option<u8>,
+    /// A flag in flight to its pole on the map: the level and seconds since it left Ben.
+    pub flag_throw: Option<(u8, f64)>,
+    /// The overworld's lights, worked out when the map is entered.
+    pub map_lights: Vec<levels::MapLight>,
+    /// The cleared-levels mask the lights were worked out for: they are rebuilt when it changes.
+    pub map_lights_done: u32,
+    /// The ambient light on the overworld now: it eases towards that of the area Ben is in.
+    pub map_amb: [f32; 3],
 
     // Output buffers shared with the shell
     pub inst: InstanceBuffer,
@@ -367,7 +404,7 @@ pub struct World {
     pub lights_col: [f32; 48],
     pub events: EventQueue,
     pub spr: Vec<SpriteRect>,
-    pub out: [f32; 16],
+    pub out: [f32; crate::render::out::LEN],
 }
 
 pub fn sign(x: f64) -> f64 {
@@ -458,14 +495,21 @@ impl World {
             solid_count: 0,
             points: vec![],
             areas: vec![],
+            map_areas: vec![],
             near: None,
+            map_arm: 0.0,
+            fresh_clear: None,
+            flag_throw: None,
+            map_lights: vec![],
+            map_lights_done: 0,
+            map_amb: [1.0; 3],
             inst: InstanceBuffer::new(MAX_INSTANCES),
             lights: LightPool::new(256),
             lights_pos: [0.0; 64],
             lights_col: [0.0; 48],
             events: EventQueue::new(256),
             spr: vec![SpriteRect::default(); crate::sprites::SPRITE_NAMES.len()],
-            out: [0.0; 16],
+            out: [0.0; crate::render::out::LEN],
             fun: Fun::default(),
         }
     }
@@ -519,14 +563,21 @@ impl World {
             solid_count: self.solid_count,
             points: self.points.clone(),
             areas: self.areas.clone(),
+            map_areas: self.map_areas.clone(),
             near: self.near,
+            map_arm: self.map_arm,
+            fresh_clear: self.fresh_clear,
+            flag_throw: self.flag_throw,
+            map_lights: self.map_lights.clone(),
+            map_lights_done: self.map_lights_done,
+            map_amb: self.map_amb,
             inst: InstanceBuffer::new(1),
             lights: LightPool::new(1),
             lights_pos: [0.0; 64],
             lights_col: [0.0; 48],
             events: EventQueue::new(256),
             spr: Vec::new(),
-            out: [0.0; 16],
+            out: [0.0; crate::render::out::LEN],
             fun: self.fun,
         }
     }
@@ -535,6 +586,8 @@ impl World {
 
     pub fn game_new(&mut self) {
         self.game = Game::fresh();
+        self.fresh_clear = None;
+        self.flag_throw = None;
         self.hud();
     }
 
@@ -609,6 +662,16 @@ impl World {
         self.pcy = self.cam_y;
     }
 
+    /// Where Ben stands when he is back on the map from the level at node `(x, y)`: at the node's doorstep,
+    /// close enough that its prompt is up and one press opens the level again. That is the tile in front
+    /// of it (south, since y is up) when that is clear, else the node's own tile, which is always walkable.
+    fn doorstep(&self, x: f64, y: f64) -> (f64, f64) {
+        [(x + 0.2, y - 0.4), (x + 0.2, y + 0.1)]
+            .into_iter()
+            .find(|&p| map_body_free(&self.map, p))
+            .unwrap_or((x + 0.2, y + 0.1))
+    }
+
     pub fn enter_level(&mut self, id: u8) {
         let id = if id < levels::TABLE_LEN { id } else { 0 };
         if self.mode == Mode::Map {
@@ -617,7 +680,7 @@ impl World {
                 .iter()
                 .find(|p| matches!(p.kind, PtKind::Level | PtKind::Saucer) && p.level == id)
             {
-                self.game.map_pos = Some((pt.x + 0.2, pt.y - 1.0));
+                self.game.map_pos = Some(self.doorstep(pt.x, pt.y));
             }
         }
         self.load_level(id);
@@ -754,6 +817,14 @@ impl World {
         self.map = m.map;
         self.points = m.points;
         self.areas = m.areas;
+        let (mw, mh) = (self.map.w, self.map.h);
+        let mut map_areas = Vec::with_capacity((mw * mh) as usize);
+        for y in 0..mh {
+            for x in 0..mw {
+                map_areas.push(levels::area_at(&self.areas, x, y));
+            }
+        }
+        self.map_areas = map_areas;
         self.mode = Mode::Map;
         self.t = 0.0;
         self.shake = 0.0;
@@ -763,24 +834,18 @@ impl World {
         self.items.clear();
         self.plats.clear();
         self.near = None;
+        self.map_arm = MAP_ARM_SECS;
+        self.flag_throw = self
+            .fresh_clear
+            .take()
+            .filter(|&l| self.game.is_done(l))
+            .map(|l| (l, 0.0));
         // A saved position may belong to an older map: if Ben would start inside a river, a tree or
         // a rock, put him back at the saucer instead.
-        let free = |map: &lf_sim::TileMap, (x, y): (f64, f64)| {
-            // Off the map entirely (a hand-edited save) is no better than inside a rock.
-            x >= 0.0
-                && y >= 0.0
-                && x + 0.6 < f64::from(map.w)
-                && y + 0.6 < f64::from(map.h)
-                && [(0.0, 0.0), (0.6, 0.0), (0.0, 0.6), (0.6, 0.6)]
-                    .iter()
-                    .all(|(dx, dy)| {
-                        !map.solid((x + dx).floor() as i32, (y + dy).floor() as i32, false, 0.0)
-                    })
-        };
         let at = self
             .game
             .map_pos
-            .filter(|&p| free(&self.map, p))
+            .filter(|&p| map_body_free(&self.map, p))
             .unwrap_or(m.start);
         let mut b = Body::new(at.0, at.1, 0.6, 0.6);
         b.px = at.0;
@@ -791,8 +856,19 @@ impl World {
         self.cam_y = at.1;
         self.pcx = at.0;
         self.pcy = at.1;
+        self.rebuild_map_lights();
+        self.map_amb = self.map_ambient_here();
         self.hud();
         self.events.emit(ev::MAP_PROMPT, 0.0, 0.0, 0.0);
+    }
+
+    /// The ambient light of the overworld area Ben stands in.
+    fn map_ambient_here(&self) -> [f32; 3] {
+        let (x, y) = (
+            (self.p.b.x + 0.3).floor() as i32,
+            (self.p.b.y + 0.3).floor() as i32,
+        );
+        levels::map_ambient(levels::area_at(&self.areas, x, y))
     }
 
     // ---------- Tick ----------
@@ -893,7 +969,27 @@ impl World {
 
     // ---------- Overworld ----------
 
+    /// Works the overworld's lights out again: which teleporters are on and which levels show depend on
+    /// what has been cleared.
+    fn rebuild_map_lights(&mut self) {
+        self.map_lights = levels::map_lights(&self.map, &self.points, |req| self.met(req));
+        self.map_lights_done = self.game.done;
+    }
+
     fn tick_map(&mut self, dt: f64) {
+        self.map_arm = (self.map_arm - dt).max(0.0);
+        if self.map_lights_done != self.game.done {
+            self.rebuild_map_lights();
+        }
+        if let Some((l, t)) = self.flag_throw {
+            self.flag_throw = (t + dt < FLAG_THROW_SECS).then_some((l, t + dt));
+        }
+        // The light eases from one area's to the next over about a second, so crossing a river is not a jump.
+        let target = self.map_ambient_here();
+        let k = (1.0 - (-dt / 0.4).exp()) as f32;
+        for (a, t) in self.map_amb.iter_mut().zip(target) {
+            *a += (t - *a) * k;
+        }
         let h = self.held;
         let vx = f64::from(u8::from(h & RIGHT != 0)) - f64::from(u8::from(h & LEFT != 0));
         let vy = f64::from(u8::from(h & UP != 0)) - f64::from(u8::from(h & DOWN != 0));
@@ -968,7 +1064,7 @@ impl World {
             }
         }
         if let Some(i) = near {
-            if self.edge & (JUMP | FIRE | CONFIRM) != 0 {
+            if self.map_arm <= 0.0 && self.edge & (JUMP | FIRE | CONFIRM) != 0 {
                 self.activate(i);
             }
         }
@@ -1277,6 +1373,9 @@ impl World {
                 if t == EXIT && !self.won {
                     self.won = true;
                     self.p.mantle = None;
+                    if !self.game.is_done(self.level_id) {
+                        self.fresh_clear = Some(self.level_id);
+                    }
                     self.game.set_done(self.level_id);
                     self.cap(px, py + 2.0, Cap::TaDa);
                     self.hud();

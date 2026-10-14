@@ -75,6 +75,27 @@ describe('buildAtlas', () => {
     expect(atlas.rects['a']).toMatchObject({ w: 4, h: 4 });
   });
 
+  it('places the tallest sprites first, so a shelf is not held open by one tall sprite among short ones', () => {
+    // Short and tall sprites interleaved, as a catalog lists them.
+    const defs = Array.from({ length: 12 }, (_, i) => ({
+      name: `s${i}`,
+      grid: sq('r', 6, i % 3 === 0 ? 12 : 3),
+      tile: false,
+    }));
+    const atlas = buildAtlas(defs, { size: 256, scale: 4 });
+    // The shelves, top to bottom, hold sprites of non-increasing height. A rect's top edge in the atlas is
+    // `v + vh` (v counts up from the bottom), and the sprites on one shelf share it.
+    const shelves = new Map<number, number>();
+    for (const r of Object.values(atlas.rects)) {
+      const top = Math.round((r.v + r.vh) * 1e6);
+      shelves.set(top, Math.max(shelves.get(top) ?? 0, r.h));
+    }
+    const heights = [...shelves.entries()].sort((a, b) => b[0] - a[0]).map(([, h]) => h);
+    expect(heights).toEqual([...heights].sort((a, b) => b - a));
+    // Every sprite is still found by its name, whatever shelf it landed on.
+    expect(Object.keys(atlas.rects).sort()).toEqual(defs.map((d) => d.name).sort());
+  });
+
   it('writes 4x4 texel blocks of the palette colour, in GL row order', () => {
     const atlas = buildAtlas([{ name: 'a', grid: sq('r', 2, 2), tile: false }], {
       size: 32,

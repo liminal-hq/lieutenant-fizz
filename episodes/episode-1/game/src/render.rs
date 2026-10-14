@@ -34,6 +34,16 @@ pub mod out {
     pub const AMB_B: usize = 11;
     pub const LIGHTING: usize = 12;
     pub const SKY_GLOW: usize = 13;
+    /// The direction to the sun in sprite space (x right, y up, z out of the screen), then its colour. A
+    /// colour of zero is no sun, and is what levels, the title and the cinematic write.
+    pub const SUN_X: usize = 14;
+    pub const SUN_Y: usize = 15;
+    pub const SUN_Z: usize = 16;
+    pub const SUN_R: usize = 17;
+    pub const SUN_G: usize = 18;
+    pub const SUN_B: usize = 19;
+    /// How many floats the shell reads; the rest are for later.
+    pub const LEN: usize = 32;
 }
 
 pub enum Layer {
@@ -338,13 +348,29 @@ impl World {
         self.out[out::CLEAR_B] = c[2];
         self.out[out::CLEAR_A] = clear.1 as f32;
         self.out[out::SKY_GLOW] = f32::from(u8::from(sky_glow));
-        let amb = bio
-            .as_ref()
-            .map_or([1.0; 3], |b| if night { b.night } else { b.amb });
+        // The overworld is lit by day only: Options' night switch does not reach it.
+        let map_view = self.mode == Mode::Map;
+        let amb = if map_view {
+            self.map_amb
+        } else {
+            bio.as_ref()
+                .map_or([1.0; 3], |b| if night { b.night } else { b.amb })
+        };
         self.out[out::AMB_R] = amb[0];
         self.out[out::AMB_G] = amb[1];
         self.out[out::AMB_B] = amb[2];
-        self.out[out::LIGHTING] = f32::from(u8::from(bio.is_some()));
+        self.out[out::LIGHTING] = f32::from(u8::from(bio.is_some() || map_view));
+        self.out[out::SUN_X..=out::SUN_B].fill(0.0);
+        if map_view {
+            // The same sun over every area, its colour the rest of full brightness: flat ground stays itself.
+            let d = map_sun_dir();
+            self.out[out::SUN_X] = d[0];
+            self.out[out::SUN_Y] = d[1];
+            self.out[out::SUN_Z] = d[2];
+            for (i, a) in amb.iter().enumerate() {
+                self.out[out::SUN_R + i] = ((1.0 - a) / d[2]).max(0.0);
+            }
+        }
         self.out[out::WORLD] = 0.0;
         let view = [
             cx - self.half_w - 1.0,
@@ -364,11 +390,88 @@ impl World {
         }
         let nl = match &bio {
             Some(b) => self.update_lights(b, night, (cx, cy)),
+            None if map_view => self.update_map_lights((cx, cy)),
             None => 0,
         };
         self.out[out::COUNT] = self.inst.len() as f32;
         self.out[out::LIGHTS] = nl as f32;
         self.out[out::WORLD] = world as f32;
+    }
+
+    /// Pushes a sprite standing on the tile `(tx, ty)`: centred on the tile across, its base on the tile's
+    /// bottom edge, so a taller sprite (a tree, a house) rises above the tile into the one north of it.
+    fn push_base(&mut self, tx: f64, ty: f64, id: Spr, o: &PushOpts) {
+        let h = self.sprite_h(id as u16);
+        self.push(tx + 0.5, ty + h / 32.0, id, o);
+    }
+
+    /// Whether tile `(x, y)` is land: on the map and not water.
+    fn is_land(&self, x: i32, y: i32) -> bool {
+        self.map.in_bounds(x, y) && self.map.get(x, y) != RIVER
+    }
+
+    /// The edge of a water tile where land meets it: a short brown bank face under land to the north (the
+    /// land's south side, which stands up), and a thin dirt lip where land lies to the south, west or east.
+    fn draw_shore(&mut self, x: i32, y: i32, o: &PushOpts) {
+        if self.is_land(x, y + 1) {
+            self.push(
+                f64::from(x) + 0.5,
+                f64::from(y) + 1.0 - 3.0 / 16.0,
+                Spr::OwBank,
+                o,
+            );
+        }
+        self.draw_lips(
+            x,
+            y,
+            [
+                false,
+                self.is_land(x, y - 1),
+                self.is_land(x - 1, y),
+                self.is_land(x + 1, y),
+            ],
+            o,
+        );
+    }
+
+    /// A thin dirt lip along each side of a tile that is flagged: `[north, south, west, east]`.
+    fn draw_lips(&mut self, x: i32, y: i32, sides: [bool; 4], o: &PushOpts) {
+        let (fx, fy) = (f64::from(x) + 0.5, f64::from(y) + 0.5);
+        let (tx, ty) = (f64::from(x), f64::from(y));
+        if sides[0] {
+            self.push(fx, ty + 1.0 - 1.0 / 16.0, Spr::OwLipH, o);
+        }
+        if sides[1] {
+            self.push(
+                fx,
+                ty + 1.0 / 16.0,
+                Spr::OwLipH,
+                &PushOpts { sy: -1.0, ..*o },
+            );
+        }
+        if sides[2] {
+            self.push(tx + 1.0 / 16.0, fy, Spr::OwLipV, o);
+        }
+        if sides[3] {
+            self.push(
+                tx + 1.0 - 1.0 / 16.0,
+                fy,
+                Spr::OwLipV,
+                &PushOpts { flip: true, ..*o },
+            );
+        }
+    }
+
+    /// A dirt lip along each side of a path tile that is not path, so the road has an edge.
+    fn draw_path_edges(&mut self, x: i32, y: i32, o: &PushOpts) {
+        let not_path = |w: &World, dx: i32, dy: i32| w.map.get(x + dx, y + dy) != PATH;
+        let sides = [
+            not_path(self, 0, 1),
+            not_path(self, 0, -1),
+            not_path(self, -1, 0),
+            not_path(self, 1, 0),
+        ];
+        self.draw_lips(x, y, sides, o);
     }
 
     fn draw_map(&mut self, alpha: f64, v: [f64; 4], fl: u32, _cam: (f64, f64)) -> usize {
@@ -385,12 +488,22 @@ impl World {
             (0, w - 1, 0, h - 1)
         };
         let rf = ((self.t * 2.0).floor() as i64) & 1;
-        let em = PushOpts::em();
+        // The map is lit now. The ground, the scenery and the icons take the sun and the lights; Ben and the
+        // paths keep a minimum brightness so the way always reads; teleporters and flags glow of their own.
+        let lit = PushOpts::default();
+        let act = PushOpts { actor: true, ..lit };
+        let glow = PushOpts::em();
+        let shade = PushOpts {
+            alpha: 0.55,
+            ..glow
+        };
+
+        // Pass 1: the ground, flat, in any order.
         for y in ty0..=ty1 {
             for x in tx0..=tx1 {
                 let tt = self.map.get(x, y);
                 let (fx, fy) = (f64::from(x) + 0.5, f64::from(y) + 0.5);
-                let theme = crate::levels::area_theme(crate::levels::area_at(&self.areas, x, y));
+                let theme = crate::levels::area_theme(self.map_areas[(y * w + x) as usize]);
                 if tt == RIVER {
                     let s = if (i64::from(x) + i64::from(y) + rf) & 1 != 0 {
                         theme.river[0]
@@ -403,95 +516,159 @@ impl World {
                         s,
                         &PushOpts {
                             tint: theme.river_tint,
-                            ..em
+                            ..lit
                         },
                     );
+                    self.draw_shore(x, y, &lit);
+                    // A glint now and then, each tile on its own slow beat.
+                    if (hashf(x + 91, y + 53) + self.t * 0.35).fract() < 0.1 {
+                        self.push(fx, fy, Spr::OwGlint, &glow);
+                    }
                     continue;
                 }
-                self.push(
-                    fx,
-                    fy,
-                    if tt == PATH { Spr::OwPath } else { theme.grass },
-                    &em,
-                );
-                if tt == TREE {
-                    self.push(
-                        fx,
-                        fy,
-                        if hashf(x, y) < 0.5 {
-                            theme.trees[0]
-                        } else {
-                            theme.trees[1]
-                        },
-                        &em,
-                    );
-                }
-                if tt == ROCK {
-                    self.push(fx, fy, theme.rock, &em);
-                }
-                let building = match tt {
-                    HOUSE_A => Some(Spr::OwHouseA),
-                    HOUSE_B => Some(Spr::OwHouseB),
-                    SHOP => Some(Spr::OwShop),
-                    FOUNTAIN => Some(Spr::OwFountain),
-                    _ => None,
-                };
-                if let Some(s) = building {
-                    self.push(fx, fy, s, &em);
-                }
-            }
-        }
-        for i in 0..self.points.len() {
-            let pt = self.points[i];
-            if pt.hidden && !self.met(pt.req) {
-                continue;
-            }
-            let (x, y) = (pt.x + 0.5, pt.y + 0.5);
-            match pt.kind {
-                crate::levels::PtKind::Saucer => self.push(x, y, Spr::Saucer, &em),
-                crate::levels::PtKind::Sign => self.push(x, y, Spr::OwSign, &em),
-                crate::levels::PtKind::Tele => {
-                    let on = self.met(pt.req);
-                    let s = if on && ((self.t * 4.0).floor() as i64) & 1 != 0 {
-                        Spr::OwTele1
-                    } else {
-                        Spr::OwTele0
-                    };
-                    self.push(
-                        x,
-                        y,
-                        s,
-                        &PushOpts {
-                            tint: if on { 0xffffff } else { 0x777777 },
-                            ..em
-                        },
-                    );
-                }
-                crate::levels::PtKind::Level => {
-                    let s = crate::levels::LEVELS[usize::from(pt.level)].icon;
-                    let (bx, by) = if pt.big { (x + 0.5, y + 0.5) } else { (x, y) };
-                    self.push(bx, by, s, &em);
-                    if self.game.is_done(pt.level) {
-                        self.push(
-                            x + 0.6,
-                            y + 0.9,
-                            Spr::OwFlag,
-                            &PushOpts { scale: 0.7, ..em },
-                        );
+                if tt == PATH {
+                    self.push(fx, fy, Spr::OwPath, &act);
+                    self.draw_path_edges(x, y, &act);
+                } else {
+                    let look = (hashf(x + 31, y + 17) * 3.0) as usize % 3;
+                    self.push(fx, fy, theme.grass[look], &lit);
+                    // A flower, pebbles or a tuft on about one plain tile in six, a little off centre.
+                    if tt == GRASS && hashf(x * 3 + 1, y * 7 + 2) < 0.17 {
+                        let kind = (hashf(x + 5, y + 9) * 4.0) as usize % 4;
+                        let jx = (hashf(x + 2, y + 6) - 0.5) * 0.5;
+                        let jy = (hashf(x + 8, y + 3) - 0.5) * 0.5;
+                        let decal =
+                            [Spr::OwDecal0, Spr::OwDecal1, Spr::OwDecal2, Spr::OwDecal3][kind];
+                        self.push(fx + jx, fy + jy, decal, &lit);
                     }
                 }
             }
         }
+
+        // Pass 2: everything that stands on the ground, from the north row down to the south one, so that what
+        // is further south (nearer the viewer) is drawn over what is behind it. A tall sprite rises above its
+        // tile, so rows up to two below the view still reach into it.
         let p = &self.p;
         let px = p.b.px + (p.b.x - p.b.px) * alpha;
         let py = p.b.py + (p.b.y - p.b.py) * alpha;
-        let s = if (p.anim.floor() as i64) & 1 != 0 {
-            Spr::BenMap1
-        } else {
-            Spr::BenMap0
-        };
-        let flip = p.face < 0.0;
-        self.push(px + 0.3, py + 0.4, s, &PushOpts { flip, ..em });
+        // The row of his centre, which is what collision and the area's light go by, so he is never drawn in a
+        // row behind the one he is standing in.
+        let ben_row = (py + 0.3).floor() as i32;
+        let first = (ty0 - 2).max(0);
+        // One row past the north edge too: a landmark is drawn in the row above its node.
+        for y in (first..=ty1 + 1).rev() {
+            for x in tx0..=tx1 {
+                if y >= h {
+                    break;
+                }
+                let tt = self.map.get(x, y);
+                let tile = (f64::from(x), f64::from(y));
+                let theme = crate::levels::area_theme(self.map_areas[(y * w + x) as usize]);
+                match tt {
+                    TREE => {
+                        self.push_base(tile.0, tile.1 - 0.05, Spr::OwShadowS, &shade);
+                        let tree = if hashf(x, y) < 0.5 {
+                            theme.trees[0]
+                        } else {
+                            theme.trees[1]
+                        };
+                        self.push_base(tile.0, tile.1, tree, &lit);
+                    }
+                    ROCK => {
+                        self.push_base(tile.0, tile.1 - 0.05, Spr::OwShadowS, &shade);
+                        self.push_base(tile.0, tile.1, theme.rock, &lit);
+                    }
+                    HOUSE_A | HOUSE_B | SHOP => {
+                        let s = match tt {
+                            HOUSE_A => Spr::OwHouseA,
+                            HOUSE_B => Spr::OwHouseB,
+                            _ => Spr::OwShop,
+                        };
+                        self.push_base(tile.0, tile.1 - 0.05, Spr::OwShadowL, &shade);
+                        self.push_base(tile.0, tile.1, s, &lit);
+                    }
+                    FOUNTAIN => self.push_base(tile.0, tile.1, Spr::OwFountain, &lit),
+                    _ => {}
+                }
+            }
+            // Each level's landmark, drawn in the row above its node: a person standing in that row, on the
+            // path that leads down to the node, is drawn after it and so in front of it.
+            for i in 0..self.points.len() {
+                let pt = self.points[i];
+                if pt.kind != crate::levels::PtKind::Level || pt.y.floor() as i32 + 1 != y {
+                    continue;
+                }
+                let icon = crate::levels::LEVELS[usize::from(pt.level)].icon;
+                if pt.big {
+                    self.push(pt.x + 1.0, pt.y + 1.0, icon, &lit);
+                } else {
+                    // Standing a little way up its node's tile, so Ben at the doorstep is below it.
+                    self.push(pt.x + 0.5, pt.y + 0.35 + 1.0, icon, &lit);
+                }
+            }
+            for i in 0..self.points.len() {
+                let pt = self.points[i];
+                if pt.y.floor() as i32 != y || (pt.hidden && !self.met(pt.req)) {
+                    continue;
+                }
+                let (x, y) = (pt.x + 0.5, pt.y + 0.5);
+                match pt.kind {
+                    crate::levels::PtKind::Saucer => self.push(x, y, Spr::Saucer, &lit),
+                    crate::levels::PtKind::Sign => self.push(x, y, Spr::OwSign, &lit),
+                    crate::levels::PtKind::Tele => {
+                        let on = self.met(pt.req);
+                        let s = if on && ((self.t * 4.0).floor() as i64) & 1 != 0 {
+                            Spr::OwTele1
+                        } else {
+                            Spr::OwTele0
+                        };
+                        self.push(
+                            x,
+                            y,
+                            s,
+                            &PushOpts {
+                                tint: if on { 0xffffff } else { 0x777777 },
+                                ..glow
+                            },
+                        );
+                    }
+                    crate::levels::PtKind::Level => {
+                        // Every level has a pole that holds only a flag: bare until the level is cleared, then the
+                        // flag is up. A level cleared just now has its flag thrown from Ben to the pole.
+                        let (fx, fy) = (x + 0.6, y + 0.9);
+                        let o = PushOpts { scale: 0.7, ..glow };
+                        let flying = self.flag_throw.filter(|&(l, _)| l == pt.level);
+                        if let Some((_, t)) = flying {
+                            let k = (t / crate::world::FLAG_THROW_SECS).clamp(0.0, 1.0);
+                            let (bx, by) = (self.p.b.x + 0.3, self.p.b.y + 0.4);
+                            let lift = 4.0 * k * (1.0 - k) * 1.6;
+                            self.push(fx, fy, Spr::OwFlagHolder, &o);
+                            self.push(
+                                bx + (fx - bx) * k,
+                                by + (fy - by) * k + lift,
+                                Spr::OwFlag,
+                                &o,
+                            );
+                        } else if self.game.is_done(pt.level) {
+                            self.push(fx, fy, Spr::OwFlag, &o);
+                        } else {
+                            self.push(fx, fy, Spr::OwFlagHolder, &o);
+                        }
+                    }
+                }
+            }
+            if y == ben_row {
+                let p = &self.p;
+                let s = if (p.anim.floor() as i64) & 1 != 0 {
+                    Spr::BenMap1
+                } else {
+                    Spr::BenMap0
+                };
+                let flip = p.face < 0.0;
+                self.push_base(px + 0.3 - 0.5, py - 0.05, Spr::OwShadowS, &shade);
+                self.push(px + 0.3, py + 0.4, s, &PushOpts { flip, ..act });
+            }
+        }
         (w * h) as usize
     }
 
@@ -1113,6 +1290,29 @@ impl World {
         world
     }
 
+    /// The overworld's lights, each pulsing at its own rate, picked nearest the camera first by day.
+    fn update_map_lights(&mut self, cam: (f64, f64)) -> usize {
+        let t = self.t;
+        for i in 0..self.map_lights.len() {
+            let l = self.map_lights[i];
+            let k = if l.pulse > 0.0 {
+                0.85 + 0.15 * (t * std::f64::consts::TAU * l.pulse).sin()
+            } else {
+                1.0
+            };
+            self.lights.add(
+                cam,
+                l.x,
+                l.y,
+                l.z,
+                l.r,
+                [l.c[0] * k, l.c[1] * k, l.c[2] * k],
+            );
+        }
+        self.lights
+            .select(MAP_LIGHT_MUL, &mut self.lights_pos, &mut self.lights_col)
+    }
+
     fn update_lights(&mut self, bio: &LevelTheme, night: bool, cam: (f64, f64)) -> usize {
         let t = self.t;
         if bio.lantern && !self.p.hidden {
@@ -1207,6 +1407,17 @@ impl World {
         self.lights
             .select(mul, &mut self.lights_pos, &mut self.lights_col)
     }
+}
+
+/// How strong the overworld's point lights are by day, against 1.0 at night in a level.
+pub(crate) const MAP_LIGHT_MUL: f64 = 0.35;
+
+/// The direction to the overworld's sun in sprite space (x right, y up, z out of the screen): from the
+/// west-north-west and fairly high, so a sprite's relief catches light on its left and top.
+pub(crate) fn map_sun_dir() -> [f32; 3] {
+    let (x, y, z) = (-0.5f32, 0.3f32, 0.81f32);
+    let len = (x * x + y * y + z * z).sqrt();
+    [x / len, y / len, z / len]
 }
 
 /// Picks Ben's sprite from his current state.

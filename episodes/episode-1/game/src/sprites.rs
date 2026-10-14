@@ -70,6 +70,16 @@ sprites! {
     OwGrassFrost = "owGrassFrost", OwFrost0 = "owFrost0", OwFrost1 = "owFrost1", OwCake = "owCake", OwCrater = "owCrater",
     OwCave = "owCave", OwMesa = "owMesa", OwTower = "owTower", OwPlayhouse = "owPlayhouse", OwMeadow = "owMeadow", OwShaft = "owShaft", OwFoundry = "owFoundry", OwCastle = "owCastle", OwTele0 = "owTele0", OwTele1 = "owTele1", OwFlag = "owFlag",
     Saucer = "saucer", HillTop = "hillTop", MtnTop = "mtnTop", Fill = "fill", Star = "star", Cloud = "cloud", Mural = "mural",
+    OwShadowS = "owShadowS", OwShadowL = "owShadowL",
+    OwGrassB = "owGrassB", OwGrassC = "owGrassC", OwGrassMeadowB = "owGrassMeadowB", OwGrassMeadowC = "owGrassMeadowC",
+    OwGrassCandyB = "owGrassCandyB", OwGrassCandyC = "owGrassCandyC", OwGrassFrostB = "owGrassFrostB", OwGrassFrostC = "owGrassFrostC",
+    OwBank = "owBank", OwLipH = "owLipH", OwLipV = "owLipV", OwGlint = "owGlint",
+    OwDecal0 = "owDecal0", OwDecal1 = "owDecal1", OwDecal2 = "owDecal2", OwDecal3 = "owDecal3",
+    OwLmCrater = "owLmCrater", OwLmCaves = "owLmCaves", OwLmMesa = "owLmMesa", OwLmLookout = "owLmLookout",
+    OwLmMeadows = "owLmMeadows", OwLmFudgeBog = "owLmFudgeBog", OwLmPlayhouse = "owLmPlayhouse",
+    OwLmShafts = "owLmShafts", OwLmSugarGlass = "owLmSugarGlass", OwLmFlats = "owLmFlats",
+    OwLmSpire = "owLmSpire", OwLmFoundry = "owLmFoundry", OwLmGumdrop = "owLmGumdrop", OwLmHollow = "owLmHollow",
+    OwFlagHolder = "owFlagHolder",
 }
 
 /// Per-tileset tile sprites are laid out in this order, 11 per tileset, starting at `CraterTop`.

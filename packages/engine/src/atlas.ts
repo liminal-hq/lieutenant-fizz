@@ -45,7 +45,9 @@ export interface AtlasOptions {
 /**
  * Packs sprites into one atlas (ENGINE_SPEC §3.2): each logical pixel becomes scale x scale
  * texels, every sprite gets a 1px extruded border, and a normal map with the same layout is
- * generated from palette luminance.
+ * generated from palette luminance. Sprites are placed tallest first (then widest, then in the order
+ * given), because a shelf is as tall as its tallest sprite: in catalog order a few tall sprites among
+ * many short ones left most of every shelf empty. Callers find a sprite by name, never by position.
  */
 export function buildAtlas(defs: readonly SpriteDef[], opts: AtlasOptions = {}): Atlas {
   const N = opts.size ?? 2048;
@@ -74,7 +76,8 @@ export function buildAtlas(defs: readonly SpriteDef[], opts: AtlasOptions = {}):
     buf[d + 3] = buf[s + 3] ?? 0;
   };
 
-  for (const d of defs) {
+  const ordered = [...defs].sort((a, b) => b.grid.h - a.grid.h || b.grid.w - a.grid.w);
+  for (const d of ordered) {
     if (rects[d.name]) throw new Error(`duplicate sprite name "${d.name}"`);
     const { w, h, at } = {
       w: d.grid.w,

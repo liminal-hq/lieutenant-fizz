@@ -332,7 +332,12 @@ pub extern "C" fn state_set(i: u32, v: f64) {
         SCORE => s.game.score = v as i32,
         NEXT_LIFE => s.game.next_life = v as i32,
         AMMO => s.game.ammo = v as i32,
-        DONE_MASK => s.game.load_done(v as u32),
+        DONE_MASK => {
+            s.game.load_done(v as u32);
+            // A flag still waiting to be thrown belongs to the session this replaces.
+            s.fresh_clear = None;
+            s.flag_throw = None;
+        }
         MAP_X => {
             let y = s.game.map_pos.map_or(0.0, |p| p.1);
             s.game.map_pos = Some((v, y));

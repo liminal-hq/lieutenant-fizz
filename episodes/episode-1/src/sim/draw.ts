@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
+import type { FrameState, InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
 import { Out, RenderFlag } from './protocol';
 import type { Sim } from './sim';
 
@@ -26,6 +26,8 @@ export interface SimFrame {
   lighting: boolean;
   lightCount: number;
   sky: boolean;
+  /** The sun, or undefined when the sim wrote none (a zero colour). */
+  sun: FrameState['sun'];
 }
 
 /** How the frame is put on the canvas. */
@@ -34,6 +36,25 @@ export interface ViewOptions {
   halfH: number;
   normals: boolean;
   poster: boolean;
+}
+
+/**
+ * The sun the sim wrote into `out`, with its direction made a unit vector, or undefined when its colour is
+ * zero (no sun: levels, the title and the cinematic) or its direction has no length.
+ */
+export function readSun(o: ArrayLike<number>): FrameState['sun'] {
+  const colour: [number, number, number] = [
+    o[Out.SUN_R] ?? 0,
+    o[Out.SUN_G] ?? 0,
+    o[Out.SUN_B] ?? 0,
+  ];
+  if (colour[0] <= 0 && colour[1] <= 0 && colour[2] <= 0) return undefined;
+  const x = o[Out.SUN_X] ?? 0;
+  const y = o[Out.SUN_Y] ?? 0;
+  const z = o[Out.SUN_Z] ?? 0;
+  const len = Math.hypot(x, y, z);
+  if (len === 0) return undefined;
+  return { dir: [x / len, y / len, z / len], colour };
 }
 
 /** Renders the sim at `alpha` between its last two ticks into its instance buffer, and reads the frame's facts. */
@@ -53,6 +74,7 @@ export function renderSim(sim: Sim, alpha: number, opts: RenderOptions): SimFram
     lighting: (o[Out.LIGHTING] ?? 0) > 0.5 && opts.lighting,
     lightCount: o[Out.LIGHTS] ?? 0,
     sky: (o[Out.SKY_GLOW] ?? 0) > 0.5,
+    sun: readSun(o),
   };
 }
 
@@ -73,6 +95,7 @@ export function drawSimFrame(
     halfH: view.halfH,
     clear: frame.clear,
     ambient: frame.ambient,
+    ...(frame.sun ? { sun: frame.sun } : {}),
     lighting: frame.lighting,
     normals: view.normals,
     poster: view.poster,

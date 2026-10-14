@@ -45,7 +45,7 @@ void main(){
 }`;
 
 const FRAG = /* glsl */ `
-uniform sampler2D uAlb; uniform sampler2D uNrm; uniform vec3 uAmb; uniform int uNL;
+uniform sampler2D uAlb; uniform sampler2D uNrm; uniform vec3 uAmb; uniform vec3 uSunD; uniform vec3 uSunC; uniform int uNL;
 uniform vec4 uLP[${MAX_LIGHTS}]; uniform vec3 uLC[${MAX_LIGHTS}]; uniform float uLighting; uniform float uNormals; uniform float uPoster;
 varying vec2 vUv; varying vec3 vTint; varying float vA; varying float vEm; varying vec2 vWorld; varying float vFlip; varying float vAct;
 void main(){
@@ -56,7 +56,7 @@ void main(){
   vec3 n = texture2D(uNrm, vUv).xyz * 2.0 - 1.0; n.x *= vFlip;
   if (uNormals < 0.5) n = vec3(0.0, 0.0, 1.0);
   n = normalize(n);
-  vec3 L = uAmb;
+  vec3 L = uAmb + uSunC * max(dot(n, uSunD), 0.0);
   for (int i = 0; i < ${MAX_LIGHTS}; i++) {
     if (i >= uNL) break;
     vec3 d = vec3(uLP[i].xy - vWorld, uLP[i].z);
@@ -79,6 +79,12 @@ export interface FrameState {
   halfH: number;
   clear: readonly [number, number, number, number];
   ambient: readonly [number, number, number];
+  /**
+   * A sun: the unit direction towards it in sprite space (x right, y up, z out of the screen) and its
+   * colour. Light from it falls on a sprite as the dot product of that direction with the sprite's normal,
+   * so it shows the relief the normal maps hold. Left out, there is no sun.
+   */
+  sun?: { dir: readonly [number, number, number]; colour: readonly [number, number, number] };
   lighting: boolean;
   normals: boolean;
   poster: boolean;
@@ -182,6 +188,8 @@ export class InstancedRenderer {
       uAlb: { value: this.textures[0] },
       uNrm: { value: this.textures[1] },
       uAmb: { value: new Vector3(1, 1, 1) },
+      uSunD: { value: new Vector3(0, 0, 1) },
+      uSunC: { value: new Vector3(0, 0, 0) },
       uNL: { value: 0 },
       uLP: { value: new Float32Array(MAX_LIGHTS * 4) },
       uLC: { value: new Float32Array(MAX_LIGHTS * 3) },
@@ -335,6 +343,12 @@ export class InstancedRenderer {
     this.renderer.setClearColor(rgb, f.clear[3]);
     const u = this.uniforms;
     u.uAmb.value.set(f.ambient[0], f.ambient[1], f.ambient[2]);
+    if (f.sun) {
+      u.uSunD.value.set(f.sun.dir[0], f.sun.dir[1], f.sun.dir[2]);
+      u.uSunC.value.set(f.sun.colour[0], f.sun.colour[1], f.sun.colour[2]);
+    } else {
+      u.uSunC.value.set(0, 0, 0);
+    }
     u.uLighting.value = f.lighting ? 1 : 0;
     u.uNormals.value = f.normals ? 1 : 0;
     u.uPoster.value = f.poster ? 1 : 0;

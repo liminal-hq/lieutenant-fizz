@@ -9,7 +9,7 @@ use crate::ents::{Item, ItemKind, Kind, Spawn};
 use crate::render::Theme;
 use crate::sprites::Spr;
 use crate::tiles::*;
-use lf_sim::{Platform, TileMap};
+use lf_sim::{hashf, Platform, TileMap};
 
 pub const CRATER: u8 = 0;
 pub const CAVES: u8 = 1;
@@ -59,14 +59,14 @@ pub const LEVELS: [LevelDef; TABLE_LEN as usize] = [
         build: crater,
         theme: Theme::Crater,
         area: AREA_CRATER_FIELDS,
-        icon: Spr::OwCrater,
+        icon: Spr::OwLmCrater,
     },
     LevelDef {
         id: CAVES,
         build: caves,
         theme: Theme::Caves,
         area: AREA_ROCK_CANDY_REACH,
-        icon: Spr::OwCave,
+        icon: Spr::OwLmCaves,
     },
     LevelDef {
         id: CITADEL,
@@ -80,84 +80,84 @@ pub const LEVELS: [LevelDef; TABLE_LEN as usize] = [
         build: meteor_mesa,
         theme: Theme::OpenSky,
         area: AREA_CRATER_FIELDS,
-        icon: Spr::OwMesa,
+        icon: Spr::OwLmMesa,
     },
     LevelDef {
         id: ZARG_LOOKOUT,
         build: zarg_lookout,
         theme: Theme::Building,
         area: AREA_CRATER_FIELDS,
-        icon: Spr::OwTower,
+        icon: Spr::OwLmLookout,
     },
     LevelDef {
         id: MARSHMALLOW_MEADOWS,
         build: marshmallow_meadows,
         theme: Theme::OpenSky,
         area: AREA_MARSHMALLOW_MEADOWS,
-        icon: Spr::OwMeadow,
+        icon: Spr::OwLmMeadows,
     },
     LevelDef {
         id: BONBON_PLAYHOUSE,
         build: bonbon_playhouse,
         theme: Theme::Theatre,
         area: AREA_MARSHMALLOW_MEADOWS,
-        icon: Spr::OwPlayhouse,
+        icon: Spr::OwLmPlayhouse,
     },
     LevelDef {
         id: FUDGE_BOG,
         build: fudge_bog,
         theme: Theme::Crater,
         area: AREA_MARSHMALLOW_MEADOWS,
-        icon: Spr::OwCrater,
+        icon: Spr::OwLmFudgeBog,
     },
     LevelDef {
         id: MIRROR_SHAFTS,
         build: mirror_shafts,
         theme: Theme::Shaft,
         area: AREA_ROCK_CANDY_REACH,
-        icon: Spr::OwShaft,
+        icon: Spr::OwLmShafts,
     },
     LevelDef {
         id: SUGAR_GLASS_GALLERY,
         build: sugar_glass_gallery,
         theme: Theme::Theatre,
         area: AREA_ROCK_CANDY_REACH,
-        icon: Spr::OwPlayhouse,
+        icon: Spr::OwLmSugarGlass,
     },
     LevelDef {
         id: FROSTING_FLATS,
         build: frosting_flats,
         theme: Theme::OpenSky,
         area: AREA_FROSTING_FRONTIER,
-        icon: Spr::OwMesa,
+        icon: Spr::OwLmFlats,
     },
     LevelDef {
         id: FROSTING_SPIRE,
         build: frosting_spire,
         theme: Theme::Building,
         area: AREA_FROSTING_FRONTIER,
-        icon: Spr::OwTower,
+        icon: Spr::OwLmSpire,
     },
     LevelDef {
         id: COCOA_FOUNDRY,
         build: cocoa_foundry,
         theme: Theme::Foundry,
         area: AREA_FROSTING_FRONTIER,
-        icon: Spr::OwFoundry,
+        icon: Spr::OwLmFoundry,
     },
     LevelDef {
         id: GUMDROP_ISLE,
         build: gumdrop_isle,
         theme: Theme::OpenSky,
         area: AREA_GUMDROP_ISLE,
-        icon: Spr::OwMeadow,
+        icon: Spr::OwLmGumdrop,
     },
     LevelDef {
         id: WHISPER_HOLLOW,
         build: whisper_hollow,
         theme: Theme::Caves,
         area: AREA_ROCK_CANDY_REACH,
-        icon: Spr::OwCave,
+        icon: Spr::OwLmHollow,
     },
     LevelDef {
         id: SAUCER,
@@ -1977,7 +1977,8 @@ pub struct AreaRect {
 /// How an area looks on the overworld: its own ground, scatter and river.
 #[derive(Clone, Copy, Debug)]
 pub struct AreaTheme {
-    pub grass: Spr,
+    /// Three looks for the ground, picked by tile so the speckle does not repeat in a grid.
+    pub grass: [Spr; 3],
     pub trees: [Spr; 2],
     pub rock: Spr,
     /// The two frames of the river, and a tint for them.
@@ -1991,7 +1992,7 @@ pub struct AreaTheme {
 pub fn area_theme(area: u8) -> AreaTheme {
     match area {
         AREA_MARSHMALLOW_MEADOWS => AreaTheme {
-            grass: Spr::OwGrassMeadow,
+            grass: [Spr::OwGrassMeadow, Spr::OwGrassMeadowB, Spr::OwGrassMeadowC],
             trees: [Spr::OwPuff0, Spr::OwPuff1],
             rock: Spr::OwPuffRock,
             river: [Spr::OwRiver0, Spr::OwRiver1],
@@ -2000,7 +2001,7 @@ pub fn area_theme(area: u8) -> AreaTheme {
             rock_rate: 0.03,
         },
         AREA_ROCK_CANDY_REACH => AreaTheme {
-            grass: Spr::OwGrassCandy,
+            grass: [Spr::OwGrassCandy, Spr::OwGrassCandyB, Spr::OwGrassCandyC],
             trees: [Spr::OwCandy0, Spr::OwCandy1],
             rock: Spr::OwCandyRock,
             river: [Spr::OwRiver0, Spr::OwRiver1],
@@ -2009,7 +2010,7 @@ pub fn area_theme(area: u8) -> AreaTheme {
             rock_rate: 0.03,
         },
         AREA_FROSTING_FRONTIER => AreaTheme {
-            grass: Spr::OwGrassFrost,
+            grass: [Spr::OwGrassFrost, Spr::OwGrassFrostB, Spr::OwGrassFrostC],
             trees: [Spr::OwFrost0, Spr::OwFrost1],
             rock: Spr::OwCake,
             river: [Spr::OwRiver0, Spr::OwRiver1],
@@ -2019,7 +2020,7 @@ pub fn area_theme(area: u8) -> AreaTheme {
         },
         // The lake is chocolate too; the island keeps the standard grass.
         AREA_GUMDROP_ISLE => AreaTheme {
-            grass: Spr::OwGrass,
+            grass: [Spr::OwGrass, Spr::OwGrassB, Spr::OwGrassC],
             trees: [Spr::OwTree0, Spr::OwTree1],
             rock: Spr::OwRock,
             river: [Spr::OwRiver0, Spr::OwRiver1],
@@ -2028,7 +2029,7 @@ pub fn area_theme(area: u8) -> AreaTheme {
             rock_rate: 0.0,
         },
         _ => AreaTheme {
-            grass: Spr::OwGrass,
+            grass: [Spr::OwGrass, Spr::OwGrassB, Spr::OwGrassC],
             trees: [Spr::OwTree0, Spr::OwTree1],
             rock: Spr::OwRock,
             river: [Spr::OwRiver0, Spr::OwRiver1],
@@ -2037,6 +2038,88 @@ pub fn area_theme(area: u8) -> AreaTheme {
             rock_rate: 0.02,
         },
     }
+}
+
+/// The ambient light on an area of the overworld by day. The sun is the same everywhere and makes up the
+/// rest of full brightness (`render.rs` gives it the colour `(1 - ambient) / z`), so flat ground is lit to
+/// exactly its own colour and only the relief in the sprites moves with the sun. The ambient is a little
+/// cool and the sun a little warm, tinted a touch for each area.
+pub fn map_ambient(area: u8) -> [f32; 3] {
+    match area {
+        AREA_MARSHMALLOW_MEADOWS => [0.60, 0.60, 0.69],
+        AREA_ROCK_CANDY_REACH => [0.58, 0.64, 0.70],
+        AREA_FROSTING_FRONTIER => [0.62, 0.66, 0.75],
+        AREA_GUMDROP_ISLE => [0.60, 0.62, 0.69],
+        _ => [0.58, 0.62, 0.68],
+    }
+}
+
+/// A light on the overworld: where, how high, how far it reaches, its colour, and a slow pulse in hertz
+/// (0 for steady).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MapLight {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+    pub r: f64,
+    pub c: [f64; 3],
+    pub pulse: f64,
+}
+
+/// The overworld's lights: a lantern at each level entrance, a beacon on the saucer, a pulse on each
+/// teleporter that is on (`met` says which are), a glow at the fountain and in the shop windows. They are
+/// few enough that the 16 the renderer takes always cover every one in view (a test sweeps the camera).
+pub fn map_lights(map: &TileMap, points: &[MapPoint], met: impl Fn(u16) -> bool) -> Vec<MapLight> {
+    let mut out = Vec::new();
+    for p in points {
+        let (x, y) = (p.x + 0.5, p.y + 0.5);
+        match p.kind {
+            PtKind::Saucer => out.push(MapLight {
+                x,
+                y,
+                z: 1.0,
+                r: 3.5,
+                c: [1.0, 0.85, 0.45],
+                pulse: 0.0,
+            }),
+            PtKind::Level if !p.hidden || met(p.req) => out.push(MapLight {
+                x,
+                y,
+                z: 0.9,
+                r: 2.6,
+                c: [1.0, 0.65, 0.3],
+                pulse: 0.0,
+            }),
+            // The hidden pad has `met` false until the secret is found, so it lights only once it shows.
+            PtKind::Tele if met(p.req) => out.push(MapLight {
+                x,
+                y,
+                z: 0.8,
+                r: 3.0,
+                c: [0.3, 1.0, 1.1],
+                pulse: 1.0,
+            }),
+            _ => {}
+        }
+    }
+    for x in 0..map.w {
+        for y in 0..map.h {
+            let (c, r) = match map.get(x, y) {
+                FOUNTAIN => ([0.4, 0.8, 1.0], 2.5),
+                SHOP => ([1.0, 0.8, 0.4], 2.0),
+                _ => continue,
+            };
+            out.push(MapLight {
+                x: f64::from(x) + 0.5,
+                y: f64::from(y) + 0.5,
+                z: 0.8,
+                r,
+                c,
+                pulse: 0.0,
+            });
+        }
+    }
+    out
 }
 
 pub struct MapData {
@@ -2258,10 +2341,11 @@ pub fn build_overworld() -> MapData {
         },
         pt(PtKind::Level, GUMDROP_ISLE, 24, 23, 0, 0, false),
         pt(PtKind::Level, WHISPER_HOLLOW, 41, 28, 0, 0, false),
-        // Crater Corners, the little town along the street east of the first level.
-        pt(PtKind::Sign, 0, 17, 6, 0, 0, false),
-        pt(PtKind::Sign, 1, 19, 6, 0, 0, false),
-        pt(PtKind::Sign, 2, 22, 6, 0, 0, false),
+        // Crater Corners, the little town around Zarg Lookout: the welcome sign and the bakery sign on
+        // the street east of the tower, and the fountain sign at the fountain west of it.
+        pt(PtKind::Sign, 0, 8, 16, 0, 0, false),
+        pt(PtKind::Sign, 1, 11, 16, 0, 0, false),
+        pt(PtKind::Sign, 2, 4, 16, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -2283,7 +2367,6 @@ pub fn build_overworld() -> MapData {
     };
     path(8, 9, 14, 6);
     path(14, 6, 16, 14);
-    path(16, 6, 22, 6);
     path(16, 14, 6, 16);
     path(6, 16, 12, 19);
     path(12, 26, 5, 30);
@@ -2300,11 +2383,10 @@ pub fn build_overworld() -> MapData {
     path(33, 15, 34, 6);
     path(34, 6, 44, 6);
     let areas = overworld_areas();
-    let mut s: u64 = 99;
-    let mut r = move || {
-        s = (s * 16807) % 2_147_483_647;
-        s as f64 / 2_147_483_647.0
-    };
+    // Each tile draws its own roll from a hash of where it is, so moving a point or a path changes the
+    // trees and rocks near it and nowhere else. The offsets keep the roll apart from the one the renderer
+    // uses to pick a tree's look (`hashf(x, y)`), or every tree would pick the same look.
+    let r = |x: i32, y: i32| hashf(x.wrapping_add(7919), y.wrapping_add(104_729));
     for x in 2..w - 2 {
         for y in 2..h - 2 {
             if map.get(x, y) != GRASS {
@@ -2327,7 +2409,7 @@ pub fn build_overworld() -> MapData {
             }
             if !near {
                 let theme = area_theme(area_at(&areas, x, y));
-                let q = r();
+                let q = r(x, y);
                 if q < theme.tree_rate {
                     map.set(x, y, TREE);
                 } else if q < theme.tree_rate + theme.rock_rate {
@@ -2336,15 +2418,15 @@ pub fn build_overworld() -> MapData {
             }
         }
     }
-    // Crater Corners: houses and shops either side of the street, a fountain at its end.
+    // Crater Corners, around Zarg Lookout (6,16): a row of two houses and a shop north of the street that
+    // runs east from the tower (a building is drawn standing up, so each keeps a free tile above it), and a
+    // house and the fountain west of the tower. The street and the paths are untouched.
     for (x, y, t) in [
-        (17, 4, HOUSE_A),
-        (19, 4, HOUSE_B),
-        (21, 4, SHOP),
-        (18, 8, HOUSE_B),
-        (20, 8, HOUSE_A),
-        (22, 8, SHOP),
-        (23, 6, FOUNTAIN),
+        (7, 17, HOUSE_A),
+        (9, 17, HOUSE_B),
+        (11, 17, SHOP),
+        (4, 17, HOUSE_B),
+        (4, 15, FOUNTAIN),
     ] {
         map.set(x, y, t);
     }
@@ -2607,6 +2689,166 @@ mod tests {
         let v = build_level(CAVES);
         assert!(v.items.iter().any(|i| i.kind == KeyBlue));
         assert!(count(&v.map, DOOR_B) > 0);
+    }
+
+    /// A fingerprint of the overworld's tiles and where its points are, to notice an edit to the map.
+    fn overworld_fingerprint() -> u32 {
+        let m = build_overworld();
+        let mut h = Fnv::new();
+        m.map.data.iter().for_each(|&t| h.byte(t));
+        for p in &m.points {
+            h.f64(p.x);
+            h.f64(p.y);
+        }
+        h.0
+    }
+
+    #[test]
+    fn every_areas_ambient_light_is_readable_and_leaves_room_for_a_warm_sun() {
+        let d = crate::render::map_sun_dir();
+        for a in [
+            AREA_CRATER_FIELDS,
+            AREA_MARSHMALLOW_MEADOWS,
+            AREA_ROCK_CANDY_REACH,
+            AREA_FROSTING_FRONTIER,
+            AREA_GUMDROP_ISLE,
+        ] {
+            let amb = map_ambient(a);
+            let sun: Vec<f32> = amb.iter().map(|c| (1.0 - c) / d[2]).collect();
+            for i in 0..3 {
+                // Ground facing the screen gets exactly full brightness: ambient plus the sun's share.
+                assert!(
+                    (amb[i] + sun[i] * d[2] - 1.0).abs() < 1e-6,
+                    "area {a} channel {i}"
+                );
+                assert!(
+                    amb[i] >= 0.45,
+                    "area {a}: the shade is too dark to read under the thumbs"
+                );
+                assert!(sun[i] >= 0.0, "area {a}: ambient above full brightness");
+            }
+            assert!(
+                sun[0] > sun[2],
+                "area {a}: the sun is warmer than the shade"
+            );
+        }
+    }
+
+    #[test]
+    fn the_map_lights_fit_the_budget_wherever_the_camera_goes() {
+        let m = build_overworld();
+        // Every teleporter on and the hidden pad found: the most lights the map ever has.
+        let lights = map_lights(&m.map, &m.points, |_| true);
+        assert!(
+            lights.len() >= 20,
+            "level entrances, the saucer, pads and the town: {}",
+            lights.len()
+        );
+        // The widest view the shell asks for is about 26 by 12 tiles; round it up.
+        let (half_w, half_h) = (14.0, 7.0);
+        let mut worst = 0;
+        let mut x = half_w;
+        while x <= f64::from(m.map.w) - half_w {
+            let mut y = half_h;
+            while y <= f64::from(m.map.h) - half_h {
+                // A light matters when its reach touches the view.
+                let reaching = lights
+                    .iter()
+                    .filter(|l| {
+                        let dx = ((l.x - x).abs() - half_w).max(0.0);
+                        let dy = ((l.y - y).abs() - half_h).max(0.0);
+                        dx.hypot(dy) < l.r
+                    })
+                    .count();
+                worst = worst.max(reaching);
+                y += 1.0;
+            }
+            x += 1.0;
+        }
+        // The renderer takes the 16 nearest the camera; one spare means none ever pops in or out.
+        assert!(worst <= 15, "{worst} lights reach one view");
+    }
+
+    #[test]
+    fn overworld_tiles_are_pinned() {
+        // A change to the map (a tile, a point) changes this on purpose: look at what moved, then update it.
+        // Trees and rocks come from a hash of each tile's place, so an edit moves only the ones near it.
+        assert_eq!(
+            overworld_fingerprint(),
+            0xb3e9_5796,
+            "the overworld changed: update the pinned fingerprint if that was meant"
+        );
+    }
+
+    #[test]
+    fn crater_corners_stands_around_zarg_lookout() {
+        let m = build_overworld();
+        let lookout = m
+            .points
+            .iter()
+            .find(|p| p.kind == PtKind::Level && p.level == ZARG_LOOKOUT)
+            .expect("the watchtower is on the map");
+        let area = area_at(&m.areas, lookout.x as i32, lookout.y as i32);
+        let town = [HOUSE_A, HOUSE_B, SHOP, FOUNTAIN];
+        let mut buildings = 0;
+        for x in 0..m.map.w {
+            for y in 0..m.map.h {
+                if !town.contains(&m.map.get(x, y)) {
+                    continue;
+                }
+                buildings += 1;
+                let d = (f64::from(x) - lookout.x).hypot(f64::from(y) - lookout.y);
+                assert!(
+                    d <= 8.0,
+                    "building at {x},{y} is {d:.1} tiles from the tower"
+                );
+                assert_eq!(
+                    area_at(&m.areas, x, y),
+                    area,
+                    "building at {x},{y} is in Crater Fields"
+                );
+                assert!(
+                    !m.map.solid(x, y + 1, false, 0.0) && m.map.get(x, y + 1) != PATH,
+                    "a tile stays free above the building at {x},{y}, so it can stand up there"
+                );
+            }
+        }
+        assert_eq!(buildings, 5, "two houses, a shop, a house and a fountain");
+        // Nothing of the old street is left east of the first level.
+        assert_ne!(m.map.get(20, 6), PATH);
+        assert!(!town.contains(&m.map.get(17, 4)) && !town.contains(&m.map.get(23, 6)));
+    }
+
+    #[test]
+    fn the_three_signs_stand_in_the_town_and_keep_clear_of_every_other_point() {
+        let m = build_overworld();
+        let lookout = m
+            .points
+            .iter()
+            .find(|p| p.kind == PtKind::Level && p.level == ZARG_LOOKOUT)
+            .expect("the watchtower is on the map");
+        let area = area_at(&m.areas, lookout.x as i32, lookout.y as i32);
+        let signs: Vec<&MapPoint> = m.points.iter().filter(|p| p.kind == PtKind::Sign).collect();
+        assert_eq!(signs.len(), 3);
+        // The texts are by number: welcome, the bakery, the fountain.
+        assert_eq!(signs.iter().map(|p| p.level).collect::<Vec<_>>(), [0, 1, 2]);
+        for (i, s) in signs.iter().enumerate() {
+            assert_eq!(
+                area_at(&m.areas, s.x as i32, s.y as i32),
+                area,
+                "sign {i} is in Crater Fields"
+            );
+            for (j, o) in m.points.iter().enumerate() {
+                if std::ptr::eq(*s, o) {
+                    continue;
+                }
+                let d = (s.x - o.x).hypot(s.y - o.y);
+                assert!(
+                    d >= 2.0,
+                    "sign {i} is {d:.1} tiles from point {j}, too close to tell apart"
+                );
+            }
+        }
     }
 
     #[test]
