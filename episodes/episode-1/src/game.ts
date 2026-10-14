@@ -273,7 +273,8 @@ import {
   type Prompt,
   type SlotRow,
 } from './ui';
-import { episodeMenuTheme } from './menu-theme';
+import { EPISODE_1_MENU, episodeMenuTheme } from './menu-theme';
+import { createMenuSounds } from '@lieutenant-fizz/engine/menu/sounds';
 
 export type Screen = ShellScreen;
 
@@ -491,6 +492,10 @@ export class Game {
   private readonly forcedBack: boolean;
   private unwatchBack: () => void = () => {};
   private readonly audio: GameAudio;
+  /** The menus' sounds: the cursor, a choice, Back, a change and "no" each play the effect the episode named for them. */
+  private readonly menuSound = createMenuSounds(EPISODE_1_MENU.sounds, (name) =>
+    this.audio.play(name),
+  );
   /** Whether `GameOptions.audio` chose the audio mode, rather than the default applying. */
   private readonly audioForced: boolean;
   /** The mode `?audio=` chose, which wins over the saved Style and is never saved. */
@@ -2092,7 +2097,7 @@ export class Game {
       i = (i + d + n) % n;
       if (!items[i]?.disabled) break;
     }
-    this.audio.play('menu');
+    this.menuSound.cue('move');
     this.disarmReset();
     this.haptics.ui('move');
     this.menuIdx = i;
@@ -2125,7 +2130,7 @@ export class Game {
       return;
     }
     this.endRemap();
-    this.audio.play('click');
+    this.menuSound.cue('back');
     this.haptics.ui('back');
     this.disarmReset();
     this.cancelPreview();
@@ -2142,7 +2147,7 @@ export class Game {
   private leaveSubs(): void {
     if (!this.sub) return;
     this.endRemap();
-    this.audio.play('click');
+    this.menuSound.cue('back');
     this.haptics.ui('select');
     this.disarmReset();
     this.cancelPreview();
@@ -2203,7 +2208,7 @@ export class Game {
     const next = stepOption(this.settings, key, d, wrapMeter);
     if (next[key] === this.settings[key]) return;
     this.settings = next;
-    this.audio.play('menu');
+    this.menuSound.cue('change');
     const value = next[key];
     this.haptics.ui(typeof value === 'boolean' ? (value ? 'toggleOn' : 'toggleOff') : 'move');
     this.applySettings();
@@ -2250,7 +2255,7 @@ export class Game {
     this.disarmReset();
     this.settings = next;
     // Style, Effects and Effects version are heard in their previews; Music and the Sound lab row play the menu blip.
-    if (row === 'music' || row === 'musicVersion' || row === 'lab') this.audio.play('menu');
+    if (row === 'music' || row === 'musicVersion' || row === 'lab') this.menuSound.cue('change');
     this.applySettings();
     this.syncUi();
     this.schedulePreview(row);
@@ -2318,7 +2323,7 @@ export class Game {
     this.remap = cancelRemap(this.remap, performance.now(), reason);
     this.input.setPadListening(false);
     this.ui.toast(remapMessage(this.remap, this.padFamily()));
-    this.audio.play('click');
+    this.menuSound.cue('select');
     this.haptics.ui('back');
     this.syncUi();
   }
@@ -2360,10 +2365,10 @@ export class Game {
         writePadBindings(this.store, this.padBindings);
         this.input.setPadBindings(this.padBindings);
         this.syncHints();
-        this.audio.play('click');
+        this.menuSound.cue('select');
         this.haptics.ui('select');
       } else {
-        this.audio.play('click');
+        this.menuSound.cue('select');
         this.haptics.ui('back');
       }
       this.ui.toast(remapMessage(step.state, this.padFamily()));
@@ -2408,7 +2413,7 @@ export class Game {
     )
       return;
     this.settings = next;
-    this.audio.play('menu');
+    this.menuSound.cue('change');
     if (row === 'awake') this.haptics.ui(next.awake ? 'toggleOn' : 'toggleOff');
     else this.haptics.ui('move');
     this.applySettings();
@@ -2426,7 +2431,7 @@ export class Game {
     const feel = hapticsFeel(before, next, row);
     if (!feel) return;
     this.disarmReset();
-    this.audio.play('menu');
+    this.menuSound.cue('change');
     this.setHaptics(next);
     if (feel.kind === 'phone') this.haptics.preview('jump', 'device');
     else if (feel.kind === 'pad') this.haptics.preview('bonk', 'controller');
@@ -2481,7 +2486,7 @@ export class Game {
       next.size !== s.size || next.opacity !== s.opacity || next.leftHanded !== s.leftHanded;
     if (!changed) return;
     this.disarmReset();
-    this.audio.play('menu');
+    this.menuSound.cue('change');
     this.haptics.ui(
       next.leftHanded === s.leftHanded ? 'move' : next.leftHanded ? 'toggleOn' : 'toggleOff',
     );
@@ -2610,7 +2615,7 @@ export class Game {
     if (this.sub !== 'touchEdit') return;
     if (resetArmed(this.resetAt, performance.now())) {
       this.disarmReset();
-      this.audio.play('click');
+      this.menuSound.cue('select');
       this.haptics.ui('select');
       this.applyTouchSettings(resetPositions(this.touchSettings));
       this.syncUi();
@@ -2637,6 +2642,7 @@ export class Game {
     const it = items[i];
     if (!it) return;
     if (it.disabled) {
+      this.menuSound.cue('deny');
       this.haptics.ui('reject');
       return;
     }
@@ -2645,7 +2651,7 @@ export class Game {
     // or Quit game itself.
     if (i !== this.menuIdx) this.disarmReset();
     this.menuIdx = i;
-    this.audio.play('click');
+    this.menuSound.cue('select');
     const id = it.id ?? '';
     if (id !== 'back') this.haptics.ui('select');
     // Fullscreen is asked for here, inside the tap, not in the Ben-wave timer below: the browser only
@@ -2796,7 +2802,7 @@ export class Game {
     if (this.replay) this.replay.close();
     else if (this.sub) this.closeSub();
     else if (this.screen === 'pause') {
-      this.audio.play('click');
+      this.menuSound.cue('back');
       this.haptics.ui('back');
       this.resume();
     }

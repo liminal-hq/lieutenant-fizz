@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Grid } from '../pen';
+import type { MenuSounds } from './sounds';
 
 /** The colours a menu reads, as CSS colours. Any left out keep the page's defaults (`tokens.css`). */
 export interface MenuColours {
@@ -31,6 +32,8 @@ export interface MenuTheme {
   bullet?: Grid | readonly Grid[];
   /** How long each bullet frame shows, in milliseconds. */
   bulletStepMs?: number;
+  /** The effect each menu cue plays. */
+  sounds?: MenuSounds;
 }
 
 /** How long each bullet frame shows when the theme does not say. */

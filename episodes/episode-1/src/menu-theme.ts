@@ -16,6 +16,15 @@ export const EPISODE_1_MENU = {
     ink: '#1a1000',
   },
   plate: ['#ffaa40', '#ffb850', '#ffc860'],
+  // The cursor and an Options change are the `menu` blip, a choice is the `click`; Back, "no" and a swipe have their own.
+  sounds: {
+    move: 'menu',
+    select: 'click',
+    back: 'menuBack',
+    change: 'menu',
+    deny: 'menuDeny',
+    swipe: 'menuSwipe',
+  },
 } as const satisfies MenuTheme;
 
 /** The theme with its bullet: the soda can. */

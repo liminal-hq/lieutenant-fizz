@@ -135,6 +135,22 @@ export const SFX: Record<string, SfxVoice[]> = {
     V('a5', { w: 'sine', d: 0.06, g: 0.3, lpf: 3000 }),
     V('white', { a: 0, d: 0.008, g: 0.1, lpf: 6000 }),
   ],
+  // Back: two soft notes stepping down, the opposite of a choice's single bright click.
+  menuBack: [
+    V('e5', { w: 'sine', d: 0.05, g: 0.28, lpf: 3000 }),
+    V('a4', { w: 'sine', d: 0.08, g: 0.28, lpf: 2500, nudge: 0.045 }),
+  ],
+  // "No": two low, dull bumps.
+  menuDeny: [
+    V('c3', { w: 'square', d: 0.08, g: 0.2, lpf: 700 }),
+    V('b2', { w: 'square', d: 0.1, g: 0.18, lpf: 600, nudge: 0.07 }),
+  ],
+  // A swipe from one stop to the next: two quick notes stepping up with a breath of air.
+  menuSwipe: [
+    V('c5', { w: 'sine', d: 0.04, g: 0.2, lpf: 3500 }),
+    V('g5', { w: 'sine', d: 0.05, g: 0.2, lpf: 3500, nudge: 0.03 }),
+    V('white', { a: 0.005, d: 0.07, g: 0.06, lpf: 4000 }),
+  ],
 };
 export const CAPTION_SFX: Record<string, string> = {
   boing: 'boing',
