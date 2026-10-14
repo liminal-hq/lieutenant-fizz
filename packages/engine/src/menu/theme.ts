@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { SfxVoice } from '../audio';
 import type { Grid } from '../pen';
 import type { MenuSounds } from './sounds';
 
@@ -88,6 +89,9 @@ export interface MenuThemeData {
   colours?: MenuColours;
   plate?: readonly [string, string, string];
   bullet?: { src: string; frames: number; stepMs?: number };
+  /** The effect each menu cue plays, and the voices of each of those effects. */
+  sounds?: MenuSounds;
+  voices?: Record<string, readonly SfxVoice[]>;
 }
 
 /** The theme a page applies from its data. The bullet picture is handled by the page (`bulletImageOf`). */

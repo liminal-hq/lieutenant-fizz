@@ -24,7 +24,13 @@ export interface View {
  * The launcher's page. The selected row follows focus (the pad and keyboard move focus; the pointer moves it
  * too), so what is highlighted is always what Enter, A or a tap will choose.
  */
-export function createView(root: HTMLElement, onActivate: (row: RowId) => void): View {
+export function createView(
+  root: HTMLElement,
+  onActivate: (row: RowId) => void,
+  onMove: () => void = () => {},
+): View {
+  // Focus the page itself puts on a row (a redraw, the pointer coming over) is not the player moving the cursor.
+  let quiet = false;
   let ids: RowId[] = [];
   let selected: RowId | undefined;
   let bullet: BulletImage | undefined;
@@ -46,7 +52,11 @@ export function createView(root: HTMLElement, onActivate: (row: RowId) => void):
   // The pad and keyboard move focus; the selection follows.
   menu.addEventListener('focusin', (e) => {
     const i = Number((e.target as HTMLElement).closest('button')?.dataset['i']);
-    if (Number.isInteger(i) && ids[i]) mark(ids[i]);
+    const id = Number.isInteger(i) ? ids[i] : undefined;
+    if (!id) return;
+    const moved = id !== selected;
+    mark(id);
+    if (moved && !quiet) onMove();
   });
 
   const draw = (state: LauncherState): void => {
@@ -67,12 +77,18 @@ export function createView(root: HTMLElement, onActivate: (row: RowId) => void):
       },
       onHover: (i, e) => {
         if (e.pointerType !== 'mouse') return;
+        quiet = true;
         menu.querySelectorAll<HTMLElement>('button')[i]?.focus({ preventScroll: true });
+        quiet = false;
       },
     });
     mark(ids[at]);
     // Keep the pad's place; on first load there is nothing to keep, so the first row is only highlighted.
-    if (had) menu.querySelectorAll<HTMLElement>('button')[at]?.focus({ preventScroll: true });
+    if (had) {
+      quiet = true;
+      menu.querySelectorAll<HTMLElement>('button')[at]?.focus({ preventScroll: true });
+      quiet = false;
+    }
   };
 
   return {

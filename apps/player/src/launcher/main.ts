@@ -15,10 +15,13 @@ import {
 } from '@lieutenant-fizz/engine/menu/theme';
 import { createStorage } from '@lieutenant-fizz/engine/storage';
 import { readUnlocked } from './dev-unlock';
+import type { MenuSoundPlayer } from '@lieutenant-fizz/engine/menu/sounds';
 import { createLauncherBack } from './back';
+import { cueOf } from './cues';
 import { applyEffects } from './effects';
 import { hasBack, initialState, reduce, type Action } from './state';
 import { createSnackbar, createToast, type ToastDeps } from './toast';
+import { SILENT, createLauncherSound } from './sound';
 import { createView } from './view';
 import './launcher.css';
 
@@ -62,8 +65,14 @@ const deps = {
   releaseBack: () => back.release(),
 };
 
+// The menu's sounds, once the episode's theme (which names them) has loaded.
+let sound: MenuSoundPlayer = SILENT;
+
 const dispatch = (action: Action): void => {
+  const before = state;
   const step = reduce(state, action);
+  const cue = cueOf(before, action, step);
+  if (cue) sound.cue(cue);
   const changed = step.state !== state;
   state = step.state;
   if (changed) draw();
@@ -71,7 +80,11 @@ const dispatch = (action: Action): void => {
   void applyEffects(step.effects, deps);
 };
 
-const view = createView(root, (row) => dispatch({ type: 'activate', row }));
+const view = createView(
+  root,
+  (row) => dispatch({ type: 'activate', row }),
+  () => sound.cue('move'),
+);
 const draw = (): void => view.render(state);
 
 // Back from the keyboard, and from the gamepad's B (menu.ts passes it on as `pad-back`).
@@ -94,6 +107,7 @@ try {
   const url = new URL('launcher/episode-1/theme.json', location.href);
   const data = (await (await fetch(url)).json()) as MenuThemeData;
   applyMenuTheme(document.documentElement, themeOfData(data));
+  sound = createLauncherSound(data, store, host.kind !== 'web');
   view.setBullet(data.bullet ? bulletImageOf(data, new URL(data.bullet.src, url).href) : undefined);
 } catch (error) {
   console.warn('The menu theme could not be loaded', error);

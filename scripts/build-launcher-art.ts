@@ -13,6 +13,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { SfxVoice } from '../packages/engine/src/audio';
 import { EGA } from '../packages/engine/src/palette';
 import { encodePngRgba } from '../packages/engine/src/png';
 import type { Grid } from '../packages/engine/src/pen';
@@ -22,6 +23,7 @@ import {
   type MenuThemeData,
 } from '../packages/engine/src/menu/theme';
 import { EPISODE_1_MENU, episodeMenuTheme } from '../episodes/episode-1/src/menu-theme';
+import { SFX } from '../episodes/episode-1/src/audio/patterns';
 import { defineSprites } from '../episodes/episode-1/src/sprites/catalog';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -67,9 +69,18 @@ export function build(): Built[] {
   const soda = defineSprites().find((d) => d.name === 'soda')?.grid;
   const theme = episodeMenuTheme(soda);
   const frames = bulletFrames(theme);
+  // The voices of the effects the menu cues play, so the launcher can play them without the episode's code.
+  const voices: Record<string, readonly SfxVoice[]> = {};
+  for (const effect of new Set(Object.values(EPISODE_1_MENU.sounds))) {
+    const found = SFX[effect];
+    if (!found) throw new Error(`The menu cue effect ${effect} has no voices`);
+    voices[effect] = found;
+  }
   const data: MenuThemeData = {
     colours: EPISODE_1_MENU.colours,
     plate: EPISODE_1_MENU.plate,
+    sounds: EPISODE_1_MENU.sounds,
+    voices,
     ...(frames.length
       ? {
           bullet: {
