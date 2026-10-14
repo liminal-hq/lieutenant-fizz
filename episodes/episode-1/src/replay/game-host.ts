@@ -23,6 +23,7 @@ import type { Sim } from '../sim/sim';
 import { dwells } from './attempts';
 import { INPUT_BITS } from './names';
 import {
+  DEATH_LEAD,
   SKIP_TICKS,
   clockText,
   deathTargets,
@@ -30,7 +31,7 @@ import {
   inputText,
   nextTarget,
 } from './navigation';
-import { findAttempts, Replayer } from './replayer';
+import { findAttempts, Replayer, type ReplayAttempt } from './replayer';
 import { markersOf, type Marker } from './timeline';
 import { fingersAt, layoutAt, touchesOf, type Touch, type TouchLayoutAt } from './touches';
 
@@ -56,6 +57,21 @@ export interface ReplayHostDeps {
    * is not a press in the replay, so only a button let go and pressed again counts.
    */
   held?: number;
+  /** Layers of the host's own (the viewer's hot spots), switched on and off from the same sheet. */
+  extraLayers?: ExtraLayer[];
+}
+
+/** A layer a host adds: a name for the sheet, whether it starts on, and how it draws. */
+export interface ExtraLayer {
+  id: string;
+  label: string;
+  on: boolean;
+  /** Draws on the replay's canvas in canvas pixels; `view` maps tiles to them. */
+  draw: (
+    ctx: Ctx2D & CanvasRenderingContext2D,
+    view: WorldView,
+    now: { attempt: ReplayAttempt; tick: number },
+  ) => void;
 }
 
 /** The layers that can be switched on and off. */
@@ -98,7 +114,7 @@ const TEXT_MS = 100;
 export class ReplayHost {
   private readonly replayer: Replayer;
   private readonly transport = new Transport();
-  private readonly layers: Record<LayerId, boolean>;
+  private readonly layers: Record<string, boolean>;
   private readonly playable: number[];
   private readonly root: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
@@ -109,7 +125,10 @@ export class ReplayHost {
   private readonly clock: HTMLElement;
   private readonly playBtn: HTMLButtonElement;
   private readonly speedBtn: HTMLButtonElement;
-  private readonly layerBtns = new Map<LayerId, HTMLButtonElement>();
+  private readonly layerBtns = new Map<string, HTMLButtonElement>();
+  /** What to say about this sample before it plays: a different build, a level edited since. */
+  private notes: string[] = [];
+  private buildNote = '';
   private readonly sheet: HTMLElement;
 
   private at = 0;
@@ -140,6 +159,13 @@ export class ReplayHost {
       input: !touchMode,
       sound: true,
     };
+    for (const x of d.extraLayers ?? []) this.layers[x.id] = x.on;
+    // A sample made on another build of the game may not replay as it played: say so before it plays.
+    const built = d.session.specs['sim'];
+    this.buildNote =
+      typeof built === 'string' && built !== d.sim.wasmCrc
+        ? 'This sample was recorded on a different build of the game, so it may not match.'
+        : '';
 
     this.canvas = h('canvas', { 'aria-hidden': 'true', class: 'replay-layers' });
     this.info = h('div', { class: 'replay-info lf lf-panel', 'aria-live': 'off' });
@@ -161,6 +187,12 @@ export class ReplayHost {
       const b = this.button(label, () => this.toggleLayer(id), 'replay-layer');
       b.setAttribute('aria-pressed', String(this.layers[id]));
       this.layerBtns.set(id, b);
+      this.sheet.append(b);
+    }
+    for (const x of d.extraLayers ?? []) {
+      const b = this.button(x.label, () => this.toggleLayer(x.id), 'replay-layer');
+      b.setAttribute('aria-pressed', String(this.layers[x.id]));
+      this.layerBtns.set(x.id, b);
       this.sheet.append(b);
     }
     const layersBtn = this.button('Layers', () => {
@@ -219,8 +251,29 @@ export class ReplayHost {
   }
 
   /** The layers now on. */
-  layersOn(): LayerId[] {
-    return LAYERS.map(([id]) => id).filter((id) => this.layers[id]);
+  layersOn(): string[] {
+    return Object.keys(this.layers).filter((id) => this.layers[id]);
+  }
+
+  /** The attempt now showing, by its place in the sample (from 0). */
+  get attemptOrder(): number {
+    return this.playable[this.at]!;
+  }
+
+  /**
+   * Goes to an attempt by its place in the sample and, when a tick is given, to a moment and a half before it, then
+   * plays. An attempt that cannot be replayed is left alone.
+   */
+  watch(order: number, tick?: number): void {
+    const k = this.playable.indexOf(order);
+    if (k < 0) return;
+    if (k !== this.at) this.open(k);
+    if (tick !== undefined) {
+      const a = this.replayer.attempt!;
+      this.seek(Math.max(a.startTick - this.replayer.lateBy, tick - DEATH_LEAD));
+    }
+    this.transport.play();
+    this.sync();
   }
 
   // ---------- Controls ----------
@@ -261,7 +314,7 @@ export class ReplayHost {
     this.sync();
   }
 
-  private toggleLayer(id: LayerId): void {
+  private toggleLayer(id: string): void {
     this.layers[id] = !this.layers[id];
     this.layerBtns.get(id)?.setAttribute('aria-pressed', String(this.layers[id]));
   }
@@ -323,10 +376,25 @@ export class ReplayHost {
     this.layout = layoutAt(this.d.session, a.startTick, a.end);
     this.scrub.min = String(a.startTick - replayer.lateBy);
     this.scrub.max = String(a.endTick);
-    this.banner.hidden = true;
+    this.notes = this.buildNote ? [this.buildNote] : [];
+    const entry = a.entry;
+    if (entry?.levelHash != null && entry.levelHash !== this.d.sim.levelHash(entry.level)) {
+      this.notes.push(`${a.name} has been edited since this was recorded, so it may not match.`);
+    }
     this.bannerFor = null;
+    this.showBanner(a.startTick - replayer.lateBy);
     this.said = '';
     this.transport.reset();
+  }
+
+  /** The note above the picture: what is known before it plays, and where it stops matching once it does. */
+  private showBanner(first: number): void {
+    const drift = this.replayer.drift;
+    const text = [...this.notes, ...(drift ? [driftText(drift, first)] : [])].join(' ');
+    if (text === this.bannerFor) return;
+    this.bannerFor = text;
+    this.banner.textContent = text;
+    this.banner.hidden = text === '';
   }
 
   // ---------- Frame ----------
@@ -442,6 +510,9 @@ export class ReplayHost {
       ctx.restore();
     }
     if (this.layers.input) this.drawButtons(ctx, w, hh, this.replayer.wordAt(tick));
+    for (const x of this.d.extraLayers ?? []) {
+      if (this.layers[x.id]) x.draw(ctx, view, { attempt: a, tick });
+    }
   }
 
   /** The buttons as a row of small boxes along the bottom, lit while held. */
@@ -504,12 +575,7 @@ export class ReplayHost {
     if (!this.dragging) this.scrub.value = String(replayer.tick);
     this.scrub.setAttribute('aria-valuetext', this.clock.textContent);
 
-    const drift = replayer.drift;
-    if (drift && this.bannerFor === null) {
-      this.bannerFor = `${drift.kind}@${drift.tick}`;
-      this.banner.textContent = driftText(drift, first);
-      this.banner.hidden = false;
-    }
+    this.showBanner(first);
     this.bar.dataset.idle = String(
       this.transport.playing && now - this.lastAct > BAR_MS && this.sheet.hidden,
     );
