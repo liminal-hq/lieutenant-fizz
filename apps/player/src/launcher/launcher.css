@@ -163,8 +163,9 @@ body {
 #launcher.lf-title .wordmark span {
   white-space: nowrap;
 }
-/* The series logo starts over the carousel's name, not over its arrow. */
-#launcher.lf-title .head {
+/* The series logo and the episode's number start over the carousel's name, not over its arrow. */
+#launcher.lf-title .head,
+#launcher.lf-title > .episode {
   margin-left: 44px;
 }
 #launcher.lf-title .hero .w {

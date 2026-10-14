@@ -9,12 +9,21 @@ export interface TitleCard {
   kicker: string;
   /** The logo's words, which stack on a narrow screen. */
   words: readonly string[];
-  /** The line under the logo. */
+  /** The episode's number, such as `Episode 1`. */
+  episode: string;
+  /** The episode's own name, such as `The Cocoa Caper`. */
+  name: string;
+  /** The line under the logo: the number and the name together. */
   line: string;
 }
+
+const EPISODE = 'Episode 1';
+const NAME = 'The Cocoa Caper';
 
 export const TITLE_CARD: TitleCard = {
   kicker: 'Ben Blaze in',
   words: ['Lieutenant', 'Fizz'],
-  line: 'Episode 1 · The Cocoa Caper',
+  episode: EPISODE,
+  name: NAME,
+  line: `${EPISODE} · ${NAME}`,
 };

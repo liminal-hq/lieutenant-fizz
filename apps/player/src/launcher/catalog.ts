@@ -80,7 +80,7 @@ export interface EpisodeInfo {
   runner?: RunnerArt;
   page: string;
   /** The words of the episode's wordmark. */
-  card?: { kicker: string; words: readonly string[]; line: string };
+  card?: { kicker: string; words: readonly string[]; episode: string; name: string };
   /** Where the episode's options are kept: its name in the options file, its old key and the options only it has. */
   options?: { episode: string; legacyKey: string; ownKeys: readonly string[] };
   saves: { auto: string; slots: readonly string[] };

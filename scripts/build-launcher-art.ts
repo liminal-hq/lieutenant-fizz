@@ -154,7 +154,12 @@ export function build(): Built[] {
   const info = {
     page: 'episode-1/index.html',
     // The words of the wordmark, drawn by the launcher with the same logo style as the game's title.
-    card: { kicker: TITLE_CARD.kicker, words: [...TITLE_CARD.words], line: TITLE_CARD.line },
+    card: {
+      kicker: TITLE_CARD.kicker,
+      words: [...TITLE_CARD.words],
+      episode: TITLE_CARD.episode,
+      name: TITLE_CARD.name,
+    },
     // Where the episode's options are kept, so the launcher can carry an older save over and tell the episode's own
     // options from the app-wide ones.
     options: { episode: EPISODE_ID, legacyKey: OPTIONS_KEY, ownKeys: [...EPISODE_KEYS] },

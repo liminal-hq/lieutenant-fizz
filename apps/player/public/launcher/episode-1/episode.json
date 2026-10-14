@@ -6,7 +6,8 @@
       "Lieutenant",
       "Fizz"
     ],
-    "line": "Episode 1 · The Cocoa Caper"
+    "episode": "Episode 1",
+    "name": "The Cocoa Caper"
   },
   "options": {
     "episode": "episode-1",

@@ -51,8 +51,8 @@ export interface Card {
 export interface ViewHooks {
   /** The series logo shown above the carousel on the home screens, or undefined when there is none. */
   logo?(): Card | undefined;
-  /** What the carousel says for a stop (an episode's name), or undefined for the plain heading. */
-  nameOf?(stop: Stop): string | undefined;
+  /** What the carousel says for a stop: the small line above the picker and the name in it. Undefined for the plain heading. */
+  nameOf?(stop: Stop): { sub: string; name: string } | undefined;
   onActivate(row: RowId): void;
   /** The player moved the cursor (the pad, keyboard or a tab: not the page's own focus). */
   onMove(): void;
@@ -119,6 +119,9 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
   // The series logo stands still above the carousel; only the name beside the arrows changes from stop to stop.
   const head = make('div', 'head');
   head.hidden = true;
+  // The small line above the picker: the episode's number, which the name beside the arrows does not repeat.
+  const sub = make('p', 'episode');
+  sub.hidden = true;
   const title = make('h2');
   const header = make('header', 'carousel');
   header.append(prev, title, next);
@@ -128,7 +131,7 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
   const bar = make('div', 'menu pinned');
   bar.hidden = true;
   const menu = make('div', 'menu');
-  root.replaceChildren(head, header, pips, bar, menu);
+  root.replaceChildren(head, sub, header, pips, bar, menu);
   /** How many rows the pinned bar holds (0 or 1): the menu's own rows are numbered after them. */
   let offset = 0;
   /** Every row's button, the bar's first. */
@@ -211,12 +214,8 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     for (let n = 5; n >= 2; n--) {
       style.setProperty('--lf-n-logo', String(n));
       // The logo and the carousel line under it take about a third of the window's height between them.
-      if (
-        head.scrollWidth <= room &&
-        head.offsetHeight + header.offsetHeight <= innerHeight * 0.34
-      ) {
-        return;
-      }
+      const tall = head.offsetHeight + sub.offsetHeight + header.offsetHeight;
+      if (head.scrollWidth <= room && tall <= innerHeight * 0.4) return;
     }
   };
 
@@ -226,13 +225,15 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
       document.getElementById('ui')?.classList.contains('rm') ||
       matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced || typeof title.animate !== 'function') return;
-    title.animate(
-      [
-        { transform: `translateX(${dir * 48}px)`, opacity: 0 },
-        { transform: 'none', opacity: 1 },
-      ],
-      { duration: 240, easing: 'ease-out' },
-    );
+    for (const node of [sub, title]) {
+      node.animate(
+        [
+          { transform: `translateX(${dir * 48}px)`, opacity: 0 },
+          { transform: 'none', opacity: 1 },
+        ],
+        { duration: 240, easing: 'ease-out' },
+      );
+    }
   };
 
   const draw = (state: LauncherState): void => {
@@ -265,9 +266,10 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
       wordmark.setAttribute('aria-label', logo.words.join(' '));
       head.replaceChildren(wordmark);
     }
-    title.textContent = home
-      ? ((logo ? hooks.nameOf?.(stop) : undefined) ?? stopTitle(state))
-      : SCREEN_TITLES[state.screen];
+    const named = logo ? hooks.nameOf?.(stop) : undefined;
+    sub.hidden = !named;
+    sub.textContent = named?.sub ?? '';
+    title.textContent = home ? (named?.name ?? stopTitle(state)) : SCREEN_TITLES[state.screen];
     prev.hidden = next.hidden = pips.hidden = !home;
     // The carousel loops, so both arrows work wherever there is more than one stop.
     prev.disabled = next.disabled = state.stops.length < 2;

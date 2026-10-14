@@ -317,13 +317,14 @@ const view = createView(root, {
     const card = [...files.values()].find((f) => f.info?.card)?.info?.card;
     return card ? { kicker: card.kicker, words: card.words } : undefined;
   },
-  // What the carousel says: the episode's name, or App settings.
+  // What the carousel says: the episode's number above and its name in the picker; App settings has the version.
   nameOf: (stop) => {
-    if (stop.kind === 'app') return 'App settings';
+    if (stop.kind === 'app') return { sub: `Version ${APP_VERSION}`, name: 'App settings' };
     if (!stop.playable) {
-      return stop.title ? `Episode ${stop.number} · ${stop.title}` : `Episode ${stop.number}`;
+      return { sub: `Episode ${stop.number}`, name: stop.title || '???' };
     }
-    return files.get(stop.id)?.info?.card?.line;
+    const card = files.get(stop.id)?.info?.card;
+    return card ? { sub: card.episode, name: card.name } : undefined;
   },
   onActivate: (row) => dispatch({ type: 'activate', row }),
   onMove: () => menuCue('move'),
