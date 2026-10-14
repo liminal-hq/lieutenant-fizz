@@ -59,9 +59,9 @@ describe('soundItems', () => {
     expect(items.map((i) => [i.label, i.value, i.meter])).toEqual([
       ['Style', styleName(AUDIO_DEFAULT), undefined],
       ['Music', undefined, 8],
-      ['Music version', 'Classic', undefined],
+      ['Music version', 'Enhanced', undefined],
       ['Effects', undefined, 8],
-      ['Effects version', 'Classic', undefined],
+      ['Effects version', 'Enhanced', undefined],
       ['Sound lab', 'Off', undefined],
       ['Reset', undefined, undefined],
       ['Back', undefined, undefined],
@@ -158,24 +158,25 @@ describe('stepSound', () => {
   });
 
   it('steps Effects version off Auto to the other version and saves an explicit choice', () => {
-    // Auto shows Classic, so a step toward Enhanced saves Enhanced.
-    expect(SFX_VERSION_DEFAULT).toBe('classic');
-    expect(stepSound(base(), 'sfxVersion', 1, false).sfxVersion).toBe(2);
+    // Auto shows Enhanced, so a step toward Classic saves Classic and one away from it has nowhere to go.
+    expect(SFX_VERSION_DEFAULT).toBe('enhanced');
+    expect(stepSound(base(), 'sfxVersion', -1, false).sfxVersion).toBe(1);
+    expect(stepSound(base(), 'sfxVersion', 1, true).sfxVersion).toBe(1);
     expect(stepSound({ ...base(), sfxVersion: 2 }, 'sfxVersion', 1, true).sfxVersion).toBe(1);
     expect(stepSound({ ...base(), sfxVersion: 1 }, 'sfxVersion', -1, true).sfxVersion).toBe(2);
   });
 
   it('steps Music version like Effects version, and changes nothing else', () => {
-    expect(MUSIC_VERSION_DEFAULT).toBe('classic');
-    expect(stepSound(base(), 'musicVersion', 1, false)).toEqual({ ...base(), musicVersion: 2 });
+    expect(MUSIC_VERSION_DEFAULT).toBe('enhanced');
+    expect(stepSound(base(), 'musicVersion', -1, false)).toEqual({ ...base(), musicVersion: 1 });
     expect(stepSound({ ...base(), musicVersion: 2 }, 'musicVersion', 1, true).musicVersion).toBe(1);
     const o = base();
-    expect(stepSound(o, 'musicVersion', -1, false)).toBe(o);
+    expect(stepSound(o, 'musicVersion', 1, false)).toBe(o);
   });
 
   it('leaves Auto alone when Effects version has nowhere to go', () => {
     const o = base();
-    expect(stepSound(o, 'sfxVersion', -1, false)).toBe(o);
+    expect(stepSound(o, 'sfxVersion', 1, false)).toBe(o);
   });
 
   it('changes only the row it steps', () => {
