@@ -553,6 +553,151 @@ fn a_tall_tree_just_below_the_view_still_reaches_into_it() {
     );
 }
 
+/// Where the first instance with atlas coordinate `u` is, as (x, y, x scale, y scale), among those drawn.
+fn instance_of(w: &World, u: f32, near: (f64, f64)) -> Option<(f32, f32, f32, f32)> {
+    use lf_sim::STRIDE;
+    let data = w.inst.as_slice();
+    (0..w.inst.len())
+        .map(|i| {
+            let b = &data[i * STRIDE..(i + 1) * STRIDE];
+            (b[16], b[12], b[13], b[0], b[5])
+        })
+        .find(|&(iu, x, y, _, _)| {
+            iu == u && (f64::from(x) - near.0).abs() < 0.01 && (f64::from(y) - near.1).abs() < 0.01
+        })
+        .map(|(_, x, y, sx, sy)| (x, y, sx, sy))
+}
+
+#[test]
+fn water_gets_a_bank_face_under_land_to_its_north_and_thin_lips_on_its_other_land_sides() {
+    use crate::sprites::Spr;
+    use lf_sim::SpriteRect;
+    let mut w = map_world_with_known_sprites();
+    let rect = |u: f32, wd: f32, h: f32| SpriteRect {
+        u,
+        v: u,
+        uw: 0.01,
+        vh: 0.01,
+        w: wd,
+        h,
+    };
+    w.spr[Spr::OwBank as usize] = rect(0.7, 16.0, 6.0);
+    w.spr[Spr::OwLipH as usize] = rect(0.71, 16.0, 2.0);
+    w.spr[Spr::OwLipV as usize] = rect(0.72, 2.0, 16.0);
+    // The horizontal river runs along rows 22 and 23; the vertical one along columns 24 and 25.
+    w.p.b.x = 18.2;
+    w.p.b.y = 22.2;
+    w.cam_x = 18.5;
+    w.cam_y = 22.5;
+    w.pcx = 18.5;
+    w.pcy = 22.5;
+    w.half_w = 14.0;
+    w.half_h = 7.0;
+    w.render(1.0, crate::render::flags::CULLING);
+    // Row 23 has land to its north (row 24): a bank face on its top edge.
+    let bank =
+        instance_of(&w, 0.7, (10.5, 23.0 + 1.0 - 3.0 / 16.0)).expect("a bank face at (10,23)");
+    assert!(bank.3 > 0.0, "upright");
+    // Row 22 has land to its south (row 21): a lip along its bottom edge, flipped over.
+    let lip = instance_of(&w, 0.71, (10.5, 22.0 + 1.0 / 16.0)).expect("a bottom lip at (10,22)");
+    assert!(
+        lip.3 < 0.0,
+        "turned over, so its solid row is on the outside"
+    );
+    // Column 24 (row 15) has land to its west: a lip down its left; column 25 has land to its east: one down its right.
+    assert!(
+        instance_of(&w, 0.72, (24.0 + 1.0 / 16.0, 15.5)).is_some(),
+        "a left lip at (24,15)"
+    );
+    let right = instance_of(&w, 0.72, (26.0 - 1.0 / 16.0, 15.5)).expect("a right lip at (25,15)");
+    assert!(right.2 < 0.0, "mirrored");
+    // No bank face where the land is not to the north: the tile north of (24,15) is water too.
+    assert!(instance_of(&w, 0.7, (24.5, 15.0 + 1.0 - 3.0 / 16.0)).is_none());
+}
+
+#[test]
+fn a_path_has_an_edge_where_it_meets_something_else() {
+    use crate::sprites::Spr;
+    use lf_sim::SpriteRect;
+    let mut w = map_world_with_known_sprites();
+    w.spr[Spr::OwLipH as usize] = SpriteRect {
+        u: 0.71,
+        v: 0.71,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h: 2.0,
+    };
+    w.spr[Spr::OwPath as usize] = SpriteRect {
+        u: 0.9,
+        v: 0.9,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h: 16.0,
+    };
+    // The street east of the tower runs along row 16, with houses on its north side and grass to its south.
+    w.p.b.x = 9.2;
+    w.p.b.y = 15.2;
+    w.cam_x = 9.5;
+    w.cam_y = 15.5;
+    w.pcx = 9.5;
+    w.pcy = 15.5;
+    w.render(1.0, crate::render::flags::CULLING);
+    assert!(
+        instance_of(&w, 0.71, (9.5, 16.0 + 1.0 - 1.0 / 16.0)).is_some(),
+        "an edge on the north side"
+    );
+    assert!(
+        instance_of(&w, 0.71, (9.5, 16.0 + 1.0 / 16.0)).is_some(),
+        "an edge on the south side"
+    );
+    // Between two path tiles there is none: (8,16) and (9,16) share a side.
+    assert!(
+        instance_of(&w, 0.9, (9.5, 16.5)).is_some(),
+        "the path tile itself is drawn"
+    );
+}
+
+#[test]
+fn the_ground_takes_three_looks_so_the_speckle_does_not_repeat_in_a_grid() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = map_world_with_known_sprites();
+    for (spr, u) in [
+        (Spr::OwGrass, 0.05),
+        (Spr::OwGrassB, 0.06),
+        (Spr::OwGrassC, 0.07),
+    ] {
+        w.spr[spr as usize] = SpriteRect {
+            u,
+            v: u,
+            uw: 0.01,
+            vh: 0.01,
+            w: 16.0,
+            h: 16.0,
+        };
+    }
+    w.cam_x = 14.5;
+    w.cam_y = 10.5;
+    w.pcx = 14.5;
+    w.pcy = 10.5;
+    w.render(1.0, crate::render::flags::CULLING);
+    let data = w.inst.as_slice();
+    let count = |u: f32| {
+        (0..w.inst.len())
+            .filter(|&i| data[i * STRIDE + 16] == u)
+            .count()
+    };
+    for u in [0.05, 0.06, 0.07] {
+        assert!(
+            count(u) >= 20,
+            "look {u} is used on a good share of the ground: {}",
+            count(u)
+        );
+    }
+}
+
 #[test]
 fn the_maps_light_eases_between_areas_and_the_sun_stays_put() {
     use crate::render::out;

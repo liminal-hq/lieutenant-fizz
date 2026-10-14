@@ -405,6 +405,75 @@ impl World {
         self.push(tx + 0.5, ty + h / 32.0, id, o);
     }
 
+    /// Whether tile `(x, y)` is land: on the map and not water.
+    fn is_land(&self, x: i32, y: i32) -> bool {
+        self.map.in_bounds(x, y) && self.map.get(x, y) != RIVER
+    }
+
+    /// The edge of a water tile where land meets it: a short brown bank face under land to the north (the
+    /// land's south side, which stands up), and a thin dirt lip where land lies to the south, west or east.
+    fn draw_shore(&mut self, x: i32, y: i32, o: &PushOpts) {
+        if self.is_land(x, y + 1) {
+            self.push(
+                f64::from(x) + 0.5,
+                f64::from(y) + 1.0 - 3.0 / 16.0,
+                Spr::OwBank,
+                o,
+            );
+        }
+        self.draw_lips(
+            x,
+            y,
+            [
+                false,
+                self.is_land(x, y - 1),
+                self.is_land(x - 1, y),
+                self.is_land(x + 1, y),
+            ],
+            o,
+        );
+    }
+
+    /// A thin dirt lip along each side of a tile that is flagged: `[north, south, west, east]`.
+    fn draw_lips(&mut self, x: i32, y: i32, sides: [bool; 4], o: &PushOpts) {
+        let (fx, fy) = (f64::from(x) + 0.5, f64::from(y) + 0.5);
+        let (tx, ty) = (f64::from(x), f64::from(y));
+        if sides[0] {
+            self.push(fx, ty + 1.0 - 1.0 / 16.0, Spr::OwLipH, o);
+        }
+        if sides[1] {
+            self.push(
+                fx,
+                ty + 1.0 / 16.0,
+                Spr::OwLipH,
+                &PushOpts { sy: -1.0, ..*o },
+            );
+        }
+        if sides[2] {
+            self.push(tx + 1.0 / 16.0, fy, Spr::OwLipV, o);
+        }
+        if sides[3] {
+            self.push(
+                tx + 1.0 - 1.0 / 16.0,
+                fy,
+                Spr::OwLipV,
+                &PushOpts { flip: true, ..*o },
+            );
+        }
+    }
+
+    /// A dirt lip along each side of a path tile that is not path, so the road has an edge.
+    fn draw_path_edges(&mut self, x: i32, y: i32, o: &PushOpts) {
+        let not_path = |w: &World, dx: i32, dy: i32| w.map.get(x + dx, y + dy) != PATH;
+        let sides = [
+            not_path(self, 0, 1),
+            not_path(self, 0, -1),
+            not_path(self, -1, 0),
+            not_path(self, 1, 0),
+        ];
+        self.draw_lips(x, y, sides, o);
+    }
+
     fn draw_map(&mut self, alpha: f64, v: [f64; 4], fl: u32, _cam: (f64, f64)) -> usize {
         let cul = fl & flags::CULLING != 0;
         let (w, h) = (self.map.w, self.map.h);
@@ -434,7 +503,7 @@ impl World {
             for x in tx0..=tx1 {
                 let tt = self.map.get(x, y);
                 let (fx, fy) = (f64::from(x) + 0.5, f64::from(y) + 0.5);
-                let theme = crate::levels::area_theme(crate::levels::area_at(&self.areas, x, y));
+                let theme = crate::levels::area_theme(self.map_areas[(y * w + x) as usize]);
                 if tt == RIVER {
                     let s = if (i64::from(x) + i64::from(y) + rf) & 1 != 0 {
                         theme.river[0]
@@ -450,14 +519,29 @@ impl World {
                             ..lit
                         },
                     );
+                    self.draw_shore(x, y, &lit);
+                    // A glint now and then, each tile on its own slow beat.
+                    if (hashf(x + 91, y + 53) + self.t * 0.35).fract() < 0.1 {
+                        self.push(fx, fy, Spr::OwGlint, &glow);
+                    }
                     continue;
                 }
-                self.push(
-                    fx,
-                    fy,
-                    if tt == PATH { Spr::OwPath } else { theme.grass },
-                    if tt == PATH { &act } else { &lit },
-                );
+                if tt == PATH {
+                    self.push(fx, fy, Spr::OwPath, &act);
+                    self.draw_path_edges(x, y, &act);
+                } else {
+                    let look = (hashf(x + 31, y + 17) * 3.0) as usize % 3;
+                    self.push(fx, fy, theme.grass[look], &lit);
+                    // A flower, pebbles or a tuft on about one plain tile in six, a little off centre.
+                    if tt == GRASS && hashf(x * 3 + 1, y * 7 + 2) < 0.17 {
+                        let kind = (hashf(x + 5, y + 9) * 4.0) as usize % 4;
+                        let jx = (hashf(x + 2, y + 6) - 0.5) * 0.5;
+                        let jy = (hashf(x + 8, y + 3) - 0.5) * 0.5;
+                        let decal =
+                            [Spr::OwDecal0, Spr::OwDecal1, Spr::OwDecal2, Spr::OwDecal3][kind];
+                        self.push(fx + jx, fy + jy, decal, &lit);
+                    }
+                }
             }
         }
 
@@ -473,7 +557,7 @@ impl World {
             for x in tx0..=tx1 {
                 let tt = self.map.get(x, y);
                 let tile = (f64::from(x), f64::from(y));
-                let theme = crate::levels::area_theme(crate::levels::area_at(&self.areas, x, y));
+                let theme = crate::levels::area_theme(self.map_areas[(y * w + x) as usize]);
                 match tt {
                     TREE => {
                         self.push_base(tile.0, tile.1 - 0.05, Spr::OwShadowS, &shade);

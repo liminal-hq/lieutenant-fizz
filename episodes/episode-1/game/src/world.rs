@@ -377,6 +377,9 @@ pub struct World {
     pub points: Vec<MapPoint>,
     /// Which overworld area each part of the map belongs to (map scene only).
     pub areas: Vec<levels::AreaRect>,
+    /// The area of every overworld tile, row by row from the south, worked out when the map is entered so
+    /// drawing it does not search the areas for each tile each frame.
+    pub map_areas: Vec<u8>,
     pub near: Option<usize>,
     /// Seconds left before the map takes a press to open a level, so the press that closed a card
     /// does not open the level again the moment Ben is back.
@@ -484,6 +487,7 @@ impl World {
             solid_count: 0,
             points: vec![],
             areas: vec![],
+            map_areas: vec![],
             near: None,
             map_arm: 0.0,
             map_lights: vec![],
@@ -548,6 +552,7 @@ impl World {
             solid_count: self.solid_count,
             points: self.points.clone(),
             areas: self.areas.clone(),
+            map_areas: self.map_areas.clone(),
             near: self.near,
             map_arm: self.map_arm,
             map_lights: self.map_lights.clone(),
@@ -796,6 +801,14 @@ impl World {
         self.map = m.map;
         self.points = m.points;
         self.areas = m.areas;
+        let (mw, mh) = (self.map.w, self.map.h);
+        let mut map_areas = Vec::with_capacity((mw * mh) as usize);
+        for y in 0..mh {
+            for x in 0..mw {
+                map_areas.push(levels::area_at(&self.areas, x, y));
+            }
+        }
+        self.map_areas = map_areas;
         self.mode = Mode::Map;
         self.t = 0.0;
         self.shake = 0.0;

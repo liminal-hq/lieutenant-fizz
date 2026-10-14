@@ -124,6 +124,72 @@ export function owPath(seed: number): Grid {
   });
 }
 
+/** The bank where land meets water to its south: a short brown face, a solid lip and then a darker, dithered wall. */
+export function owBank(): Grid {
+  return new Pen(16, 6).fn((x, y) => (y < 2 ? 'N' : (x + y) % 2 === 0 ? 'N' : 'k'));
+}
+
+/** A thin dirt lip along the top of a tile (flip it for the bottom): a solid row and a dithered one. */
+export function owLipH(): Grid {
+  return new Pen(16, 2).fn((x, y) => (y === 0 || x % 2 === 0 ? 'N' : undefined));
+}
+
+/** A thin dirt lip down the left of a tile (flip it for the right). */
+export function owLipV(): Grid {
+  return new Pen(2, 16).fn((x, y) => (x === 0 || y % 2 === 0 ? 'N' : undefined));
+}
+
+/** A glint on the water: a few bright pixels that come and go. */
+export function owGlint(): Grid {
+  const p = new Pen(16, 16);
+  p.px(3, 4, 'W');
+  p.px(4, 4, 'W');
+  p.px(11, 9, 'c');
+  p.px(12, 9, 'W');
+  p.px(7, 13, 'W');
+  return p;
+}
+
+/** A small thing on the grass: a flower (two kinds), pebbles, or a tuft, 8 pixels square. */
+export function owDecal(kind: number): Grid {
+  const p = new Pen(8, 8);
+  switch (kind) {
+    case 0:
+      p.rect(4, 5, 1, 3, 'g');
+      p.px(3, 3, 'm');
+      p.px(5, 3, 'm');
+      p.px(4, 2, 'm');
+      p.px(4, 4, 'm');
+      p.px(4, 3, 'y');
+      break;
+    case 1:
+      p.rect(3, 5, 1, 3, 'g');
+      p.px(2, 3, 'W');
+      p.px(4, 3, 'W');
+      p.px(3, 2, 'W');
+      p.px(3, 4, 'W');
+      p.px(3, 3, 'y');
+      break;
+    case 2:
+      p.px(2, 5, 'L');
+      p.px(3, 5, 'D');
+      p.px(5, 6, 'L');
+      p.px(6, 6, 'D');
+      p.px(4, 3, 'D');
+      break;
+    default:
+      p.px(2, 6, 'g');
+      p.px(3, 5, 'g');
+      p.px(3, 6, 'g');
+      p.px(4, 4, 'g');
+      p.px(4, 5, 'g');
+      p.px(5, 6, 'g');
+      p.px(6, 5, 'g');
+      break;
+  }
+  return p;
+}
+
 export function owRiver(f: number): Grid {
   return new Pen(16, 16).fn((x, y) =>
     Math.sin(x * 0.6 + y * 0.9 + f * 2.5) > 0.85 ? 'y' : (x + y * 2 + f) % 7 === 0 ? 'R' : 'N',

@@ -1977,7 +1977,8 @@ pub struct AreaRect {
 /// How an area looks on the overworld: its own ground, scatter and river.
 #[derive(Clone, Copy, Debug)]
 pub struct AreaTheme {
-    pub grass: Spr,
+    /// Three looks for the ground, picked by tile so the speckle does not repeat in a grid.
+    pub grass: [Spr; 3],
     pub trees: [Spr; 2],
     pub rock: Spr,
     /// The two frames of the river, and a tint for them.
@@ -1991,7 +1992,7 @@ pub struct AreaTheme {
 pub fn area_theme(area: u8) -> AreaTheme {
     match area {
         AREA_MARSHMALLOW_MEADOWS => AreaTheme {
-            grass: Spr::OwGrassMeadow,
+            grass: [Spr::OwGrassMeadow, Spr::OwGrassMeadowB, Spr::OwGrassMeadowC],
             trees: [Spr::OwPuff0, Spr::OwPuff1],
             rock: Spr::OwPuffRock,
             river: [Spr::OwRiver0, Spr::OwRiver1],
@@ -2000,7 +2001,7 @@ pub fn area_theme(area: u8) -> AreaTheme {
             rock_rate: 0.03,
         },
         AREA_ROCK_CANDY_REACH => AreaTheme {
-            grass: Spr::OwGrassCandy,
+            grass: [Spr::OwGrassCandy, Spr::OwGrassCandyB, Spr::OwGrassCandyC],
             trees: [Spr::OwCandy0, Spr::OwCandy1],
             rock: Spr::OwCandyRock,
             river: [Spr::OwRiver0, Spr::OwRiver1],
@@ -2009,7 +2010,7 @@ pub fn area_theme(area: u8) -> AreaTheme {
             rock_rate: 0.03,
         },
         AREA_FROSTING_FRONTIER => AreaTheme {
-            grass: Spr::OwGrassFrost,
+            grass: [Spr::OwGrassFrost, Spr::OwGrassFrostB, Spr::OwGrassFrostC],
             trees: [Spr::OwFrost0, Spr::OwFrost1],
             rock: Spr::OwCake,
             river: [Spr::OwRiver0, Spr::OwRiver1],
@@ -2019,7 +2020,7 @@ pub fn area_theme(area: u8) -> AreaTheme {
         },
         // The lake is chocolate too; the island keeps the standard grass.
         AREA_GUMDROP_ISLE => AreaTheme {
-            grass: Spr::OwGrass,
+            grass: [Spr::OwGrass, Spr::OwGrassB, Spr::OwGrassC],
             trees: [Spr::OwTree0, Spr::OwTree1],
             rock: Spr::OwRock,
             river: [Spr::OwRiver0, Spr::OwRiver1],
@@ -2028,7 +2029,7 @@ pub fn area_theme(area: u8) -> AreaTheme {
             rock_rate: 0.0,
         },
         _ => AreaTheme {
-            grass: Spr::OwGrass,
+            grass: [Spr::OwGrass, Spr::OwGrassB, Spr::OwGrassC],
             trees: [Spr::OwTree0, Spr::OwTree1],
             rock: Spr::OwRock,
             river: [Spr::OwRiver0, Spr::OwRiver1],

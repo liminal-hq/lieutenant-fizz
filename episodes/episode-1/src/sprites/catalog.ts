@@ -156,6 +156,15 @@ export function defineSprites(): SpriteDef[] {
   add('owGrassMeadow', sc.owGrassMeadow(5), true);
   add('owGrassCandy', sc.owGrassCandy(6), true);
   add('owGrassFrost', sc.owGrassFrost(7), true);
+  // Two more looks for each ground, so the same speckle does not repeat in a grid.
+  add('owGrassB', sc.owGrass(13), true);
+  add('owGrassC', sc.owGrass(23), true);
+  add('owGrassMeadowB', sc.owGrassMeadow(15), true);
+  add('owGrassMeadowC', sc.owGrassMeadow(25), true);
+  add('owGrassCandyB', sc.owGrassCandy(16), true);
+  add('owGrassCandyC', sc.owGrassCandy(26), true);
+  add('owGrassFrostB', sc.owGrassFrost(17), true);
+  add('owGrassFrostC', sc.owGrassFrost(27), true);
   add('owPuff0', sc.owPuff(0));
   add('owPuff1', sc.owPuff(1));
   add('owPuffRock', sc.owPuffRock());
@@ -176,6 +185,11 @@ export function defineSprites(): SpriteDef[] {
   add('owFountain', sc.owFountain());
   add('owSign', sc.owSign());
   add('owShadowS', sc.owShadow(12, 4));
+  add('owBank', sc.owBank());
+  add('owLipH', sc.owLipH());
+  add('owLipV', sc.owLipV());
+  add('owGlint', sc.owGlint());
+  for (let k = 0; k < 4; k++) add(`owDecal${k}`, sc.owDecal(k));
   add('owShadowL', sc.owShadow(24, 6));
   add('owCrater', sc.owCrater());
   add('owMesa', sc.owMesa());
