@@ -46,6 +46,10 @@ tauri-plugin-phone-haptics = "0.1.0"
 # The Android Back gesture. Copied from Cadence and authored here until it moves to tauri-plugins-workspace.
 tauri-plugin-predictive-back = { path = "../../../plugins/predictive-back" }
 
+# Short messages: a native toast on Android, and an event on the desktop for the page to draw as a snackbar.
+# Copied from Threshold and authored here until it moves to tauri-plugins-workspace.
+tauri-plugin-toast = { path = "../../../plugins/toast" }
+
 # Logs: Rust and WebView output to stdout, a rotated file and the devtools console. Threshold's setup,
 # including the local-time format (`chrono`).
 tauri-plugin-log = "2"

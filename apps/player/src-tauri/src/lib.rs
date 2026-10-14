@@ -120,6 +120,8 @@ pub fn run() {
         // The Android Back gesture: the page says whether Back has somewhere to go and hears when it completes.
         // The desktop build gets a no-op stub, so the plugin is registered everywhere.
         .plugin(tauri_plugin_predictive_back::init())
+        // Short messages for the launcher: a native toast on Android, a `toast:show` event on the desktop.
+        .plugin(tauri_plugin_toast::init())
         .invoke_handler(tauri::generate_handler![write_store, quit])
         .setup(|app| {
             let info = app.package_info();

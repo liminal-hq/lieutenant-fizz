@@ -2110,6 +2110,7 @@ dependencies = [
  "tauri-plugin-share-sheet",
  "tauri-plugin-sql",
  "tauri-plugin-store",
+ "tauri-plugin-toast",
 ]
 
 [[package]]
@@ -4525,6 +4526,16 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "tauri-plugin-toast"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
