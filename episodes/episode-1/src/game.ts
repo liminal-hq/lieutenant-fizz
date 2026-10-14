@@ -935,7 +935,14 @@ export class Game {
     }
 
     const mode = sim.x.mode();
-    const tall = screen === 'cine' ? TALL.cine : mode === Mode.MAP ? TALL.map : TALL.level;
+    // A replay always shows a level, whatever the live game (which may be on the map behind the pause menu) is on.
+    const tall = this.replay
+      ? TALL.level
+      : screen === 'cine'
+        ? TALL.cine
+        : mode === Mode.MAP
+          ? TALL.map
+          : TALL.level;
     const r = this.renderer;
     // Fast picks its backing from the screen's target, so tell the renderer before the view is read.
     r.setTarget(tall);
@@ -4013,6 +4020,13 @@ export class Game {
   private async watchSample(id: string, paused = false): Promise<void> {
     if (this.replay || this.replayStarting || !id) return;
     this.replayStarting = true;
+    // Where the player was when they asked: if they have gone elsewhere by the time the code, the sample and the
+    // sim have loaded, the replay is not opened over the new screen.
+    const askedOn = { sub: this.sub, review: this.reviewId, screen: this.screen };
+    const stillThere = (): boolean =>
+      this.sub === askedOn.sub &&
+      this.reviewId === askedOn.review &&
+      this.screen === askedOn.screen;
     try {
       const [{ sessionFromStore }, host] = await Promise.all([
         import('@lieutenant-fizz/engine/session/log'),
@@ -4029,6 +4043,7 @@ export class Game {
         return;
       }
       const sim = await Sim.load(simUrl);
+      if (!stillThere()) return;
       sim.setSprites(this.atlas.rects);
       this.ui.stage.dataset.replay = 'on';
       this.replay = new host.ReplayHost({
