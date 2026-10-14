@@ -7,7 +7,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 interface Lf {
   debugShow(s: string): void;
-  debugState: { screen: string };
+  debugState: { screen: string; sub: string | null };
 }
 
 async function open(page: Page, query: string): Promise<string[]> {
@@ -43,6 +43,30 @@ test.describe('the launch contract', () => {
     });
     await page.waitForTimeout(400);
     expect(await screen(page)).toBe('title');
+    expect(errors).toEqual([]);
+  });
+
+  test('launch=options opens the Options screen, and closing it goes back to the launcher', async ({
+    page,
+  }) => {
+    const errors = await open(page, '&host=fake-desktop&launch=options');
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugState.sub))
+      .toBe('options');
+    expect(await screen(page)).toBe('title');
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { __lfLauncherLeaves?: number }).__lfLauncherLeaves ?? 0,
+      ),
+    ).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window as unknown as { __lfLauncherLeaves?: number }).__lfLauncherLeaves ?? 0,
+        ),
+      )
+      .toBe(1);
     expect(errors).toEqual([]);
   });
 

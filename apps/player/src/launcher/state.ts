@@ -22,6 +22,7 @@ export type RowId =
   | 'continue'
   | 'new'
   | 'load'
+  | 'options'
   | 'soon'
   | 'about'
   | 'quit'
@@ -75,11 +76,13 @@ export function initialState(
   stops: readonly Stop[],
   unlocked: boolean,
   saves: Readonly<Record<string, SaveSummary>> = {},
-  caps: { canQuit?: boolean } = {},
+  caps: { canQuit?: boolean; stop?: number } = {},
 ): LauncherState {
+  const stop =
+    caps.stop !== undefined && caps.stop >= 0 && caps.stop < stops.length ? caps.stop : 0;
   return {
     stops,
-    stop: 0,
+    stop,
     screen: 'home',
     taps: 0,
     unlocked,
@@ -117,6 +120,7 @@ export function rowsOf(state: LauncherState): readonly Row[] {
     }
     rows.push({ id: 'new', label: 'New game' });
     if (saves.entries.length > 0) rows.push({ id: 'load', label: 'Load game' });
+    rows.push({ id: 'options', label: 'Options' });
     return rows;
   }
   if (state.screen === 'load') {
@@ -196,6 +200,10 @@ export function reduce(state: LauncherState, action: Action): Step {
     case 'new':
       return episode
         ? { state, effects: [{ kind: 'launch', episode, launch: { kind: 'new' } }] }
+        : unchanged(state);
+    case 'options':
+      return episode
+        ? { state, effects: [{ kind: 'launch', episode, launch: { kind: 'options' } }] }
         : unchanged(state);
     case 'load':
       return { state: { ...state, screen: 'load', taps: 0 }, effects: [] };

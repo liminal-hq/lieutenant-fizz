@@ -45,6 +45,7 @@ import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { createStrip, type Strip } from './strip';
 import { createLauncherHaptics, NO_HAPTICS, type LauncherHaptics } from './haptics';
 import { createLauncherTouch, type LauncherTouch } from './touch';
+import { readStop, writeStop } from './stop-memory';
 import { createView } from './view';
 import './launcher.css';
 
@@ -120,7 +121,10 @@ await Promise.all(
 const saves: Record<string, SaveSummary> = {};
 for (const [id, f] of files) if (f.info) saves[id] = readSaves(store, f.info);
 
-let state = initialState(stops, readUnlocked(store), saves, { canQuit: host.quit !== undefined });
+let state = initialState(stops, readUnlocked(store), saves, {
+  canQuit: host.quit !== undefined,
+  stop: readStop(store, stops),
+});
 
 // The Back gesture's peek, made below once the view exists; a gesture that arrives before then has nothing to peek at.
 // eslint-disable-next-line prefer-const -- assigned once below, after the Back callbacks that use it are made
@@ -262,6 +266,8 @@ const dispatch = (action: Action): void => {
   const cue = cueOf(before, action, step);
   if (cue) menuCue(cue);
   state = step.state;
+  // The stop is remembered, so coming back from an episode (or the next launch) opens where the player was.
+  if (state.stop !== before.stop) writeStop(store, currentStop(state));
   if (state !== before) {
     applyTheme();
     view.render(state);

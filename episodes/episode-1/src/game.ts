@@ -2154,6 +2154,14 @@ export class Game {
     this.sub = under?.sub ?? null;
     this.menuIdx = under?.idx ?? 0;
     this.syncUi();
+    this.leaveIfOptionsClosed();
+  }
+
+  /** Options the launcher asked for are done with once nothing is open over the title: back to the launcher. */
+  private leaveIfOptionsClosed(): void {
+    if (!this.leaveWhenOptionsClose || this.sub !== null) return;
+    this.leaveWhenOptionsClose = false;
+    this.quitToLauncher();
   }
 
   /**
@@ -2172,6 +2180,7 @@ export class Game {
     this.subStack = [];
     this.menuIdx = first?.idx ?? 0;
     this.syncUi();
+    this.leaveIfOptionsClosed();
   }
 
   private openSaves(mode: 'save' | 'load'): void {
@@ -3399,12 +3408,18 @@ export class Game {
     this.loadSlot(id);
   }
 
+  /** The launcher asked for the Options screen: closing it goes back to the launcher, not to the title screen. */
+  private leaveWhenOptionsClose = false;
+
   /** Starts where the launcher asked: a new game, the newest save, or a slot. A save that is not there leaves the title screen up. */
   private startLaunch(): void {
     const l = this.launch;
     if (!l) return;
     if (l.kind === 'new') this.newGame();
-    else if (l.kind === 'continue') {
+    else if (l.kind === 'options') {
+      this.leaveWhenOptionsClose = true;
+      this.openSub('options');
+    } else if (l.kind === 'continue') {
       if (this.hasSave) this.continueGame();
     } else this.loadSlot(l.slot);
   }

@@ -59,9 +59,15 @@ const taps = (n: number): Action[] =>
   Array.from({ length: n }, () => ({ type: 'activate', row: 'version' }));
 
 describe('the carousel', () => {
-  it('opens on the first episode, with New game only until there is a save', () => {
+  it('opens on the first episode, with New game and Options only until there is a save', () => {
     expect(currentStop(start())).toMatchObject({ id: 'episode-1' });
-    expect(ids(start())).toEqual(['new']);
+    expect(ids(start())).toEqual(['new', 'options']);
+  });
+
+  it('opens on the stop it is given, and on the first when that is not a stop', () => {
+    expect(initialState(STOPS, false, {}, { stop: 2 }).stop).toBe(2);
+    expect(initialState(STOPS, false, {}, { stop: 9 }).stop).toBe(0);
+    expect(initialState(STOPS, false, {}, { stop: -1 }).stop).toBe(0);
   });
 
   it('steps through the stops without wrapping, and says nothing at either end', () => {
@@ -93,7 +99,7 @@ describe('an episode with saves', () => {
 
   it('offers Continue with where it loads from, New game and Load game', () => {
     const rows = rowsOf(start(false, saves));
-    expect(rows.map((r) => r.id)).toEqual(['continue', 'new', 'load']);
+    expect(rows.map((r) => r.id)).toEqual(['continue', 'new', 'load', 'options']);
     expect(rows[0]).toMatchObject({ value: 'Slot 2' });
   });
 
@@ -114,6 +120,16 @@ describe('an episode with saves', () => {
     expect(press(load, 'slot:auto').effects).toEqual([
       { kind: 'launch', episode: 'episode-1', launch: { kind: 'load', slot: 'auto' } },
     ]);
+  });
+
+  it("opens the episode's own Options through the launch contract", () => {
+    expect(press(start(false, saves), 'options').effects).toEqual([
+      { kind: 'launch', episode: 'episode-1', launch: { kind: 'options' } },
+    ]);
+    // Episodes that are not out, and App settings, have no Options row to press.
+    const soon = reduce(start(), { type: 'stop', dir: 1 }).state;
+    expect(press(soon, 'options')).toEqual({ state: soon, effects: [] });
+    expect(press(toApp(start()), 'options').effects).toEqual([]);
   });
 
   it('does nothing for Continue, or a slot, that is not on the screen', () => {
@@ -209,7 +225,16 @@ describe('the debug menu unlock', () => {
   it('goes to the debug menu only from its row, and nothing else navigates there', () => {
     const unlocked = toAbout(start(true));
     expect(press(unlocked, 'debug').effects).toEqual([{ kind: 'navigate', url: DEBUG_URL }]);
-    const rows: RowId[] = ['continue', 'new', 'load', 'about', 'version', 'hide-debug', 'back'];
+    const rows: RowId[] = [
+      'continue',
+      'new',
+      'load',
+      'options',
+      'about',
+      'version',
+      'hide-debug',
+      'back',
+    ];
     for (const state of [start(), start(true), unlocked, toAbout(), toApp(start())]) {
       for (const row of rows) {
         const urls = press(state, row).effects.filter((e) => e.kind === 'navigate');
