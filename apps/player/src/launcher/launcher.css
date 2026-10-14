@@ -157,8 +157,8 @@ body {
   border-bottom-color: #fff;
 }
 
-/* The wordmark stays on one line at the largest scale that fits (the page sizes it), unlike the game's narrow title,
-   and a short touch screen drops the lines around it to leave the menu its room. */
+/* The wordmark stays on one line at the largest scale that fits (the page sizes it), unlike the game's narrow title.
+   A short touch screen drops the small line above it to leave the menu its room, but keeps the episode's name. */
 #launcher.lf-title .wordmark span {
   white-space: nowrap;
 }
@@ -166,8 +166,7 @@ body {
   display: inline;
 }
 @media (pointer: coarse) and (max-height: 420px) {
-  #launcher.lf-title .kicker,
-  #launcher.lf-title .episode {
+  #launcher.lf-title .kicker {
     display: none;
   }
 }
