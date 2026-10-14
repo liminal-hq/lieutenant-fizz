@@ -21,12 +21,17 @@ export interface Marker {
   y?: number;
 }
 
-/** The marks of one attempt, in tick order. */
+/**
+ * The marks of one attempt, in tick order. An attempt ends at its first death or clear, so what the log holds
+ * after that (a pause during the delay before the next level) belongs to no attempt and has no mark.
+ */
 export function markersOf(events: readonly SessionEvent[], attempt: ReplayAttempt): Marker[] {
   const out: Marker[] = [];
-  for (let i = attempt.index; i < attempt.end; i++) {
+  let over = false;
+  for (let i = attempt.index; i < attempt.end && !over; i++) {
     const e = events[i]!;
     if (e.e === 'death') {
+      over = true;
       out.push({
         tick: e.t,
         kind: 'death',
@@ -35,6 +40,7 @@ export function markersOf(events: readonly SessionEvent[], attempt: ReplayAttemp
         y: num(e, 'y'),
       });
     } else if (e.e === 'ev' && e['k'] === 'level_complete') {
+      over = true;
       out.push({ tick: e.t, kind: 'clear', text: 'Cleared' });
     } else if (e.e === 'screen' && e['to'] === 'pause') {
       out.push({ tick: e.t, kind: 'pause', text: 'Paused' });
