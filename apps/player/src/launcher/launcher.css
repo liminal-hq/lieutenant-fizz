@@ -113,6 +113,15 @@ body {
   gap: calc(var(--n) * 5px);
   color: var(--lf-muted);
 }
+#launcher .menu button.tabstrip {
+  margin-bottom: calc(var(--n) * 5px);
+}
+/* On a short touch screen the Sound tab's eight rows already fill the height, so the gap is smaller. */
+@media (pointer: coarse) {
+  #launcher .menu button.tabstrip {
+    margin-bottom: 4px;
+  }
+}
 #launcher .menu .tab {
   padding: 0 calc(var(--n) * 1px);
   border-bottom: calc(var(--n) * 1px) solid transparent;
