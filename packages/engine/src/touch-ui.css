@@ -1,7 +1,11 @@
-/* ── Touch controls and the phone HUD ──
-   `#touch` is the layer the engine builds the controls in. Each control's element is its hit area (at
+/* ── Touch controls ──
+   `#touch` is the layer the engine builds the controls in (`TouchControls`, `touch-ui.ts`); the page puts it over its
+   screens, sets the text scale (`--lf-n`) and the controls' opacity (`--lf-touch-opacity`), and its own styles (the
+   game's `touch-menus.css`) decide what to keep clear of them. Each control's element is its hit area (at
    least 48 dp); the glass face drawn inside may be smaller. Only the controls take touches. */
 #touch {
+  position: absolute;
+  z-index: 2;
   inset: 0;
   pointer-events: none;
   opacity: var(--lf-touch-opacity);
@@ -143,4 +147,10 @@
 }
 #touch .arm[data-held][data-arm='right'] {
   border-left-color: var(--lf-accent);
+}
+
+/* A control or a part of a face that is hidden stays out of the layout. */
+#touch [data-control][hidden],
+#touch .face [hidden] {
+  display: none;
 }

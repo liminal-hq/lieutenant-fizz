@@ -79,6 +79,7 @@
     "./touch-layout": "./src/touch-layout.ts",
     "./touch-settings": "./src/touch-settings.ts",
     "./touch-ui": "./src/touch-ui.ts",
+    "./touch-ui.css": "./src/touch-ui.css",
     "./view-scale": "./src/view-scale.ts",
     "./wasm": "./src/wasm.ts"
   },
