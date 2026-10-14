@@ -63,6 +63,18 @@
     "height": 24,
     "frames": 3
   },
+  "titleBen": {
+    "src": "ben-title.png",
+    "width": 16,
+    "height": 24,
+    "poses": [
+      "stand",
+      "jump",
+      "shoot",
+      "pogo",
+      "pogo2"
+    ]
+  },
   "saves": {
     "auto": "lf-ep1-save-v1",
     "slots": [

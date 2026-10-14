@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { BEN_CYCLE, BEN_WAVE, benFrame, benScale, type BenBox, type BenCues } from './titleBen';
+import { BEN_CYCLE, BEN_WAVE, benFrame, benScale, type BenBox, type BenCues } from './title-ben';
 
 const box: BenBox = { logoW: 400, logoH: 80, width: 48 };
 const idle: BenCues = { reduced: false, waveLeft: 0, looking: false };

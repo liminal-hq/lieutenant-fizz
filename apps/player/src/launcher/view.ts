@@ -10,6 +10,7 @@ import {
   type RowItem,
   type RowsOptions,
 } from '@lieutenant-fizz/engine/menu/rows';
+import type { BenFrame } from '@lieutenant-fizz/engine/menu/title-ben';
 import { MenuScroller } from '@lieutenant-fizz/engine/menu/scroller';
 import { swipeDirection } from '@lieutenant-fizz/engine/menu/swipe';
 import type { Stop } from './catalog';
@@ -48,6 +49,15 @@ export interface Card {
   words: readonly string[];
 }
 
+/** Ben's title poses as one picture, side by side. */
+export interface BenArt {
+  url: string;
+  /** The width of one pose, in art pixels. */
+  width: number;
+  height: number;
+  poses: readonly string[];
+}
+
 export interface ViewHooks {
   /** The series logo shown above the carousel on the home screens, or undefined when there is none. */
   logo?(): Card | undefined;
@@ -77,6 +87,12 @@ export interface View {
   selectedRow(): RowId | undefined;
   /** Lays the menu out again for a new window size, touch controls or row height, scrolling it if it no longer fits. */
   relayout(): void;
+  /** The pictures of Ben on the logo. */
+  setBenArt(art: BenArt | undefined): void;
+  /** The size of the logo's letters in CSS pixels, or undefined when no logo shows. */
+  logoBox(): { w: number; h: number } | undefined;
+  /** Puts Ben on the logo in a frame (a pose at an offset from the letters), `scale` CSS pixels to an art pixel; null takes him off. */
+  setBen(frame: BenFrame | null, scale: number): void;
   /** Whether focus is on one of the menu's rows. */
   rowHasFocus(): boolean;
 }
@@ -118,6 +134,10 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
   next.setAttribute('aria-label', 'Next');
   // The series logo stands still above the carousel; only the name beside the arrows changes from stop to stop.
   const head = make('div', 'head');
+  // Ben stands on the logo, as he does on the game's title; he is put back in it each time the logo is drawn.
+  const ben = make('div', 'ben');
+  ben.hidden = true;
+  let benArt: BenArt | undefined;
   head.hidden = true;
   // The small line above the picker: the episode's number, which the name beside the arrows does not repeat.
   const sub = make('p', 'episode');
@@ -265,6 +285,9 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
       ]);
       wordmark.setAttribute('aria-label', logo.words.join(' '));
       head.replaceChildren(wordmark);
+      wordmark.querySelector('.logo')?.append(ben);
+    } else {
+      ben.remove();
     }
     const named = logo ? hooks.nameOf?.(stop) : undefined;
     sub.hidden = !named;
@@ -382,6 +405,30 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
       return selected;
     },
     relayout: fit,
+    setBenArt(art) {
+      benArt = art;
+    },
+    logoBox() {
+      const hero = ben.parentElement?.querySelector<HTMLElement>('.hero');
+      return hero && !head.hidden ? { w: hero.offsetWidth, h: hero.offsetHeight } : undefined;
+    },
+    setBen(frame, scale) {
+      const index = frame && benArt ? benArt.poses.indexOf(frame.pose) : -1;
+      if (!frame || !benArt || index < 0 || head.hidden) {
+        ben.hidden = true;
+        return;
+      }
+      ben.hidden = false;
+      const s = ben.style;
+      s.width = `${benArt.width * scale}px`;
+      s.height = `${benArt.height * scale}px`;
+      s.backgroundImage = `url("${benArt.url}")`;
+      s.backgroundSize = `${benArt.width * benArt.poses.length * scale}px ${benArt.height * scale}px`;
+      s.backgroundPosition = `${-index * benArt.width * scale}px 0`;
+      s.left = `${frame.x}px`;
+      s.bottom = `${frame.y}px`;
+      s.transform = `scaleX(${frame.flip ? -1 : 1}) rotate(${frame.rot}deg)`;
+    },
     rowHasFocus() {
       const at = document.activeElement;
       return !!at && (menu.contains(at) || bar.contains(at));

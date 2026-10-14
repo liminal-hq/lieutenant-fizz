@@ -32,6 +32,7 @@
     "./menu/sounds": "./src/menu/sounds.ts",
     "./menu/swipe": "./src/menu/swipe.ts",
     "./menu/theme": "./src/menu/theme.ts",
+    "./menu/title-ben": "./src/menu/title-ben.ts",
     "./menu/tokens.css": "./src/menu/tokens.css",
     "./fullscreen-backend": "./src/fullscreen-backend.ts",
     "./native-fullscreen": "./src/native-fullscreen.ts",

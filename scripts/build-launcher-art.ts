@@ -73,6 +73,18 @@ export function stripPng(frames: readonly Grid[]): Uint8Array {
   return encodePngRgba(w, h, rgba);
 }
 
+/** The poses Ben takes on the title, side by side. */
+export const TITLE_BEN_POSES = ['stand', 'jump', 'shoot', 'pogo', 'pogo2'] as const;
+
+/** Ben's title poses, in the order of `TITLE_BEN_POSES`. */
+export function titleBenFrames(sprites: ReadonlyMap<string, Grid>): Grid[] {
+  return TITLE_BEN_POSES.map((pose) => {
+    const g = sprites.get(`ben_${pose}`);
+    if (!g) throw new Error(`The title needs the sprite ben_${pose}`);
+    return g;
+  });
+}
+
 /** Ben running (two frames) and in the air, side by side. */
 export function runnerFrames(sprites: ReadonlyMap<string, Grid>): Grid[] {
   const names = ['ben_run1', 'ben_run2', 'ben_jump'];
@@ -165,6 +177,13 @@ export function build(): Built[] {
     options: { episode: EPISODE_ID, legacyKey: OPTIONS_KEY, ownKeys: [...EPISODE_KEYS] },
     scene: sceneInfo(episode1, 'scene-'),
     runner: { src: 'ben.png', width: 16, height: 24, frames: 3 },
+    // Ben on the title: one picture of each pose side by side, as the game's title shows him.
+    titleBen: {
+      src: 'ben-title.png',
+      width: 16,
+      height: titleBenFrames(all)[0]?.h ?? 24,
+      poses: [...TITLE_BEN_POSES],
+    },
     saves: {
       auto: SAVE_KEY,
       slots: Array.from({ length: SLOT_COUNT }, (_, i) => slotKey((i + 1) as 1 | 2 | 3 | 4)),
@@ -183,6 +202,7 @@ export function build(): Built[] {
   if (frames.length) out.push({ path: 'episode-1/bullet.png', bytes: stripPng(frames) });
   out.push(
     { path: 'episode-1/ben.png', bytes: stripPng(runnerFrames(all)) },
+    { path: 'episode-1/ben-title.png', bytes: stripPng(titleBenFrames(all)) },
     ...sceneFiles('episode-1/', 'scene-', episode1),
   );
   // The scenes that belong to the app, not to an episode: App settings by night, and an episode that is not out.

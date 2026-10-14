@@ -44,7 +44,7 @@ import { MenuScroller } from '@lieutenant-fizz/engine/menu/scroller';
 import { TITLE_CARD } from './title-card';
 import { pillItems, type PillIcon } from './hud';
 import { StoryMeasurer, type StoryMeasure } from './story-measure';
-import type { BenFrame, BenPose } from './titleBen';
+import type { BenFrame, BenPose } from '@lieutenant-fizz/engine/menu/title-ben';
 import './ui.css';
 
 /** How the title is laid out on a phone: one column, or the logo and the menu on opposite sides. */

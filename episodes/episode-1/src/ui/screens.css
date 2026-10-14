@@ -47,12 +47,6 @@
   );
 }
 
-#title .ben {
-  position: absolute;
-  image-rendering: pixelated;
-  pointer-events: none;
-  transform-origin: 50% 100%;
-}
 @media (max-height: 420px) {
   #title .ben {
     display: none;

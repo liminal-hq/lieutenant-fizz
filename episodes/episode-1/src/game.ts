@@ -260,7 +260,7 @@ import {
   type Line,
 } from './story';
 import { MORTIMER_STINGER } from './stinger';
-import { BEN_LOOK, BEN_WAVE, benFrame, benScale, type BenPose } from './titleBen';
+import { BEN_LOOK, BEN_WAVE, benFrame, benScale, type BenPose } from '@lieutenant-fizz/engine/menu/title-ben';
 import {
   Ui,
   type HudState,

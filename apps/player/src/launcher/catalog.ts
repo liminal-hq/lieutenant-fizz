@@ -78,6 +78,8 @@ export interface SceneInfo {
 export interface EpisodeInfo {
   scene?: SceneInfo;
   runner?: RunnerArt;
+  /** Ben's poses on the title, side by side: each `width` wide, in the order of `poses`. */
+  titleBen?: { src: string; width: number; height: number; poses: readonly string[] };
   page: string;
   /** The words of the episode's wordmark. */
   card?: { kicker: string; words: readonly string[]; episode: string; name: string };

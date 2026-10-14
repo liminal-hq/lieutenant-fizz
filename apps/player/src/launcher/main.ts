@@ -49,6 +49,7 @@ import { SILENT, createLauncherSound, type LauncherSound } from './sound';
 import { DEBUG_URL, currentStop, hasBack, initialState, reduce, type Action } from './state';
 import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { isPortrait } from '@lieutenant-fizz/engine/portrait';
+import { BEN_LOOK, BEN_WAVE, benFrame, benScale } from '@lieutenant-fizz/engine/menu/title-ben';
 import { createScene, createStage } from './scene';
 import { createLauncherHaptics, NO_HAPTICS, type LauncherHaptics } from './haptics';
 import { createLauncherTouch, type LauncherTouch } from './touch';
@@ -247,7 +248,15 @@ let haptics: LauncherHaptics = NO_HAPTICS;
 const menuCue = (cue: MenuCue): void => {
   sound.cue(cue);
   haptics.cue(cue);
+  // Ben turns to the menu as the cursor moves and waves when a row is chosen, as on the game's title.
+  const now = performance.now() / 1000;
+  if (cue === 'move') benLookUntil = now + BEN_LOOK;
+  else if (cue === 'select') benWaveUntil = now + BEN_WAVE;
 };
+let benLookUntil = 0;
+let benWaveUntil = 0;
+const benT0 = performance.now() / 1000;
+const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 
 /** The look of the stop on show: its own theme when it has one, otherwise the first episode's. */
 function themeOfStop(): { data: MenuThemeData; base: URL } | undefined {
@@ -560,12 +569,36 @@ touch = createLauncherTouch({
 });
 touch.setActive(device === 'touch');
 const frame = (now: number): void => {
+  // Ben on the logo: a hop and a pogo across it every so often, standing still under reduced motion.
+  const seconds = performance.now() / 1000;
+  const box = view.logoBox();
+  const scale = benScale(innerHeight);
+  view.setBen(
+    box
+      ? benFrame({ logoW: box.w, logoH: box.h, width: 16 * scale }, seconds - benT0, {
+          reduced: ui.classList.contains('rm') || motionQuery.matches,
+          waveLeft: Math.max(0, benWaveUntil - seconds),
+          looking: benLookUntil > seconds,
+        })
+      : null,
+    scale,
+  );
   touch?.frame(now);
   haptics.flush();
   requestAnimationFrame(frame);
 };
 requestAnimationFrame(frame);
 
+const benOwner = [...files.values()].find((f) => f.info?.titleBen);
+if (benOwner?.info?.titleBen) {
+  const art = benOwner.info.titleBen;
+  view.setBenArt({
+    url: new URL(art.src, benOwner.base).href,
+    width: art.width,
+    height: art.height,
+    poses: art.poses,
+  });
+}
 applyTheme();
 showScene(0);
 scale();
