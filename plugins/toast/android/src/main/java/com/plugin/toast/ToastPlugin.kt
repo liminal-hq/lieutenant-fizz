@@ -17,6 +17,7 @@ class ShowToastArgs {
     var message: String? = null
     var duration: String? = null
     var position: String? = null
+    var replace: Boolean? = null
 }
 
 @TauriPlugin
@@ -33,7 +34,13 @@ class ToastPlugin(private val activity: Activity) : Plugin(activity) {
             return
         }
 
-        implementation.show(message, args.duration, args.position)
+        implementation.show(message, args.duration, args.position, args.replace ?: true)
+        invoke.resolve()
+    }
+
+    @Command
+    fun cancel(invoke: Invoke) {
+        implementation.cancel()
         invoke.resolve()
     }
 }

@@ -1,4 +1,4 @@
-// Android bridge for showing native toast messages
+// Android bridge for showing native toast messages.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -41,6 +41,13 @@ impl<R: Runtime> Toast<R> {
     pub fn show(&self, payload: ShowToastRequest) -> crate::Result<()> {
         self.0
             .run_mobile_plugin("show", payload)
+            .map_err(Into::into)
+    }
+
+    /// Takes down the toast that is showing.
+    pub fn cancel(&self) -> crate::Result<()> {
+        self.0
+            .run_mobile_plugin("cancel", ())
             .map_err(Into::into)
     }
 }

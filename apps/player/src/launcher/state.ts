@@ -31,7 +31,7 @@ export type Action = { type: 'activate'; row: RowId } | { type: 'back' };
 
 /** What the page should do: the reducer only says, so it stays free of the page, the store and the toasts. */
 export type Effect =
-  | { kind: 'toast'; message: string }
+  | { kind: 'toast'; message: string; replace?: boolean }
   | { kind: 'navigate'; url: string }
   | { kind: 'save-unlock'; unlocked: boolean };
 

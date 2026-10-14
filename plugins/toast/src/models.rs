@@ -1,4 +1,4 @@
-// Request/response models for the toast command
+// Request/response models for the toast command.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -30,4 +30,12 @@ pub struct ShowToastRequest {
     pub duration: ToastDuration,
     #[serde(default)]
     pub position: ToastPosition,
+    /// Takes down the toast that is showing first, so a quick run of messages ends with only the last one
+    /// fading away. Off, Android queues each behind the others.
+    #[serde(default = "replace_by_default")]
+    pub replace: bool,
+}
+
+fn replace_by_default() -> bool {
+    true
 }

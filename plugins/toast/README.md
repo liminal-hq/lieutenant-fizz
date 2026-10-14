@@ -9,11 +9,13 @@ It intentionally does not include app-specific alarm logic.
 
 ## Command
 
+- `cancel`: takes down the toast that is showing (on the desktop it emits `toast:cancel`)
 - `show`
   - payload:
     - `message` (required)
     - `duration` (`short` | `long`, default `short`)
     - `position` (`top` | `centre` | `bottom`, default `bottom`)
+    - `replace` (default `true`): take down the toast that is showing first, so a quick run of messages (such as a count) ends with only the last one fading away. With `false`, Android queues each toast behind the others
 
 ## Platform support
 

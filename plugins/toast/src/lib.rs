@@ -1,4 +1,4 @@
-// Plugin entry point and cross-platform extension trait
+// Plugin entry point and cross-platform extension trait.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -40,7 +40,7 @@ impl<R: Runtime, T: Manager<R>> ToastExt<R> for T {
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("toast")
-        .invoke_handler(tauri::generate_handler![commands::show])
+        .invoke_handler(tauri::generate_handler![commands::show, commands::cancel])
         .setup(|app, api| {
             #[cfg(mobile)]
             let toast = mobile::init(app, api)?;

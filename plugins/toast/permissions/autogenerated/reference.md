@@ -5,6 +5,7 @@ Default permissions for the toast plugin
 #### This default permission set includes the following:
 
 - `allow-show`
+- `allow-cancel`
 
 ## Permission Table
 
@@ -14,6 +15,32 @@ Default permissions for the toast plugin
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`toast:allow-cancel`
+
+</td>
+<td>
+
+Enables the cancel command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`toast:deny-cancel`
+
+</td>
+<td>
+
+Denies the cancel command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>
