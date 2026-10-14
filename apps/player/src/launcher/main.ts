@@ -51,6 +51,7 @@ import { DEBUG_URL, currentStop, hasBack, initialState, reduce, type Action } fr
 import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { isPortrait } from '@lieutenant-fizz/engine/portrait';
 import { BEN_LOOK, BEN_WAVE, benFrame, benScale } from '@lieutenant-fizz/engine/menu/title-ben';
+import { chromeHidden, isInstalled } from '@lieutenant-fizz/engine/lifecycle-policy';
 import { createScene, createStage } from './scene';
 import { libraryOf, musicSettingsOf, openLauncherMusic, trackOf } from './music';
 import { createLauncherHaptics, NO_HAPTICS, type LauncherHaptics } from './haptics';
@@ -580,6 +581,17 @@ touch = createLauncherTouch({
   layer: touchLayer,
   store,
   hasBack: () => hasBack(state),
+  // As the game does: inside the app, or fullscreen, the browser's bars are gone and the controls are lifted.
+  chromeless: () =>
+    chromeHidden({
+      fullscreen: !!document.fullscreenElement || !!fullscreen?.isFullscreen(),
+      installed:
+        host.kind !== 'web' ||
+        isInstalled({
+          matchMedia: window.matchMedia?.bind(window),
+          nav: navigator as Navigator & { standalone?: boolean },
+        }),
+    }),
   onGutters: keepClearOfControls,
   act: (action) => {
     if (action.kind === 'step') view.step(action.dir);

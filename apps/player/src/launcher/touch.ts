@@ -64,6 +64,8 @@ export interface LauncherTouchDeps {
   act(action: TouchAction): void;
   /** Whether the screen on show has somewhere to go on Back. */
   hasBack(): boolean;
+  /** Whether the browser's bars are gone (fullscreen, or an installed app), where the game lifts its controls by their height. */
+  chromeless(): boolean;
   /** The room the controls take beside the menu changed: padding for each side, in CSS pixels. */
   onGutters?(left: number, right: number): void;
 }
@@ -103,10 +105,11 @@ export function createLauncherTouch(deps: LauncherTouchDeps): LauncherTouch {
     command: () => {},
   };
   const settings = readTouchSettings(deps.store);
+  let lifted = deps.chromeless();
   deps.layer.style.setProperty('--lf-touch-opacity', String(settings.opacity / 100));
   const controls = new TouchControls(deps.layer, input, {
     labels: LABELS,
-    spec: touchSpec(settings),
+    spec: touchSpec(settings, undefined, lifted),
     onPlaced: (face) => {
       // A word never outgrows its face, whatever the type scale of the screen is.
       for (const id of ['jump', 'pogo'] as const) {
@@ -143,6 +146,12 @@ export function createLauncherTouch(deps: LauncherTouchDeps): LauncherTouch {
       if (active) controls.setShown(shown());
     },
     relayout() {
+      // Fullscreen or an installed display mode may have come or gone: the controls are lifted as the game's are.
+      const now = deps.chromeless();
+      if (now !== lifted) {
+        lifted = now;
+        controls.setSpec(touchSpec(settings, undefined, lifted));
+      }
       controls.relayout();
     },
     room() {
