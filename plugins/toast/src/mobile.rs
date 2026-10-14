@@ -15,23 +15,8 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
     _app: &AppHandle<R>,
     api: PluginApi<R, C>,
 ) -> crate::Result<Toast<R>> {
-    #[cfg(not(target_os = "android"))]
-    let _ = &api;
-
-    #[cfg(target_os = "android")]
-    {
-        let handle = api.register_android_plugin("com.plugin.toast", "ToastPlugin")?;
-        return Ok(Toast(handle));
-    }
-
-    #[cfg(not(target_os = "android"))]
-    {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "tauri-plugin-toast currently supports Android only",
-        )
-        .into())
-    }
+    let handle = api.register_android_plugin("com.plugin.toast", "ToastPlugin")?;
+    Ok(Toast(handle))
 }
 
 /// Access to the toast APIs.
@@ -46,8 +31,6 @@ impl<R: Runtime> Toast<R> {
 
     /// Takes down the toast that is showing.
     pub fn cancel(&self) -> crate::Result<()> {
-        self.0
-            .run_mobile_plugin("cancel", ())
-            .map_err(Into::into)
+        self.0.run_mobile_plugin("cancel", ()).map_err(Into::into)
     }
 }

@@ -132,11 +132,13 @@
 /* Reduced motion: from the system setting or the Motion option (the page adds .rm to #ui). */
 @media (prefers-reduced-motion: reduce) {
   .menu button.sel .plate,
-  .menu button.sel .bullet {
+  .menu button.sel .bullet,
+  .menu button.sel .bullet.strip {
     animation: none;
   }
 }
 #ui.rm .menu button.sel .plate,
-#ui.rm .menu button.sel .bullet {
+#ui.rm .menu button.sel .bullet,
+#ui.rm .menu button.sel .bullet.strip {
   animation: none;
 }

@@ -34,6 +34,21 @@ export function parseLaunch(search: string): Launch | undefined {
   return undefined;
 }
 
+/**
+ * The same address without the launch, for an episode to put back in the address bar once it has read it: a
+ * reload or a restore must open the episode's own title screen, not start the launch again over a run in progress.
+ */
+export function withoutLaunch(url: string): string {
+  const hash = url.indexOf('#');
+  const base = hash < 0 ? url : url.slice(0, hash);
+  const fragment = hash < 0 ? '' : url.slice(hash);
+  const [path = '', query = ''] = base.split('?', 2);
+  const params = new URLSearchParams(query);
+  params.delete(LAUNCH_PARAM);
+  const rest = params.toString();
+  return `${path}${rest ? `?${rest}` : ''}${fragment}`;
+}
+
 /** The URL for an episode's page with the launch set, keeping anything else already in its query. */
 export function launchUrl(page: string, launch: Launch): string {
   const [path = '', query = ''] = page.split('?', 2);

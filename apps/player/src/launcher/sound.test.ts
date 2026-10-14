@@ -25,6 +25,10 @@ describe('the launcher sound level', () => {
 
 describe('making the launcher sound', () => {
   const store = (json: string | null) => ({ getItem: () => json });
+  const data = {
+    sounds: { move: 'a', select: 'a', back: 'a', change: 'a', deny: 'a', swipe: 'a' },
+    voices: {},
+  };
 
   it('is silent for a theme with no sounds and when sound effects are off', () => {
     expect(createLauncherSound({}, store(null), false)).toBe(SILENT);
@@ -33,5 +37,22 @@ describe('making the launcher sound', () => {
       voices: {},
     };
     expect(createLauncherSound(data, store(JSON.stringify({ v: 1, sfx: 0 })), false)).toBe(SILENT);
+  });
+
+  it('has nothing to let go of when it is silent, and treats a store that throws as full volume', () => {
+    expect(() => SILENT.dispose()).not.toThrow();
+    const broken = {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+    };
+    // Full volume, so it would build real audio; with no window here it is enough that reading did not throw.
+    expect(() => {
+      try {
+        createLauncherSound(data, broken, false);
+      } catch (e) {
+        if (!(e instanceof ReferenceError)) throw e;
+      }
+    }).not.toThrow();
   });
 });

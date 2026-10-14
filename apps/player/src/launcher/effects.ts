@@ -18,7 +18,12 @@ export interface EffectDeps {
   pageOf?(episode: string): string | undefined;
   /** Hands Back to the system before the page is left; resolves once that has happened. */
   releaseBack?(): Promise<void>;
+  /** Takes Back again when the page was not left after all. */
+  reclaimBack?(): void;
 }
+
+/** The sets of dependencies that are leaving the page now, so a second press while the first is still writing does not leave twice. */
+const leaving = new WeakSet<EffectDeps>();
 
 /** What the player is told when the store would not take a write, so a page is not left with nothing saved. */
 export const SAVE_FAILED = "Couldn't save: storage is full or blocked";
@@ -37,7 +42,8 @@ export async function applyEffects(effects: readonly Effect[], deps: EffectDeps)
     } else if (effect.kind === 'save-unlock') {
       if (!writeUnlocked(deps.store, effect.unlocked)) deps.toast(SAVE_FAILED);
     } else {
-      // Leaving: for a page of the app, or for an episode, which is started where the launch says.
+      // Leaving: for a page of the app, or for an episode, which is started where the launch says. One at a time.
+      if (leaving.has(deps)) return;
       let url: string;
       if (effect.kind === 'navigate') url = effect.url;
       else {
@@ -48,6 +54,7 @@ export async function applyEffects(effects: readonly Effect[], deps: EffectDeps)
         }
         url = launchUrl(page, effect.launch);
       }
+      leaving.add(deps);
       let saved: boolean;
       try {
         saved = (await flushable(deps.store)?.flush()) !== false;
@@ -56,11 +63,20 @@ export async function applyEffects(effects: readonly Effect[], deps: EffectDeps)
         saved = false;
       }
       if (!saved) {
+        leaving.delete(deps);
         deps.toast(SAVE_FAILED);
         return;
       }
-      await deps.releaseBack?.();
-      deps.navigate(url);
+      try {
+        await deps.releaseBack?.();
+        deps.navigate(url);
+      } catch (error) {
+        // The page was not left: the launcher is still here, so Back is its again.
+        console.warn('Leaving the launcher failed', error);
+        leaving.delete(deps);
+        deps.reclaimBack?.();
+        deps.toast("Couldn't open that page");
+      }
       return;
     }
   }

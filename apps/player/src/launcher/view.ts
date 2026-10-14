@@ -35,6 +35,8 @@ export interface ViewHooks {
 export interface View {
   /** Redraws for a new state, keeping the selected row where it still exists. */
   render(state: LauncherState): void;
+  /** Draws a state as a preview (the screen Back goes to, behind a peek) without taking the selection from the real one. */
+  preview(state: LauncherState): void;
   /** Sets the bullet beside the selected row. */
   setBullet(bullet: BulletImage | undefined): void;
   /** Moves the selection to the next (1) or previous (-1) row that is not dimmed, wrapping round. */
@@ -188,6 +190,11 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     render(state) {
       last = state;
       draw(state);
+    },
+    preview(state) {
+      const keep = selected;
+      draw(state);
+      selected = keep;
     },
     setBullet(nextBullet) {
       bullet = nextBullet;

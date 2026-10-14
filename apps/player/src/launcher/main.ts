@@ -4,10 +4,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
+import type { BackPeek } from '@lieutenant-fizz/engine/back-peek';
 import { hintText } from '@lieutenant-fizz/engine/font/tokens';
 import { createHostBackend } from '@lieutenant-fizz/engine/host';
 import { applyMenuScale } from '@lieutenant-fizz/engine/menu/scale-vars';
-import type { MenuSoundPlayer } from '@lieutenant-fizz/engine/menu/sounds';
 import {
   applyMenuTheme,
   bulletImageOf,
@@ -30,7 +30,7 @@ import {
 import { cueOf } from './cues';
 import { readUnlocked } from './dev-unlock';
 import { applyEffects } from './effects';
-import { SILENT, createLauncherSound } from './sound';
+import { SILENT, createLauncherSound, type LauncherSound } from './sound';
 import { currentStop, hasBack, initialState, reduce, type Action } from './state';
 import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { createStrip, type Strip } from './strip';
@@ -94,6 +94,10 @@ for (const [id, f] of files) if (f.info) saves[id] = readSaves(store, f.info);
 
 let state = initialState(stops, readUnlocked(store), saves);
 
+// The Back gesture's peek, made below once the view exists; a gesture that arrives before then has nothing to peek at.
+// eslint-disable-next-line prefer-const -- assigned once below, after the Back callbacks that use it are made
+let peek: BackPeek | undefined;
+
 // Back: the Android gesture in the app, and a history entry in a browser (the desktop app has no Back button).
 const back = await createLauncherBack({
   backend: createPredictiveBack(host.kind),
@@ -104,12 +108,12 @@ const back = await createLauncherBack({
   // A completed gesture goes back, then the peek's copy is dropped.
   onBack: () => {
     dispatch({ type: 'back' });
-    peek.end();
+    peek?.end();
   },
   peek: {
-    started: (edge) => peek.started(edge),
-    progress: (progress, edge) => peek.progress(progress, edge),
-    cancelled: () => peek.cancelled(),
+    started: (edge) => peek?.started(edge),
+    progress: (progress, edge) => peek?.progress(progress, edge),
+    cancelled: () => peek?.cancelled(),
   },
 });
 
@@ -119,10 +123,11 @@ const deps = {
   navigate: (url: string) => location.assign(new URL(url, location.href).href),
   pageOf: (episode: string) => files.get(episode)?.info?.page,
   releaseBack: () => back.release(),
+  reclaimBack: () => back.reclaim(hasBack(state)),
 };
 
 // The menu's sounds, once a theme (which names them) has loaded.
-let sound: MenuSoundPlayer = SILENT;
+let sound: LauncherSound = SILENT;
 
 /** The look of the stop on show: its own theme when it has one, otherwise the first episode's. */
 function themeOfStop(): { data: MenuThemeData; base: URL } | undefined {
@@ -162,6 +167,8 @@ function applyTheme(): void {
   applyMenuTheme(document.documentElement, themeOfData(found.data));
   const b = found.data.bullet;
   view.setBullet(b ? bulletImageOf(found.data, new URL(b.src, found.base).href) : undefined);
+  // The audio of the look it replaces is let go, so stepping through stops does not pile up audio contexts.
+  sound.dispose();
   sound = createLauncherSound(found.data, store, host.kind !== 'web');
 }
 
@@ -203,11 +210,11 @@ document.addEventListener('pad-left', () => dispatch({ type: 'stop', dir: -1 }))
 document.addEventListener('pad-right', () => dispatch({ type: 'stop', dir: 1 }));
 
 // The Back gesture's peek: the screen being left slides away over the one Back goes to.
-const peek = createLauncherPeek({
+peek = createLauncherPeek({
   root,
   ui,
   canPeek: () => hasBack(state),
-  showParent: () => view.render(reduce(state, { type: 'back' }).state),
+  showParent: () => view.preview(reduce(state, { type: 'back' }).state),
   showCurrent: () => view.render(state),
   reducedMotion: () => matchMedia('(prefers-reduced-motion: reduce)').matches,
 });

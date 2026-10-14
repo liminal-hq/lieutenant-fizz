@@ -107,10 +107,14 @@ if (mode && mode !== 'menu') {
   const backend = createPredictiveBack(createHostBackend().kind);
   if (backend) {
     const leave = (): void => {
-      void backend.setCanGoBack(false).then(() => {
+      // The plugin never rejects, but a call that hangs must not strand the page.
+      const wait = new Promise<void>((resolve) => setTimeout(resolve, 300));
+      void Promise.race([backend.setCanGoBack(false), wait]).then(() => {
         location.href = document.body.dataset.back ?? 'index.html';
       });
     };
+    // A link that leaves the page releases Back too: the plugin's callback outlives this page's listener.
+    addEventListener('pagehide', () => void backend.setCanGoBack(false));
     void backend.setCanGoBack(true);
     void backend.onGesture({ invoked: leave });
   }

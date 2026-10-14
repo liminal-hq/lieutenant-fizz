@@ -101,4 +101,40 @@ describe('applying the launcher effects', () => {
     await applyEffects([{ kind: 'navigate', url: 'episode-1/index.html' }], deps);
     expect(log).toEqual(['go:episode-1/index.html']);
   });
+
+  it('leaves once when a second press comes while the first is still writing', async () => {
+    let finish: (v: boolean) => void = () => {};
+    const { log, store, deps } = setup(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    void store;
+    const first = applyEffects([{ kind: 'navigate', url: 'debug.html' }], deps);
+    const second = applyEffects([{ kind: 'navigate', url: 'debug.html' }], deps);
+    finish(true);
+    await Promise.all([first, second]);
+    expect(log.filter((l) => l.startsWith('go:'))).toEqual(['go:debug.html']);
+  });
+
+  it('can leave again after a failed write, and takes Back back when the page does not go', async () => {
+    const failed = setup(async () => false);
+    await applyEffects([{ kind: 'navigate', url: 'debug.html' }], failed.deps);
+    await applyEffects([{ kind: 'navigate', url: 'debug.html' }], failed.deps);
+    expect(failed.log.filter((l) => l.startsWith('flush'))).toHaveLength(2);
+
+    const log: string[] = [];
+    const deps = {
+      ...setup(async () => true).deps,
+      toast: (m: string) => log.push(`toast:${m}`),
+      navigate: () => {
+        throw new Error('no page');
+      },
+      releaseBack: async () => void log.push('release'),
+      reclaimBack: () => void log.push('reclaim'),
+    };
+    await applyEffects([{ kind: 'navigate', url: 'debug.html' }], deps);
+    expect(log).toEqual(['release', 'reclaim', "toast:Couldn't open that page"]);
+  });
 });

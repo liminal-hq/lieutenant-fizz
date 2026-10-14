@@ -30,6 +30,22 @@ test.describe('the launch contract', () => {
     expect(errors).toEqual([]);
   });
 
+  test('the launch is taken out of the address once read, so a reload opens the title screen', async ({
+    page,
+  }) => {
+    const errors = await open(page, '&host=fake-desktop&launch=new');
+    await expect.poll(() => screen(page)).not.toBe('title');
+    expect(new URL(page.url()).searchParams.has('launch')).toBe(false);
+    expect(new URL(page.url()).searchParams.has('debug')).toBe(true);
+    await page.reload();
+    await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+      timeout: 20_000,
+    });
+    await page.waitForTimeout(400);
+    expect(await screen(page)).toBe('title');
+    expect(errors).toEqual([]);
+  });
+
   test('the pause menu of a launched run says Back to launcher and has no Quit to title', async ({
     page,
   }) => {

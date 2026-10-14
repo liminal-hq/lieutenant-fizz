@@ -27,8 +27,13 @@ export function sfxLevelFromOptions(json: string | null): number {
   }
 }
 
+/** The menu's sounds, and a way to let go of the audio they use. */
+export interface LauncherSound extends MenuSoundPlayer {
+  dispose(): void;
+}
+
 /** A player that makes no sound. */
-export const SILENT: MenuSoundPlayer = { cue: () => {} };
+export const SILENT: LauncherSound = { cue: () => {}, dispose: () => {} };
 
 /**
  * The menu sounds for a theme: silent when the theme has none (or the player turned sound effects off), and
@@ -39,9 +44,15 @@ export function createLauncherSound(
   data: MenuThemeData,
   store: Pick<KeyValueStorage, 'getItem'>,
   inApp: boolean,
-): MenuSoundPlayer {
+): LauncherSound {
   if (!data.sounds || !data.voices) return SILENT;
-  const level = sfxLevelFromOptions(store.getItem(EPISODE_1_OPTIONS_KEY));
+  let saved: string | null = null;
+  try {
+    saved = store.getItem(EPISODE_1_OPTIONS_KEY);
+  } catch {
+    /* a store that cannot be read has no saved volume: full */
+  }
+  const level = sfxLevelFromOptions(saved);
   if (level <= 0) return SILENT;
   const audio = new GameAudio(
     { sfx: { ...data.voices } as never, music: {}, captionSfx: {} },
@@ -49,5 +60,8 @@ export function createLauncherSound(
     { unlockAtBoot: inApp },
   );
   audio.setSfxVolume(level);
-  return createMenuSounds(data.sounds, (effect) => audio.play(effect));
+  return {
+    ...createMenuSounds(data.sounds, (effect) => audio.play(effect)),
+    dispose: () => audio.dispose(),
+  };
 }

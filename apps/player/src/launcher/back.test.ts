@@ -92,6 +92,16 @@ describe('Back on the launcher', () => {
     expect(log.at(-1)).toBe('stopped');
   });
 
+  it('claims Back again when it is reclaimed after a release', async () => {
+    const { backend, log } = fakeBackend();
+    const back = await createLauncherBack({ backend, onBack: () => {} });
+    back.sync(true);
+    await back.release();
+    back.reclaim(true);
+    back.sync(false);
+    expect(log).toEqual(['can:true', 'can:false', 'can:true', 'can:false']);
+  });
+
   it('works with nothing to talk to (the desktop app)', async () => {
     const back = await createLauncherBack({ onBack: () => {} });
     back.sync(true);

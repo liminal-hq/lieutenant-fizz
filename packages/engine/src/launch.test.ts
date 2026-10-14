@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { launchUrl, parseLaunch, type Launch } from './launch';
+import { launchUrl, parseLaunch, withoutLaunch, type Launch } from './launch';
 
 describe('reading the launch contract', () => {
   it('reads continue, new and a slot to load', () => {
@@ -52,5 +52,22 @@ describe('writing the launch contract', () => {
     expect(launchUrl('episode-1/index.html?launch=new', { kind: 'continue' })).toBe(
       'episode-1/index.html?launch=continue',
     );
+  });
+});
+
+describe('taking the launch out of an address', () => {
+  it('drops the launch and keeps the rest of the address', () => {
+    expect(withoutLaunch('https://x/episode-1/index.html?launch=new')).toBe(
+      'https://x/episode-1/index.html',
+    );
+    expect(withoutLaunch('/e/index.html?debug=&launch=load:2#top')).toBe(
+      '/e/index.html?debug=#top',
+    );
+    expect(withoutLaunch('/e/index.html?debug')).toBe('/e/index.html?debug=');
+    expect(withoutLaunch('/e/index.html')).toBe('/e/index.html');
+  });
+
+  it('leaves an address that no longer parses as a launch', () => {
+    expect(parseLaunch(withoutLaunch('/e/?launch=continue').split('?')[1] ?? '')).toBeUndefined();
   });
 });

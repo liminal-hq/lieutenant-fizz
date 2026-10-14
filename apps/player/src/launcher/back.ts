@@ -28,6 +28,8 @@ export interface LauncherBack {
    * Back still claimed would have every gesture swallowed.
    */
   release(): Promise<void>;
+  /** Claims Back again after a `release` when the page was not left after all. */
+  reclaim(canGoBack: boolean): void;
   /** Stops listening for the gesture. */
   dispose(): void;
 }
@@ -44,7 +46,7 @@ export async function createLauncherBack(deps: LauncherBackDeps): Promise<Launch
   if (backend) {
     stop = await backend.onGesture({ ...deps.peek, invoked: onBack });
   }
-  return {
+  const api: LauncherBack = {
     sync(canGoBack) {
       if (released) return;
       guard?.set(canGoBack);
@@ -61,9 +63,15 @@ export async function createLauncherBack(deps: LauncherBackDeps): Promise<Launch
         await backend.setCanGoBack(false);
       }
     },
+    reclaim(canGoBack) {
+      released = false;
+      sent = undefined;
+      api.sync(canGoBack);
+    },
     dispose() {
       stop?.();
       stop = undefined;
     },
   };
+  return api;
 }
