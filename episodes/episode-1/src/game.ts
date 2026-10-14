@@ -979,9 +979,11 @@ export class Game {
       this.pixelScale = this.view.scale;
     }
     // A replay draws and listens for itself: the live game is not stepped, saved or recorded while it is up.
-    if (this.replay) {
+    const replay = this.replay;
+    if (replay) {
       const bits = this.input.peek();
-      this.replay.frame(dt, bits, { halfW: this.halfW, halfH: this.halfH });
+      // Reading the pad can raise its Pause, whose handler closes the replay: nothing is left to draw then.
+      if (this.replay === replay) replay.frame(dt, bits, { halfW: this.halfW, halfH: this.halfH });
       this.lastBits = bits;
       this.input.markTouchSeen();
       return;
@@ -4072,6 +4074,7 @@ export class Game {
         },
         captionText: (captionId) => this.captionNames[captionId] ?? '',
         paused,
+        held: this.lastBits,
         onClose: () => {
           this.replay = null;
           delete this.ui.stage.dataset.replay;

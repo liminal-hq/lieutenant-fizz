@@ -51,6 +51,11 @@ export interface ReplayHostDeps {
   onClose: () => void;
   /** Opens held at the start of the first try, for a screen that wants to begin there (a test does). */
   paused?: boolean;
+  /**
+   * The buttons held when it opens. The press that chose Watch may still be down while the replay loads, and it
+   * is not a press in the replay, so only a button let go and pressed again counts.
+   */
+  held?: number;
 }
 
 /** The layers that can be switched on and off. */
@@ -121,6 +126,7 @@ export class ReplayHost {
   private closed = false;
 
   constructor(private readonly d: ReplayHostDeps) {
+    this.lastBits = d.held ?? 0;
     this.replayer = new Replayer(d.sim, d.session);
     this.playable = this.replayer.attempts.map((a, i) => (a.entry ? i : -1)).filter((i) => i >= 0);
     if (this.playable.length === 0) throw new Error('nothing in this sample can be replayed');
@@ -314,7 +320,7 @@ export class ReplayHost {
     this.touches = touchesOf(this.d.session.events, a);
     this.markers = markersOf(this.d.session.events, a);
     this.targets = deathTargets(this.markers, a.startTick - replayer.lateBy);
-    this.layout = layoutAt(this.d.session, a.startTick);
+    this.layout = layoutAt(this.d.session, a.startTick, a.end);
     this.scrub.min = String(a.startTick - replayer.lateBy);
     this.scrub.max = String(a.endTick);
     this.banner.hidden = true;
