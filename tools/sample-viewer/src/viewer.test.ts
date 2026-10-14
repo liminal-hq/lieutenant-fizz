@@ -68,6 +68,11 @@ describe('summarise', () => {
     ]);
     expect(spots).toHaveLength(1);
     expect(spots[0]).toMatchObject({ level: 'Crater Fields', x: 30, y: 2, count: 2 });
+    // Each death behind a spot says where to find it: the session, the attempt in it and the tick.
+    expect(spots[0]!.refs).toEqual([
+      { session: 'a', order: 0, tick: 50 },
+      { session: 'b', order: 0, tick: 80 },
+    ]);
   });
 
   it('counts the buttons pressed across sessions', () => {

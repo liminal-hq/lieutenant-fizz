@@ -16,6 +16,8 @@ export interface PathPoint {
 export interface Attempt {
   /** The session it came from, by file name. */
   session: string;
+  /** Where it is among the session's attempts, from 0: the same as its place among the replay's attempts. */
+  order: number;
   levelId: number;
   level: string;
   /** Which try at this level in its session, from 1. */
@@ -26,7 +28,7 @@ export interface Attempt {
   ticks: number;
   outcome: Outcome;
   /** Where and how Ben died, when he did. */
-  death?: { cause: number; detail: number; x: number; y: number };
+  death?: { cause: number; detail: number; x: number; y: number; tick: number };
   path: PathPoint[];
   pauses: number;
 }
@@ -58,6 +60,7 @@ export function attemptsOf(session: Session): Attempt[] {
       finish('left', null);
       cur = {
         session: session.name,
+        order: out.length,
         levelId: num(e['id']),
         level: typeof e['name'] === 'string' && e['name'] ? e['name'] : `Level ${num(e['id'])}`,
         attempt: num(e['attempt']) || 1,
@@ -78,6 +81,7 @@ export function attemptsOf(session: Session): Attempt[] {
         detail: num(e['detail']),
         x: num(e['x']),
         y: num(e['y']),
+        tick: e.t,
       };
     } else if (e.e === 'screen' && e['to'] === 'pause') {
       cur.pauses += 1;

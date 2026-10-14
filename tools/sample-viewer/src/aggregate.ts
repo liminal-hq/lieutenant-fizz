@@ -33,6 +33,8 @@ export interface Spot {
   count: number;
   /** The most common cause there. */
   cause: string;
+  /** The deaths behind the count: which session, which attempt in it (from 0), and the tick of the death. */
+  refs: { session: string; order: number; tick: number }[];
 }
 
 export interface Summary {
@@ -110,10 +112,11 @@ export function summarise(sessions: readonly Session[]): Summary {
     const y = Math.floor(a.death.y);
     const key = `${a.levelId}:${x}:${y}`;
     const entry = spotMap.get(key) ?? {
-      spot: { levelId: a.levelId, level: a.level, x, y, count: 0, cause },
+      spot: { levelId: a.levelId, level: a.level, x, y, count: 0, cause, refs: [] },
       causes: new Map<string, number>(),
     };
     entry.spot.count += 1;
+    entry.spot.refs.push({ session: a.session, order: a.order, tick: a.death.tick });
     entry.causes.set(cause, (entry.causes.get(cause) ?? 0) + 1);
     spotMap.set(key, entry);
   }

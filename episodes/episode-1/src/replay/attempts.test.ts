@@ -37,8 +37,10 @@ describe('attemptsOf', () => {
     ]);
     expect(attempts[0]).toMatchObject({
       ticks: 100,
-      death: { cause: 3, detail: 5, x: 6.4, y: 2.1 },
+      death: { cause: 3, detail: 5, x: 6.4, y: 2.1, tick: 120 },
     });
+    // Each attempt knows its place in the session, which is its place among the replay's attempts.
+    expect(attempts.map((a) => a.order)).toEqual([0, 1, 2, 3]);
     expect(attempts[1]!.ticks).toBe(600);
     // Leaving or being cut short ends at the last place Ben was seen.
     expect(attempts[2]).toMatchObject({ endTick: 1008, ticks: 8 });
@@ -73,6 +75,7 @@ describe('attemptsOf', () => {
 describe('dwells', () => {
   const attempt = (path: [number, number, number][]): Attempt => ({
     session: 's',
+    order: 0,
     levelId: 0,
     level: 'L',
     attempt: 1,
