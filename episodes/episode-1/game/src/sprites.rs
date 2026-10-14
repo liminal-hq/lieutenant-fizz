@@ -75,6 +75,11 @@ sprites! {
     OwGrassCandyB = "owGrassCandyB", OwGrassCandyC = "owGrassCandyC", OwGrassFrostB = "owGrassFrostB", OwGrassFrostC = "owGrassFrostC",
     OwBank = "owBank", OwLipH = "owLipH", OwLipV = "owLipV", OwGlint = "owGlint",
     OwDecal0 = "owDecal0", OwDecal1 = "owDecal1", OwDecal2 = "owDecal2", OwDecal3 = "owDecal3",
+    OwLmCrater = "owLmCrater", OwLmCaves = "owLmCaves", OwLmMesa = "owLmMesa", OwLmLookout = "owLmLookout",
+    OwLmMeadows = "owLmMeadows", OwLmFudgeBog = "owLmFudgeBog", OwLmPlayhouse = "owLmPlayhouse",
+    OwLmShafts = "owLmShafts", OwLmSugarGlass = "owLmSugarGlass", OwLmFlats = "owLmFlats",
+    OwLmSpire = "owLmSpire", OwLmFoundry = "owLmFoundry", OwLmGumdrop = "owLmGumdrop", OwLmHollow = "owLmHollow",
+    OwFlagOpen0 = "owFlagOpen0", OwFlagOpen1 = "owFlagOpen1", OwFlagLocked = "owFlagLocked",
 }
 
 /// Per-tileset tile sprites are laid out in this order, 11 per tileset, starting at `CraterTop`.

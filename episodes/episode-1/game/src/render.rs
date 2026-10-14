@@ -553,8 +553,12 @@ impl World {
         let py = p.b.py + (p.b.y - p.b.py) * alpha;
         let ben_row = py.floor() as i32;
         let first = (ty0 - 2).max(0);
-        for y in (first..=ty1).rev() {
+        // One row past the north edge too: a landmark is drawn in the row above its node.
+        for y in (first..=ty1 + 1).rev() {
             for x in tx0..=tx1 {
+                if y >= h {
+                    break;
+                }
                 let tt = self.map.get(x, y);
                 let tile = (f64::from(x), f64::from(y));
                 let theme = crate::levels::area_theme(self.map_areas[(y * w + x) as usize]);
@@ -585,6 +589,21 @@ impl World {
                     _ => {}
                 }
             }
+            // Each level's landmark, drawn in the row above its node: a person standing in that row, on the
+            // path that leads down to the node, is drawn after it and so in front of it.
+            for i in 0..self.points.len() {
+                let pt = self.points[i];
+                if pt.kind != crate::levels::PtKind::Level || pt.y.floor() as i32 + 1 != y {
+                    continue;
+                }
+                let icon = crate::levels::LEVELS[usize::from(pt.level)].icon;
+                if pt.big {
+                    self.push(pt.x + 1.0, pt.y + 1.0, icon, &lit);
+                } else {
+                    // Standing a little way up its node's tile, so Ben at the doorstep is below it.
+                    self.push(pt.x + 0.5, pt.y + 0.35 + 1.0, icon, &lit);
+                }
+            }
             for i in 0..self.points.len() {
                 let pt = self.points[i];
                 if pt.y.floor() as i32 != y || (pt.hidden && !self.met(pt.req)) {
@@ -612,17 +631,20 @@ impl World {
                         );
                     }
                     crate::levels::PtKind::Level => {
-                        let s = crate::levels::LEVELS[usize::from(pt.level)].icon;
-                        let (bx, by) = if pt.big { (x + 0.5, y + 0.5) } else { (x, y) };
-                        self.push(bx, by, s, &lit);
-                        if self.game.is_done(pt.level) {
-                            self.push(
-                                x + 0.6,
-                                y + 0.9,
-                                Spr::OwFlag,
-                                &PushOpts { scale: 0.7, ..glow },
-                            );
-                        }
+                        // The flag says whether the level is cleared, open or still locked.
+                        let (flag, scale) = if self.game.is_done(pt.level) {
+                            (Spr::OwFlag, 0.7)
+                        } else if self.met(pt.req) {
+                            let f = if ((self.t * 3.0).floor() as i64) & 1 != 0 {
+                                Spr::OwFlagOpen1
+                            } else {
+                                Spr::OwFlagOpen0
+                            };
+                            (f, 0.8)
+                        } else {
+                            (Spr::OwFlagLocked, 0.8)
+                        };
+                        self.push(x + 0.6, y + 0.9, flag, &PushOpts { scale, ..glow });
                     }
                 }
             }

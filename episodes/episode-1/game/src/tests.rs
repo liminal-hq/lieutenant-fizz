@@ -553,6 +553,67 @@ fn a_tall_tree_just_below_the_view_still_reaches_into_it() {
     );
 }
 
+#[test]
+fn every_level_has_its_own_landmark() {
+    let mut icons: Vec<u16> = crate::levels::LEVELS
+        .iter()
+        .map(|l| l.icon as u16)
+        .collect();
+    let n = icons.len();
+    icons.sort_unstable();
+    icons.dedup();
+    assert_eq!(icons.len(), n, "no two levels share an icon");
+}
+
+#[test]
+fn a_landmark_stands_behind_whoever_is_north_of_its_node_and_a_flag_shows_the_levels_state() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = map_world_with_known_sprites();
+    let rect = |u: f32, h: f32| SpriteRect {
+        u,
+        v: u,
+        uw: 0.01,
+        vh: 0.01,
+        w: 32.0,
+        h,
+    };
+    let (i, pt) = w
+        .points
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, p)| p.kind == crate::levels::PtKind::Level && !p.big)
+        .expect("a level node");
+    let icon = crate::levels::LEVELS[usize::from(pt.level)].icon;
+    w.spr[icon as usize] = rect(0.81, 32.0);
+    w.spr[Spr::OwFlagLocked as usize] = rect(0.83, 16.0);
+    w.spr[Spr::OwFlagOpen0 as usize] = rect(0.85, 16.0);
+    w.spr[Spr::OwFlagOpen1 as usize] = rect(0.85, 16.0);
+    w.spr[Spr::OwFlag as usize] = rect(0.87, 16.0);
+    // Ben on the tile just north of the node, as when he walks down a path to it.
+    stand_on(&mut w, i);
+    w.p.b.y = pt.y + 1.3;
+    w.cam_x = pt.x + 0.5;
+    w.cam_y = pt.y + 0.5;
+    w.pcx = w.cam_x;
+    w.pcy = w.cam_y;
+    w.render(1.0, crate::render::flags::CULLING);
+    let data = w.inst.as_slice();
+    let n = w.inst.len();
+    let u = |k: usize| data[k * STRIDE + 16];
+    let at = |v: f32| (0..n).find(|&k| (u(k) - v).abs() < 1e-6);
+    let lm = at(0.81).expect("the landmark is drawn");
+    let ben = at(0.62).expect("Ben is drawn");
+    assert!(lm < ben, "the landmark is behind Ben, north of its node");
+    // Base-anchored: 32 pixels tall on a point 0.35 above the node tile's bottom edge.
+    assert!((data[lm * STRIDE + 13] - (pt.y as f32 + 0.35 + 1.0)).abs() < 1e-3);
+    // A level not yet cleared shows a locked or an open flag, by whether its requirement is met.
+    let shown = if w.met(pt.req) { 0.85 } else { 0.83 };
+    assert!(at(shown).is_some(), "the flag for an uncleared level");
+    assert!(at(0.87).is_none() || w.game.is_done(pt.level));
+}
+
 /// Where the first instance with atlas coordinate `u` is, as (x, y, x scale, y scale), among those drawn.
 fn instance_of(w: &World, u: f32, near: (f64, f64)) -> Option<(f32, f32, f32, f32)> {
     use lf_sim::STRIDE;
