@@ -12,6 +12,14 @@ function deps(over: Partial<AppDeps> = {}) {
   const calls: string[] = [];
   const written: [string, Uint8Array][] = [];
   const d: AppDeps = {
+    pickOpenPath: async (extensions) => {
+      calls.push(`open ${extensions.join(',')}`);
+      return '/home/me/Downloads/fizz-session-abc.zip';
+    },
+    readFile: async (path) => {
+      calls.push(`read ${path}`);
+      return bytes;
+    },
     pickSavePath: async (name) => {
       calls.push(`pick ${name}`);
       return `/home/me/Downloads/${name}`;
@@ -138,5 +146,49 @@ describe('openAppSaver canShare', () => {
     );
     expect(saver.canShare('x.zip', 'application/zip')).toBe(false);
     expect(await saver.save(bytes, 'x.zip', 'application/zip')).toBe('saved');
+  });
+});
+
+describe('openAppSaver open', () => {
+  it('opens the Open dialog for zips, reads the one file chosen, and gives its name', async () => {
+    const { d, calls } = deps();
+    const saver = await openAppSaver(d);
+    expect(await saver.open(['zip'])).toEqual({
+      status: 'opened',
+      name: 'fizz-session-abc.zip',
+      bytes,
+    });
+    expect(calls).toEqual(['open zip', 'read /home/me/Downloads/fizz-session-abc.zip']);
+  });
+
+  it('names a file from the address Android’s picker gives, decoded', async () => {
+    const saver = await openAppSaver(
+      deps({
+        pickOpenPath: async () => 'content://docs/document/primary%3ADownload%2Ffizz%20one.zip',
+      }).d,
+    );
+    const got = await saver.open(['zip']);
+    expect(got.status === 'opened' && got.name).toBe('fizz one.zip');
+  });
+
+  it('says nothing when the dialog is closed, and says so when the dialog or the read fails', async () => {
+    const closed = await openAppSaver(deps({ pickOpenPath: async () => null }).d);
+    expect(await closed.open(['zip'])).toEqual({ status: 'cancelled' });
+    const noDialog = await openAppSaver(
+      deps({
+        pickOpenPath: async () => {
+          throw new Error('no dialog');
+        },
+      }).d,
+    );
+    expect(await noDialog.open(['zip'])).toEqual({ status: 'failed' });
+    const noRead = await openAppSaver(
+      deps({
+        readFile: async () => {
+          throw new Error('not allowed');
+        },
+      }).d,
+    );
+    expect(await noRead.open(['zip'])).toEqual({ status: 'failed' });
   });
 });

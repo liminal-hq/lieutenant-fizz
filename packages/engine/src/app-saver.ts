@@ -9,6 +9,10 @@ import type { FileSaver, ShareOutcome } from './file-save';
 export interface AppDeps {
   /** Opens the system Save dialog with a file name filled in; resolves the chosen path, or null if it was cancelled. */
   pickSavePath(name: string): Promise<string | null>;
+  /** Opens the system Open dialog for one file; resolves the chosen path, or null if it was cancelled. */
+  pickOpenPath(extensions: readonly string[]): Promise<string | null>;
+  /** Reads a file the player chose. The dialog lets the app read that one file and no other. */
+  readFile(path: string): Promise<Uint8Array>;
   /** Writes bytes to a path the player chose, or to the share folder. */
   writeFile(path: string, bytes: Uint8Array): Promise<void>;
   /** Empties the share folder in the app's cache, makes it, and resolves the path a file of this name goes at. */
@@ -22,12 +26,41 @@ export interface AppDeps {
   }): Promise<{ status: 'shared' | 'cancelled' | 'unknown' }>;
 }
 
+/**
+ * A name for a file the player picked: the last part of its path. Android's picker gives an address
+ * (`content://…/primary%3ADownload%2Fname.zip`) whose folder marks are encoded, so it is decoded first and the part
+ * after the last `/` or `:` is the name.
+ */
+export function nameOf(path: string): string {
+  let text = path;
+  const address = path.startsWith('content:');
+  try {
+    text = decodeURIComponent(path);
+  } catch {
+    // An address that is not valid percent-encoding is read as it is.
+  }
+  return text.split(address ? /[\\/:]/ : /[\\/]/).pop() || path;
+}
+
 /** The folder in the app's cache the zips handed to the share sheet are written in. */
 export const SHARE_FOLDER = 'fizz-share';
 
 /** The real dependencies: the dialog and fs plugins, the path API and the share-sheet plugin's commands. */
 export function realAppDeps(): AppDeps {
   return {
+    async pickOpenPath(extensions) {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const chosen = await open({
+        multiple: false,
+        directory: false,
+        filters: [{ name: 'Play sample', extensions: [...extensions] }],
+      });
+      return typeof chosen === 'string' ? chosen : null;
+    },
+    async readFile(path) {
+      const { readFile } = await import('@tauri-apps/plugin-fs');
+      return readFile(path);
+    },
     async pickSavePath(name) {
       const { save } = await import('@tauri-apps/plugin-dialog');
       return save({ defaultPath: name, filters: [{ name: 'Zip archive', extensions: ['zip'] }] });
@@ -58,8 +91,9 @@ export function realAppDeps(): AppDeps {
 
 /**
  * The saver for the apps. Save zip opens the system Save dialog (a file picker on Android) and writes the zip
- * where the player chooses. Share writes it to the app's cache and opens the system share sheet with it. Asking
- * what the share sheet can take is done once here, so the review screen can show or hide Share at once.
+ * where the player chooses. Share writes it to the app's cache and opens the system share sheet with it. Open
+ * shows the system Open dialog and reads the one file chosen. Asking what the share sheet can take is done once
+ * here, so the review screen can show or hide Share at once.
  */
 export async function openAppSaver(deps: AppDeps = realAppDeps()): Promise<FileSaver> {
   const can = await deps
@@ -67,6 +101,15 @@ export async function openAppSaver(deps: AppDeps = realAppDeps()): Promise<FileS
     .then((c) => c.supported && c.files)
     .catch(() => false);
   return {
+    async open(extensions) {
+      try {
+        const path = await deps.pickOpenPath(extensions);
+        if (!path) return { status: 'cancelled' };
+        return { status: 'opened', name: nameOf(path), bytes: await deps.readFile(path) };
+      } catch {
+        return { status: 'failed' };
+      }
+    },
     async save(bytes, name) {
       try {
         const path = await deps.pickSavePath(name);

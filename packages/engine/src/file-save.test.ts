@@ -62,6 +62,45 @@ describe('webSaver.save', () => {
   });
 });
 
+describe('webSaver.open', () => {
+  const openWith = (pick?: WebSaverEnv['pickFile']) => {
+    const { saver } = setup();
+    return (
+      webSaver({
+        document: {
+          createElement: () => ({ href: '', download: '', rel: '', click() {} }),
+          body: { appendChild() {}, removeChild() {} },
+        },
+        URL: { createObjectURL: () => '', revokeObjectURL() {} },
+        navigator: {},
+        File,
+        setTimeout: () => 0,
+        ...(pick ? { pickFile: pick } : {}),
+      }) ?? saver
+    );
+  };
+
+  it('asks the picker for the extensions, and reads the file chosen', async () => {
+    let asked = '';
+    const saver = openWith(async (accept) => {
+      asked = accept;
+      return new File([bytes as BlobPart], 'fizz-session-x.zip');
+    });
+    const got = await saver.open(['zip']);
+    expect(asked).toBe('.zip');
+    expect(got).toEqual({ status: 'opened', name: 'fizz-session-x.zip', bytes });
+  });
+
+  it('is cancelled when the picker is closed, and failed when there is no picker or it breaks', async () => {
+    expect(await openWith(async () => null).open(['zip'])).toEqual({ status: 'cancelled' });
+    expect(await openWith().open(['zip'])).toEqual({ status: 'failed' });
+    const broken = openWith(async () => {
+      throw new Error('blocked');
+    });
+    expect(await broken.open(['zip'])).toEqual({ status: 'failed' });
+  });
+});
+
 describe('webSaver.canShare and share', () => {
   it('cannot share where the browser has no share or no file sharing', () => {
     expect(setup({}).saver.canShare('x.zip', 'application/zip')).toBe(false);
