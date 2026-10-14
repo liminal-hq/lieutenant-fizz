@@ -64,6 +64,8 @@ export class ReplayPanel {
   private ready: Promise<{ sim: Sim; renderer: InstancedRenderer }> | null = null;
   private host: ReplayHost | null = null;
   private frameId = 0;
+  /** Counts the requests to watch; one made before a later request or a cancel is dropped when it has loaded. */
+  private requests = 0;
   private last = 0;
   private readonly view: FrameView = { halfW: 1, halfH: 1, scale: 0 };
 
@@ -93,7 +95,14 @@ export class ReplayPanel {
   /** Shows a sample's replay, optionally at an attempt and a tick. False when nothing in it can be replayed. */
   async watch(session: Session, at: WatchAt = {}): Promise<boolean> {
     if (!canReplay(session)) return false;
+    const mine = (this.requests += 1);
     const { sim, renderer } = await this.load();
+    // Cleared or replaced while the sim loaded: nothing is shown, and there is nothing to report either.
+    if (mine !== this.requests) {
+      // The load shows the section so the renderer can measure it, and nothing is going to fill it.
+      if (!this.host) this.section.hidden = true;
+      return true;
+    }
     this.close();
     this.section.hidden = false;
     this.host = new ReplayHost({
@@ -143,6 +152,12 @@ export class ReplayPanel {
   }
 
   /** Takes the replay down. */
+  /** Closes the replay and drops any request still loading, for when the samples it was asked about are gone. */
+  cancel(): void {
+    this.requests += 1;
+    this.close();
+  }
+
   close(): void {
     cancelAnimationFrame(this.frameId);
     const host = this.host;

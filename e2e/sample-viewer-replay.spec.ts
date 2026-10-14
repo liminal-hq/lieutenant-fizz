@@ -108,6 +108,22 @@ test('Clear all closes the replay of the samples it clears', async ({ page }) =>
   expect(errors).toEqual([]);
 });
 
+test('Clear all while the first Watch is still loading leaves no replay behind', async ({
+  page,
+}) => {
+  const { errors } = await open(page);
+  await load(page, 'fizz.zip', await fixtureZip());
+  // Both clicks in one task, so the sim and the sprites have not finished loading when the samples are cleared.
+  await page.evaluate(() => {
+    (document.querySelector('#sessions button') as HTMLButtonElement).click();
+    (document.querySelector('#clear') as HTMLButtonElement).click();
+  });
+  await page.waitForTimeout(1500);
+  await expect(page.locator('#replay-section')).toBeHidden();
+  expect(await replay(page)).toBeNull();
+  expect(errors).toEqual([]);
+});
+
 test('a worst spot has a Watch that goes to a moment before that death', async ({ page }) => {
   const { errors } = await open(page);
   await load(page, 'fizz.zip', await fixtureZip());

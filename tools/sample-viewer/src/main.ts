@@ -6,7 +6,7 @@
 import { parseSession, type Session } from '@lieutenant-fizz/engine/session/log';
 import { readZip } from '@lieutenant-fizz/engine/zip-read';
 import { findAttempts } from '../../../episodes/episode-1/src/replay/replayer';
-import { summarise, type Summary } from './aggregate';
+import { summarise, type Spot, type Summary } from './aggregate';
 import { boundsOf, drawPaths } from './charts';
 
 /** Builds an element. Text is always set as text, never as markup: every name here comes from a file. */
@@ -31,17 +31,20 @@ const $ = <T extends HTMLElement>(id: string): T => {
 
 const sessions: Session[] = [];
 
+/** The hot spots of the loaded samples, worked out when they change (the replay reads them every frame). */
+let spotList: readonly Spot[] = [];
+
 /** The replay in the page, built the first time something is watched (it loads the game's sim and sprites). */
 let panel: import('./replay-panel').ReplayPanel | null = null;
 
+/** Counts the times the samples were cleared, so a Watch asked for before one is dropped when its code has loaded. */
+let clears = 0;
+
 async function watch(session: Session, at: { order?: number; tick?: number }): Promise<void> {
+  const asked = clears;
   const { ReplayPanel } = await import('./replay-panel');
-  panel ??= new ReplayPanel(
-    $('replay-section'),
-    $('replay-stage'),
-    $('replay-gl'),
-    () => summarise(sessions).spots,
-  );
+  if (asked !== clears) return;
+  panel ??= new ReplayPanel($('replay-section'), $('replay-stage'), $('replay-gl'), () => spotList);
   if (!(await panel.watch(session, at))) {
     $('problems').append(h('li', { text: `${session.name} has no level to watch` }));
   }
@@ -144,6 +147,7 @@ function levelsTable(table: HTMLElement, summary: Summary): void {
 
 function render(): void {
   const summary = summarise(sessions);
+  spotList = summary.spots;
   $('results').hidden = sessions.length === 0;
   $('clear').hidden = sessions.length === 0;
 
@@ -263,7 +267,8 @@ drop.addEventListener('drop', (e) => {
 $('level').addEventListener('change', () => drawMap(summarise(sessions)));
 $('clear').addEventListener('click', () => {
   // A replay of a sample that is no longer loaded closes with it.
-  panel?.close();
+  clears += 1;
+  panel?.cancel();
   sessions.length = 0;
   $('problems').replaceChildren();
   render();
