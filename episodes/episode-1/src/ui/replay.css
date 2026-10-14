@@ -51,8 +51,8 @@
   top: calc(var(--lf-safe-top) + 8px);
   left: calc(var(--lf-safe-left) + 8px);
   /* The width is a share of the screen, not of the text, so a smaller font makes it shorter, not narrower. */
-  max-width: 60vw;
-  padding: 4px 8px;
+  max-width: 45vw;
+  padding: 3px 6px;
   font-size: 9px;
   line-height: 1.25;
   pointer-events: none;
