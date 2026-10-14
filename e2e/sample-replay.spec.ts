@@ -6,6 +6,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { audit } from './audit';
 import { pressUntil, settle } from './keys';
+import { fixtureZip } from './sample-fixture';
 
 interface Replay {
   tick: number;
@@ -248,5 +249,70 @@ test('Watch is the first row on a sample with a level, opens the replay, and Bac
   await expect(page.locator('#replay')).toHaveCount(0);
   // The sample's own screen is where it was left.
   await expect(page.locator('#overlay h2')).toHaveText('Saved sample');
+  expect(errors).toEqual([]);
+});
+
+/** How many samples are stored, 0 when the store has not been made. */
+const storedCount = (page: Page): Promise<number> =>
+  page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        const open = indexedDB.open('lf-samples', 1);
+        open.onerror = () => resolve(0);
+        open.onsuccess = () => {
+          const db = open.result;
+          if (!db.objectStoreNames.contains('sessions')) return resolve(0);
+          const count = db.transaction('sessions').objectStore('sessions').count();
+          count.onsuccess = () => resolve(count.result);
+        };
+      }),
+  );
+
+test('Open a zip on Saved samples watches a file the player picks, and keeps nothing of it', async ({
+  page,
+}) => {
+  const { errors } = await boot(page);
+  await lf(page, (g) => g.debugShow('options'));
+  await choose(page, 'Play sample', 'Play sample');
+  await choose(page, 'Saved samples', 'Saved samples');
+  await expect(page.locator('#overlay .menu button .lbl')).toHaveText(['Open a zip', 'Back']);
+
+  // The picker opens from the Enter that chooses the row.
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.keyboard.press('Enter'),
+  ]);
+  expect(chooser.isMultiple()).toBe(false);
+  await chooser.setFiles({
+    name: 'someone-elses-sample.zip',
+    mimeType: 'application/zip',
+    buffer: await fixtureZip(),
+  });
+  await expect(page.locator('#replay')).toBeVisible();
+  await expect(page.locator('#replay .replay-info')).toContainText('Fudge Bog, try 1 of 6');
+  await expect.poll(async () => (await replayState(page))!.tick).toBeGreaterThan(0);
+  expect((await replayState(page))!.drift).toBeNull();
+
+  // It was read in the page: nothing was stored, and none was started.
+  expect(await storedCount(page)).toBe(0);
+  expect(await lf(page, (g) => g.sampling)).toBe(false);
+
+  await page.getByRole('button', { name: 'Back' }).click();
+  await expect(page.locator('#replay')).toHaveCount(0);
+  await expect(page.locator('#overlay h2')).toHaveText('Saved samples');
+
+  // A file that is not a sample says so, and the list is where it was.
+  const [again] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.keyboard.press('Enter'),
+  ]);
+  await again.setFiles({
+    name: 'notes.zip',
+    mimeType: 'application/zip',
+    buffer: Buffer.from('this is not a zip'),
+  });
+  await expect(page.locator('#toast')).toContainText('That file is not a play sample');
+  await expect(page.locator('#replay')).toHaveCount(0);
+  await expect(page.locator('#overlay h2')).toHaveText('Saved samples');
   expect(errors).toEqual([]);
 });

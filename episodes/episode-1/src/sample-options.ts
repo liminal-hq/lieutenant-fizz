@@ -115,8 +115,18 @@ export function sessionOf(id: string | undefined): string | null {
   return id?.startsWith('session:') ? id.slice(8) : null;
 }
 
-/** The saved sessions, newest first, then Back. A session still open says whether it is the one recording. */
-export function sessionItems(list: readonly SessionInfo[] | null, recordingId: string): MenuItem[] {
+/** The menu id of the row that opens a sample zip from a file. */
+export const OPEN_ZIP_ID = 'samples:open';
+
+/**
+ * The saved sessions, newest first, then Open a zip (where a file can be picked) and Back. A session still open
+ * says whether it is the one recording.
+ */
+export function sessionItems(
+  list: readonly SessionInfo[] | null,
+  recordingId: string,
+  canOpen = false,
+): MenuItem[] {
   if (list === null) return [{ id: 'back', label: 'Back', value: 'Reading…' }];
   const rows = [...list].reverse().map((s): MenuItem => ({
     id: sessionRowId(s.id),
@@ -128,7 +138,11 @@ export function sessionItems(list: readonly SessionInfo[] | null, recordingId: s
           ? sizeText(s.bytes)
           : `${sizeText(s.bytes)}, left open`,
   }));
-  return [...rows, { id: 'back', label: 'Back' }];
+  return [
+    ...rows,
+    ...(canOpen ? [{ id: OPEN_ZIP_ID, label: 'Open a zip' }] : []),
+    { id: 'back', label: 'Back' },
+  ];
 }
 
 /** What the review screen shows about a session beyond its size, read from the stored log. */

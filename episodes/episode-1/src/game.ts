@@ -17,12 +17,14 @@ import { detectHostKind, hostEnvOf, type HostBackend } from '@lieutenant-fizz/en
 import { readSpecs, specsEnvOf } from '@lieutenant-fizz/engine/session/specs';
 import type { SampleHandle } from './sample/start';
 import type { ReplayHost } from './replay/game-host';
+import type { Session } from '@lieutenant-fizz/engine/session/log';
 import type { FileSaver } from '@lieutenant-fizz/engine/file-save';
 import type { SampleStore, SessionInfo } from '@lieutenant-fizz/engine/session/store';
 import {
   ACTIVE_SAMPLE_KEY,
   CONSENT_PAGES,
   consentItems,
+  OPEN_ZIP_ID,
   reviewItems,
   reviewText,
   type ReviewDetail,
@@ -2020,7 +2022,11 @@ export class Game {
       });
     if (this.sub === 'sampleInfo') return consentItems(this.consentPage);
     if (this.sub === 'samples')
-      return sessionItems(this.sampleList, this.sample?.recorder.sessionId ?? '');
+      return sessionItems(
+        this.sampleList,
+        this.sample?.recorder.sessionId ?? '',
+        this.fileSaver !== null,
+      );
     if (this.sub === 'sampleReview')
       return reviewItems({
         armed: resetArmed(this.resetAt, performance.now()),
@@ -2706,6 +2712,7 @@ export class Game {
     if (this.sub === 'samples') {
       const session = sessionOf(id);
       if (id === 'back') this.closeSub();
+      else if (id === OPEN_ZIP_ID) void this.openZip();
       else if (session) {
         this.reviewId = session;
         this.reviewDetail = null;
@@ -3983,6 +3990,15 @@ export class Game {
     }
     const current = this.sample?.recorder.sessionId ?? '';
     this.leftOpen = this.sampleList.filter((s) => !s.ended && s.id !== current).length;
+    // Asked here, so the list can offer Open a zip at once and the picker opens from the tap that chooses it.
+    if (this.fileSaver === null) {
+      try {
+        const { openSaver } = await import('@lieutenant-fizz/engine/file-save');
+        this.fileSaver = await openSaver();
+      } catch (err) {
+        console.warn('Opening files is not available here', err);
+      }
+    }
     this.syncUi();
   }
 
@@ -4020,7 +4036,57 @@ export class Game {
    * game (its map, its level, its saves) is left as it was, and nothing is recorded or written while it is up.
    */
   private async watchSample(id: string, paused = false): Promise<void> {
-    if (this.replay || this.replayStarting || !id) return;
+    if (!id) return;
+    await this.startReplay(async () => {
+      const { sessionFromStore } = await import('@lieutenant-fizz/engine/session/log');
+      const read = await (await this.sampleStoreFor()).read(id);
+      if (!read) {
+        this.ui.toast('That sample is gone');
+        return null;
+      }
+      return sessionFromStore(id, read);
+    }, paused);
+  }
+
+  /**
+   * Opens a sample zip the player picks (someone else's, or one saved earlier) and watches it. The zip is read in
+   * the page and not stored: nothing about it is kept once the replay is closed.
+   */
+  private async openZip(): Promise<void> {
+    if (this.replay || this.replayStarting) return;
+    const { openSaver } = await import('@lieutenant-fizz/engine/file-save');
+    const saver = (this.fileSaver ??= await openSaver());
+    if (!saver) {
+      this.ui.toast('This device cannot open a file');
+      return;
+    }
+    const got = await saver.open(['zip']);
+    // Closing the dialog is a choice, so it says nothing.
+    if (got.status === 'cancelled') return;
+    if (got.status === 'failed') {
+      this.ui.toast('The file could not be opened');
+      return;
+    }
+    await this.startReplay(async () => {
+      const [{ parseSession }, { readZip }] = await Promise.all([
+        import('@lieutenant-fizz/engine/session/log'),
+        import('@lieutenant-fizz/engine/zip-read'),
+      ]);
+      try {
+        return parseSession(got.name, await readZip(got.bytes));
+      } catch {
+        this.ui.toast('That file is not a play sample');
+        return null;
+      }
+    }, false);
+  }
+
+  /** Starts the replay of the session `getSession` gives (null when there is none, having said why). */
+  private async startReplay(
+    getSession: () => Promise<Session | null>,
+    paused: boolean,
+  ): Promise<void> {
+    if (this.replay || this.replayStarting) return;
     this.replayStarting = true;
     // Where the player was when they asked: if they have gone elsewhere by the time the code, the sample and the
     // sim have loaded, the replay is not opened over the new screen.
@@ -4030,16 +4096,9 @@ export class Game {
       this.reviewId === askedOn.review &&
       this.screen === askedOn.screen;
     try {
-      const [{ sessionFromStore }, host] = await Promise.all([
-        import('@lieutenant-fizz/engine/session/log'),
-        import('./replay/game-host'),
-      ]);
-      const read = await (await this.sampleStoreFor()).read(id);
-      if (!read) {
-        this.ui.toast('That sample is gone');
-        return;
-      }
-      const session = sessionFromStore(id, read);
+      const host = await import('./replay/game-host');
+      const session = await getSession();
+      if (!session) return;
       if (!host.canReplay(session)) {
         this.ui.toast('There is no level in this sample to watch');
         return;

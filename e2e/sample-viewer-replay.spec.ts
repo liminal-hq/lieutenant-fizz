@@ -6,36 +6,16 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { parseComments } from '../packages/engine/src/session/comments';
-import { sessionZip } from '../packages/engine/src/session/export';
 import { readZip } from '../packages/engine/src/zip-read';
+import { fixtureZip } from './sample-fixture';
 
 const VIEWER = 'http://127.0.0.1:5199/';
-const FIXTURE = new URL('../episodes/episode-1/src/replay/fixtures/fudge-bog/', import.meta.url);
 
 interface ViewerReplay {
   tick: number;
   playing: boolean;
   layers: string[];
   drift: string | null;
-}
-
-/** The real phone recording of Fudge Bog, as the zip the game would save, with its events or specs changed. */
-async function fixtureZip(
-  edit: (events: Record<string, unknown>[], specs: Record<string, unknown>) => void = () => {},
-): Promise<Buffer> {
-  const lines = readFileSync(new URL('session.ndjson', FIXTURE), 'utf8').trim().split('\n');
-  const header = JSON.parse(lines[0]!) as { id: string; startedAt: string };
-  const events = lines.slice(1).map((l) => JSON.parse(l) as Record<string, unknown>);
-  const specs = JSON.parse(readFileSync(new URL('specs.json', FIXTURE), 'utf8')) as Record<
-    string,
-    unknown
-  >;
-  edit(events, specs);
-  const zip = await sessionZip({
-    header: { v: 1, id: header.id, startedAt: header.startedAt, specs },
-    chunks: [events.map((e) => JSON.stringify(e)).join('\n') + '\n'],
-  });
-  return Buffer.from(zip);
 }
 
 async function open(page: Page): Promise<{ errors: string[] }> {

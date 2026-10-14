@@ -11,6 +11,7 @@ import {
   CONSENT_PAGES,
   consentItems,
   eventsText,
+  OPEN_ZIP_ID,
   reviewItems,
   reviewText,
   sampleItems,
@@ -145,6 +146,16 @@ describe('sessionItems', () => {
       ['Back', undefined],
     ]);
     expect(sessionOf(items[0]?.id)).toBe('now');
+  });
+
+  it('offers Open a zip before Back where a file can be picked, and not otherwise', () => {
+    expect(sessionItems([], '').map((i) => i.label)).toEqual(['Back']);
+    expect(sessionItems([], '', true).map((i) => i.label)).toEqual(['Open a zip', 'Back']);
+    const rows = sessionItems([info({ id: 'x' })], '', true);
+    expect(rows).toHaveLength(3);
+    expect(rows.slice(1).map((i) => i.label)).toEqual(['Open a zip', 'Back']);
+    expect(rows[1]?.id).toBe(OPEN_ZIP_ID);
+    expect(sessionOf(OPEN_ZIP_ID)).toBeNull();
   });
 
   it('shows only Back while reading, and round-trips ids', () => {
