@@ -1,22 +1,23 @@
 # The Tauri app and the launcher
 
-**Status: spike scaffolded.** `apps/player` exists as a spike: a menu, a capability probe and the Episode 1 build with a relative base, in a Tauri v2 shell with a tracked Android project and the app icons (see [TAURI_SPIKE.md](TAURI_SPIKE.md)); the launcher, shared options and everything else below are still planned. This document is the working plan for an Android and desktop app that plays every episode, and for the launcher that picks the episode. It follows the Claude Design export in `design/` (`Launcher.dc.html`, `Mobile Design.dc.html`, `App Icons.dc.html`) and is iterated in pull requests. `docs/STATUS.md` links here. Touch controls, the phone layout and haptics are in [MOBILE.md](MOBILE.md).
+**Status: spike scaffolded.** `apps/player` exists as a spike: a launcher shell (Episode 1, an About screen and a hidden debug menu), a capability probe and the Episode 1 build with a relative base, in a Tauri v2 shell with a tracked Android project and the app icons (see [TAURI_SPIKE.md](TAURI_SPIKE.md)); the carousel launcher, shared options and everything else below are still planned. This document is the working plan for an Android and desktop app that plays every episode, and for the launcher that picks the episode. It follows the Claude Design export in `design/` (`Launcher.dc.html`, `Mobile Design.dc.html`, `App Icons.dc.html`) and is iterated in pull requests. `docs/STATUS.md` links here. Touch controls, the phone layout and haptics are in [MOBILE.md](MOBILE.md).
 
 ## Goals
 - **One app for the whole series.** Episodes share the engine and are small (the art is generated in code, and the Episode 1 WASM is about 65 kB gzipped), so every episode is bundled in one install: one icon, one Settings screen, one place for saves.
 - **A shared launcher that replaces each episode's title screen** when an episode is started from the app. Played from the website, an episode keeps its own title screen (and on a phone browser, the mobile title in MOBILE.md).
-- **Reuse the Liminal HQ app pattern.** Cadence and Threshold are Tauri v2 Android apps with a React frontend, an `apps/<name>/src-tauri` layout, a tracked `gen/android` project and a side-by-side dev build. Fizz follows the same shape.
+- **Reuse the Liminal HQ app pattern.** Cadence and Threshold are Tauri v2 Android apps with an `apps/<name>/src-tauri` layout, a tracked `gen/android` project and a side-by-side dev build. Fizz follows the same shape, but its launcher is plain TypeScript rather than React: see "The launcher is plain TypeScript, and only in the apps".
 
 ## Layout
 ```
 apps/
 └── player/                      the Tauri app
     ├── package.json  index.html  vite.config.ts
-    ├── src/                     the React launcher
-    │   ├── main.tsx
-    │   ├── routes/              Carousel (episodes + App settings), Settings, Saves, About
-    │   ├── components/          the game's menu language: scrim, stepped plate, soda cursor
-    │   └── lib/                 episodes.ts, saves.ts, options.ts, launch.ts
+    ├── index.html  debug.html   the launcher and the debug menu (the old spike menu), plus probe.html, haptics.html
+    ├── src/launcher/            the plain TypeScript launcher
+    │   ├── state.ts             pure state machine: screens, the debug unlock count, what a choice asks for
+    │   ├── effects.ts           toasts, saving the unlock, leaving a page (writes the store out first)
+    │   ├── view.ts  main.ts     the DOM views and the page boot
+    │   └── dev-unlock.ts  toast.ts
     └── src-tauri/               Cargo.toml, build.rs, tauri.conf.json (+ tauri.conf.dev.json),
                                  capabilities/, icons/, src/, gen/android (tracked)
 plugins/                         Tauri plugins authored in this repo (predictive-back, until it moves; see The Tauri shell)
@@ -24,6 +25,11 @@ assets/icon/                     icon sources (see Icon)
 ```
 - The app depends on the engine and on the episode builds. Nothing in `crates/`, `packages/` or `episodes/` imports from `apps/`.
 - `site/` stays static HTML: it must work without JavaScript, carry the social card and load fast. The launcher and the website share `site/episodes.json` and the Fizz fonts, not code.
+
+## The launcher is plain TypeScript, and only in the apps
+- **Plain TypeScript, not React.** The game's own menus are DOM and CSS built in TypeScript over the canvas, the launcher is the same kind of screen, and the app has no React, no jsdom and no component tests. The launcher is a pure state machine (`apps/player/src/launcher/state.ts`, tested with vitest and no DOM) plus views built from real `button` elements, so the keyboard, touch and the gamepad (`menu.ts`) all work. The menu look moves from Episode 1 into `packages/engine` so the game and launcher share it; each episode hands in its own theme (bullet sprite, plate colours and menu sounds), so Episode 2 can have a different, animated bullet.
+- **App only.** On the web each episode stands alone, so no launcher is deployed there: the Pages build (`bun run build:site`) never builds `apps/player`. It is written to run in a browser too (`bun run --cwd apps/player dev`, or `?host=fake-desktop`), using only the host, storage and toast abstractions.
+- **The debug menu.** The old spike menu is `debug.html`. In the launcher, About > Version chosen seven times in a row shows a Debug menu row (a toast from the third choice says how many are left) and a Hide debug menu row. The unlock is kept in the app's store (`lf-launcher-dev-v1`), so it stays after a restart. The probe and haptics pages go back to the debug menu, and the debug menu goes back to the launcher.
 
 ## The launcher design
 The launcher is a game-style screen, not a web page: the same menu language as the game (a soft scrim over art, a stepped plate that slowly cycles colour, a can of cream soda as the cursor), set in Fizz. Two directions were designed and **1a was chosen**: the launcher is the episode's title screen, so there is one layer and you go straight into play. The hub that hands off to each episode's own title menu (1b) was not chosen.

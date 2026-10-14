@@ -1,4 +1,4 @@
-// Vite config for the player app's own pages (the spike menu, the capability probe and the haptics page).
+// Vite config for the player app's own pages (the launcher, the debug menu, the capability probe and the haptics page).
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -15,10 +15,16 @@ const versionOf = (crate: string): string | undefined =>
   new RegExp(`name = "${crate}"\\nversion = "([^"]+)"`).exec(lock)?.[1];
 const pluginVersion = versionOf('tauri-plugin-phone-haptics');
 const gamepadVersion = versionOf('tauri-plugin-gamepad-haptics');
+const appVersion = (
+  JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8')) as {
+    version: string;
+  }
+).version;
 
 export default defineConfig({
   base: './',
   define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
     __HAPTICS_PLUGIN_VERSION__: JSON.stringify(pluginVersion ?? 'unknown'),
     __GAMEPAD_PLUGIN_VERSION__: JSON.stringify(gamepadVersion ?? 'unknown'),
   },
@@ -28,6 +34,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: resolve(import.meta.dirname, 'index.html'),
+        debug: resolve(import.meta.dirname, 'debug.html'),
         probe: resolve(import.meta.dirname, 'probe.html'),
         haptics: resolve(import.meta.dirname, 'haptics.html'),
       },

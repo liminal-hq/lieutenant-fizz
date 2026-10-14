@@ -1,4 +1,4 @@
-// Gamepad support for the player app's pages: focus moves between controls, A activates, B leaves the other pages.
+// Gamepad support for the player app's pages: focus moves between controls, A activates, B leaves the other pages (or, on the launcher, is passed on as a `pad-back` event).
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -13,7 +13,7 @@ import {
   type PadState,
 } from './menu-pad';
 
-// Pages opt in with `data-pad`: "menu" is the top menu (B does nothing), any other value leaves with B.
+// Pages opt in with `data-pad`: "menu" is the launcher, which handles B itself (it hears a `pad-back` event on the document), and any other value leaves with B for the page named by `data-back` (the launcher when there is none).
 const mode = document.body.dataset.pad;
 const FOCUSABLE = 'a[href], button, select, input, textarea, summary, [tabindex]';
 
@@ -79,7 +79,8 @@ const adjust = (el: Element | null, dir: Direction): boolean => {
 const onIntent = (intent: Exclude<PadIntent, null>) => {
   if (!mode) return;
   if (intent === 'back') {
-    if (mode !== 'menu') location.href = 'index.html';
+    if (mode === 'menu') document.dispatchEvent(new CustomEvent('pad-back'));
+    else location.href = document.body.dataset.back ?? 'index.html';
     return;
   }
   const { list, at } = focusables();
