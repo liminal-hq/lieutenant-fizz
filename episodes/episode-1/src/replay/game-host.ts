@@ -303,12 +303,15 @@ export class ReplayHost {
 
   // ---------- Controls ----------
 
-  /** A button that says `label` to a screen reader and in its tooltip, and shows `icon` when it has one. */
+  /** A button showing its `icon` (when it has one) and its words; a screen reader hears the words alone. */
   private button(label: string, run: () => void, cls = '', icon = ''): HTMLButtonElement {
-    const b = h('button', { type: 'button', class: `replay-btn ${cls}`.trim() }, icon || label);
+    const b = h(
+      'button',
+      { type: 'button', class: `replay-btn ${cls}`.trim() },
+      icon ? `${icon} ${label}` : label,
+    );
     if (icon) {
       b.setAttribute('aria-label', label);
-      b.title = label;
     }
     b.addEventListener('click', () => {
       this.act();
@@ -584,8 +587,7 @@ export class ReplayHost {
   /** Keeps the buttons' words right after a change. */
   private sync(): void {
     const playing = this.transport.playing;
-    this.playBtn.textContent = playing ? ICONS.pause : ICONS.play;
-    this.playBtn.title = playing ? 'Pause' : 'Play';
+    this.playBtn.textContent = playing ? `${ICONS.pause} Pause` : `${ICONS.play} Play`;
     this.playBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
     this.speedBtn.textContent = `${this.transport.speed}x`;
     this.speedBtn.setAttribute('aria-label', `Speed ${this.transport.speed} times`);

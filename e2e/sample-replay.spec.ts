@@ -97,7 +97,7 @@ test('a recorded run is watched on a sim of its own, with its controls, and noth
   expect((await replayState(page))!.layers).toEqual(
     expect.arrayContaining(['path', 'deaths', 'input', 'sound']),
   );
-  await expect(page.locator('#replay .replay-play')).toHaveText('Play');
+  await expect(page.locator('#replay .replay-play')).toHaveText('► Play');
   const held = (await replayState(page))!.tick;
   await page.waitForTimeout(300);
   expect((await replayState(page))!.tick).toBe(held);
@@ -115,14 +115,14 @@ test('a recorded run is watched on a sim of its own, with its controls, and noth
 
   // Playing runs on from there at the recorded ticks, and keeps matching the recording.
   await page.locator('#replay .replay-play').click();
-  await expect(page.locator('#replay .replay-play')).toHaveText('Pause');
+  await expect(page.locator('#replay .replay-play')).toHaveText('‖ Pause');
   await expect
     .poll(async () => (await replayState(page))!.tick, { timeout: 15_000 })
     .toBeGreaterThan(min + 20 + 30);
   expect((await replayState(page))!.drift).toBeNull();
   // Pausing holds it where it is.
   await page.locator('#replay .replay-play').click();
-  await expect(page.locator('#replay .replay-play')).toHaveText('Play');
+  await expect(page.locator('#replay .replay-play')).toHaveText('► Play');
   expect((await replayState(page))!.playing).toBe(false);
 
   // A layer is switched on and off from the sheet.
