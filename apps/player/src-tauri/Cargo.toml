@@ -26,6 +26,19 @@ tauri = { version = "2", features = [] }
 # Saves, options and touch settings (every `lf-*` key) live in `lf-data.json` in the app data directory.
 tauri-plugin-store = "2"
 
+# Play samples: a SQLite database on disk for the session being recorded, which is far larger than
+# `lf-data.json` can hold (that file is loaded and rewritten whole). Reached from the page through `@tauri-apps/plugin-sql`.
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+
+# Saving a play sample: the system Save dialog and writing the chosen file (desktop, and Android's Save to picker).
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+
+# Sharing a play sample through the system share sheet (Android, iOS, macOS and Windows; Linux has none). The plugin
+# is in review at https://github.com/liminal-hq/tauri-plugins-workspace/pull/90, so this follows its branch until
+# it is released, when it becomes a version from crates.io.
+tauri-plugin-share-sheet = { git = "https://github.com/liminal-hq/tauri-plugins-workspace", branch = "feat/share-sheet" }
+
 # Haptics: capability reporting and a stepped fallback ladder over the Android vibrator. Published on crates.io
 # (formerly developed as `tauri-plugin-haptics`). Its build script adds the VIBRATE permission to the Android manifest.
 tauri-plugin-phone-haptics = "0.1.0"

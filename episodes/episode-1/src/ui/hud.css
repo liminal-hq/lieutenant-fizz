@@ -76,6 +76,29 @@
   margin-top: calc(var(--n) * 3px);
 }
 
+/* A small mark that a play sample is recording: top centre, above the toast, never over a control. */
+#sampleMark {
+  --n: var(--lf-n-hint);
+  top: calc(var(--lf-safe-top) + 4px);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: max-content;
+  padding: 0 calc(var(--n) * 3px);
+  color: #ff6b6b;
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+#sampleMark::before {
+  content: '';
+  display: inline-block;
+  width: calc(var(--n) * 2px);
+  height: calc(var(--n) * 2px);
+  margin-right: calc(var(--n) * 2px);
+  border-radius: 50%;
+  background: currentColor;
+}
+
 #toast {
   --n: var(--lf-n-hint);
   top: calc(var(--lf-safe-top) + 20px);

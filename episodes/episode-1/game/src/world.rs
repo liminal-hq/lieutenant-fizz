@@ -186,6 +186,17 @@ impl Mantle {
     }
 }
 
+/// How Ben died, as read through `state_get(DEATH_CAUSE)`. The numbers are part of the shell's protocol.
+pub mod death {
+    pub const FELL: u8 = 1;
+    pub const SPIKES: u8 = 2;
+    pub const CHOCOLATE: u8 = 3;
+    pub const MOLTEN_METAL: u8 = 4;
+    pub const ENEMY: u8 = 5;
+    pub const PUFF: u8 = 6;
+    pub const SHOT: u8 = 7;
+}
+
 #[derive(Clone, Debug)]
 pub struct Player {
     pub b: Body,
@@ -199,6 +210,11 @@ pub struct Player {
     /// 0 while alive, otherwise seconds since death.
     pub dead: f64,
     pub dead_sent: bool,
+    /// How Ben died, one of the `death` constants (0 while alive or when the cause is not known). Only read
+    /// by the shell, never by a rule.
+    pub death_cause: u8,
+    /// What it was: the tile id for spikes, chocolate and molten metal, the `ents::Kind` for an enemy, else 0.
+    pub death_detail: u16,
     pub inv: f64,
     pub squash: f64,
     /// Whether this rise has already clunked, so one bounce or jump sounds once.
@@ -238,6 +254,8 @@ impl Player {
             aim: 0,
             dead: 0.0,
             dead_sent: false,
+            death_cause: 0,
+            death_detail: 0,
             inv: 0.0,
             squash: 0.0,
             bumped: false,
@@ -1226,10 +1244,14 @@ impl World {
         // Hazards, doors, exit.
         let (px, py, pw, ph) = (self.p.b.x, self.p.b.y, self.p.b.w, self.p.b.h);
         let mut die = py < -1.5;
+        let mut why = (death::FELL, 0u16);
         for cx in (px.floor() as i32)..=((px + pw).floor() as i32) {
             for cy in (py.floor() as i32)..=((py + ph).floor() as i32) {
                 let t = self.map.get(cx, cy);
                 if t == SPIKE && py < f64::from(cy) + 0.55 {
+                    if !die {
+                        why = (death::SPIKES, u16::from(t));
+                    }
                     die = true;
                 }
                 if is_liquid(t) {
@@ -1239,6 +1261,16 @@ impl World {
                         0.55
                     };
                     if py < f64::from(cy) + lim {
+                        if !die {
+                            why = (
+                                if t == CHOC {
+                                    death::CHOCOLATE
+                                } else {
+                                    death::MOLTEN_METAL
+                                },
+                                u16::from(t),
+                            );
+                        }
                         die = true;
                     }
                 }
@@ -1295,7 +1327,7 @@ impl World {
             }
         }
         if die {
-            self.kill();
+            self.kill_by(why.0, why.1);
             return;
         }
 
@@ -1461,7 +1493,7 @@ impl World {
                 continue;
             }
             if self.p.inv <= 0.0 {
-                self.kill();
+                self.kill_by(death::ENEMY, en.kind as u16);
                 return;
             }
         }
@@ -1472,7 +1504,7 @@ impl World {
                 if self.p.b.overlaps(x - 2.2, y, 2.1, 1.2)
                     || self.p.b.overlaps(x + w + 0.1, y, 2.1, 1.2)
                 {
-                    self.kill();
+                    self.kill_by(death::PUFF, Kind::Pod as u16);
                     return;
                 }
             }
@@ -1725,11 +1757,19 @@ impl World {
         self.cap(sx, sy + 0.5, Cap::Fzzt);
     }
 
+    /// Kills Ben with no cause recorded (the cause stays 0).
     pub fn kill(&mut self) {
+        self.kill_by(0, 0);
+    }
+
+    /// Kills Ben and records how, for the shell to read. The record changes nothing in the simulation.
+    pub fn kill_by(&mut self, cause: u8, detail: u16) {
         if self.p.dead > 0.0 {
             return;
         }
         let p = &mut self.p;
+        p.death_cause = cause;
+        p.death_detail = detail;
         p.dead = 0.001;
         p.mantle = None;
         p.b.vy = 14.0;
@@ -2336,7 +2376,7 @@ impl World {
                 if b.x > p.x && b.x < p.x + p.w && b.y > p.y && b.y < p.y + p.h {
                     gone = true;
                     if self.p.inv <= 0.0 {
-                        self.kill();
+                        self.kill_by(death::SHOT, 0);
                     }
                 }
             }

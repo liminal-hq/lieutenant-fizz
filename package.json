@@ -8,12 +8,15 @@
   "workspaces": [
     "packages/*",
     "episodes/*",
-    "apps/*"
+    "apps/*",
+    "tools/*"
   ],
   "scripts": {
     "dev": "bun run build:wasm && bun run --cwd episodes/episode-1 dev",
     "build": "bun run build:wasm && bun run --cwd episodes/episode-1 build",
     "dev:phone": "bash scripts/dev-phone.sh",
+    "dev:viewer": "bun run --cwd tools/sample-viewer dev",
+    "build:viewer": "bun run --cwd tools/sample-viewer build",
     "build:wasm": "bash scripts/build-wasm.sh",
     "build:site": "bash scripts/build-site.sh",
     "build:app": "bash scripts/build-app.sh",
@@ -42,7 +45,7 @@
     "lint:rust": "cargo clippy --workspace --all-targets -- -D warnings",
     "format": "prettier --write . && cargo fmt --all",
     "format:check": "prettier --check . && cargo fmt --all -- --check",
-    "typecheck": "tsc -p packages/engine --noEmit && tsc -p episodes/episode-1 --noEmit && tsc -p apps/player --noEmit && tsc -p scripts --noEmit && tsc -p e2e --noEmit",
+    "typecheck": "tsc -p packages/engine --noEmit && tsc -p episodes/episode-1 --noEmit && tsc -p apps/player --noEmit && tsc -p scripts --noEmit && tsc -p tools/sample-viewer --noEmit && tsc -p e2e --noEmit",
     "test:e2e": "playwright test",
     "check:headers": "bash scripts/check-headers.sh",
     "validate": "bun run check:headers && bun run check:font && bun run check:hero && bun run check:play-graphics && bun run check:sprites && bun run check:social && bun run check:icons && bun run format:check && bun run lint && bun run typecheck && bun run test && bun run lint:rust && bun run test:rust && bun run build"

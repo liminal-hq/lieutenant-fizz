@@ -202,6 +202,7 @@ export class Ui {
   private readonly boss: HTMLElement;
   private readonly prompt: HTMLElement;
   private readonly toastEl: HTMLElement;
+  private readonly sampleMark: HTMLElement;
   private readonly title: HTMLElement;
   private readonly menuEl: HTMLElement;
   private readonly controls: HTMLElement;
@@ -283,6 +284,13 @@ export class Ui {
     this.boss = el('div', { id: 'boss', class: 'lf lf-panel', hidden: '' });
     this.prompt = el('div', { id: 'prompt', class: 'lf lf-panel', hidden: '' });
     this.toastEl = el('div', { id: 'toast', class: 'lf lf-panel', hidden: '' });
+    this.sampleMark = el('div', {
+      id: 'sampleMark',
+      class: 'lf',
+      hidden: '',
+      'aria-label': 'Recording a play sample',
+    });
+    this.sampleMark.textContent = 'REC';
 
     this.rotate = el(
       'div',
@@ -404,6 +412,7 @@ export class Ui {
       this.boss,
       this.prompt,
       this.toastEl,
+      this.sampleMark,
       this.title,
       this.overlay,
       this.touchEdit,
@@ -1291,6 +1300,11 @@ export class Ui {
     p.style.setProperty('--lf-dock-w', `${dock.box.w}px`);
     p.dataset['dockTier'] = String(dock.tier);
     this.dockKey = key;
+  }
+
+  /** Shows or hides the small marker that says a play sample is being recorded. */
+  showSampleMark(on: boolean): void {
+    this.sampleMark.hidden = !on;
   }
 
   toast(text: string): void {

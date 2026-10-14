@@ -8,6 +8,7 @@ export default defineConfig({
       'episodes/**/*.test.ts',
       'apps/**/*.test.ts',
       'scripts/**/*.test.ts',
+      'tools/**/*.test.ts',
     ],
   },
 });

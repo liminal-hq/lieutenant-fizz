@@ -6,7 +6,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { Ev, Input, Level, Mode, Out, RenderFlag, State, STRIDE } from './protocol';
+import { Death, Ev, Input, Level, Mode, Out, RenderFlag, State, STRIDE } from './protocol';
 import { Sim, type SpriteRect } from './sim';
 
 const wasmPath = fileURLToPath(new URL('../wasm/sim.wasm', import.meta.url));
@@ -115,6 +115,27 @@ describe.skipIf(!built)('Episode 1 WASM sim', () => {
     sim.step(0);
     sim.x.enter_map();
     expect(sim.get(State.POGO_ON)).toBe(0);
+  });
+
+  it('exports how Ben died as read-only state values', () => {
+    sim.x.game_new();
+    sim.x.enter_level(Level.CRATER);
+    run(30);
+    expect(sim.get(State.DEATH_CAUSE)).toBe(Death.NONE);
+    expect(sim.get(State.DEATH_DETAIL)).toBe(0);
+    // Drop Ben out of the world.
+    sim.set(State.PLAYER_Y, -2);
+    sim.step(0);
+    expect(sim.get(State.PLAYER_DEAD)).toBe(1);
+    expect(sim.get(State.DEATH_CAUSE)).toBe(Death.FELL);
+    // Read-only: writing them changes nothing.
+    sim.set(State.DEATH_CAUSE, Death.SHOT);
+    sim.set(State.DEATH_DETAIL, 99);
+    expect(sim.get(State.DEATH_CAUSE)).toBe(Death.FELL);
+    expect(sim.get(State.DEATH_DETAIL)).toBe(0);
+    // A new level starts with no cause.
+    sim.x.enter_level(Level.CRATER);
+    expect(sim.get(State.DEATH_CAUSE)).toBe(Death.NONE);
   });
 
   it('runs the overworld and enters a level from it', () => {

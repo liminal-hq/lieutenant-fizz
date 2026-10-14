@@ -70,6 +70,7 @@ Saves, options and touch settings go through `KeyValueStorage` (`packages/engine
 Written down in `docs/` before any code, and iterated in pull requests. None of it is built.
 - **Tauri app and launcher** (`docs/APP.md`): one Android and desktop app for every episode, with a game-style launcher (a carousel of episodes plus an App settings stop) that replaces each episode's title screen when launched from the app, global options with per-episode overrides, a launch contract, `.fizzsave` export and import, and the chosen app icon.
 - **Mobile** (`docs/MOBILE.md`, built in the slices of `docs/MOBILE_PLAN.md`, web first): the phone title, glass D-pad and Jump, Pogo and Fizz buttons, a phone layout for every screen, and haptics through an upgraded Tauri haptics plugin, driven by the same events as audio and captions.
+- **Play samples** (`docs/ENGINE_SPEC.md` section 7.1): an opt-in, complete record of a play session for playtesting, saved as you play and exported as a zip, with a developer viewer. Specified; the code follows in later pull requests.
 - **Design export:** `design/` was refreshed with the launcher, mobile and app icon artboards, the launcher art generator and the haptics plugin proposal.
 
 ## Known gaps and deviations

@@ -5,11 +5,13 @@
   "type": "module",
   "exports": {
     "./atlas": "./src/atlas.ts",
+    "./app-saver": "./src/app-saver.ts",
     "./audio": "./src/audio.ts",
     "./audio-tune": "./src/audio-tune.ts",
     "./back-guard": "./src/back-guard.ts",
     "./back-peek": "./src/back-peek.ts",
     "./credits": "./src/credits.ts",
+    "./crc32": "./src/crc32.ts",
     "./episode": "./src/episode.ts",
     "./font/fizz.css": "./src/font/fizz.css",
     "./font/scale": "./src/font/scale.ts",
@@ -41,13 +43,22 @@
     "./renderer": "./src/renderer.ts",
     "./frame-stats": "./src/frame-stats.ts",
     "./repeat": "./src/repeat.ts",
+    "./file-save": "./src/file-save.ts",
     "./sound-field": "./src/sound-field.ts",
+    "./session/export": "./src/session/export.ts",
+    "./session/indexeddb-store": "./src/session/indexeddb-store.ts",
+    "./session/listeners": "./src/session/listeners.ts",
+    "./session/recorder": "./src/session/recorder.ts",
+    "./session/specs": "./src/session/specs.ts",
+    "./session/sqlite-store": "./src/session/sqlite-store.ts",
+    "./session/store": "./src/session/store.ts",
     "./stinger": "./src/stinger.ts",
     "./storage": "./src/storage.ts",
     "./story-beats": "./src/story-beats.ts",
     "./story-pages": "./src/story-pages.ts",
     "./tauri-log": "./src/tauri-log.ts",
     "./touch": "./src/touch.ts",
+    "./zip": "./src/zip.ts",
     "./touch-layout": "./src/touch-layout.ts",
     "./touch-settings": "./src/touch-settings.ts",
     "./touch-ui": "./src/touch-ui.ts",
@@ -58,11 +69,15 @@
   "dependencies": {
     "@liminal-hq/undertone": "^0.2.0",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-fs": "^2",
     "@tauri-apps/plugin-log": "^2",
+    "@tauri-apps/plugin-sql": "^2",
     "@tauri-apps/plugin-store": "^2",
     "three": "^0.184.0"
   },
   "devDependencies": {
-    "@types/three": "^0.184.0"
+    "@types/three": "^0.184.0",
+    "fake-indexeddb": "^6.2.5"
   }
 }

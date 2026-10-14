@@ -48,7 +48,7 @@
         <div class="masthead-text">
           <p class="greet">*** LIEUTENANT FIZZ · PRIVACY POLICY ***</p>
           <h1>Your data stays <span class="y">yours</span></h1>
-          <p class="lede">Lieutenant Fizz collects nothing about you. This page says what the game does keep, where, and what it never does. Last updated 11 October 2026.</p>
+          <p class="lede">Lieutenant Fizz collects nothing about you. The one thing you can switch on, a play sample, stays on your device unless you choose to send it yourself. This page says what the game keeps, where, and what it never does. Last updated 13 October 2026.</p>
         </div>
         <div class="sprites">
           <img class="spr x4" src="../assets/sprites/ben_stand.svg" width="16" height="24" alt="Ben">
@@ -63,6 +63,7 @@
           <p>No accounts, no sign-in, no ads, no in-app purchases and no analytics.</p>
           <p>The game collects no personal information and sends nothing anywhere.</p>
           <p>Your saves and settings stay on your own device.</p>
+          <p>Play samples are optional and off. If you turn one on, it records how you play, on your device, and it goes nowhere unless you save the file and send it yourself.</p>
           <p>The Android app uses vibration for feedback and nothing else: no camera, microphone, location, contacts, photos or files.</p>
       </div>
     </section>
@@ -71,9 +72,20 @@
       <p class="prompt"><span class="ps">C:\FIZZ\PRIVACY&gt;</span> type STORED.TXT</p>
       <div class="box cyan">
         <h2 id="stored-h">What is kept on your device</h2>
-        <p>The game saves your progress (lives, score, ammo, cleared levels, where you are on the map and time played) and your settings (sound, controls, button layout, touch size, vibration strength and the like). Nothing else.</p>
+        <p>The game saves your progress (lives, score, ammo, cleared levels, where you are on the map and time played) and your settings (sound, controls, button layout, touch size, vibration strength and the like). Nothing else, unless you turn on a play sample (see below).</p>
         <p>In a web browser these live in the browser’s own site storage for this page. In the Android and desktop apps they live in the app’s own data file. They are never uploaded, and the web game, the Android app and the desktop apps do not share them.</p>
         <p>To erase them, clear this site’s data in your browser, clear the app’s storage in your device’s settings, or uninstall the app.</p>
+      </div>
+    </section>
+
+    <section class="log" id="sample" aria-labelledby="sample-h">
+      <p class="prompt"><span class="ps">C:\FIZZ\PRIVACY&gt;</span> type PLAYSAMPLE.TXT</p>
+      <div class="box cyan">
+        <h2 id="sample-h">Play samples (optional)</h2>
+        <p>Options &gt; Play sample can record a play session to help the developer test the levels. It is off unless you start it, and the game explains what it records before it starts.</p>
+        <p><strong>What it records:</strong> every key, button and touch with exactly where and when, on every screen, including touches that miss and touches in the menus; where Ben is as you play; the screens you visit; what happens in the game; your screen size, browser and operating system; and the date, time and time zone it started.</p>
+        <p><strong>What it does not record:</strong> your name, account, device or advertising ID, location, contacts, files or anything outside the game window. Nothing you type, because the game has nowhere to type.</p>
+        <p><strong>Where it goes:</strong> it is written to your device as you play (in the browser’s site storage on the web, or the app’s own data on the apps), so a crash loses almost nothing. It is never uploaded. Later you can save it as a zip file, or share it with another app on your device, and send that to the developer yourself. You can see what is in it before you save it, and delete it at any time under Options &gt; Play sample.</p>
       </div>
     </section>
 
@@ -93,8 +105,8 @@
       <div class="box cyan">
         <h2 id="permissions-h">Permissions and devices</h2>
           <p><strong>Vibration</strong> (Android): the game buzzes your phone along with the action. You can turn the strength down or off under Options &gt; Haptics.</p>
-          <p><strong>Game controllers</strong>: button presses are read on your device to play the game, and the game can make a controller rumble. They are not recorded or sent anywhere.</p>
-          <p><strong>Touch</strong>: touches on the on-screen buttons are read to play the game and are not recorded.</p>
+          <p><strong>Game controllers</strong>: button presses are read on your device to play the game, and the game can make a controller rumble. They are not recorded or sent anywhere, unless you turn on a play sample, which records them on your device.</p>
+          <p><strong>Touch</strong>: touches on the screen are read to play the game and are not recorded, unless you turn on a play sample, which records them on your device.</p>
       </div>
     </section>
 
@@ -102,7 +114,7 @@
       <p class="prompt"><span class="ps">C:\FIZZ\PRIVACY&gt;</span> type KIDS.TXT</p>
       <div class="box cyan">
         <h2 id="children-h">Children</h2>
-        <p>Because the game collects no personal information from anyone, it collects none from children either. It has no chat, no user-generated content, no links out of the game and no way to contact other players.</p>
+        <p>Because the game collects no personal information from anyone, it collects none from children either. A play sample is off unless someone starts it, and it records how the game is played, not who is playing. The game has no chat, no user-generated content, no links out of the game and no way to contact other players.</p>
       </div>
     </section>
 
@@ -110,7 +122,7 @@
       <p class="prompt"><span class="ps">C:\FIZZ\PRIVACY&gt;</span> type CHANGES.TXT</p>
       <div class="box cyan">
         <h2 id="changes-h">Changes and questions</h2>
-        <p>If this ever changes, for example if a feature that shares anything is added, it will be optional, say so in the game, and this page will be updated with a new date at the top. The history of this page is in the <a href="https://github.com/liminal-hq/lieutenant-fizz/commits/main/site/privacy/index.html">repository</a>.</p>
+        <p>This page was updated on 13 October 2026 when play samples were added. If it changes again, for example if anything is ever sent anywhere, it will be optional, say so in the game, and this page will be updated with a new date at the top. The history of this page is in the <a href="https://github.com/liminal-hq/lieutenant-fizz/commits/main/site/privacy/index.html">repository</a>.</p>
         <p>Questions? Open an issue at <a href="https://github.com/liminal-hq/lieutenant-fizz/issues">github.com/liminal-hq/lieutenant-fizz/issues</a>.</p>
       </div>
     </section>

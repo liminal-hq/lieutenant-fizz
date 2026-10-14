@@ -420,6 +420,17 @@ export class TouchControls {
     this.clearPending();
   }
 
+  /**
+   * The control under a window position, or null where there is none or the controls are hidden. The play
+   * sample uses it to say where a touch landed; it changes nothing.
+   */
+  controlAt(clientX: number, clientY: number): ControlId | null {
+    const layout = this.input.touch.layout;
+    if (!this.visible || !layout) return null;
+    const r = this.layer.getBoundingClientRect();
+    return hitTest(layout, clientX - r.left, clientY - r.top);
+  }
+
   /** The layer's own pixel position of a pointer event. */
   private local(e: PointerEvent): { x: number; y: number } {
     const r = this.layer.getBoundingClientRect();
