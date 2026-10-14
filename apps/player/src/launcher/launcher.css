@@ -292,22 +292,38 @@ body {
   right: 0;
   bottom: 0;
   height: var(--art-h);
+  overflow: hidden;
+  transform: translateX(calc(var(--slide) * var(--sw) * var(--k) * 1px));
+  will-change: transform;
+}
+/* The picture sits on a belt one picture wider than the layer, and the belt slides left one picture and starts
+   again: a transform on its own GPU layer, so a frame costs no painting. (Moving a background instead repaints the
+   whole layer every frame, which at a phone's screen density was most of the app's CPU and heated the phone.) */
+.scene .layer .belt {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% + var(--scene-w) * var(--scene-scale) * 1px);
   background-image: var(--image);
   background-repeat: repeat-x;
   background-size: calc(var(--scene-w) * var(--scene-scale) * 1px) var(--art-h);
-  background-position: 0 0;
   image-rendering: pixelated;
-  transform: translateX(calc(var(--slide) * var(--sw) * var(--k) * 1px));
-  animation: lf-scene-scroll var(--scroll, 0s) linear infinite;
+}
+.scene .layer[data-scroll] .belt {
+  will-change: transform;
+  animation: lf-scene-scroll var(--scroll) linear infinite;
 }
 /* The stars tile up as well and fade out towards the horizon. */
 .scene .layer.field {
   top: 0;
   height: auto;
   bottom: calc((var(--ground) + 4) * var(--scene-scale) * 1px);
-  background-repeat: repeat;
   -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent);
   mask-image: linear-gradient(to bottom, #000 45%, transparent);
+}
+.scene .layer.field .belt {
+  background-repeat: repeat;
 }
 .scene .ben {
   position: absolute;
@@ -335,10 +351,10 @@ body {
   opacity: 0;
   animation: lf-ben-air 4.2s step-end infinite;
 }
-/* A layer moves left as far as the picture is wide, so the end of one pass meets the start of the next. */
+/* The belt moves left as far as the picture is wide, so the end of one pass meets the start of the next. */
 @keyframes lf-scene-scroll {
   to {
-    background-position-x: calc(var(--scene-w) * var(--scene-scale) * -1px);
+    transform: translate3d(calc(var(--scene-w) * var(--scene-scale) * -1px), 0, 0);
   }
 }
 @keyframes lf-ben-run {
@@ -370,7 +386,7 @@ body {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .scene .layer,
+  .scene .layer .belt,
   .scene .ben,
   .scene .ben .run,
   .scene .ben .air {
@@ -378,7 +394,7 @@ body {
   }
 }
 /* The Motion option set to Reduced (or to follow a system that is) stills the scenery too. */
-.rm .scene .layer,
+.rm .scene .layer .belt,
 .rm .scene .ben,
 .rm .scene .ben .run,
 .rm .scene .ben .air {

@@ -144,6 +144,8 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
   let benArt: BenArt | undefined;
   /** What the picture and size styles on Ben were last set for. */
   let benKey = '';
+  /** The transform last set on Ben. */
+  let benPlace = '';
   head.hidden = true;
   // The small line above the picker: the episode's number, which the name beside the arrows does not repeat.
   const sub = make('p', 'episode');
@@ -448,6 +450,7 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
       if (!frame || !benArt || index < 0 || head.hidden) {
         ben.hidden = true;
         benKey = '';
+        benPlace = '';
         return;
       }
       ben.hidden = false;
@@ -461,10 +464,15 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
         s.backgroundImage = `url("${benArt.url}")`;
         s.backgroundSize = `${benArt.width * benArt.poses.length * scale}px ${benArt.height * scale}px`;
         s.backgroundPosition = `${-index * benArt.width * scale}px 0`;
+        s.left = '0px';
+        s.bottom = '0px';
       }
-      s.left = `${frame.x}px`;
-      s.bottom = `${frame.y}px`;
-      s.transform = `scaleX(${frame.flip ? -1 : 1}) rotate(${frame.rot}deg)`;
+      // He is placed from the logo's bottom left by a transform alone (no layout), and only when he has moved.
+      const place = `translate(${frame.x}px, ${-frame.y}px) scaleX(${frame.flip ? -1 : 1}) rotate(${frame.rot}deg)`;
+      if (place !== benPlace) {
+        benPlace = place;
+        s.transform = place;
+      }
     },
     rowHasFocus() {
       const at = document.activeElement;

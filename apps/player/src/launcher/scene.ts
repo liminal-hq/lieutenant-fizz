@@ -39,9 +39,12 @@ export const parallax = (speed: number): number => 0.4 + 0.6 * Math.min(1, Math.
 /** Seconds a layer takes to scroll one picture's width: the ground's pace divided by the layer's speed. */
 export const GROUND_SECONDS = 26;
 
-/** A layer at this speed scrolls so slowly it is as good as still; it has no animation. */
+/** A layer slower than this (a tile in over four minutes) is as good as still: it has no animation and costs nothing. */
+export const MIN_SCROLL_SPEED = 0.1;
+
+/** Seconds a layer takes to scroll one picture's width, or undefined for a layer too slow to see move. */
 export const scrollSeconds = (speed: number): number | undefined =>
-  speed > 0 ? GROUND_SECONDS / speed : undefined;
+  speed >= MIN_SCROLL_SPEED ? GROUND_SECONDS / speed : undefined;
 
 /** Where the ground is: Ben stands on it. */
 export interface Scene {
@@ -75,8 +78,14 @@ export function createScene(
     const node = div(layer.field ? 'layer field' : 'layer');
     node.style.setProperty('--image', `url("${new URL(layer.src, base).href}")`);
     node.style.setProperty('--k', String(parallax(layer.speed)));
+    // The picture is on a belt inside the layer, and the belt is what moves: a transform the GPU does with no
+    // repaint, unlike moving a background, which repaints the whole layer every frame.
+    node.append(div('belt'));
     const seconds = scrollSeconds(layer.speed);
-    if (seconds !== undefined) node.style.setProperty('--scroll', `${Math.round(seconds)}s`);
+    if (seconds !== undefined) {
+      node.style.setProperty('--scroll', `${Math.round(seconds)}s`);
+      node.dataset['scroll'] = '';
+    }
     el.append(node);
     ground = node;
   }

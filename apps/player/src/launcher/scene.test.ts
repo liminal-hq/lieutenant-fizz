@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   GROUND_SECONDS,
+  MIN_SCROLL_SPEED,
   MAX_SCENE_SCALE,
   parallax,
   sceneScale,
@@ -54,5 +55,10 @@ describe('the scrolling', () => {
     expect(scrollSeconds(1)).toBe(GROUND_SECONDS);
     expect(scrollSeconds(0.5)).toBe(GROUND_SECONDS * 2);
     expect(scrollSeconds(0)).toBeUndefined();
+  });
+
+  it('leaves a layer that would take over four minutes a tile standing still, so it costs nothing', () => {
+    expect(scrollSeconds(0.05)).toBeUndefined();
+    expect(scrollSeconds(MIN_SCROLL_SPEED)).toBe(GROUND_SECONDS / MIN_SCROLL_SPEED);
   });
 });
