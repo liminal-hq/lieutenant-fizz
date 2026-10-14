@@ -2082,7 +2082,7 @@ pub fn map_lights(map: &TileMap, points: &[MapPoint], met: impl Fn(u16) -> bool)
                 c: [1.0, 0.85, 0.45],
                 pulse: 0.0,
             }),
-            PtKind::Level => out.push(MapLight {
+            PtKind::Level if !p.hidden || met(p.req) => out.push(MapLight {
                 x,
                 y,
                 z: 0.9,

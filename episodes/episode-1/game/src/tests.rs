@@ -4100,3 +4100,17 @@ fn a_new_game_forgets_a_flag_that_was_waiting_to_be_thrown() {
         "nothing is thrown for the old session's clear"
     );
 }
+
+#[test]
+fn the_maps_lights_follow_what_has_been_cleared_while_ben_is_on_it() {
+    let mut w = map_world();
+    let lit = |w: &World| w.map_lights.len();
+    let before = lit(&w);
+    // Clearing every level opens every teleporter pad that needs one.
+    for l in 0..crate::levels::LEVEL_COUNT {
+        w.game.set_done(l);
+    }
+    w.step(0);
+    assert!(lit(&w) > before, "a pad that has just opened is lit");
+    assert_eq!(w.map_lights_done, w.game.done);
+}

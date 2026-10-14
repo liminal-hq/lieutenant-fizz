@@ -551,7 +551,9 @@ impl World {
         let p = &self.p;
         let px = p.b.px + (p.b.x - p.b.px) * alpha;
         let py = p.b.py + (p.b.y - p.b.py) * alpha;
-        let ben_row = py.floor() as i32;
+        // The row of his centre, which is what collision and the area's light go by, so he is never drawn in a
+        // row behind the one he is standing in.
+        let ben_row = (py + 0.3).floor() as i32;
         let first = (ty0 - 2).max(0);
         // One row past the north edge too: a landmark is drawn in the row above its node.
         for y in (first..=ty1 + 1).rev() {

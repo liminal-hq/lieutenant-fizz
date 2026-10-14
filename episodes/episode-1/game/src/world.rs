@@ -392,6 +392,8 @@ pub struct World {
     pub flag_throw: Option<(u8, f64)>,
     /// The overworld's lights, worked out when the map is entered.
     pub map_lights: Vec<levels::MapLight>,
+    /// The cleared-levels mask the lights were worked out for: they are rebuilt when it changes.
+    pub map_lights_done: u32,
     /// The ambient light on the overworld now: it eases towards that of the area Ben is in.
     pub map_amb: [f32; 3],
 
@@ -499,6 +501,7 @@ impl World {
             fresh_clear: None,
             flag_throw: None,
             map_lights: vec![],
+            map_lights_done: 0,
             map_amb: [1.0; 3],
             inst: InstanceBuffer::new(MAX_INSTANCES),
             lights: LightPool::new(256),
@@ -566,6 +569,7 @@ impl World {
             fresh_clear: self.fresh_clear,
             flag_throw: self.flag_throw,
             map_lights: self.map_lights.clone(),
+            map_lights_done: self.map_lights_done,
             map_amb: self.map_amb,
             inst: InstanceBuffer::new(1),
             lights: LightPool::new(1),
@@ -852,8 +856,7 @@ impl World {
         self.cam_y = at.1;
         self.pcx = at.0;
         self.pcy = at.1;
-        let lights = levels::map_lights(&self.map, &self.points, |req| self.met(req));
-        self.map_lights = lights;
+        self.rebuild_map_lights();
         self.map_amb = self.map_ambient_here();
         self.hud();
         self.events.emit(ev::MAP_PROMPT, 0.0, 0.0, 0.0);
@@ -966,8 +969,18 @@ impl World {
 
     // ---------- Overworld ----------
 
+    /// Works the overworld's lights out again: which teleporters are on and which levels show depend on
+    /// what has been cleared.
+    fn rebuild_map_lights(&mut self) {
+        self.map_lights = levels::map_lights(&self.map, &self.points, |req| self.met(req));
+        self.map_lights_done = self.game.done;
+    }
+
     fn tick_map(&mut self, dt: f64) {
         self.map_arm = (self.map_arm - dt).max(0.0);
+        if self.map_lights_done != self.game.done {
+            self.rebuild_map_lights();
+        }
         if let Some((l, t)) = self.flag_throw {
             self.flag_throw = (t + dt < FLAG_THROW_SECS).then_some((l, t + dt));
         }
