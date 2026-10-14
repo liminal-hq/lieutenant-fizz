@@ -4064,9 +4064,13 @@ export class Game {
       this.ui.toast('This device cannot open a file');
       return;
     }
-    const got = await saver.open(['zip']);
+    const got = await saver.open(['zip'], SAMPLE_ZIP_MAX_BYTES);
     // Closing the dialog is a choice, so it says nothing.
     if (got.status === 'cancelled') return;
+    if (got.status === 'toolarge') {
+      this.ui.toast('That file is too large to be a play sample');
+      return;
+    }
     if (got.status === 'failed') {
       this.ui.toast('The file could not be opened');
       return;

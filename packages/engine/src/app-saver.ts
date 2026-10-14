@@ -13,6 +13,8 @@ export interface AppDeps {
   pickOpenPath(extensions: readonly string[]): Promise<string | null>;
   /** Reads a file the player chose. The dialog lets the app read that one file and no other. */
   readFile(path: string): Promise<Uint8Array>;
+  /** The size in bytes of a file the player chose, or null when the system does not say. */
+  fileSize(path: string): Promise<number | null>;
   /** Writes bytes to a path the player chose, or to the share folder. */
   writeFile(path: string, bytes: Uint8Array): Promise<void>;
   /** Empties the share folder in the app's cache, makes it, and resolves the path a file of this name goes at. */
@@ -56,6 +58,10 @@ export function realAppDeps(): AppDeps {
         filters: [{ name: 'Play sample', extensions: [...extensions] }],
       });
       return typeof chosen === 'string' ? chosen : null;
+    },
+    async fileSize(path) {
+      const { stat } = await import('@tauri-apps/plugin-fs');
+      return (await stat(path)).size;
     },
     async readFile(path) {
       const { readFile } = await import('@tauri-apps/plugin-fs');
@@ -101,10 +107,14 @@ export async function openAppSaver(deps: AppDeps = realAppDeps()): Promise<FileS
     .then((c) => c.supported && c.files)
     .catch(() => false);
   return {
-    async open(extensions) {
+    async open(extensions, maxBytes) {
       try {
         const path = await deps.pickOpenPath(extensions);
         if (!path) return { status: 'cancelled' };
+        // Asked for before the read, which holds the whole file; a system that will not say leaves it to the caller.
+        const size = await deps.fileSize(path).catch(() => null);
+        if (maxBytes !== undefined && size !== null && size > maxBytes)
+          return { status: 'toolarge' };
         return { status: 'opened', name: nameOf(path), bytes: await deps.readFile(path) };
       } catch {
         return { status: 'failed' };

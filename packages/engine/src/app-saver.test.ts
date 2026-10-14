@@ -20,6 +20,7 @@ function deps(over: Partial<AppDeps> = {}) {
       calls.push(`read ${path}`);
       return bytes;
     },
+    fileSize: async () => null,
     pickSavePath: async (name) => {
       calls.push(`pick ${name}`);
       return `/home/me/Downloads/${name}`;
@@ -169,6 +170,29 @@ describe('openAppSaver open', () => {
     );
     const got = await saver.open(['zip']);
     expect(got.status === 'opened' && got.name).toBe('fizz one.zip');
+  });
+
+  it('turns a file away unread when the system says it is larger than the limit', async () => {
+    const { d, calls } = deps({ fileSize: async () => 100 });
+    const saver = await openAppSaver(d);
+    expect(await saver.open(['zip'], 50)).toEqual({ status: 'toolarge' });
+    expect(calls.some((c) => c.startsWith('read'))).toBe(false);
+    // A file at the limit, or no limit asked for, is read.
+    expect((await saver.open(['zip'], 100)).status).toBe('opened');
+    expect((await saver.open(['zip'])).status).toBe('opened');
+  });
+
+  it('reads the file when the system does not say how large it is, and leaves the check to the caller', async () => {
+    const unknown = await openAppSaver(deps({ fileSize: async () => null }).d);
+    expect((await unknown.open(['zip'], 1)).status).toBe('opened');
+    const refused = await openAppSaver(
+      deps({
+        fileSize: async () => {
+          throw new Error('no stat');
+        },
+      }).d,
+    );
+    expect((await refused.open(['zip'], 1)).status).toBe('opened');
   });
 
   it('says nothing when the dialog is closed, and says so when the dialog or the read fails', async () => {

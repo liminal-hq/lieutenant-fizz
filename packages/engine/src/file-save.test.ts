@@ -91,6 +91,24 @@ describe('webSaver.open', () => {
     expect(got).toEqual({ status: 'opened', name: 'fizz-session-x.zip', bytes });
   });
 
+  it('turns a file larger than the limit away without reading it', async () => {
+    const big = new File([bytes as BlobPart], 'big.zip');
+    big.arrayBuffer = async () => {
+      throw new Error('read a file that is too large');
+    };
+    const saver = openWith(async () => big);
+    expect(await saver.open(['zip'], bytes.length - 1)).toEqual({ status: 'toolarge' });
+    // At the limit, or with none given, it is read.
+    expect(
+      (
+        await openWith(async () => new File([bytes as BlobPart], 'a.zip')).open(
+          ['zip'],
+          bytes.length,
+        )
+      ).status,
+    ).toBe('opened');
+  });
+
   it('is cancelled when the picker is closed, and failed when there is no picker or it breaks', async () => {
     expect(await openWith(async () => null).open(['zip'])).toEqual({ status: 'cancelled' });
     expect(await openWith().open(['zip'])).toEqual({ status: 'failed' });

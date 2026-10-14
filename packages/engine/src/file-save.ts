@@ -12,10 +12,14 @@ export type ShareOutcome = 'shared' | 'cancelled' | 'unknown' | 'failed';
 /** How a save ended. `cancelled` is the player closing the Save dialog, which is a choice and not a failure. */
 export type SaveOutcome = 'saved' | 'cancelled' | 'failed';
 
-/** How opening a file ended: the file's name and bytes, the player closing the dialog (a choice), or a failure. */
+/**
+ * How opening a file ended: the file's name and bytes, the player closing the dialog (a choice), a file larger than
+ * the limit asked for (left unread), or a failure.
+ */
 export type OpenOutcome =
   | { status: 'opened'; name: string; bytes: Uint8Array }
   | { status: 'cancelled' }
+  | { status: 'toolarge' }
   | { status: 'failed' };
 
 /**
@@ -23,8 +27,12 @@ export type OpenOutcome =
  * Save dialog, the share sheet). Each call is made from a tap, since browsers only allow them from one.
  */
 export interface FileSaver {
-  /** Opens the system file picker for a file the player chooses (by extension, without the dot) and reads it. */
-  open(extensions: readonly string[]): Promise<OpenOutcome>;
+  /**
+   * Opens the system file picker for a file the player chooses (by extension, without the dot) and reads it. With
+   * `maxBytes`, a file the picker reports as larger is not read, so a huge file cannot fill the page's memory; where
+   * the size cannot be known beforehand the caller still checks the bytes it gets.
+   */
+  open(extensions: readonly string[], maxBytes?: number): Promise<OpenOutcome>;
   /** Saves the file where the player chooses or to Downloads; resolves how it ended. */
   save(bytes: Uint8Array, name: string, mime: string): Promise<SaveOutcome>;
   /** Whether a share menu is available for a file. */
@@ -55,11 +63,12 @@ export function webSaver(env: WebSaverEnv): FileSaver {
   const fileOf = (bytes: Uint8Array, name: string, mime: string): File =>
     new env.File([bytes as BlobPart], name, { type: mime });
   return {
-    async open(extensions) {
+    async open(extensions, maxBytes) {
       try {
         if (!env.pickFile) return { status: 'failed' };
         const file = await env.pickFile(extensions.map((e) => `.${e}`).join(','));
         if (!file) return { status: 'cancelled' };
+        if (maxBytes !== undefined && file.size > maxBytes) return { status: 'toolarge' };
         return {
           status: 'opened',
           name: file.name,
