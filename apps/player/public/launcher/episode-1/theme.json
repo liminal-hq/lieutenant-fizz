@@ -240,6 +240,84 @@
       "captions": {}
     }
   },
+  "music": {
+    "main": "title",
+    "tracks": {
+      "title": {
+        "bpm": 140,
+        "parts": [
+          {
+            "notes": "<[c5 ~ g4 c5 e5 g5 e5 c5] [a4 ~ e4 a4 c5 e5 c5 a4] [f4 a4 c5 f5 e5 c5 a4 c5] [g4 b4 d5 g5 f5 d5 b4 d5] [e5 ~ e5 g5 c6 ~ b5 g5] [a5 ~ g5 e5 c5 ~ e5 a5] [f5 e5 d5 c5 d5 ~ b4 d5] [c5 ~ g4 ~ c5 ~ ~ ~]>",
+            "w": "square",
+            "a": 0.005,
+            "d": 0.1,
+            "s": 0.3,
+            "r": 0.08,
+            "g": 0.075,
+            "role": "lead",
+            "lpf": 2600
+          },
+          {
+            "notes": "<[c4,e4,g4] [a3,c4,e4] [f3,a3,c4] [g3,b3,d4] [c4,e4,g4] [a3,c4,e4] [f3,a3,d4] [c4,e4,g4]>",
+            "w": "sine",
+            "a": 0.05,
+            "d": 0.5,
+            "s": 0.7,
+            "r": 1.1,
+            "g": 0.05,
+            "role": "pad",
+            "lpf": 1400,
+            "room": 0.3
+          },
+          {
+            "notes": "<[c2 c3 g2 c3] [a1 a2 e2 a2] [f1 f2 c2 f2] [g1 g2 d2 g2] [c2 c3 g2 c3] [a1 a2 e2 a2] [f2 f2 g2 g2] [c2 g1 c2 ~]>",
+            "w": "triangle",
+            "a": 0.005,
+            "d": 0.12,
+            "s": 0.45,
+            "r": 0.08,
+            "g": 0.3,
+            "role": "bass"
+          },
+          {
+            "notes": "c1 ~ ~ c1 c1 ~ ~ ~",
+            "w": "sine",
+            "a": 0.005,
+            "d": 0.12,
+            "s": 0,
+            "r": 0.06,
+            "g": 0.6,
+            "role": "kick",
+            "slide": 0.09
+          },
+          {
+            "notes": "~ white ~ white",
+            "w": "triangle",
+            "a": 0.005,
+            "d": 0.09,
+            "s": 0,
+            "r": 0.05,
+            "g": 0.24,
+            "role": "snare",
+            "noise": true,
+            "hpf": 1600
+          },
+          {
+            "notes": "[~ white]*4",
+            "w": "triangle",
+            "a": 0.005,
+            "d": 0.03,
+            "s": 0,
+            "r": 0.01,
+            "g": 0.08,
+            "role": "hats",
+            "noise": true,
+            "hpf": 6000
+          }
+        ]
+      }
+    }
+  },
   "bullet": {
     "src": "bullet.png",
     "frames": 1,

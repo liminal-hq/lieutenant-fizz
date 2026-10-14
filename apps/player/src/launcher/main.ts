@@ -52,6 +52,7 @@ import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { isPortrait } from '@lieutenant-fizz/engine/portrait';
 import { BEN_LOOK, BEN_WAVE, benFrame, benScale } from '@lieutenant-fizz/engine/menu/title-ben';
 import { createScene, createStage } from './scene';
+import { libraryOf, musicSettingsOf, openLauncherMusic, trackOf } from './music';
 import { createLauncherHaptics, NO_HAPTICS, type LauncherHaptics } from './haptics';
 import { createLauncherTouch, type LauncherTouch } from './touch';
 import { readStop, writeStop } from './stop-memory';
@@ -384,6 +385,7 @@ function applyOptions(next: GlobalOptions): void {
     themed = undefined;
     applyTheme();
   } else if (next.sfx !== before.sfx) sound.setLevel(volumeOf(next.sfx));
+  music.set(musicSettingsOf(next));
   if (next.rumble !== before.rumble) haptics.setRumble(next.rumble);
   applyLook();
   view.relayout();
@@ -459,7 +461,10 @@ function isControl(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.closest('button, a[href]') !== null;
 }
 // A page in the background makes no buzz.
-document.addEventListener('visibilitychange', () => haptics.setActive(!document.hidden));
+document.addEventListener('visibilitychange', () => {
+  haptics.setActive(!document.hidden);
+  music.setActive(!document.hidden);
+});
 document.addEventListener('pad-back', () => dispatch({ type: 'back' }));
 document.addEventListener('pad-active', () => useDevice('gamepad'));
 document.addEventListener(
@@ -496,6 +501,10 @@ const [nightScene, teaserScene] = await Promise.all([
   loadJson<SceneInfo>(new URL('scene.json', sceneUrl('teaser'))),
 ]);
 const runnerOf = [...files.values()].find((f) => f.info?.runner);
+// The music: each episode's main theme and, for one not out and App settings, the teaser score, crossfading as the
+// carousel steps. It follows the Music, Style and Music version options.
+const themes = new Map([...files].map(([id, f]) => [id, f.theme] as const));
+const music = openLauncherMusic(libraryOf(themes), musicSettingsOf(options), host.kind !== 'web');
 const stage = createStage(
   ui,
   () => ui.classList.contains('rm') || matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -516,6 +525,7 @@ function showScene(dir: -1 | 0 | 1): void {
   const stop = currentStop(state);
   const found = sceneOf(stop);
   if (!found) return;
+  music.play(trackOf(stop, themes), dir === 0 ? 0 : undefined);
   stage.show(
     stop.kind === 'app' ? 'app' : `episode:${stop.id}`,
     () =>

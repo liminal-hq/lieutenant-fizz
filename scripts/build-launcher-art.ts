@@ -14,7 +14,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { SfxVoice } from '../packages/engine/src/audio';
+import type { MusicTrack, SfxVoice } from '../packages/engine/src/audio';
 import type { HapticTable } from '../packages/engine/src/haptic-pattern';
 import { EGA } from '../packages/engine/src/palette';
 import { encodePngRgba } from '../packages/engine/src/png';
@@ -25,7 +25,7 @@ import {
   type MenuThemeData,
 } from '../packages/engine/src/menu/theme';
 import { EPISODE_1_MENU, episodeMenuTheme } from '../episodes/episode-1/src/menu-theme';
-import { SFX } from '../episodes/episode-1/src/audio/patterns';
+import { MUSIC, SFX } from '../episodes/episode-1/src/audio/patterns';
 import { FIZZ_HAPTICS } from '../episodes/episode-1/src/haptics/fizz-haptics';
 import { EPISODE_ID, EPISODE_KEYS, OPTIONS_KEY } from '../episodes/episode-1/src/options';
 import { SAVE_KEY, SLOT_COUNT, slotKey } from '../episodes/episode-1/src/save';
@@ -184,6 +184,8 @@ export async function build(): Promise<Built[]> {
     sounds: EPISODE_1_MENU.sounds,
     voices,
     haptics: { cues: EPISODE_1_MENU.haptics, table: hapticsTable },
+    // The title theme is the episode's music in the launcher; it has no Enhanced song, so it plays the same in both.
+    music: { main: 'title', tracks: { title: MUSIC.title as MusicTrack } },
     ...(frames.length
       ? {
           bullet: {

@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { SfxVoice } from '../audio';
+import type { MusicSong, MusicTrack, SfxVoice } from '../audio';
 import type { Grid } from '../pen';
 import type { HapticTable } from '../haptic-pattern';
 import type { MenuHaptics, MenuSounds } from './sounds';
@@ -106,6 +106,8 @@ export interface MenuThemeData {
   voices?: Record<string, readonly SfxVoice[]>;
   /** The haptic cue each menu cue plays, and the table that holds those cues (only them). */
   haptics?: { cues: MenuHaptics; table: HapticTable };
+  /** The episode's music for the launcher: its tracks (and Enhanced songs for some), and the name of its main theme. */
+  music?: { main: string; tracks: Record<string, MusicTrack>; songs?: Record<string, MusicSong> };
 }
 
 /** The theme a page applies from its data. The bullet picture is handled by the page (`bulletImageOf`). */
