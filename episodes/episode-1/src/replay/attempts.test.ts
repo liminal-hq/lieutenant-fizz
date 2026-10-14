@@ -31,6 +31,22 @@ describe('attemptsOf', () => {
     expect(second!.path.map((p) => p.pogo)).toEqual([true]);
   });
 
+  it('takes the state written just after a point on the same tick as the point’s own', () => {
+    // As the recorder writes them: the `pos` first, then the `st` that goes with it.
+    const s = sessionOf('s', [
+      { t: 90, e: 'st', lives: 3, ammo: 0, score: 0, pogo: 0 },
+      { t: 100, e: 'level', id: 0, name: 'A', attempt: 1 },
+      { t: 104, e: 'pos', x: 1, y: 1 },
+      { t: 108, e: 'pos', x: 2, y: 1 },
+      { t: 108, e: 'st', lives: 3, ammo: 0, score: 0, pogo: 1 },
+      { t: 112, e: 'pos', x: 3, y: 1 },
+      { t: 116, e: 'pos', x: 4, y: 1 },
+      { t: 116, e: 'st', lives: 3, ammo: 0, score: 0, pogo: 0 },
+    ]);
+    const [a] = attemptsOf(s);
+    expect(a!.path.map((p) => p.pogo)).toEqual([undefined, true, true, undefined]);
+  });
+
   it('ends an attempt at a clear, at a death, at the next level and at the end of the log', () => {
     const s = sessionOf('s', [
       ...play(0, 'Crater Fields', 1, 100, [

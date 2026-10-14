@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { Session } from '@lieutenant-fizz/engine/session/log';
+import type { Session, SessionEvent } from '@lieutenant-fizz/engine/session/log';
 
 export type Outcome = 'clear' | 'died' | 'left' | 'open';
 
@@ -59,7 +59,20 @@ export function attemptsOf(session: Session): Attempt[] {
     cur = null;
   };
 
-  for (const e of session.events) {
+  const isPogo = (st: SessionEvent): boolean => st['pogo'] === 1 || st['pogo'] === true;
+  // The recorder writes a sample's `pos` and then its `st` on the same tick, so the state that goes with a point
+  // may come just after it: a `st` on the same tick as the point is the one that holds.
+  const pogoWith = (i: number): boolean => {
+    const t = events[i]!.t;
+    for (let j = i + 1; j < events.length && events[j]!.t === t; j += 1) {
+      if (events[j]!.e === 'st') return isPogo(events[j]!);
+    }
+    return pogo;
+  };
+
+  const events = session.events;
+  for (let i = 0; i < events.length; i += 1) {
+    const e = events[i]!;
     if (e.e === 'level') {
       finish('left', null);
       cur = {
@@ -76,11 +89,16 @@ export function attemptsOf(session: Session): Attempt[] {
         pauses: 0,
       };
     } else if (e.e === 'st') {
-      pogo = e['pogo'] === 1 || e['pogo'] === true;
+      pogo = isPogo(e);
     } else if (!cur) {
       continue;
     } else if (e.e === 'pos') {
-      cur.path.push({ x: num(e['x']), y: num(e['y']), t: e.t, ...(pogo ? { pogo } : {}) });
+      cur.path.push({
+        x: num(e['x']),
+        y: num(e['y']),
+        t: e.t,
+        ...(pogoWith(i) ? { pogo: true } : {}),
+      });
     } else if (e.e === 'death') {
       cur.death = {
         cause: num(e['cause']),
