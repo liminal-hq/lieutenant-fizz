@@ -191,8 +191,8 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     header.dataset['sub'] = home ? '' : 'true';
     title.textContent = home ? stopTitle(state) : SCREEN_TITLES[state.screen];
     prev.hidden = next.hidden = pips.hidden = !home;
-    prev.disabled = state.stop <= 0;
-    next.disabled = state.stop >= state.stops.length - 1;
+    // The carousel loops, so both arrows work wherever there is more than one stop.
+    prev.disabled = next.disabled = state.stops.length < 2;
     pips.replaceChildren(
       ...state.stops.map((_, i) => {
         const pip = make('i');

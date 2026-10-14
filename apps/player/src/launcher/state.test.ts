@@ -76,14 +76,14 @@ describe('the carousel', () => {
     expect(initialState(STOPS, false, {}, { stop: -1 }).stop).toBe(0);
   });
 
-  it('steps through the stops without wrapping, and says nothing at either end', () => {
+  it('steps through the stops and loops past either end', () => {
     const one = start();
-    expect(reduce(one, { type: 'stop', dir: -1 })).toEqual({ state: one, effects: [] });
+    expect(reduce(one, { type: 'stop', dir: -1 }).state.stop).toBe(STOPS.length - 1);
     const two = reduce(one, { type: 'stop', dir: 1 }).state;
     expect(two.stop).toBe(1);
     const app = reduce(two, { type: 'stop', dir: 1 }).state;
     expect(currentStop(app).kind).toBe('app');
-    expect(reduce(app, { type: 'stop', dir: 1 })).toEqual({ state: app, effects: [] });
+    expect(reduce(app, { type: 'stop', dir: 1 }).state.stop).toBe(0);
     expect(reduce(app, { type: 'stop', dir: -1 }).state.stop).toBe(1);
   });
 

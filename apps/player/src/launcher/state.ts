@@ -309,9 +309,10 @@ function reduceScreen(state: LauncherState, action: Action): Step {
       : unchanged(state);
   }
   if (action.type === 'stop') {
-    const next = state.stop + action.dir;
-    // The carousel does not wrap, and only the home screen has stops to step through.
-    if (state.screen !== 'home' || next < 0 || next >= state.stops.length) return unchanged(state);
+    const n = state.stops.length;
+    // The carousel loops past either end, and only the home screen has stops to step through.
+    if (state.screen !== 'home' || n < 2) return unchanged(state);
+    const next = (state.stop + action.dir + n) % n;
     return { state: { ...state, stop: next, taps: 0 }, effects: [] };
   }
   const row = action.row;

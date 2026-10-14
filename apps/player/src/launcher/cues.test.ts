@@ -32,10 +32,12 @@ describe('the launcher menu sounds', () => {
     expect(cue(about, { type: 'activate', row: 'version' })).toBe('select');
   });
 
-  it('swipes when it steps to another stop, and is silent at either end', () => {
+  it('swipes when it steps to another stop, including round the end, and is silent with one stop', () => {
     expect(cue(home, { type: 'stop', dir: 1 })).toBe('swipe');
-    expect(cue(home, { type: 'stop', dir: -1 })).toBeUndefined();
-    expect(cue(app, { type: 'stop', dir: 1 })).toBeUndefined();
+    expect(cue(home, { type: 'stop', dir: -1 })).toBe('swipe');
+    expect(cue(app, { type: 'stop', dir: 1 })).toBe('swipe');
+    const alone = initialState(stopsOf({ episodes: [] }), false);
+    expect(cue(alone, { type: 'stop', dir: 1 })).toBeUndefined();
   });
 
   it('plays the back cue for Back from a screen and for the Back row, and nothing at the home screen', () => {
