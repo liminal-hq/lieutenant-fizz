@@ -10,6 +10,7 @@ describe('reading the launch contract', () => {
   it('reads continue, new and a slot to load', () => {
     expect(parseLaunch('?launch=continue')).toEqual({ kind: 'continue' });
     expect(parseLaunch('?launch=new')).toEqual({ kind: 'new' });
+    expect(parseLaunch('?launch=options')).toEqual({ kind: 'options' });
     expect(parseLaunch('?launch=load:auto')).toEqual({ kind: 'load', slot: 'auto' });
     expect(parseLaunch('?launch=load:3')).toEqual({ kind: 'load', slot: 3 });
     expect(parseLaunch('?debug&launch=new')).toEqual({ kind: 'new' });
@@ -32,6 +33,7 @@ describe('writing the launch contract', () => {
     const launches: Launch[] = [
       { kind: 'continue' },
       { kind: 'new' },
+      { kind: 'options' },
       { kind: 'load', slot: 'auto' },
       { kind: 'load', slot: 1 },
       { kind: 'load', slot: 4 },

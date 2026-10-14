@@ -22,7 +22,7 @@ import {
   type RowBox,
   TAP_SLOP,
   visibleWindow,
-} from './menu-scroll';
+} from './scroll';
 
 describe('isTap', () => {
   it('is a tap up to the slop and a drag beyond it', () => {

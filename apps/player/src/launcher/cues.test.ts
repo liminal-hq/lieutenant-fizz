@@ -32,10 +32,12 @@ describe('the launcher menu sounds', () => {
     expect(cue(about, { type: 'activate', row: 'version' })).toBe('select');
   });
 
-  it('swipes when it steps to another stop, and is silent at either end', () => {
+  it('swipes when it steps to another stop, including round the end, and is silent with one stop', () => {
     expect(cue(home, { type: 'stop', dir: 1 })).toBe('swipe');
-    expect(cue(home, { type: 'stop', dir: -1 })).toBeUndefined();
-    expect(cue(app, { type: 'stop', dir: 1 })).toBeUndefined();
+    expect(cue(home, { type: 'stop', dir: -1 })).toBe('swipe');
+    expect(cue(app, { type: 'stop', dir: 1 })).toBe('swipe');
+    const alone = initialState(stopsOf({ episodes: [] }), false);
+    expect(cue(alone, { type: 'stop', dir: 1 })).toBeUndefined();
   });
 
   it('plays the back cue for Back from a screen and for the Back row, and nothing at the home screen', () => {
@@ -56,5 +58,23 @@ describe('the launcher menu sounds', () => {
     expect(step.effects).toEqual([]);
     expect(step.state).not.toBe(about);
     expect(cueOf(about, { type: 'activate', row: 'version' }, step)).toBe('select');
+  });
+});
+
+describe('the Settings sounds', () => {
+  const settings = reduce(app, { type: 'activate', row: 'settings' }).state;
+
+  it('changes a value with the change cue, and is silent where a meter cannot go further', () => {
+    expect(cue(settings, { type: 'step', row: 'opt:music', dir: -1 })).toBe('change');
+    expect(cue(settings, { type: 'activate', row: 'opt:audio' })).toBe('change');
+    expect(cue(settings, { type: 'activate', row: 'tab' })).toBe('change');
+    // Music starts at full, so there is nothing further up.
+    expect(cue(settings, { type: 'step', row: 'opt:music', dir: 1 })).toBeUndefined();
+  });
+
+  it('selects on the first tap on Reset and changes on the second', () => {
+    const armed = reduce(settings, { type: 'activate', row: 'reset' }).state;
+    expect(cue(settings, { type: 'activate', row: 'reset' })).toBe('select');
+    expect(cue(armed, { type: 'activate', row: 'reset' })).toBe('change');
   });
 });

@@ -89,6 +89,7 @@ test('a desktop Options screen has no Touch controls row', async ({ page }) => {
     'Controls',
     'Text size',
     'Motion',
+    'Applies to',
     'Back',
   ]);
 });

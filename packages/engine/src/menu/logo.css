@@ -1,0 +1,59 @@
+/* The wordmark: a small line above (the kicker), the title in big Fizz letters with a coloured edge under them,
+   and the episode's line below. Shared by a game's title screen and the launcher, which both put it in a `.lf-title`.
+   An episode gives it its colours: `--lf-logo` (the letters), `--lf-logo-edge` (the line under them) and
+   `--lf-kicker` (the line above), by its menu theme. The size is `--lf-n-logo`, whole pixels per glyph pixel. */
+.lf-title .head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lf-title .wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  font-weight: 700;
+}
+.lf-title .wordmark span {
+  display: block;
+}
+.lf-title .kicker {
+  --n: var(--lf-n-small);
+  color: var(--lf-kicker, var(--lf-accent));
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+}
+.lf-title .logo {
+  position: relative;
+  width: max-content;
+}
+.lf-title .hero {
+  --n: var(--lf-n-logo);
+  line-height: calc(var(--lf-cell) * var(--n));
+  margin-bottom: calc(var(--n) * 2px);
+  color: var(--lf-logo, #fff);
+  text-shadow:
+    0 calc(var(--n) * 1px) 0 var(--lf-logo-edge, var(--lf-rose)),
+    0 calc(var(--n) * 2px) 0 #000;
+}
+.lf-title .hero .w {
+  display: inline;
+}
+@media (max-width: 719px) {
+  .lf-title .hero .w {
+    display: block;
+  }
+}
+.lf-title .episode {
+  --n: var(--lf-n-small);
+  margin: 0;
+  color: var(--lf-muted);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+}
+
+/* Ben on the logo, placed against it by the page (`title-ben.ts` says where). */
+.lf-title .ben {
+  position: absolute;
+  image-rendering: pixelated;
+  pointer-events: none;
+  transform-origin: 50% 100%;
+}

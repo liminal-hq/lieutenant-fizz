@@ -3,6 +3,16 @@
 @import '@lieutenant-fizz/engine/menu/tokens.css';
 @import '@lieutenant-fizz/engine/menu/rows.css';
 @import '@lieutenant-fizz/engine/menu/keys.css';
+@import '@lieutenant-fizz/engine/menu/logo.css';
+@import '@lieutenant-fizz/engine/menu/scroll.css';
+@import '@lieutenant-fizz/engine/menu/slots.css';
+@import '@lieutenant-fizz/engine/touch-ui.css';
+
+/* The room the on-screen controls take beside the menu: set by the page, only where they would sit over it. */
+:root {
+  --lf-touch-left: 0px;
+  --lf-touch-right: 0px;
+}
 
 html,
 body {
@@ -31,12 +41,15 @@ body {
   display: flex;
   flex-direction: column;
   gap: calc(var(--n) * 3px);
-  padding: max(var(--lf-pad-y), var(--lf-safe-top)) max(var(--lf-pad-x), var(--lf-safe-right))
-    max(var(--lf-pad-y), var(--lf-safe-bottom)) max(var(--lf-pad-x), var(--lf-safe-left));
+  padding: max(var(--lf-pad-y), var(--lf-safe-top))
+    max(var(--lf-pad-x), var(--lf-safe-right), var(--lf-touch-right))
+    max(var(--lf-pad-y), var(--lf-safe-bottom))
+    max(var(--lf-pad-x), var(--lf-safe-left), var(--lf-touch-left));
   pointer-events: auto;
 }
 
-#launcher h1 {
+#launcher h1,
+#launcher h2 {
   --n: var(--lf-n-head);
   margin: 0;
   font-weight: 700;
@@ -45,6 +58,8 @@ body {
 }
 
 #launcher .menu {
+  /* Never squeezed by the column: the scroller measures how far the page overruns and cuts the menu itself. */
+  flex: none;
   align-self: flex-start;
   min-width: min(100%, calc(var(--n) * 11 * 14px));
 }
@@ -67,8 +82,36 @@ body {
     gap: 0;
   }
   #launcher .menu button {
-    height: 40px;
+    height: var(--lf-menu-row, 40px);
   }
+}
+
+/* The Settings tab strip, above the menu and outside what scrolls. */
+#launcher .menu.pinned {
+  flex: none;
+  align-self: flex-start;
+  min-width: min(100%, calc(var(--n) * 11 * 14px));
+}
+#launcher .menu[hidden] {
+  display: none;
+}
+
+/* A save's row is taller than a plain one: its picture and two lines set the height. */
+#launcher .menu button.slot,
+#launcher .menu button.slot .plate {
+  height: auto;
+  min-height: var(--lf-menu-row, 40px);
+}
+@media (pointer: coarse) {
+  #launcher .menu button.slot {
+    height: auto;
+  }
+}
+
+/* A scrolling menu lays every row out at one height (set by the page). */
+#launcher .menu[data-unit] > button {
+  height: var(--lf-menu-unit);
+  min-height: var(--lf-menu-unit);
 }
 
 /* A value (the version) sits at the plate's right edge. */
@@ -93,14 +136,90 @@ body {
   display: none;
 }
 
+/* The Settings tab strip is a heading, not a row: no plate, the names side by side with the current one lit.
+   It is still the top item of the menu, so up reaches it and left and right switch tab. */
+#launcher .menu button.tabstrip .plate,
+#launcher .menu button.tabstrip.sel .plate {
+  background: none;
+  clip-path: none;
+  animation: none;
+  justify-content: flex-start;
+  gap: calc(var(--n) * 5px);
+  color: var(--lf-muted);
+}
+#launcher .menu button.tabstrip {
+  margin-bottom: calc(var(--n) * 5px);
+}
+/* On a short touch screen the Sound tab's eight rows already fill the height, so the gap is smaller. */
+@media (pointer: coarse) {
+  #launcher .menu button.tabstrip {
+    margin-bottom: 4px;
+  }
+}
+#launcher .menu .tab {
+  padding: 0 calc(var(--n) * 1px);
+  border-bottom: calc(var(--n) * 1px) solid transparent;
+  color: var(--lf-muted);
+  cursor: pointer;
+}
+#launcher .menu .tab.on {
+  color: var(--lf-accent);
+  border-bottom-color: var(--lf-accent);
+}
+#launcher .menu button.tabstrip.sel .tab.on {
+  color: #fff;
+  border-bottom-color: #fff;
+}
+
+/* The wordmark stays on one line at the largest scale that fits (the page sizes it), unlike the game's narrow title.
+   A short touch screen drops the small line above it to leave the menu its room, but keeps the episode's name. */
+#launcher.lf-title .wordmark span {
+  white-space: nowrap;
+}
+/* The series logo and the episode's number start over the carousel's name, not over its arrow. */
+#launcher.lf-title .head,
+#launcher.lf-title > .episode {
+  margin-left: 44px;
+}
+#launcher.lf-title .hero .w {
+  display: inline;
+}
+@media (pointer: coarse) and (max-height: 420px) {
+  #launcher.lf-title .kicker {
+    display: none;
+  }
+}
+
+/* App settings: the app's icon stands in the margin to the left of the logo, so the logo itself stays where it is
+   from stop to stop. It is as tall as the logo's letters and their edge. */
+#launcher.lf-title .head.with-icon {
+  position: relative;
+}
+#launcher .app-icon {
+  position: absolute;
+  right: 100%;
+  bottom: 0;
+  margin-right: calc(var(--lf-n-logo) * 2px);
+  height: calc(var(--lf-n-logo) * 12px);
+  width: auto;
+  image-rendering: pixelated;
+}
+
 /* The carousel's heading: the previous and next arrows either side of the stop's name, and a pip for each stop. */
 #launcher .carousel {
   display: flex;
   align-items: center;
   gap: calc(var(--n) * 3px);
 }
-#launcher .carousel h1 {
+#launcher .carousel h2 {
   flex: 0 1 auto;
+  white-space: nowrap;
+}
+/* On a short window the episode's name takes the menu's size, so it stays on one line beside the arrows. */
+@media (max-height: 420px) {
+  #launcher .carousel h2 {
+    --n: var(--lf-n);
+  }
 }
 #launcher .arrow {
   --n: var(--lf-n-head);
@@ -125,7 +244,7 @@ body {
   opacity: 0.4;
   cursor: default;
 }
-#launcher .carousel[data-sub='true'] h1 {
+#launcher .carousel[data-sub='true'] h2 {
   margin-left: 0;
 }
 #launcher .pips {
@@ -148,62 +267,83 @@ body {
   display: none;
 }
 
-/* The demo strip: the scenery scrolls left along the bottom of the page, and Ben runs on the spot, hopping now and
-   then. One strip pixel is `--strip-scale` CSS pixels, a whole number, so the art stays crisp. It sits behind the
-   menu and fades out towards the top. */
-.strip {
-  --strip-scale: 1;
+/* The scenery: layers of the episode's art scroll left at their own speeds along the bottom of the page, with Ben
+   running on the ground. One art pixel is `--scene-scale` CSS pixels, a whole number, so it stays crisp. The sky is
+   continued up to the top of the window in the colour of its top row, from black. Everything sits behind the menu.
+   While the carousel steps, `--slide` (-1 to 1) shifts each layer by its own share of the window's width (`--k`). */
+.scenes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.scene {
+  --scene-scale: 1;
+  --slide: 0;
+  --art-h: calc(var(--scene-h) * var(--scene-scale) * 1px);
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, #000, var(--sky-top) calc(100% - var(--art-h)));
+  background-color: var(--sky-top);
+}
+.scene .layer {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: calc(var(--strip-h) * var(--strip-scale) * 1px);
-  background-image: var(--strip-image);
+  height: var(--art-h);
+  background-image: var(--image);
   background-repeat: repeat-x;
-  background-size: calc(var(--strip-w) * var(--strip-scale) * 1px)
-    calc(var(--strip-h) * var(--strip-scale) * 1px);
+  background-size: calc(var(--scene-w) * var(--scene-scale) * 1px) var(--art-h);
   background-position: 0 0;
   image-rendering: pixelated;
-  pointer-events: none;
-  -webkit-mask-image: linear-gradient(to top, #000 62%, transparent);
-  mask-image: linear-gradient(to top, #000 62%, transparent);
-  animation: lf-strip-scroll 26s linear infinite;
+  transform: translateX(calc(var(--slide) * var(--sw) * var(--k) * 1px));
+  animation: lf-scene-scroll var(--scroll, 0s) linear infinite;
 }
-.strip .ben {
+/* The stars tile up as well and fade out towards the horizon. */
+.scene .layer.field {
+  top: 0;
+  height: auto;
+  bottom: calc((var(--ground) + 4) * var(--scene-scale) * 1px);
+  background-repeat: repeat;
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent);
+  mask-image: linear-gradient(to bottom, #000 45%, transparent);
+}
+.scene .ben {
   position: absolute;
   left: 24%;
-  bottom: calc(var(--ground) * var(--strip-scale) * 1px);
-  width: calc(var(--ben-w) * var(--strip-scale) * 1px);
-  height: calc(var(--ben-h) * var(--strip-scale) * 1px);
+  bottom: calc(var(--ground) * var(--scene-scale) * 1px);
+  width: calc(var(--ben-w) * var(--scene-scale) * 1px);
+  height: calc(var(--ben-h) * var(--scene-scale) * 1px);
   animation: lf-ben-hop 4.2s ease-in-out infinite;
 }
-.strip .ben .run,
-.strip .ben .air {
+.scene .ben .run,
+.scene .ben .air {
   position: absolute;
   inset: 0;
   background-image: var(--ben-image);
   background-repeat: no-repeat;
-  background-size: calc(var(--ben-w) * var(--ben-frames) * var(--strip-scale) * 1px)
-    calc(var(--ben-h) * var(--strip-scale) * 1px);
+  background-size: calc(var(--ben-w) * var(--ben-frames) * var(--scene-scale) * 1px)
+    calc(var(--ben-h) * var(--scene-scale) * 1px);
   image-rendering: pixelated;
 }
-.strip .ben .run {
+.scene .ben .run {
   animation: lf-ben-run 0.34s steps(2, jump-end) infinite;
 }
-.strip .ben .air {
-  background-position-x: calc(var(--ben-w) * -2 * var(--strip-scale) * 1px);
+.scene .ben .air {
+  background-position-x: calc(var(--ben-w) * -2 * var(--scene-scale) * 1px);
   opacity: 0;
   animation: lf-ben-air 4.2s step-end infinite;
 }
-/* The strip moves left as far as it is wide, so the end of one pass meets the start of the next. */
-@keyframes lf-strip-scroll {
+/* A layer moves left as far as the picture is wide, so the end of one pass meets the start of the next. */
+@keyframes lf-scene-scroll {
   to {
-    background-position-x: calc(var(--strip-w) * var(--strip-scale) * -1px);
+    background-position-x: calc(var(--scene-w) * var(--scene-scale) * -1px);
   }
 }
 @keyframes lf-ben-run {
   to {
-    background-position-x: calc(var(--ben-w) * -2 * var(--strip-scale) * 1px);
+    background-position-x: calc(var(--ben-w) * -2 * var(--scene-scale) * 1px);
   }
 }
 /* A hop in the last third of the loop: up, then down. The jump picture shows while he is off the ground. */
@@ -214,7 +354,7 @@ body {
     transform: translateY(0);
   }
   82% {
-    transform: translateY(calc(var(--strip-scale) * -30px));
+    transform: translateY(calc(var(--scene-scale) * -30px));
   }
 }
 @keyframes lf-ben-air {
@@ -230,12 +370,19 @@ body {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .strip,
-  .strip .ben,
-  .strip .ben .run,
-  .strip .ben .air {
+  .scene .layer,
+  .scene .ben,
+  .scene .ben .run,
+  .scene .ben .air {
     animation: none;
   }
+}
+/* The Motion option set to Reduced (or to follow a system that is) stills the scenery too. */
+.rm .scene .layer,
+.rm .scene .ben,
+.rm .scene .ben .run,
+.rm .scene .ben .air {
+  animation: none;
 }
 
 /* A Back-gesture peek: a copy of the screen being left slides away and fades over the screen Back goes to, which is
@@ -279,4 +426,30 @@ body {
   #ui .keys {
     display: none;
   }
+}
+
+/* A touch device held upright: the page is landscape, so a plain screen asks for the phone to be turned. */
+#rotate {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #000;
+  padding: var(--lf-pad-y) var(--lf-pad-x);
+}
+#rotate[hidden] {
+  display: none;
+}
+#rotate h2 {
+  --n: var(--lf-n-head);
+  margin: 0 0 calc(var(--lf-n) * 6px);
+  color: var(--lf-accent);
+}
+#rotate p {
+  --n: var(--lf-n);
+  margin: 0;
+  color: var(--lf-muted);
 }

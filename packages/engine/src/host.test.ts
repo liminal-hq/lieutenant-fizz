@@ -4,7 +4,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it, vi } from 'vitest';
-import { LAUNCHER_URL, createHostBackend, detectHostKind, hostEnvOf } from './host';
+import {
+  LAUNCHER_URL,
+  createHostBackend,
+  detectHostKind,
+  hostEnvOf,
+  replaceLocation,
+} from './host';
 
 const LINUX = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36';
 const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/130.0 Mobile';
@@ -104,6 +110,22 @@ describe('createHostBackend', () => {
   it('keeps quit off Android even though it can go to the launcher', () => {
     const host = createHostBackend({ tauri: true, userAgent: ANDROID }, async () => {}, vi.fn());
     expect(host.quit).toBeUndefined();
+  });
+
+  it('opens a relative address in place of the page, never adding to the history', () => {
+    const calls: string[] = [];
+    const loc = {
+      href: 'tauri://localhost/episode-1/index.html?launch=new',
+      replace: (u: string) => calls.push(u),
+    };
+    replaceLocation(loc, '../index.html');
+    replaceLocation(loc, LAUNCHER_URL);
+    replaceLocation({ ...loc, href: 'http://tauri.localhost/debug.html' }, 'probe.html');
+    expect(calls).toEqual([
+      'tauri://localhost/index.html',
+      'tauri://localhost/index.html',
+      'http://tauri.localhost/probe.html',
+    ]);
   });
 
   it('navigates to the one launcher URL', () => {

@@ -56,6 +56,7 @@ test('Options > Sound: Left and Enter change the style, which is saved, and Esca
     'Controls',
     'Text size',
     'Motion',
+    'Applies to',
     'Back',
   ]);
   await expect(page.locator('#overlay .menu button.sel .lbl')).toHaveText('Sound');

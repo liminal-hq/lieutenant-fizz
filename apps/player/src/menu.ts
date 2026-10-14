@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { createHostBackend } from '@lieutenant-fizz/engine/host';
+import { createHostBackend, openPage } from '@lieutenant-fizz/engine/host';
 import { createPredictiveBack } from '@lieutenant-fizz/engine/predictive-back';
 import {
   pickFocus,
@@ -80,9 +80,11 @@ const adjust = (el: Element | null, dir: Direction): boolean => {
 
 const onIntent = (intent: Exclude<PadIntent, null>) => {
   if (!mode) return;
+  // The launcher shows the pad's hints once a pad is in use.
+  if (mode === 'menu') document.dispatchEvent(new CustomEvent('pad-active'));
   if (intent === 'back') {
     if (mode === 'menu') document.dispatchEvent(new CustomEvent('pad-back'));
-    else location.href = document.body.dataset.back ?? 'index.html';
+    else openPage(document.body.dataset.back ?? 'index.html');
     return;
   }
   // The launcher steps between its stops with left and right (a page that is not the launcher moves focus).
@@ -110,7 +112,7 @@ if (mode && mode !== 'menu') {
       // The plugin never rejects, but a call that hangs must not strand the page.
       const wait = new Promise<void>((resolve) => setTimeout(resolve, 300));
       void Promise.race([backend.setCanGoBack(false), wait]).then(() => {
-        location.href = document.body.dataset.back ?? 'index.html';
+        openPage(document.body.dataset.back ?? 'index.html');
       });
     };
     // A link that leaves the page releases Back too: the plugin's callback outlives this page's listener.
@@ -119,6 +121,21 @@ if (mode && mode !== 'menu') {
     void backend.onGesture({ invoked: leave });
   }
 }
+
+// The app's pages replace one another, so Back never walks through pages the player has already left: a link to
+// another page of the app opens in place of this one.
+document.addEventListener('click', (e) => {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+    return;
+  const link = (e.target as Element | null)?.closest<HTMLAnchorElement>('a[href]');
+  if (!link || link.target || link.hasAttribute('download')) return;
+  const url = new URL(link.href, location.href);
+  if (url.origin !== location.origin) return;
+  // A link to a place on this page (a hash) stays an ordinary link; a link to the page itself opens it in place.
+  if (url.hash && url.pathname === location.pathname && url.search === location.search) return;
+  e.preventDefault();
+  openPage(url.href);
+});
 
 const states: PadState[] = [];
 const frame = (now: number) => {

@@ -25,6 +25,15 @@ export const EPISODE_1_MENU = {
     deny: 'menuDeny',
     swipe: 'menuSwipe',
   },
+  // The phone buzzes as the menus sound: the cursor, a choice, Back, a change (the toggle's double tap) and "no".
+  haptics: {
+    move: 'ui.move',
+    select: 'ui.select',
+    back: 'ui.back',
+    change: 'ui.toggleOn',
+    deny: 'ui.reject',
+    swipe: 'ui.move',
+  },
 } as const satisfies MenuTheme;
 
 /** The theme with its bullet: the soda can. */

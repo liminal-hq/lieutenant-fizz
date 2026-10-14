@@ -1,0 +1,33 @@
+{
+  "width": 640,
+  "height": 192,
+  "ground": 32,
+  "skyTop": "#0000aa",
+  "ben": true,
+  "layers": [
+    {
+      "src": "sky.png",
+      "speed": 0
+    },
+    {
+      "src": "bodies.png",
+      "speed": 0.05
+    },
+    {
+      "src": "clouds.png",
+      "speed": 0.12
+    },
+    {
+      "src": "hills-far.png",
+      "speed": 0.3
+    },
+    {
+      "src": "hills-near.png",
+      "speed": 0.55
+    },
+    {
+      "src": "ground.png",
+      "speed": 1
+    }
+  ]
+}

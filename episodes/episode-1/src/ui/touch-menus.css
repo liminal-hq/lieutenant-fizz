@@ -2,17 +2,10 @@
    On touch the controls stay up on menu screens and drive them like a gamepad, so menu content keeps
    clear of them: `--lf-touch-left` and `--lf-touch-right` (set by the shell from where the shown
    controls sit, 0 without them) push it right of the D-pad and left of the buttons. The controls'
-   layer sits above the menus' scrims, which would otherwise take every touch. */
+   layer (the engine's `touch-ui.css`) sits above the menus' scrims, which would otherwise take every touch. */
 :root {
   --lf-touch-left: 0px;
   --lf-touch-right: 0px;
-}
-#touch {
-  z-index: 2;
-}
-#touch [data-control][hidden],
-#touch .face [hidden] {
-  display: none;
 }
 #stage[data-touch] #title,
 #stage[data-touch] #overlay {

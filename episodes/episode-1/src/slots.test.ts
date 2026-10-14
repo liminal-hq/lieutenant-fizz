@@ -5,19 +5,8 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Stored } from './save';
-import {
-  AREA_NAMES,
-  LEVEL_TOTAL,
-  areaName,
-  clearedCount,
-  formatDate,
-  formatPlayed,
-  slotBrief,
-  slotDetail,
-  slotName,
-  slotTitle,
-  summarise,
-} from './slots';
+import { slotBrief, slotDetail, slotTitle } from '@lieutenant-fizz/engine/menu/slot-text';
+import { AREA_NAMES, LEVEL_TOTAL, areaName, clearedCount, summarise } from './slots';
 
 const stored = (over: Partial<Stored['progress']> = {}, at = Date.UTC(2026, 9, 7, 16)): Stored => ({
   v: 3,
@@ -34,35 +23,11 @@ const stored = (over: Partial<Stored['progress']> = {}, at = Date.UTC(2026, 9, 7
 });
 
 describe('slot text', () => {
-  it('names the autosave and the four slots', () => {
-    expect(slotName('auto')).toBe('Autosave');
-    expect(slotName(3)).toBe('Slot 3');
-  });
-
   it('counts cleared levels and ignores the secret flag', () => {
     expect(clearedCount(0)).toBe(0);
     expect(clearedCount(0b101)).toBe(2);
     expect(clearedCount(0x8000)).toBe(0);
     expect(clearedCount(0x8000 | 0x7fff)).toBe(LEVEL_TOTAL);
-  });
-
-  it('formats time played as hours and minutes', () => {
-    expect(formatPlayed(0)).toBe('0:00');
-    expect(formatPlayed(42 * 60)).toBe('0:42');
-    expect(formatPlayed(72 * 60 + 59)).toBe('1:12');
-    expect(formatPlayed(-5)).toBe('0:00');
-  });
-
-  it('formats the date in Canadian English', () => {
-    const d = formatDate(Date.UTC(2026, 9, 7, 16), 'UTC');
-    expect(d).toMatch(/Wed/);
-    expect(d).toMatch(/Oct/);
-    expect(d).toMatch(/7/);
-  });
-
-  it('does not throw for a date outside the range a Date can hold', () => {
-    expect(formatDate(1e300)).toBe('');
-    expect(formatDate(Number.NaN)).toBe('');
   });
 
   it('names areas and falls back to the first for an unknown id', () => {

@@ -137,4 +137,57 @@ describe('applying the launcher effects', () => {
     await applyEffects([{ kind: 'navigate', url: 'debug.html' }], deps);
     expect(log).toEqual(['release', 'reclaim', "toast:Couldn't open that page"]);
   });
+
+  it('closes the app and says nothing when it closes', async () => {
+    const { deps, log } = setup();
+    await applyEffects([{ kind: 'quit' }], { ...deps, quit: async () => true });
+    expect(log).toEqual([]);
+  });
+
+  it('stays open with a message when the store could not be written, and can try again', async () => {
+    const { deps, log } = setup();
+    let closed = false;
+    const quit = async () => closed;
+    await applyEffects([{ kind: 'quit' }], { ...deps, quit });
+    expect(log).toEqual([`toast:${SAVE_FAILED}, so the app stays open`]);
+    closed = true;
+    log.length = 0;
+    await applyEffects([{ kind: 'quit' }], { ...deps, quit });
+    expect(log).toEqual([]);
+  });
+
+  it('treats a quit that throws as staying open', async () => {
+    const { deps, log } = setup();
+    await applyEffects([{ kind: 'quit' }], {
+      ...deps,
+      quit: async () => {
+        throw new Error('no window');
+      },
+    });
+    expect(log).toEqual([`toast:${SAVE_FAILED}, so the app stays open`]);
+  });
+
+  it('saves an option and writes the store out at once, and says so when it would not save', async () => {
+    const { deps, log } = setup(async () => true);
+    const saved: string[] = [];
+    await applyEffects([{ kind: 'save-option', key: 'music', value: 3 }], {
+      ...deps,
+      options: { save: (k, v) => (saved.push(`${k}=${v}`), true), reset: () => true },
+    });
+    expect(saved).toEqual(['music=3']);
+    expect(log).toEqual(['flush']);
+    const failed = setup();
+    await applyEffects([{ kind: 'reset-options', keys: ['music'] }], {
+      ...failed.deps,
+      options: { save: () => true, reset: () => false },
+    });
+    expect(failed.log).toEqual([`toast:${SAVE_FAILED}`]);
+  });
+
+  it('starts the clock for Reset', async () => {
+    const { deps } = setup();
+    let armed = 0;
+    await applyEffects([{ kind: 'arm' }], { ...deps, arm: () => void armed++ });
+    expect(armed).toBe(1);
+  });
 });

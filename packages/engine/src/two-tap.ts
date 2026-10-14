@@ -1,4 +1,4 @@
-// The two-tap Reset shared by the Touch controls and Sound screens: a first tap arms it for a few seconds.
+// The two-tap Reset shared by the settings screens of the game and the launcher: a first tap arms it for a few seconds.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

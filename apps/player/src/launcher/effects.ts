@@ -20,10 +20,24 @@ export interface EffectDeps {
   releaseBack?(): Promise<void>;
   /** Takes Back again when the page was not left after all. */
   reclaimBack?(): void;
+  /** Closes the app: leaves fullscreen, writes the store out and quits. Resolves false when it stayed open (the write failed). */
+  quit?(): Promise<boolean>;
+  /** Saves an app-wide option, or puts some back to their defaults; each returns false when the store would not take it. */
+  options?: {
+    save(key: string, value: number | boolean): boolean;
+    reset(keys: readonly string[]): boolean;
+  };
+  /** Exports and imports the saves file; each resolves what to tell the player, or undefined when they closed the dialog. */
+  saves?: { export(): Promise<string | undefined>; import(): Promise<string | undefined> };
+  /** Starts the clock that disarms Reset if its second tap does not come. */
+  arm?(): void;
 }
 
 /** The sets of dependencies that are leaving the page now, so a second press while the first is still writing does not leave twice. */
 const leaving = new WeakSet<EffectDeps>();
+
+/** The sets of dependencies with a file dialog open now. */
+const filing = new WeakSet<EffectDeps>();
 
 /** What the player is told when the store would not take a write, so a page is not left with nothing saved. */
 export const SAVE_FAILED = "Couldn't save: storage is full or blocked";
@@ -41,6 +55,45 @@ export async function applyEffects(effects: readonly Effect[], deps: EffectDeps)
       );
     } else if (effect.kind === 'save-unlock') {
       if (!writeUnlocked(deps.store, effect.unlocked)) deps.toast(SAVE_FAILED);
+    } else if (effect.kind === 'save-option' || effect.kind === 'reset-options') {
+      const ok =
+        effect.kind === 'save-option'
+          ? deps.options?.save(effect.key, effect.value)
+          : deps.options?.reset(effect.keys);
+      if (!ok) deps.toast(SAVE_FAILED);
+      // Written out at once, so closing the window straight after a change does not lose it.
+      else void Promise.resolve(flushable(deps.store)?.flush()).catch(() => {});
+    } else if (effect.kind === 'export-saves' || effect.kind === 'import-saves') {
+      // One file dialog at a time: a second tap while one is open does nothing.
+      if (filing.has(deps) || !deps.saves) continue;
+      filing.add(deps);
+      try {
+        const message = await (effect.kind === 'export-saves'
+          ? deps.saves.export()
+          : deps.saves.import());
+        if (message) deps.toast(message);
+      } catch (error) {
+        console.warn('The saves file failed', error);
+        deps.toast("Couldn't use the file");
+      } finally {
+        filing.delete(deps);
+      }
+    } else if (effect.kind === 'arm') {
+      deps.arm?.();
+    } else if (effect.kind === 'quit') {
+      if (leaving.has(deps) || !deps.quit) return;
+      leaving.add(deps);
+      let closed = false;
+      try {
+        closed = await deps.quit();
+      } catch (error) {
+        console.warn('Closing the app failed', error);
+      }
+      if (!closed) {
+        leaving.delete(deps);
+        deps.toast(`${SAVE_FAILED}, so the app stays open`);
+      }
+      return;
     } else {
       // Leaving: for a page of the app, or for an episode, which is started where the launch says. One at a time.
       if (leaving.has(deps)) return;

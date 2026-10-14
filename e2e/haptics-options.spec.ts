@@ -66,6 +66,7 @@ test('a desktop without a vibrator or a pad has no Haptics row in Options', asyn
     'Controls',
     'Text size',
     'Motion',
+    'Applies to',
     'Back',
   ]);
   expect(errors).toEqual([]);

@@ -23,6 +23,14 @@ describe('the menu theme', () => {
     });
   });
 
+  it('gives the wordmark its own colours, so each episode can have its own', () => {
+    expect(themeVars({ colours: { logo: '#fff', logoEdge: '#0af', kicker: '#fa0' } })).toEqual({
+      '--lf-logo': '#fff',
+      '--lf-logo-edge': '#0af',
+      '--lf-kicker': '#fa0',
+    });
+  });
+
   it('writes every colour it has', () => {
     const vars = themeVars({
       colours: { text: 'a', dim: 'b', accent: 'c', muted: 'd', ink: 'e' },

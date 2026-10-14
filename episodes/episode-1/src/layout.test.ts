@@ -3,21 +3,19 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { scaleSteps } from '@lieutenant-fizz/engine/font/scale';
+import { scaleSteps, touchWordCap } from '@lieutenant-fizz/engine/font/scale';
 import { describe, expect, it } from 'vitest';
 import {
   captionAnimation,
   captionPosition,
   creditsTransform,
   headCandidates,
-  isPortrait,
   layoutVars,
   NO_GUTTERS,
   promptClear,
   titleCandidates,
   TOUCH_WORD_GLYPHS,
   touchCount,
-  touchWordCap,
   watchResize,
   type TouchGutters,
 } from './layout';
@@ -208,14 +206,6 @@ describe('watchResize on a phone', () => {
     expect(win.handlers.size).toBe(2);
     stop();
     expect(win.handlers.size).toBe(0);
-  });
-});
-
-describe('isPortrait', () => {
-  it('is true only when taller than wide', () => {
-    expect(isPortrait(390, 844)).toBe(true);
-    expect(isPortrait(844, 390)).toBe(false);
-    expect(isPortrait(600, 600)).toBe(false);
   });
 });
 

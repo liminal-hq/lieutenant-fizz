@@ -5,6 +5,7 @@
 
 import type { ControlPatch, Pattern, SoundType } from '@liminal-hq/undertone';
 import { applyAudioTune, type AudioTune, type TuneReport } from './audio-tune';
+import type { AudioContextLike } from '@liminal-hq/undertone';
 import { Master, type RoomProfile } from './master';
 import { MIX_OPEN, holdRamp, mixRamps, type MixShape, type Ramp } from './mix';
 import {
@@ -501,6 +502,16 @@ export class GameAudio {
   /** Only the app boot path waits for Undertone; the web build starts music on the built-in synth at the first gesture. */
   private readonly waitForUndertone: boolean;
   private disposed = false;
+  /** Each music loop gets a gain of its own, so one track can fade out as the next fades in (see `playMusic`). */
+  private readonly musicFades: boolean;
+  /** The gain the loop playing goes through, when `musicFades` is on. */
+  private loopFade: GainNode | null = null;
+  /** Loops that are fading out, with the timers that stop them. */
+  private readonly retiring = new Set<{
+    handle: { stop(): void };
+    fade: GainNode;
+    timer: ReturnType<typeof setTimeout>;
+  }>();
   /** The Enhanced music route, built the first time Enhanced music plays. */
   private musicBus: MusicBus | null = null;
   /** The Enhanced master chain, built on first use and taken down shortly after Classic returns. */
@@ -527,9 +538,10 @@ export class GameAudio {
   constructor(
     private readonly patterns: AudioPatterns,
     load: () => Promise<UndertoneModule> = () => import('@liminal-hq/undertone'),
-    options: { unlockAtBoot?: boolean } = {},
+    options: { unlockAtBoot?: boolean; musicFades?: boolean } = {},
   ) {
     this.waitForUndertone = !!options.unlockAtBoot;
+    this.musicFades = !!options.musicFades;
     // A page that went to the background before this was built missed the visibility event.
     this.hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
     window.addEventListener('pointerdown', this.unlock);
@@ -791,13 +803,42 @@ export class GameAudio {
     if (k) this.play(k, at);
   }
 
-  playMusic(track: string | null, force = false): void {
+  /**
+   * Plays a track. With `fadeSeconds` (and `musicFades` on) the track already playing fades out over that long as
+   * the new one fades in, so the two overlap; without it the old one stops at once.
+   */
+  playMusic(track: string | null, force = false, fadeSeconds = 0): void {
     if (this.disposed) return;
     if (track === this.track && !force) return;
     this.track = track;
-    this.handle?.stop();
+    const old = this.handle;
+    const oldFade = this.loopFade;
     this.handle = null;
+    this.loopFade = null;
     this.pending = null;
+    const crossfade = fadeSeconds > 0 && this.musicFades && !!old && !!oldFade && !!this.ctx;
+    if (crossfade && old && oldFade && this.ctx) {
+      const now = this.ctx.currentTime;
+      oldFade.gain.cancelScheduledValues(now);
+      oldFade.gain.setValueAtTime(oldFade.gain.value, now);
+      oldFade.gain.linearRampToValueAtTime(0, now + fadeSeconds);
+      const retired = {
+        handle: old,
+        fade: oldFade,
+        timer: setTimeout(
+          () => {
+            old.stop();
+            // The loop is done with its gain, so take it out of the graph.
+            oldFade.disconnect();
+            this.retiring.delete(retired);
+          },
+          fadeSeconds * 1000 + 150,
+        ),
+      };
+      this.retiring.add(retired);
+    } else {
+      old?.stop();
+    }
     const t = track ? this.patterns.music[track] : undefined;
     const song = track && this.musicStyle === 'enhanced' ? this.patterns.songs?.[track] : undefined;
     if (!this.music || !t) return;
@@ -806,9 +847,18 @@ export class GameAudio {
       return;
     }
     const field = this.mode === 'enhanced' ? this.enhancedMusic(this.ctx) : null;
+    // This loop's own gain, into the music bus (Enhanced) or the speakers (Classic); the loop is played into it.
+    const fade = this.musicFades ? this.ctx.createGain() : null;
+    if (fade) {
+      fade.gain.value = crossfade ? 0 : 1;
+      fade.connect(field ? field.bus : this.ctx.destination);
+      if (crossfade) fade.gain.linearRampToValueAtTime(1, this.ctx.currentTime + fadeSeconds);
+      this.loopFade = fade;
+    }
+    const into = fade ? routedContext(this.ctx, fade) : null;
     if (this.ut && song && this.ut.arrange && this.ut.silence) {
       try {
-        this.handle = this.loopSong(this.ut, song, field);
+        this.handle = this.loopSong(this.ut, song, field, into);
         return;
       } catch (e) {
         console.warn('Undertone song failed, playing the track', track, e);
@@ -820,19 +870,30 @@ export class GameAudio {
         const voices = t.parts.map((p) =>
           buildVoice(U, p, field ? 1 : this.musicVol, true, !!field),
         );
-        this.handle = U.stack(...voices).loop(
-          field ? { ctx: field.routed, bpm: t.bpm } : { ctx: this.ctx, bpm: t.bpm },
-        );
+        this.handle = U.stack(...voices).loop({
+          ctx: into ?? field?.routed ?? this.ctx,
+          bpm: t.bpm,
+        });
         return;
       } catch (e) {
         console.warn('Undertone music failed, using the built-in synth', track, e);
       }
     }
-    this.handle = this.mini.loop(t, field ? 1 : this.musicVol, field?.bus);
+    // Classic with a fade plays on a synth of its own that ends in the fade (its parts keep no stereo roles).
+    this.handle = fade
+      ? field
+        ? this.mini.loop(t, 1, fade)
+        : new MiniSynth(this.ctx, fade).loop(t, this.musicVol)
+      : this.mini.loop(t, field ? 1 : this.musicVol, field?.bus);
   }
 
   /** Loops a song: one stream per voice, each arranged across the sections it plays in. */
-  private loopSong(U: UndertoneModule, song: MusicSong, field: MusicBus | null): { stop(): void } {
+  private loopSong(
+    U: UndertoneModule,
+    song: MusicSong,
+    field: MusicBus | null,
+    into: AudioContextLike | null = null,
+  ): { stop(): void } {
     const arrange = U.arrange!;
     const silence = U.silence! as Voice;
     const vol = field ? 1 : this.musicVol;
@@ -844,9 +905,20 @@ export class GameAudio {
         }),
       ),
     );
-    return U.stack(...streams).loop(
-      field ? { ctx: field.routed, bpm: song.bpm } : { ctx: this.ctx!, bpm: song.bpm },
-    );
+    return U.stack(...streams).loop({
+      ctx: into ?? field?.routed ?? this.ctx!,
+      bpm: song.bpm,
+    });
+  }
+
+  /** Stops the loops still fading out, and takes their gains out of the graph. */
+  private stopRetiring(): void {
+    for (const r of this.retiring) {
+      clearTimeout(r.timer);
+      r.handle.stop();
+      r.fade.disconnect();
+    }
+    this.retiring.clear();
   }
 
   /**
@@ -865,6 +937,8 @@ export class GameAudio {
     this.music = on;
     this.handle?.stop();
     this.handle = null;
+    this.loopFade = null;
+    this.stopRetiring();
     if (on && this.track) this.playMusic(this.track, true);
   }
 
@@ -913,6 +987,7 @@ export class GameAudio {
     this.master = null;
     this.handle?.stop();
     this.handle = null;
+    this.stopRetiring();
     window.removeEventListener('pointerdown', this.unlock);
     window.removeEventListener('pointerup', this.unlock);
     window.removeEventListener('keydown', this.unlock);

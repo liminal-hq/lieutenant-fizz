@@ -14,7 +14,7 @@
 @import './ui/credits.css';
 @import './ui/stinger.css';
 @import './ui/motion.css';
-@import './ui/touch.css';
+@import '@lieutenant-fizz/engine/touch-ui.css';
 @import './ui/phone.css';
 @import './ui/touch-menus.css';
 @import './ui/phone-title.css';

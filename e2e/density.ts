@@ -1,4 +1,4 @@
-// The menu row heights the browser specs expect, matching the table in `menu-density.ts`.
+// The menu row heights the browser specs expect, matching the table in `packages/engine/src/menu/density.ts`.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

@@ -185,22 +185,6 @@ export const TOUCH_COUNT_MAX = 999;
 export const touchCount = (ammo: number): string =>
   String(Math.min(TOUCH_COUNT_MAX, Math.max(0, Math.trunc(ammo) || 0)));
 
-/** The room a word keeps from the edge of its face, on each side, in CSS pixels. */
-export const TOUCH_WORD_MARGIN = 4;
-
-/**
- * The largest whole pixel scale at which a word `glyphs` pixels wide at scale 1 stays inside a round
- * face `face` px across with `margin` px to spare on each side. Never below 1, so a very small face
- * still shows its word.
- */
-export function touchWordCap(face: number, glyphs: number, margin = TOUCH_WORD_MARGIN): number {
-  if (!(glyphs > 0)) return MAX_SCALE;
-  return Math.min(MAX_SCALE, Math.max(1, Math.floor((face - 2 * margin) / glyphs)));
-}
-
-/** Whether a window of this size is taller than it is wide (a phone held upright). */
-export const isPortrait = (width: number, height: number): boolean => height > width;
-
 /** The credits roll's transform for a given distance travelled, in whole CSS pixels. */
 export const creditsTransform = (viewport: number, offset: number): string =>
   `translateY(${Math.round(viewport - offset)}px)`;

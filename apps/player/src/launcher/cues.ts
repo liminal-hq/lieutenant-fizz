@@ -11,9 +11,20 @@ export function cueOf(before: LauncherState, action: Action, step: Step): MenuCu
   if (action.type === 'back') return step.state !== before ? 'back' : undefined;
   // Stepping to another stop is the swipe; at either end there is nowhere to step, so it is silent.
   if (action.type === 'stop') return step.state !== before ? 'swipe' : undefined;
+  if (action.type === 'disarm' || action.type === 'saves' || action.type === 'options')
+    return undefined;
+  // An arrow on a Settings row changes it, and is silent where there is nothing more to change (a full meter).
+  if (action.type === 'pick-tab') return step.state !== before ? 'change' : undefined;
+  if (action.type === 'step') return step.state !== before ? 'change' : undefined;
   // A late press on a row that is no longer on screen, or a row with nothing to do, is a "no".
   if (step.state === before && step.effects.length === 0) return 'deny';
-  if (action.row === 'hide-debug') return 'change';
+  if (action.row === 'hide-debug' || action.row === 'tab' || action.row.startsWith('opt:')) {
+    return 'change';
+  }
+  // The first tap on Reset only arms it; the second puts the values back.
+  if (action.row === 'reset') {
+    return step.effects.some((e) => e.kind === 'reset-options') ? 'change' : 'select';
+  }
   if (action.row === 'back') return 'back';
   return 'select';
 }

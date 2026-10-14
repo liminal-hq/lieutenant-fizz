@@ -1,0 +1,34 @@
+{
+  "width": 640,
+  "height": 192,
+  "ground": 32,
+  "skyTop": "#000000",
+  "ben": false,
+  "layers": [
+    {
+      "src": "sky.png",
+      "speed": 0
+    },
+    {
+      "src": "stars.png",
+      "speed": 0.03,
+      "field": true
+    },
+    {
+      "src": "bodies.png",
+      "speed": 0.05
+    },
+    {
+      "src": "skyline.png",
+      "speed": 0.25
+    },
+    {
+      "src": "fog.png",
+      "speed": 0.4
+    },
+    {
+      "src": "ground.png",
+      "speed": 1
+    }
+  ]
+}

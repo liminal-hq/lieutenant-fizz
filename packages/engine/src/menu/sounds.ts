@@ -15,6 +15,12 @@ export const MENU_CUES: readonly MenuCue[] = ['move', 'select', 'back', 'change'
  */
 export type MenuSounds = Readonly<Record<MenuCue, string>>;
 
+/**
+ * The haptic cue each menu cue plays, by the id of a cue in the episode's haptic table (`ui.move`, `ui.reject`...),
+ * so a phone buzzes for a menu as it sounds. A cue left out is silent to the hand.
+ */
+export type MenuHaptics = Readonly<Partial<Record<MenuCue, string>>>;
+
 /** Plays the sound for a cue. */
 export interface MenuSoundPlayer {
   cue(cue: MenuCue): void;

@@ -9,6 +9,10 @@ export interface RowItem {
   /** A value shown beside the label. */
   value?: string;
   disabled?: boolean;
+  /** `meter` shows `meter` of {@link METER_BLOCKS} blocks; `choice` shows `◄ value ►` while the row is selected. */
+  kind?: 'meter' | 'choice';
+  /** Lit blocks, 0 to 8, for a `meter` row. */
+  meter?: number;
 }
 
 /** The bullet as an image: the data URL, and how many frames it holds side by side. */
@@ -46,14 +50,23 @@ function make<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-/** The label, and the value after it when there is one. */
-export function fillPlate(plate: HTMLElement, item: RowItem): void {
+/** The blocks on a volume meter. */
+export const METER_BLOCKS = 8;
+
+/** The label, then the meter or the value after it: a choice shows `◄ value ►` while its row is selected. */
+export function fillPlate(plate: HTMLElement, item: RowItem, selected = false): void {
   const label = make('span', { class: 'lbl' });
   label.textContent = item.label;
   plate.append(label);
-  if (item.value) {
+  if (item.kind === 'meter') {
+    const meter = make('span', { class: 'meter' });
+    for (let k = 0; k < METER_BLOCKS; k++) {
+      meter.append(make('i', k < (item.meter ?? 0) ? { class: 'on' } : {}));
+    }
+    plate.append(meter);
+  } else if (item.value) {
     const value = make('span', { class: 'val' });
-    value.textContent = item.value;
+    value.textContent = item.kind === 'choice' && selected ? `◄ ${item.value} ►` : item.value;
     plate.append(value);
   }
 }
@@ -93,7 +106,7 @@ export function renderRows<T extends RowItem>(
     const state: RowState = { i, selected, button };
     options.decorate?.(button, item, state);
     if (options.fill) options.fill(plate, item, state);
-    else fillPlate(plate, item);
+    else fillPlate(plate, item, selected);
     button.append(gutter, plate);
     button.addEventListener('click', () => options.onClick(i));
     if (options.onHover) {

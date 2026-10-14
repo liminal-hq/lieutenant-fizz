@@ -29,7 +29,7 @@ async function openOptions(page: Page, layout: string): Promise<void> {
     lf.debugShow('title');
     lf.debugShow('options');
   });
-  await expect(page.locator('#overlay .menu button')).toHaveCount(10);
+  await expect(page.locator('#overlay .menu button')).toHaveCount(11);
   await settle(page);
 }
 

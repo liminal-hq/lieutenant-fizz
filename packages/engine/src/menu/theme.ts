@@ -3,9 +3,10 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { SfxVoice } from '../audio';
+import type { MusicSong, MusicTrack, SfxVoice } from '../audio';
 import type { Grid } from '../pen';
-import type { MenuSounds } from './sounds';
+import type { HapticTable } from '../haptic-pattern';
+import type { MenuHaptics, MenuSounds } from './sounds';
 
 /** The colours a menu reads, as CSS colours. Any left out keep the page's defaults (`tokens.css`). */
 export interface MenuColours {
@@ -19,6 +20,12 @@ export interface MenuColours {
   muted?: string;
   /** Text on the plate. */
   ink?: string;
+  /** The wordmark's letters (white by default). */
+  logo?: string;
+  /** The wordmark's edge, the line under the letters (rose by default). */
+  logoEdge?: string;
+  /** The small line above the wordmark (the accent by default). */
+  kicker?: string;
 }
 
 /**
@@ -35,6 +42,8 @@ export interface MenuTheme {
   bulletStepMs?: number;
   /** The effect each menu cue plays. */
   sounds?: MenuSounds;
+  /** The haptic cue each menu cue plays. */
+  haptics?: MenuHaptics;
 }
 
 /** How long each bullet frame shows when the theme does not say. */
@@ -46,6 +55,9 @@ const COLOUR_VARS: readonly (readonly [keyof MenuColours, string])[] = [
   ['accent', '--lf-accent'],
   ['muted', '--lf-muted'],
   ['ink', '--lf-ink'],
+  ['logo', '--lf-logo'],
+  ['logoEdge', '--lf-logo-edge'],
+  ['kicker', '--lf-kicker'],
 ];
 
 /** The custom properties a theme sets: only those it gives, so the page's defaults fill the rest. */
@@ -92,6 +104,10 @@ export interface MenuThemeData {
   /** The effect each menu cue plays, and the voices of each of those effects. */
   sounds?: MenuSounds;
   voices?: Record<string, readonly SfxVoice[]>;
+  /** The haptic cue each menu cue plays, and the table that holds those cues (only them). */
+  haptics?: { cues: MenuHaptics; table: HapticTable };
+  /** The episode's music for the launcher: its tracks (and Enhanced songs for some), and the name of its main theme. */
+  music?: { main: string; tracks: Record<string, MusicTrack>; songs?: Record<string, MusicSong> };
 }
 
 /** The theme a page applies from its data. The bullet picture is handled by the page (`bulletImageOf`). */

@@ -1,84 +1,9 @@
 @import '@lieutenant-fizz/engine/menu/rows.css';
 @import '@lieutenant-fizz/engine/menu/keys.css';
+@import '@lieutenant-fizz/engine/menu/logo.css';
+@import '@lieutenant-fizz/engine/menu/scroll.css';
+@import '@lieutenant-fizz/engine/menu/slots.css';
 
-.menu .meter {
-  display: flex;
-  gap: max(2px, calc((var(--n) - 1) * 1px));
-}
-.menu .meter i {
-  width: calc(var(--n) * 3px);
-  height: calc(var(--n) * 5px);
-  background: rgba(255, 255, 255, 0.18);
-}
-.menu .meter i.on {
-  background: #55ff55;
-}
-.menu button.sel .meter i {
-  background: rgba(26, 16, 0, 0.25);
-}
-.menu button.sel .meter i.on {
-  background: var(--lf-ink);
-}
-/* A menu that does not fit its screen scrolls inside its own area, cut to height by the shell. The
-   scrollbar is hidden: the chevrons at the edges say there are more rows. */
-.menu[data-scroll] {
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  scrollbar-width: none;
-  /* A drag, a fling or the wheel comes to rest with a whole row at the top edge; the shell cuts the
-     menu to a whole number of rows, so the bottom edge falls between rows too. */
-  scroll-snap-type: y mandatory;
-}
-.menu[data-scroll] > button {
-  scroll-snap-align: start;
-}
-.menu[data-scroll]::-webkit-scrollbar {
-  display: none;
-}
-/* A scrolling menu has a thin strip above and another below it (`Ui.layoutScroll` reserves them as the
-   menu's margins), and the "more rows" chevrons stand centred in those strips, clear of every row. The
-   shell sets each strip's height and `--lf-cue`, the chevron's size in CSS pixels per art pixel. */
-.screen .more {
-  position: absolute;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-.screen .more[hidden] {
-  display: none;
-}
-.screen .more img {
-  width: calc(var(--lf-cue, 1) * 11px);
-  height: calc(var(--lf-cue, 1) * 7px);
-  image-rendering: pixelated;
-  animation: lf-more 1.26s step-end infinite;
-}
-.screen .more.up img {
-  transform: scaleY(-1);
-  animation-name: lf-more-up;
-}
-@keyframes lf-more {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(calc(var(--lf-cue, 1) * 1px));
-  }
-}
-@keyframes lf-more-up {
-  0%,
-  100% {
-    transform: scaleY(-1) translateY(0);
-  }
-  50% {
-    transform: scaleY(-1) translateY(calc(var(--lf-cue, 1) * 1px));
-  }
-}
 /* A scrolling list lays every row out at the height of its tallest (`--lf-menu-unit`, set by the shell),
    so the whole-row snapping and the window maths hold when a save slot's text wraps. */
 #stage .menu[data-unit] > button,
@@ -96,101 +21,12 @@
   outline-offset: 2px;
 }
 
-/* Save slot rows: thumbnail, two lines of text and a pip per level. */
-.menu {
-  max-width: 100%;
-}
-.menu button.slot {
-  height: auto;
-  min-height: calc(var(--n) * 10px);
-  max-width: 100%;
-  text-shadow: none;
-}
-.menu button.slot .plate {
-  min-width: 0;
-  gap: calc(var(--n) * 4px);
-  padding: calc(var(--n) * 2px) calc(var(--n) * 4px) calc(var(--n) * 2px) calc(var(--n) * 2px);
-  background: rgba(5, 5, 7, 0.6);
-}
-.menu .thumb {
-  flex: none;
-  width: calc(60px * var(--lf-thumb));
-  height: calc(44px * var(--lf-thumb));
-  box-sizing: border-box;
-  image-rendering: pixelated;
-  box-shadow: 0 0 0 2px var(--lf-dim);
-}
-.menu .thumb.none {
-  box-shadow: none;
-  border: 2px dashed var(--lf-dim);
-}
-.menu button.sel .thumb {
-  box-shadow: 0 0 0 2px var(--lf-ink);
-}
-.menu button.sel .thumb.none {
-  box-shadow: none;
-  border-color: var(--lf-ink);
-}
-.menu .txt {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  text-align: left;
-}
-.menu .l1 {
-  --n: var(--lf-n-small);
-}
-.menu .l2 {
-  --n: var(--lf-n-hint);
-  color: var(--lf-muted);
-  overflow-wrap: anywhere;
-}
-.menu .l2.brief {
-  display: none;
-}
-/* Narrow windows: drop the thumbnail, pips and date so five slots still fit. */
+/* Narrow windows: the Controls table keeps only the column in use. */
 @media (max-width: 559px) {
-  .menu .thumb,
-  .menu .pips-row {
-    display: none;
-  }
-  .menu .l2.full {
-    display: none;
-  }
-  .menu .l2.brief {
-    display: block;
-  }
   #controls th:not(.on, :first-child),
   #controls td:not(.on, :first-child) {
     display: none;
   }
-}
-.menu button.sel .l2 {
-  color: var(--lf-ink);
-}
-.menu .pips-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1px;
-  max-width: calc(var(--n) * 2px * 8 + 8px);
-  margin-left: calc(var(--n) * 2px);
-}
-.menu .pips-row[hidden] {
-  display: none;
-}
-.menu .pips-row i {
-  width: calc(var(--n) * 2px);
-  height: calc(var(--n) * 3px);
-  background: rgba(255, 255, 255, 0.18);
-}
-.menu .pips-row i.on {
-  background: var(--lf-accent);
-}
-.menu button.sel .pips-row i {
-  background: rgba(26, 16, 0, 0.25);
-}
-.menu button.sel .pips-row i.on {
-  background: var(--lf-ink);
 }
 
 /* Hint bar: keycaps and button glyphs along the bottom, left-aligned with the content. */

@@ -6,10 +6,11 @@
 /** A save slot an episode can load: its autosave, or a numbered manual slot. */
 export type LaunchSlot = 'auto' | 1 | 2 | 3 | 4;
 
-/** Where to start: the newest save, a new game, or a particular slot. */
+/** Where to start: the newest save, a new game, a particular slot, or the episode's own Options screen. */
 export type Launch =
   | { readonly kind: 'continue' }
   | { readonly kind: 'new' }
+  | { readonly kind: 'options' }
   | { readonly kind: 'load'; readonly slot: LaunchSlot };
 
 /** The query parameter the launcher sets. */
@@ -18,14 +19,15 @@ export const LAUNCH_PARAM = 'launch';
 const SLOTS: readonly LaunchSlot[] = ['auto', 1, 2, 3, 4];
 
 /**
- * Reads the contract from a URL's query: `?launch=continue`, `?launch=new`, `?launch=load:auto` or
- * `?launch=load:2`. Anything else, or no parameter, is no launch (the episode opens on its own title screen,
+ * Reads the contract from a URL's query: `?launch=continue`, `?launch=new`, `?launch=load:auto`,
+ * `?launch=load:2` or `?launch=options`. Anything else, or no parameter, is no launch (the episode opens on its own title screen,
  * as it does from the website).
  */
 export function parseLaunch(search: string): Launch | undefined {
   const value = new URLSearchParams(search).get(LAUNCH_PARAM);
   if (value === 'continue') return { kind: 'continue' };
   if (value === 'new') return { kind: 'new' };
+  if (value === 'options') return { kind: 'options' };
   const load = /^load:(auto|[1-4])$/.exec(value ?? '');
   if (load) {
     const slot = load[1] === 'auto' ? 'auto' : (Number(load[1]) as LaunchSlot);

@@ -43,6 +43,13 @@ const ALL: readonly ControlId[] = ['dpad', 'jump', 'pogo', 'fire', 'pause'];
 const NOWHERE = { cx: Number.NaN, cy: Number.NaN, r: 0 };
 const BUTTONS: readonly Exclude<ControlId, 'dpad'>[] = ['jump', 'pogo', 'fire', 'pause'];
 
+/**
+ * What the controls need of the page's input: the touch state they feed and a few calls. The game's
+ * `InputManager` is one; a page with no game (the launcher) passes a small one of its own, so it does not take
+ * the game's keyboard handling with it.
+ */
+export type TouchInput = Pick<InputManager, 'touch' | 'noteTouch' | 'releaseTouch' | 'command'>;
+
 export interface TouchControlsOptions {
   /** The accessible name of each control. */
   labels: Record<ControlId, string>;
@@ -106,7 +113,7 @@ export class TouchControls {
 
   constructor(
     private readonly layer: HTMLElement,
-    private readonly input: InputManager,
+    private readonly input: TouchInput,
     private readonly opts: TouchControlsOptions,
   ) {
     this.spec = opts.spec ?? DEFAULT_TOUCH_SPEC;

@@ -55,7 +55,7 @@ export function realAppDeps(): AppDeps {
       const chosen = await open({
         multiple: false,
         directory: false,
-        filters: [{ name: 'Play sample', extensions: [...extensions] }],
+        filters: [{ name: extensions.map((e) => `.${e}`).join(', '), extensions: [...extensions] }],
       });
       return typeof chosen === 'string' ? chosen : null;
     },
@@ -69,7 +69,12 @@ export function realAppDeps(): AppDeps {
     },
     async pickSavePath(name) {
       const { save } = await import('@tauri-apps/plugin-dialog');
-      return save({ defaultPath: name, filters: [{ name: 'Zip archive', extensions: ['zip'] }] });
+      // The file type filter is the name's own extension, so a zip and a `.fizzsave` each offer only their kind.
+      const extension = name.includes('.') ? name.split('.').pop() : undefined;
+      return save({
+        defaultPath: name,
+        ...(extension ? { filters: [{ name: `.${extension}`, extensions: [extension] }] } : {}),
+      });
     },
     async writeFile(path, bytes) {
       const { writeFile } = await import('@tauri-apps/plugin-fs');

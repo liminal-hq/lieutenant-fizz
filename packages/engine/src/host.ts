@@ -76,13 +76,27 @@ async function invokeQuit(): Promise<void> {
   await invoke('quit');
 }
 
-/** Opens a page in this window, as `location.assign` does. */
+/** Opens a page in this window, in place of the one showing. */
 export type Navigate = (url: string) => void;
 
-/** Resolves {@link LAUNCHER_URL} against the page the game is on and goes there. */
-function assignLocation(url: string): void {
-  location.assign(new URL(url, location.href).href);
+/** The part of `location` that opening a page uses. */
+export interface LocationLike {
+  readonly href: string;
+  replace(url: string): void;
 }
+
+/**
+ * Opens a page in place of the current one. The launcher and an episode are pages of one app that hand the
+ * window to each other, so they replace each other instead of piling up in the WebView's history: with
+ * `location.assign`, leaving a game for the launcher left the game one Back away, and Back from the launcher
+ * walked into it instead of leaving the app. A relative URL is resolved against the page it is opened from.
+ */
+export function replaceLocation(loc: LocationLike, url: string): void {
+  loc.replace(new URL(url, loc.href).href);
+}
+
+/** Opens a page of the app in place of this one (see {@link replaceLocation}). */
+export const openPage: Navigate = (url) => replaceLocation(location, url);
 
 /**
  * The host as a backend. The desktop app gets `quit` and `quitToLauncher`, Android gets `quitToLauncher`,
@@ -92,7 +106,7 @@ function assignLocation(url: string): void {
 export function createHostBackend(
   env: HostEnv = hostEnvOf(),
   quit: QuitCommand = invokeQuit,
-  navigate: Navigate = assignLocation,
+  navigate: Navigate = openPage,
 ): HostBackend {
   const kind = detectHostKind(env);
   const quitToLauncher = (): void => navigate(LAUNCHER_URL);
