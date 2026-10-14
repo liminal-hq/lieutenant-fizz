@@ -50,6 +50,7 @@ import { createStrip, type Strip } from './strip';
 import { createLauncherHaptics, NO_HAPTICS, type LauncherHaptics } from './haptics';
 import { createLauncherTouch, type LauncherTouch } from './touch';
 import { readStop, writeStop } from './stop-memory';
+import { SETTINGS_TABS } from './settings';
 import { createView } from './view';
 import './launcher.css';
 
@@ -263,6 +264,10 @@ const view = createView(root, {
   onActivate: (row) => dispatch({ type: 'activate', row }),
   onMove: () => menuCue('move'),
   onStop: (dir) => dispatch({ type: 'stop', dir }),
+  onTab: (index) => {
+    const tab = SETTINGS_TABS[index];
+    if (tab) dispatch({ type: 'pick-tab', tab });
+  },
 });
 
 /** Applies the theme of the stop on show, when it is not the one applied already. */

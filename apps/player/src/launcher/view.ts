@@ -3,7 +3,12 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { renderRows, type BulletImage, type RowItem } from '@lieutenant-fizz/engine/menu/rows';
+import {
+  fillPlate,
+  renderRows,
+  type BulletImage,
+  type RowItem,
+} from '@lieutenant-fizz/engine/menu/rows';
 import { swipeDirection } from '@lieutenant-fizz/engine/menu/swipe';
 import { currentStop, rowsOf, type LauncherState, type RowId } from './state';
 
@@ -11,6 +16,11 @@ declare const __APP_VERSION__: string | undefined;
 
 /** The app's version, set at build time from the player package; 'dev' where nothing sets it. */
 export const APP_VERSION: string = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev';
+
+/** A row as drawn: the shared row, and a strip of tab names for the Settings heading. */
+interface LauncherItem extends RowItem {
+  tabs?: { names: readonly string[]; active: number };
+}
 
 /** How long after a swipe a tap on a row is ignored, so the lift that ends a swipe does not choose the row under it. */
 export const SWIPE_TAP_GUARD_MS = 350;
@@ -30,6 +40,8 @@ export interface ViewHooks {
   onMove(): void;
   /** The player asked for the next (1) or previous (-1) stop: an arrow, or a swipe. */
   onStop(dir: -1 | 1): void;
+  /** A tab's name on the Settings strip was tapped: the index in the strip. */
+  onTab(index: number): void;
 }
 
 export interface View {
@@ -154,12 +166,13 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
         return pip;
       }),
     );
-    const items: RowItem[] = rows.map((r) => {
+    const items: LauncherItem[] = rows.map((r) => {
       const value = r.id === 'version' ? APP_VERSION : r.value;
       return {
         label: r.label,
         ...(r.kind ? { kind: r.kind } : {}),
         ...(r.meter !== undefined ? { meter: r.meter } : {}),
+        ...(r.tabs ? { tabs: r.tabs } : {}),
         ...(value ? { value } : {}),
         ...(r.disabled ? { disabled: true } : {}),
       };
@@ -170,6 +183,21 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     const at = kept >= 0 && !rows[kept]?.disabled ? kept : Math.max(0, free);
     renderRows(menu, items, at, {
       bullet,
+      decorate: (button, item) => {
+        if (item.tabs) button.classList.add('tabstrip');
+      },
+      fill: (plate, item, state) => {
+        if (!item.tabs) return fillPlate(plate, item, state.selected);
+        item.tabs.names.forEach((name, k) => {
+          const tab = make('span', k === item.tabs?.active ? 'tab on' : 'tab');
+          tab.textContent = name;
+          tab.addEventListener('click', (e) => {
+            e.stopPropagation();
+            hooks.onTab(k);
+          });
+          plate.append(tab);
+        });
+      },
       onClick: (i) => {
         const id = ids[i];
         if (id) hooks.onActivate(id);

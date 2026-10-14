@@ -102,6 +102,32 @@ body {
   display: none;
 }
 
+/* The Settings tab strip is a heading, not a row: no plate, the names side by side with the current one lit.
+   It is still the top item of the menu, so up reaches it and left and right switch tab. */
+#launcher .menu button.tabstrip .plate,
+#launcher .menu button.tabstrip.sel .plate {
+  background: none;
+  clip-path: none;
+  animation: none;
+  justify-content: flex-start;
+  gap: calc(var(--n) * 5px);
+  color: var(--lf-muted);
+}
+#launcher .menu .tab {
+  padding: 0 calc(var(--n) * 1px);
+  border-bottom: calc(var(--n) * 1px) solid transparent;
+  color: var(--lf-muted);
+  cursor: pointer;
+}
+#launcher .menu .tab.on {
+  color: var(--lf-accent);
+  border-bottom-color: var(--lf-accent);
+}
+#launcher .menu button.tabstrip.sel .tab.on {
+  color: #fff;
+  border-bottom-color: #fff;
+}
+
 /* The carousel's heading: the previous and next arrows either side of the stop's name, and a pip for each stop. */
 #launcher .carousel {
   display: flex;

@@ -345,4 +345,16 @@ describe('the Settings screen', () => {
     expect(reduce(armed.state, { type: 'disarm' }).state.armed).toBe(false);
     expect(press(press(armed.state, 'tab').state, 'reset').effects).toEqual([{ kind: 'arm' }]);
   });
+
+  it('shows the tabs as a strip with the current one lit, and jumps to a tab that is picked', () => {
+    const s = settings();
+    expect(rowsOf(s)[0]?.tabs).toEqual({ names: ['Sound', 'Display', 'Controls'], active: 0 });
+    const picked = reduce(s, { type: 'pick-tab', tab: 'controls' });
+    expect(picked.state.tab).toBe('controls');
+    expect(rowsOf(picked.state)[0]?.tabs?.active).toBe(2);
+    expect(reduce(picked.state, { type: 'pick-tab', tab: 'controls' })).toEqual({
+      state: picked.state,
+      effects: [],
+    });
+  });
 });

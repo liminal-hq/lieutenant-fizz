@@ -80,6 +80,8 @@ export type Action =
   | { type: 'back' }
   /** Change a Settings row by one step: right (1) or left (-1). */
   | { type: 'step'; row: RowId; dir: -1 | 1 }
+  /** Jump to a tab by tapping its name on the strip. */
+  | { type: 'pick-tab'; tab: SettingsTab }
   /** The first tap on Reset timed out. */
   | { type: 'disarm' }
   /** Step to the next (1) or previous (-1) stop. */
@@ -112,6 +114,8 @@ export interface Row {
   readonly kind?: 'meter' | 'choice';
   /** Lit blocks of a meter, 0 to 8. */
   readonly meter?: number;
+  /** A strip of names with one lit, drawn as a heading rather than a row. */
+  readonly tabs?: { readonly names: readonly string[]; readonly active: number };
 }
 
 export function initialState(
@@ -183,7 +187,14 @@ export function rowsOf(state: LauncherState): readonly Row[] {
   if (state.screen === 'settings') {
     const o = state.options;
     return [
-      { id: 'tab', label: 'Section', value: TAB_NAMES[state.tab], kind: 'choice' },
+      {
+        id: 'tab',
+        label: 'Section',
+        tabs: {
+          names: SETTINGS_TABS.map((t) => TAB_NAMES[t]),
+          active: SETTINGS_TABS.indexOf(state.tab),
+        },
+      },
       ...tabKeys(state.tab, { desktop: state.canQuit, touch: state.touch }).map((key): Row => {
         const r = settingRow(key, o);
         return {
@@ -237,6 +248,11 @@ function slotOf(row: RowId): LaunchSlot | undefined {
  */
 function reduceScreen(state: LauncherState, action: Action): Step {
   if (action.type === 'disarm') return unchanged(state);
+  if (action.type === 'pick-tab') {
+    return state.screen === 'settings' && action.tab !== state.tab
+      ? { state: { ...state, tab: action.tab }, effects: [] }
+      : unchanged(state);
+  }
   if (action.type === 'step') return stepRow(state, action.row, action.dir, false);
   if (action.type === 'back') {
     return state.screen !== 'home'
