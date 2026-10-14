@@ -1,0 +1,68 @@
+/* The tokens a Fizz menu page needs: colours, text scales, safe areas and the whole-pixel type rules for `#ui`.
+   The page sets the scales (`--lf-n-*`, `--lf-cw-mul`, `--lf-pad-x`) from the window with `font/scale`; the
+   defaults here match a 700 px tall window. A game or launcher changes the look by setting the colour
+   properties on `:root` or `#ui` (see `MenuTheme`). */
+:root {
+  --lf-panel: rgba(12, 12, 16, 0.82);
+  --lf-border: rgba(255, 255, 255, 0.1);
+  --lf-text: #e0e0e0;
+  --lf-dim: #7c8796;
+  --lf-accent: #ffaa40;
+  --lf-muted: #b4bfce;
+  --lf-ink: #1a1000;
+  --lf-rose: #f43f5e;
+  --lf-font: 'Fizz', ui-monospace, monospace;
+  --lf-heading: 'Fizz', ui-monospace, monospace;
+  --lf-condensed: 'Fizz Condensed', 'Fizz', ui-monospace, monospace;
+  --lf-mono: 'Fizz Mono', ui-monospace, monospace;
+
+  /* Scales, as set by the shell. These defaults match a 700 px tall window. */
+  --lf-n: 3;
+  --lf-n-small: 2;
+  --lf-n-head: 4;
+  --lf-n-hint: 2;
+  --lf-n-logo: 5;
+  --lf-cw-mul: 2;
+  --lf-pad-x: 49px;
+  --lf-pad-y: 37px;
+  --lf-cols: 40;
+  --lf-thumb: 1;
+  --lf-line: 13px;
+
+  /* The display cutout and system bars (0 on a desktop). The game draws under them; the HUD, controls,
+     menus and hints keep inside them. */
+  --lf-safe-top: env(safe-area-inset-top, 0px);
+  --lf-safe-right: env(safe-area-inset-right, 0px);
+  --lf-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --lf-safe-left: env(safe-area-inset-left, 0px);
+  /* How opaque the on-screen touch controls are. */
+  --lf-touch-opacity: 0.85;
+}
+
+#ui {
+  --n: var(--lf-n);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: var(--lf-font);
+  font-synthesis: none;
+  font-kerning: none;
+  letter-spacing: 0;
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  color: var(--lf-text);
+}
+
+/* Whole-pixel type: every size comes from --n. */
+:where(#ui, #ui *, #fx .cap) {
+  font-size: calc(var(--lf-cell) * var(--n));
+  line-height: calc(var(--lf-line) * var(--n));
+}
+
+:where(#ui button) {
+  font-family: inherit;
+  font-weight: inherit;
+  color: inherit;
+  letter-spacing: 0;
+}

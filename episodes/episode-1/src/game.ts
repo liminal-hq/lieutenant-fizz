@@ -273,6 +273,7 @@ import {
   type Prompt,
   type SlotRow,
 } from './ui';
+import { episodeMenuTheme } from './menu-theme';
 
 export type Screen = ShellScreen;
 
@@ -846,7 +847,7 @@ export class Game {
       const [sim] = await Promise.all([Sim.load(simUrl)]);
       const sprites = defineSprites();
       const soda = sprites.find((d) => d.name === 'soda');
-      if (soda) ui.setBullet(soda.grid);
+      ui.setMenuTheme(episodeMenuTheme(soda?.grid));
       const ben: Partial<Record<BenPose, Grid>> = {};
       for (const pose of ['stand', 'jump', 'shoot', 'pogo', 'pogo2'] as const) {
         const def = sprites.find((d) => d.name === `ben_${pose}`);

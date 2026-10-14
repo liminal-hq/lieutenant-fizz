@@ -7,7 +7,14 @@ import type { PeekStyle } from '@lieutenant-fizz/engine/back-peek';
 import type { CreditsContent } from '@lieutenant-fizz/engine/credits';
 import { pixelScale, scaleSteps } from '@lieutenant-fizz/engine/font/scale';
 import { hintText } from '@lieutenant-fizz/engine/font/tokens';
-import { EGA } from '@lieutenant-fizz/engine/palette';
+import { gridsToUrl, paintGrid } from '@lieutenant-fizz/engine/menu/paint';
+import { renderRows, type BulletImage } from '@lieutenant-fizz/engine/menu/rows';
+import {
+  applyMenuTheme,
+  bulletCycleMs,
+  bulletFrames,
+  type MenuTheme,
+} from '@lieutenant-fizz/engine/menu/theme';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import type { StingerContent, StingerPhase } from '@lieutenant-fizz/engine/stinger';
 import type { Rect, Shape } from '@lieutenant-fizz/engine/touch';
@@ -231,7 +238,7 @@ export class Ui {
   private readonly err: HTMLElement;
   private readonly loading: HTMLElement;
   private toastTimer = 0;
-  private bulletUrl = '';
+  private bullet: BulletImage | undefined;
   private hoverRow = -1;
   /** The "more rows" chevron, drawn once as whole-pixel art. */
   private readonly chevronUrl = `data:image/svg+xml,${encodeURIComponent(chevronSvg('#ffffff', '#050507'))}`;
@@ -1032,11 +1039,13 @@ export class Ui {
     this.attractFade.style.opacity = v.fade.toFixed(3);
   }
 
-  /** Sets the menu bullet sprite: drawn once to a canvas and shown as a pixelated image. */
-  setBullet(grid: Grid): void {
-    const c = document.createElement('canvas');
-    this.paintGrid(c, grid);
-    this.bulletUrl = c.toDataURL();
+  /** Sets the menus' look (colours, plate and bullet): the bullet is drawn once to a canvas and shown as a pixelated image. */
+  setMenuTheme(theme: MenuTheme): void {
+    applyMenuTheme(document.documentElement, theme);
+    const frames = bulletFrames(theme);
+    this.bullet = frames.length
+      ? { url: gridsToUrl(frames), frames: frames.length, cycleMs: bulletCycleMs(theme) }
+      : undefined;
     this.renderMenu(this.backMenu, [{ label: 'Back' }], 0, () => this.h.back());
   }
 
@@ -1323,79 +1332,62 @@ export class Ui {
     onClick: (i: number) => void = (i) => this.h.menuClick(i),
   ): void {
     // Redrawing keeps the list where it was scrolled; `fitRows` brings the selected row into view.
-    const scrolled = into.scrollTop;
-    into.replaceChildren();
-    into.dataset.sel = String(sel);
     this.choose.set(into, onClick);
-    const click = (i: number) => (): void => {
-      // A touch tap already chose the row on its lift; this is the browser's click that follows it.
-      if (performance.now() < this.tapUntil) return;
-      onClick(i);
-    };
-    const hover =
-      (i: number) =>
-      (e: PointerEvent): void => {
+    renderRows(into, items, sel, {
+      bullet: this.bullet,
+      onClick: (i) => {
+        // A touch tap already chose the row on its lift; this is the browser's click that follows it.
+        if (performance.now() < this.tapUntil) return;
+        onClick(i);
+      },
+      onHover: (i, e) => {
         if (e.pointerType !== 'mouse') return;
         this.hoverRow = i;
         this.h.menuHover(i);
-      };
-    items.forEach((it, i) => {
-      const selected = i === sel && !it.disabled;
-      const b = el('button', {
-        class: `${selected ? 'sel' : ''} ${it.disabled ? 'dis' : ''}`.trim(),
-        'data-i': String(i),
-      });
-      const gut = el('span', { class: 'gut' });
-      if (this.bulletUrl) gut.append(el('img', { class: 'bullet', alt: '', src: this.bulletUrl }));
-      const plate = el('span', { class: 'plate' });
-      if (it.slot) {
-        b.classList.add('slot');
-        this.fillSlot(plate, it.slot);
-        b.append(gut, plate);
-        b.addEventListener('click', click(i));
-        b.addEventListener('pointerenter', hover(i));
-        into.append(b);
-        return;
-      }
-      const l = el('span', { class: 'lbl' });
-      l.textContent = it.label;
-      plate.append(l);
-      // On touch an Options row has its own ◄ and ► steppers, so a tap can go either way.
-      const steppers = this.touchMode && !!it.kind;
-      const stepper = (d: number): HTMLElement => {
-        // A row the address fixes keeps the room of its steppers but offers none.
-        if (it.disabled) {
-          const gap = el('span', { class: 'step off', 'aria-hidden': 'true' });
-          gap.textContent = d < 0 ? '◄' : '►';
-          return gap;
+      },
+      decorate: (b, it) => {
+        if (it.slot) b.classList.add('slot');
+      },
+      fill: (plate, it, { selected }) => {
+        if (it.slot) {
+          this.fillSlot(plate, it.slot);
+          return;
         }
-        const st = el('span', {
-          class: 'step',
-          'data-step': String(d),
-          role: 'button',
-          'aria-label': `${d < 0 ? 'Less' : 'More'} ${it.label}`,
-        });
-        st.textContent = d < 0 ? '◄' : '►';
-        return st;
-      };
-      if (steppers) plate.append(stepper(-1));
-      if (it.kind === 'meter') {
-        const m = el('span', { class: 'meter' });
-        for (let k = 0; k < 8; k++) m.append(el('i', { class: k < (it.meter ?? 0) ? 'on' : '' }));
-        plate.append(m);
-      } else if (it.value) {
-        const v = el('span', { class: 'val' });
-        v.textContent =
-          it.kind === 'choice' && selected && !steppers ? `◄ ${it.value} ►` : it.value;
-        plate.append(v);
-      }
-      if (steppers) plate.append(stepper(1));
-      b.append(gut, plate);
-      b.addEventListener('click', click(i));
-      b.addEventListener('pointerenter', hover(i));
-      into.append(b);
+        const l = el('span', { class: 'lbl' });
+        l.textContent = it.label;
+        plate.append(l);
+        // On touch an Options row has its own ◄ and ► steppers, so a tap can go either way.
+        const steppers = this.touchMode && !!it.kind;
+        const stepper = (d: number): HTMLElement => {
+          // A row the address fixes keeps the room of its steppers but offers none.
+          if (it.disabled) {
+            const gap = el('span', { class: 'step off', 'aria-hidden': 'true' });
+            gap.textContent = d < 0 ? '◄' : '►';
+            return gap;
+          }
+          const st = el('span', {
+            class: 'step',
+            'data-step': String(d),
+            role: 'button',
+            'aria-label': `${d < 0 ? 'Less' : 'More'} ${it.label}`,
+          });
+          st.textContent = d < 0 ? '◄' : '►';
+          return st;
+        };
+        if (steppers) plate.append(stepper(-1));
+        if (it.kind === 'meter') {
+          const m = el('span', { class: 'meter' });
+          for (let k = 0; k < 8; k++) m.append(el('i', { class: k < (it.meter ?? 0) ? 'on' : '' }));
+          plate.append(m);
+        } else if (it.value) {
+          const v = el('span', { class: 'val' });
+          v.textContent =
+            it.kind === 'choice' && selected && !steppers ? `◄ ${it.value} ►` : it.value;
+          plate.append(v);
+        }
+        if (steppers) plate.append(stepper(1));
+      },
     });
-    into.scrollTop = scrolled;
   }
 
   /** A save slot's content: thumbnail, two text lines and one pip per level. */
@@ -1646,16 +1638,7 @@ export class Ui {
   private paintGrid(canvas: HTMLCanvasElement, grid: Grid): void {
     canvas.width = grid.w;
     canvas.height = grid.h;
-    const g = canvas.getContext('2d');
-    if (!g) return;
-    for (let y = 0; y < grid.h; y++) {
-      for (let x = 0; x < grid.w; x++) {
-        const c = grid.at(x, y);
-        if (!c) continue;
-        g.fillStyle = EGA[c];
-        g.fillRect(x, y, 1, 1);
-      }
-    }
+    paintGrid(canvas, grid);
   }
 
   // ----- Captions and stats -----

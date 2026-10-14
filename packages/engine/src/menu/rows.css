@@ -1,0 +1,142 @@
+/* Menu rows, shared by the game and the launcher: [bullet gutter][plate]. The bullet sits in a fixed gutter so
+   rows never shift. A row is a `button` in a `.menu`; the selected one is `.sel`. The look comes from custom
+   properties the page sets (`--lf-accent`, `--lf-ink`, `--lf-text`, `--lf-dim`, `--lf-muted` and the plate's
+   `--lf-plate-a` to `--lf-plate-c`) and the text scales (`--n`, `--lf-n-*`, `--lf-cw-mul`), see `tokens.css`. */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.menu button {
+  /* Rows keep their height when a menu scrolls (`.menu[data-scroll]`, below). */
+  flex: none;
+  /* One full glyph cell high, so the line box never spills out of the row or its plate. */
+  --lf-line: 11px;
+  display: flex;
+  align-items: center;
+  gap: max(6px, calc(var(--n) * 2px));
+  height: calc(var(--n) * 11px);
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: var(--lf-text);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+  cursor: pointer;
+}
+.menu .gut {
+  position: relative;
+  flex: none;
+  align-self: stretch;
+  width: calc(var(--lf-cw-mul) * 16px);
+}
+.menu .bullet {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  transform: translateY(-50%);
+  image-rendering: pixelated;
+  visibility: hidden;
+  pointer-events: none;
+}
+.menu button.sel .bullet {
+  visibility: visible;
+  animation: lf-bob 1.26s step-end infinite;
+}
+.menu .plate {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--n) * 3px);
+  align-self: stretch;
+  padding: 0 calc(var(--n) * 4px);
+}
+.menu button.sel .plate {
+  background: var(--lf-accent);
+  color: var(--lf-ink);
+  text-shadow: none;
+  clip-path: polygon(
+    4px 0,
+    calc(100% - 4px) 0,
+    calc(100% - 4px) 4px,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 4px) calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    4px calc(100% - 4px),
+    0 calc(100% - 4px),
+    0 4px,
+    4px 4px
+  );
+  animation: lf-plate 1.6s step-end infinite;
+}
+.menu button.dis {
+  color: var(--lf-dim);
+  text-shadow: none;
+  cursor: default;
+}
+.menu .val {
+  --n: var(--lf-n-small);
+  color: var(--lf-muted);
+}
+.menu button.sel .val {
+  color: var(--lf-ink);
+}
+
+/* A bullet of several frames is a strip drawn as a background that steps along it: one frame at a time, the
+   whole run taking `--lf-bullet-ms`. The row's bob still applies. */
+.menu .bullet.strip {
+  aspect-ratio: 1;
+  background-repeat: no-repeat;
+  background-size: calc(var(--lf-bullet-frames) * 100%) 100%;
+}
+.menu button.sel .bullet.strip {
+  animation:
+    lf-bob 1.26s step-end infinite,
+    lf-bullet var(--lf-bullet-ms) steps(var(--lf-bullet-frames), jump-none) infinite;
+}
+
+@keyframes lf-bullet {
+  to {
+    background-position-x: 100%;
+  }
+}
+@keyframes lf-plate {
+  0% {
+    background: var(--lf-plate-a, #ffaa40);
+  }
+  25% {
+    background: var(--lf-plate-b, #ffb850);
+  }
+  50% {
+    background: var(--lf-plate-c, #ffc860);
+  }
+  75% {
+    background: var(--lf-plate-b, #ffb850);
+  }
+}
+@keyframes lf-bob {
+  0%,
+  100% {
+    transform: translate(0, -50%);
+  }
+  25% {
+    transform: translate(calc(var(--lf-cw-mul) * 1px), -50%);
+  }
+  75% {
+    transform: translate(calc(var(--lf-cw-mul) * -1px), -50%);
+  }
+}
+
+/* Reduced motion: from the system setting or the Motion option (the page adds .rm to #ui). */
+@media (prefers-reduced-motion: reduce) {
+  .menu button.sel .plate,
+  .menu button.sel .bullet {
+    animation: none;
+  }
+}
+#ui.rm .menu button.sel .plate,
+#ui.rm .menu button.sel .bullet {
+  animation: none;
+}
