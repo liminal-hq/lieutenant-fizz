@@ -143,7 +143,8 @@ export function openLauncherMusic(
   const audio = new GameAudio(
     { sfx: {}, music: library.tracks, songs: library.songs, captionSfx: {} },
     undefined,
-    { unlockAtBoot: inApp, musicFades: true },
+    // Nothing reacts to the music, so it takes the larger buffer: a busy phone is less likely to underrun it.
+    { unlockAtBoot: inApp, musicFades: true, latencyHint: 'playback' },
   );
   return createLauncherMusic(audio, settings);
 }

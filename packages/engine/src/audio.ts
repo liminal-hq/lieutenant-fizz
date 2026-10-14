@@ -504,6 +504,7 @@ export class GameAudio {
   private disposed = false;
   /** Each music loop gets a gain of its own, so one track can fade out as the next fades in (see `playMusic`). */
   private readonly musicFades: boolean;
+  private readonly latencyHint: AudioContextLatencyCategory | undefined;
   /** The gain the loop playing goes through, when `musicFades` is on. */
   private loopFade: GainNode | null = null;
   /** Loops that are fading out, with the timers that stop them. */
@@ -538,10 +539,20 @@ export class GameAudio {
   constructor(
     private readonly patterns: AudioPatterns,
     load: () => Promise<UndertoneModule> = () => import('@liminal-hq/undertone'),
-    options: { unlockAtBoot?: boolean; musicFades?: boolean } = {},
+    options: {
+      unlockAtBoot?: boolean;
+      musicFades?: boolean;
+      /**
+       * How the context trades delay for safety (Web Audio's `latencyHint`). The default, interactive, has the
+       * smallest buffer (about 5 ms on a phone), which a busy device can underrun; music that nothing reacts to
+       * asks for `playback` and gets a larger one.
+       */
+      latencyHint?: AudioContextLatencyCategory;
+    } = {},
   ) {
     this.waitForUndertone = !!options.unlockAtBoot;
     this.musicFades = !!options.musicFades;
+    this.latencyHint = options.latencyHint;
     // A page that went to the background before this was built missed the visibility event.
     this.hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
     window.addEventListener('pointerdown', this.unlock);
@@ -594,7 +605,7 @@ export class GameAudio {
       window.AudioContext ??
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AC) return null;
-    this.ctx = new AC();
+    this.ctx = this.latencyHint ? new AC({ latencyHint: this.latencyHint }) : new AC();
     this.mini = new MiniSynth(this.ctx, this.ctx.destination);
     // A context created while hidden (some WebViews start it running) stays quiet until the page returns.
     if (this.hidden && this.ctx.state === 'running') void this.ctx.suspend();

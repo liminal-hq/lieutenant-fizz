@@ -179,6 +179,34 @@ describe('GameAudio with Undertone', () => {
   });
 });
 
+describe('GameAudio latency hint', () => {
+  it('asks the context for the hint it was given, and for none by default', async () => {
+    const seen: unknown[] = [];
+    class Spy extends FakeContext {
+      constructor(...args: unknown[]) {
+        super();
+        seen.push(args[0]);
+      }
+    }
+    vi.stubGlobal('window', {
+      AudioContext: Spy,
+      addEventListener: (type: string, fn: () => void) => listeners.set(type, fn),
+      removeEventListener: (type: string) => listeners.delete(type),
+    });
+    const plain = new GameAudio(patterns, async () => Undertone);
+    await flush();
+    listeners.get('pointerdown')!();
+    await flush();
+    plain.dispose();
+    const slow = new GameAudio(patterns, async () => Undertone, { latencyHint: 'playback' });
+    await flush();
+    listeners.get('pointerdown')!();
+    await flush();
+    slow.dispose();
+    expect(seen).toEqual([undefined, { latencyHint: 'playback' }]);
+  });
+});
+
 describe('GameAudio music fades', () => {
   const fadeNodes = (ctx: FakeContext): FakeNode[] =>
     ctx.nodes.filter(
