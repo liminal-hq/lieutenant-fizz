@@ -134,12 +134,28 @@ const NO_INSETS: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
  * events. An older one has it worked out from the window (the last `rs`) and the Size and hand in the specs,
  * with the default places: the safe-area insets, the lift when the browser's bars are gone and any moved
  * control are not in the log, so the controls may sit a little differently from how they did.
+ *
+ * Time can stand still while the controls change (a window resized on the pause screen), so several events can
+ * share one tick. A layout written at the tick holds for it only when it was written before anything else was at
+ * that tick, so one written after the play of that tick waits for the next. `before` is the index of the first
+ * event past the attempt being watched, so a layout from after it is never used.
  */
-export function layoutAt(session: Session, tick: number): TouchLayoutAt | null {
+export function layoutAt(
+  session: Session,
+  tick: number,
+  before = session.events.length,
+): TouchLayoutAt | null {
   let written: SessionEvent | null = null;
   let window: SessionEvent | null = null;
-  for (const e of session.events) {
+  let played = false;
+  for (let i = 0; i < before; i += 1) {
+    const e = session.events[i]!;
     if (e.t > tick) break;
+    const layout = e.e === 'touch' || e.e === 'rs';
+    if (e.t === tick) {
+      if (!layout) played = true;
+      else if (played) continue;
+    }
     if (e.e === 'touch') written = e;
     else if (e.e === 'rs') window = e;
   }

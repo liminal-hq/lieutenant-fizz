@@ -188,6 +188,34 @@ describe('layoutAt', () => {
     expect(late.placed.face.jump.r).toBeGreaterThan(early.placed.face.jump.r);
   });
 
+  it('does not use a layout written after the play of the same tick, or one past the attempt', () => {
+    const touch = (t: number, scale: number) => ({
+      t,
+      e: 'touch',
+      w: 844,
+      h: 390,
+      insets: { top: 0, right: 0, bottom: 0, left: 0 },
+      spec: { ...DEFAULT_TOUCH_SPEC, scale },
+    });
+    const s = sessionOf('s', [
+      touch(0, 1),
+      { t: 100, e: 'pos', x: 1, y: 1 },
+      // Written while the game was held on a pause card at tick 100, after that tick's play.
+      touch(100, 1.4),
+      { t: 120, e: 'pos', x: 2, y: 1 },
+    ]);
+    const radius = (tick: number, before?: number): number =>
+      layoutAt(s, tick, before)!.placed.face.jump.r;
+    // At tick 100 the first layout is still the one the finger was on; the next tick has the new one.
+    expect(radius(100)).toBe(radius(0));
+    expect(radius(101)).toBeGreaterThan(radius(100));
+    // A layout at or past the bound is left out.
+    expect(radius(120, 2)).toBe(radius(0));
+    // One written before the tick's play is the layout for the tick.
+    const first = sessionOf('s', [touch(0, 1), touch(50, 1.4), { t: 50, e: 'pos', x: 1, y: 1 }]);
+    expect(layoutAt(first, 50)!.placed.face.jump.r).toBeGreaterThan(radius(0));
+  });
+
   it('gives nothing when there is no window to work from', () => {
     expect(layoutAt(sessionOf('s', [{ t: 0, e: 'pos', x: 1, y: 1 }]), 10)).toBeNull();
   });
