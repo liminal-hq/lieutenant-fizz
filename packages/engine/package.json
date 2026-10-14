@@ -11,6 +11,7 @@
     "./back-guard": "./src/back-guard.ts",
     "./back-peek": "./src/back-peek.ts",
     "./credits": "./src/credits.ts",
+    "./close-app": "./src/close-app.ts",
     "./crc32": "./src/crc32.ts",
     "./episode": "./src/episode.ts",
     "./font/fizz.css": "./src/font/fizz.css",

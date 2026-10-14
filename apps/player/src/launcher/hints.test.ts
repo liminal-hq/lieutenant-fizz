@@ -40,4 +40,20 @@ describe('the launcher hints', () => {
       expect(hintText(hint)).not.toContain('{');
     }
   });
+
+  it('follow the device in use: keys for a keyboard, buttons for a pad, nothing for touch', () => {
+    const home = initialState(stops, false);
+    const about = reduce(
+      reduce(reduce(home, { type: 'stop', dir: 1 }).state, { type: 'stop', dir: 1 }).state,
+      { type: 'activate', row: 'about' },
+    ).state;
+    expect(hintsOf(home, 'gamepad')).toEqual(['{A} Choose']);
+    expect(hintsOf(about, 'gamepad')).toEqual(['{A} Choose', '{B} Back']);
+    expect(hintsOf(home, 'touch')).toEqual([]);
+    expect(hintsOf(about, 'touch')).toEqual([]);
+    expect(hintsOf(home, 'keyboard')).toEqual(hintsOf(home));
+    for (const hint of [...hintsOf(home, 'gamepad'), ...hintsOf(about, 'gamepad')]) {
+      expect(hintText(hint)).not.toContain('{');
+    }
+  });
 });

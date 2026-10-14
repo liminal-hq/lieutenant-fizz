@@ -80,6 +80,8 @@ const adjust = (el: Element | null, dir: Direction): boolean => {
 
 const onIntent = (intent: Exclude<PadIntent, null>) => {
   if (!mode) return;
+  // The launcher shows the pad's hints once a pad is in use.
+  if (mode === 'menu') document.dispatchEvent(new CustomEvent('pad-active'));
   if (intent === 'back') {
     if (mode === 'menu') document.dispatchEvent(new CustomEvent('pad-back'));
     else openPage(document.body.dataset.back ?? 'index.html');

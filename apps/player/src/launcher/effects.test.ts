@@ -137,4 +137,33 @@ describe('applying the launcher effects', () => {
     await applyEffects([{ kind: 'navigate', url: 'debug.html' }], deps);
     expect(log).toEqual(['release', 'reclaim', "toast:Couldn't open that page"]);
   });
+
+  it('closes the app and says nothing when it closes', async () => {
+    const { deps, log } = setup();
+    await applyEffects([{ kind: 'quit' }], { ...deps, quit: async () => true });
+    expect(log).toEqual([]);
+  });
+
+  it('stays open with a message when the store could not be written, and can try again', async () => {
+    const { deps, log } = setup();
+    let closed = false;
+    const quit = async () => closed;
+    await applyEffects([{ kind: 'quit' }], { ...deps, quit });
+    expect(log).toEqual([`toast:${SAVE_FAILED}, so the app stays open`]);
+    closed = true;
+    log.length = 0;
+    await applyEffects([{ kind: 'quit' }], { ...deps, quit });
+    expect(log).toEqual([]);
+  });
+
+  it('treats a quit that throws as staying open', async () => {
+    const { deps, log } = setup();
+    await applyEffects([{ kind: 'quit' }], {
+      ...deps,
+      quit: async () => {
+        throw new Error('no window');
+      },
+    });
+    expect(log).toEqual([`toast:${SAVE_FAILED}, so the app stays open`]);
+  });
 });

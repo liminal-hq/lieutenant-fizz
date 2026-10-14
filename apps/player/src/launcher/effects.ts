@@ -20,6 +20,8 @@ export interface EffectDeps {
   releaseBack?(): Promise<void>;
   /** Takes Back again when the page was not left after all. */
   reclaimBack?(): void;
+  /** Closes the app: leaves fullscreen, writes the store out and quits. Resolves false when it stayed open (the write failed). */
+  quit?(): Promise<boolean>;
 }
 
 /** The sets of dependencies that are leaving the page now, so a second press while the first is still writing does not leave twice. */
@@ -41,6 +43,20 @@ export async function applyEffects(effects: readonly Effect[], deps: EffectDeps)
       );
     } else if (effect.kind === 'save-unlock') {
       if (!writeUnlocked(deps.store, effect.unlocked)) deps.toast(SAVE_FAILED);
+    } else if (effect.kind === 'quit') {
+      if (leaving.has(deps) || !deps.quit) return;
+      leaving.add(deps);
+      let closed = false;
+      try {
+        closed = await deps.quit();
+      } catch (error) {
+        console.warn('Closing the app failed', error);
+      }
+      if (!closed) {
+        leaving.delete(deps);
+        deps.toast(`${SAVE_FAILED}, so the app stays open`);
+      }
+      return;
     } else {
       // Leaving: for a page of the app, or for an episode, which is started where the launch says. One at a time.
       if (leaving.has(deps)) return;

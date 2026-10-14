@@ -24,6 +24,7 @@ export type RowId =
   | 'load'
   | 'soon'
   | 'about'
+  | 'quit'
   | 'version'
   | 'debug'
   | 'hide-debug'
@@ -41,6 +42,8 @@ export interface LauncherState {
   readonly unlocked: boolean;
   /** The saves each episode has, by episode id. */
   readonly saves: Readonly<Record<string, SaveSummary>>;
+  /** The app can close itself (the desktop app): App settings has a Quit row. */
+  readonly canQuit: boolean;
 }
 
 export type Action =
@@ -56,7 +59,9 @@ export type Effect =
   | { kind: 'navigate'; url: string }
   /** Start an episode as the launch says. */
   | { kind: 'launch'; episode: string; launch: Launch }
-  | { kind: 'save-unlock'; unlocked: boolean };
+  | { kind: 'save-unlock'; unlocked: boolean }
+  /** Close the app (after the store is written out). */
+  | { kind: 'quit' };
 
 export interface Row {
   readonly id: RowId;
@@ -70,8 +75,17 @@ export function initialState(
   stops: readonly Stop[],
   unlocked: boolean,
   saves: Readonly<Record<string, SaveSummary>> = {},
+  caps: { canQuit?: boolean } = {},
 ): LauncherState {
-  return { stops, stop: 0, screen: 'home', taps: 0, unlocked, saves };
+  return {
+    stops,
+    stop: 0,
+    screen: 'home',
+    taps: 0,
+    unlocked,
+    saves,
+    canQuit: caps.canQuit ?? false,
+  };
 }
 
 /** The stop showing. */
@@ -90,7 +104,12 @@ export function rowsOf(state: LauncherState): readonly Row[] {
   const stop = currentStop(state);
   const saves = currentSaves(state);
   if (state.screen === 'home') {
-    if (stop.kind === 'app') return [{ id: 'about', label: 'About' }];
+    if (stop.kind === 'app') {
+      return [
+        { id: 'about', label: 'About' },
+        ...(state.canQuit ? [{ id: 'quit' as const, label: 'Quit' }] : []),
+      ];
+    }
     if (!stop.playable) return [{ id: 'soon', label: 'Coming soon', disabled: true }];
     const rows: Row[] = [];
     if (saves.newest !== undefined) {
@@ -182,6 +201,8 @@ export function reduce(state: LauncherState, action: Action): Step {
       return { state: { ...state, screen: 'load', taps: 0 }, effects: [] };
     case 'about':
       return { state: { ...state, screen: 'about', taps: 0 }, effects: [] };
+    case 'quit':
+      return { state, effects: [{ kind: 'quit' }] };
     case 'back':
       return { state: { ...state, screen: 'home', taps: 0 }, effects: [] };
     case 'debug':

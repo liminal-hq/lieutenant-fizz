@@ -130,6 +130,22 @@ describe('an episode with saves', () => {
   });
 });
 
+describe('Quit on the desktop', () => {
+  const desktop = (): LauncherState => initialState(STOPS, false, {}, { canQuit: true });
+
+  it('has a Quit row on App settings only where the app can close itself', () => {
+    expect(ids(toApp(start()))).toEqual(['about']);
+    expect(ids(toApp(desktop()))).toEqual(['about', 'quit']);
+  });
+
+  it('asks to close the app, and nothing else does', () => {
+    expect(press(toApp(desktop()), 'quit').effects).toEqual([{ kind: 'quit' }]);
+    // A press on a Quit row that is not there (no desktop, or another stop) does nothing.
+    expect(press(toApp(start()), 'quit')).toEqual({ state: toApp(start()), effects: [] });
+    expect(press(desktop(), 'quit').effects).toEqual([]);
+  });
+});
+
 describe('the launcher screens', () => {
   it('opens About and goes back to the home screen', () => {
     const about = toAbout();
