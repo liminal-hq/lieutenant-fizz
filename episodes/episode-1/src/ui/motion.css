@@ -6,10 +6,4 @@
   #stinger .box {
     transition: none;
   }
-  .screen .more img {
-    animation: none;
-  }
-}
-#ui.rm .screen .more img {
-  animation: none;
 }

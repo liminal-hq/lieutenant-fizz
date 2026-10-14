@@ -39,20 +39,8 @@ import {
   watchResize,
   type TouchGutters,
 } from './layout';
-import {
-  chevronScale,
-  chevronSvg,
-  isTap,
-  menuViewport,
-  MIN_STRIP,
-  revealRow,
-  scrollCues,
-  snapScroll,
-  snapViewport,
-  stripLayout,
-  uniformRowUnit,
-  type RowBox,
-} from './menu-scroll';
+import { isTap } from '@lieutenant-fizz/engine/menu/scroll';
+import { MenuScroller } from '@lieutenant-fizz/engine/menu/scroller';
 import { pillItems, type PillIcon } from './hud';
 import { StoryMeasurer, type StoryMeasure } from './story-measure';
 import type { BenFrame, BenPose } from './titleBen';
@@ -241,9 +229,8 @@ export class Ui {
   private bullet: BulletImage | undefined;
   private hoverRow = -1;
   /** The "more rows" chevron, drawn once as whole-pixel art. */
-  private readonly chevronUrl = `data:image/svg+xml,${encodeURIComponent(chevronSvg('#ffffff', '#050507'))}`;
+  private readonly scroller = new MenuScroller();
   /** The cues of each menu screen: shown at an edge of its menu when rows are scrolled out of view there. */
-  private readonly cues = new Map<HTMLElement, { up: HTMLElement; down: HTMLElement }>();
   private touchMode = false;
   private hudState: HudState | null = null;
   private hudIcons: Partial<Record<PillIcon, string>> = {};
@@ -319,7 +306,7 @@ export class Ui {
     this.bindTaps(this.backMenu);
     this.titleKeys = el('div', { class: 'keys' });
     this.title.append(this.menuEl, this.controls, this.titleKeys);
-    this.makeCues(this.title, this.menuEl);
+    this.scroller.attach(this.title, this.menuEl);
 
     this.overlay = el('div', { id: 'overlay', class: 'lf screen', hidden: '' });
     const box = el('div', { class: 'box' });
@@ -332,7 +319,7 @@ export class Ui {
     need(box, '.body').append(this.overlayMenu, this.overlayNote);
     this.overlayKeys = el('div', { class: 'keys' });
     this.overlay.append(box, this.overlayKeys);
-    this.makeCues(this.overlay, this.overlayMenu);
+    this.scroller.attach(this.overlay, this.overlayMenu);
     // A card's text chooses its highlighted row on a tap, as Select does.
     this.onTap(need(box, '.text'), () => {
       if (this.overlayKind === 'list') h.advance();
@@ -662,169 +649,23 @@ export class Ui {
   }
 
   /**
-   * Lets a menu that does not fit its screen scroll inside its own area. Rows keep their height
-   * (`--lf-menu-row` on touch, the glyph cell on a desktop window); when the menu runs the screen over,
-   * the menu's height is cut by the overflow, then down to a whole number of rows (never fewer than
-   * two), and it scrolls while the head, the hint bar, the Back button and the touch controls stay put.
-   * A cue strip, about half a row tall, is reserved above and below the menu (as its margins) for the
-   * "more rows" chevrons, paid for first from the pixels the cut frees; half of what is left then goes
-   * above the menu as spacing. A chevron shows in a strip only when rows are out of view that way, and
-   * the selected row is kept in view. A scrolling list lays every row out at the height of its tallest
-   * (`--lf-menu-unit`), never under the default row height, so a save slot whose text wraps does not
-   * leave a sliver of the next row at an edge. A menu that fits is left alone. Measured after the menu
-   * is drawn.
+   * Lets a menu that does not fit its screen scroll inside its own area (`MenuScroller`): rows keep their
+   * height (`--lf-menu-row` on touch, the glyph cell on a desktop window) and the head, the hint bar, the Back
+   * button and the touch controls stay put. Measured after the menu is drawn.
    */
   private fitRows(): void {
-    const touch = this.touchMode;
-    const minRow = touch
+    const minRow = this.touchMode
       ? Number.parseFloat(getComputedStyle(this.stage).getPropertyValue('--lf-menu-row')) || 0
       : 0;
-    for (const screen of [this.title, this.overlay]) {
-      const menus = [...screen.querySelectorAll<HTMLElement>('.menu')];
-      const shown = menus.find((m) => !m.hidden && m.offsetParent);
-      const keep = shown?.scrollTop ?? 0;
-      for (const m of menus) {
-        m.style.removeProperty('max-height');
-        m.style.removeProperty('margin-top');
-        m.style.removeProperty('margin-bottom');
-        m.style.removeProperty('--lf-menu-unit');
-        delete m.dataset.scroll;
-        delete m.dataset.unit;
-        delete m.dataset.strip;
-      }
-      if (screen.hidden || !shown || !shown.firstElementChild) {
-        this.updateCues(screen, null);
-        continue;
-      }
-      let overflow = screen.scrollHeight - screen.clientHeight;
-      if (overflow > 0) {
-        // Snapping and the window maths assume one row height, so a scrolling list lays every row out at
-        // the height of its tallest (a save slot whose text wraps), though never under the default row.
-        const heights = this.rowBoxes(shown).map((r) => r.height);
-        const unit = uniformRowUnit(heights, minRow);
-        if (heights.some((h) => Math.abs(h - unit) > 0.5)) {
-          shown.style.setProperty('--lf-menu-unit', `${unit}px`);
-          shown.dataset.unit = '';
-          overflow = screen.scrollHeight - screen.clientHeight;
-        }
-      }
-      const boxes = this.rowBoxes(shown);
-      // The head and controls decide what is left; two rows and their strips are the least worth scrolling.
-      const least = snapViewport(boxes, 0) + 2 * MIN_STRIP;
-      let avail = menuViewport(shown.offsetHeight, overflow, least);
-      if (avail !== null) {
-        shown.dataset.scroll = '';
-        this.layoutScroll(shown, boxes, avail);
-        // A grid or a wrapped slot can leave some overflow after the first cut; take the rest off too.
-        const left = screen.scrollHeight - screen.clientHeight;
-        if (left > 0) {
-          const used = shown.offsetHeight + this.stripOf(shown) * 2 + this.spareOf(shown);
-          avail = menuViewport(used, left, least);
-          if (avail !== null) this.layoutScroll(shown, boxes, avail);
-        }
-      }
-      this.revealSelected(shown, keep);
-      this.updateCues(screen, shown);
-    }
-  }
-
-  /** The cue strip, in px, reserved above and again below a scrolling menu (0 for one that fits). */
-  private stripOf(menu: HTMLElement): number {
-    return Number(menu.dataset.strip ?? 0);
-  }
-
-  /** The spare px set above a scrolling menu beyond its cue strip. */
-  private spareOf(menu: HTMLElement): number {
-    return Math.max(0, Number.parseFloat(menu.style.marginTop || '0') - this.stripOf(menu));
-  }
-
-  /**
-   * Cuts a scrolling `menu` to whole rows inside `avail` px and reserves its cue strips above and below.
-   * Half of what the cut still leaves goes above the menu as spacing and the rest stays below it.
-   */
-  private layoutScroll(menu: HTMLElement, boxes: RowBox[], avail: number): void {
-    const rowH = boxes[0]?.height ?? 0;
-    const { view, strip } = stripLayout(boxes, avail, Math.round(rowH / 2));
-    const spare = Math.max(0, Math.floor((avail - view - 2 * strip) / 2));
-    menu.style.maxHeight = `${view}px`;
-    menu.style.marginTop = `${strip + spare}px`;
-    menu.style.marginBottom = `${strip}px`;
-    menu.dataset.strip = String(strip);
-  }
-
-  /** Where each row of `menu` sits in the menu's own pixels, whatever the menu is scrolled to. */
-  private rowBoxes(menu: HTMLElement): RowBox[] {
-    const top = menu.getBoundingClientRect().top - menu.scrollTop;
-    return [...menu.querySelectorAll<HTMLElement>(':scope > button')].map((b) => {
-      const r = b.getBoundingClientRect();
-      return { top: r.top - top, height: r.height };
+    this.scroller.fit([this.title, this.overlay], {
+      minRow,
+      // A row the mouse chose by hovering is under the pointer already, so only the boundary is found.
+      takeHover: (menu) => {
+        const hovered = this.hoverRow === Number(menu.dataset['sel']);
+        this.hoverRow = -1;
+        return hovered;
+      },
     });
-  }
-
-  /**
-   * Scrolls `menu` (from `from`) to a row boundary that shows its selected row whole, moving by the
-   * fewest rows. A row the mouse chose by hovering is under the pointer already, so only the boundary
-   * is found.
-   */
-  private revealSelected(menu: HTMLElement, from: number): void {
-    if (!('scroll' in menu.dataset)) {
-      menu.scrollTop = 0;
-      return;
-    }
-    menu.scrollTop = from;
-    const hovered = this.hoverRow === Number(menu.dataset.sel);
-    this.hoverRow = -1;
-    const boxes = this.rowBoxes(menu);
-    menu.scrollTop = hovered
-      ? snapScroll(boxes, menu.scrollTop, menu.scrollHeight - menu.clientHeight)
-      : revealRow(
-          boxes,
-          Number(menu.dataset.sel),
-          menu.scrollTop,
-          menu.clientHeight,
-          menu.scrollHeight,
-        );
-  }
-
-  /**
-   * Shows the "more above" and "more below" cues of `menu` (none when `menu` is null or fits). Each
-   * stands centred in the strip reserved above or below the menu, clear of every row.
-   */
-  private updateCues(screen: HTMLElement, menu: HTMLElement | null): void {
-    const cues = this.cues.get(screen);
-    if (!cues) return;
-    const scrolls = !!menu && 'scroll' in menu.dataset;
-    const c = scrolls
-      ? scrollCues(menu.scrollTop, menu.clientHeight, menu.scrollHeight)
-      : { above: false, below: false };
-    cues.up.hidden = !c.above;
-    cues.down.hidden = !c.below;
-    if (!scrolls) return;
-    const s = screen.getBoundingClientRect();
-    const m = menu.getBoundingClientRect();
-    const strip = this.stripOf(menu);
-    const max = Number.parseFloat(getComputedStyle(menu).getPropertyValue('--lf-n')) || 1;
-    for (const cue of [cues.up, cues.down]) {
-      cue.style.left = `${m.left - s.left}px`;
-      cue.style.width = `${m.width}px`;
-      cue.style.height = `${strip}px`;
-      cue.style.setProperty('--lf-cue', String(chevronScale(strip, max)));
-    }
-    cues.up.style.top = `${m.top - s.top - strip}px`;
-    cues.down.style.top = `${m.bottom - s.top}px`;
-  }
-
-  /** Makes the cue pair of a screen: one pointing up, one down, inert and hidden until a menu scrolls. */
-  private makeCues(screen: HTMLElement, menu: HTMLElement): void {
-    const cue = (dir: 'up' | 'down'): HTMLElement => {
-      const c = el('div', { class: `more ${dir}`, 'aria-hidden': 'true', hidden: '' });
-      c.append(el('img', { alt: '', src: this.chevronUrl }));
-      return c;
-    };
-    const cues = { up: cue('up'), down: cue('down') };
-    this.cues.set(screen, cues);
-    screen.append(cues.up, cues.down);
-    menu.addEventListener('scroll', () => this.updateCues(screen, menu), { passive: true });
   }
 
   /**
