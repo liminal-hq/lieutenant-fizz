@@ -241,6 +241,9 @@ export class Replayer {
     const st = this.st.get(this.tick);
     if (st) this.checkState(st);
     if (this.deathTick === null && sim.get(State.PLAYER_DEAD) === 1) this.noteDeath();
+    // Reaching the end of the recorded attempt, by playing or by a seek, is when a death or a clear the recording
+    // has and the replay did not produce shows.
+    if (this.tick >= (this.current?.endTick ?? Infinity)) this.checkEnd();
   }
 
   private noteClear(): void {

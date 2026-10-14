@@ -161,6 +161,22 @@ describe.skipIf(!built)('replaying the real Fudge Bog sample', () => {
     expect(replayer.deathTick).toBeNull();
   });
 
+  it('reports a recorded death the replay never reaches when a seek lands at the end of the attempt', (ctx) => {
+    if (sim.levelHash(7) !== FUDGE_BOG_HASH) ctx.skip(CHANGED);
+    // The log is cut short and a death is written at its end, where the replay is still alive.
+    const cut = doctored(session, (events) => {
+      const level2 = events.findIndex((e, i) => i > 0 && e.e === 'level' && e['attempt'] === 2);
+      events.splice(level2 - 60, 60);
+      const last = events[level2 - 61]!;
+      events.splice(level2 - 60, 0, { ...last, e: 'death', cause: 5, detail: 1, x: 1, y: 1 });
+    });
+    const replayer = new Replayer(sim, cut);
+    replayer.load(0);
+    replayer.seek(replayer.attempt!.endTick);
+    expect(replayer.deathTick).toBeNull();
+    expect(replayer.drift).toMatchObject({ kind: 'death', replayed: 'no death' });
+  });
+
   it('still replays an older sample whose level event was stamped a few ticks late', (ctx) => {
     if (sim.levelHash(7) !== FUDGE_BOG_HASH) ctx.skip(CHANGED);
     const late = doctored(session, (events) => {
