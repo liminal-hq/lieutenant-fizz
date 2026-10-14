@@ -265,7 +265,8 @@ let touch: LauncherTouch | undefined;
  */
 function keepClearOfControls(): void {
   const room = touch?.room() ?? { left: 0, right: 0, leftTop: 0, rightTop: 0 };
-  const bottom = document.querySelector('#launcher .menu')?.getBoundingClientRect().bottom ?? 0;
+  const bottom =
+    document.querySelector('#launcher .menu:not(.pinned)')?.getBoundingClientRect().bottom ?? 0;
   const px = (side: number, top: number): string => `${top > 0 && bottom > top ? side : 0}px`;
   const style = document.documentElement.style;
   style.setProperty('--lf-touch-left', px(room.left, room.leftTop));
