@@ -39,7 +39,10 @@ import { cueOf } from './cues';
 import { readUnlocked } from './dev-unlock';
 import { fullscreenKey, shouldStartFullscreen } from './desktop';
 import { applyEffects } from './effects';
-import { optionsSourceOf, readGlobal, volumeOf } from './options';
+import { optionsSourceOf, readGlobal, resetGlobal, volumeOf, writeGlobal } from './options';
+import type { GlobalOptions } from '@lieutenant-fizz/engine/options';
+import { RESET_ARM_MS } from '@lieutenant-fizz/engine/two-tap';
+import { densityRow } from '@lieutenant-fizz/engine/menu/density';
 import { SILENT, createLauncherSound, type LauncherSound } from './sound';
 import { currentStop, hasBack, initialState, reduce, type Action } from './state';
 import { createSnackbar, createToast, type ToastDeps } from './toast';
@@ -121,13 +124,15 @@ await Promise.all(
 );
 // The app-wide options (read from the shared file, carried over from an older build's the first time).
 const optionsSource = optionsSourceOf([...files.values()].map((f) => f.info));
-const options = readGlobal(store, optionsSource);
+let options = readGlobal(store, optionsSource);
 const saves: Record<string, SaveSummary> = {};
 for (const [id, f] of files) if (f.info) saves[id] = readSaves(store, f.info);
 
 let state = initialState(stops, readUnlocked(store), saves, {
   canQuit: host.quit !== undefined,
   stop: readStop(store, stops),
+  options,
+  touch: matchMedia('(pointer: coarse)').matches,
 });
 
 // The Back gesture's peek, made below once the view exists; a gesture that arrives before then has nothing to peek at.
@@ -153,9 +158,27 @@ const back = await createLauncherBack({
   },
 });
 
+let armTimer: ReturnType<typeof setTimeout> | undefined;
+
 const deps = {
   store,
   toast,
+  options: {
+    save: (key: string, value: number | boolean) => {
+      const ok = writeGlobal(store, optionsSource, key, value);
+      if (ok) applyOptions(readGlobal(store, optionsSource));
+      return ok;
+    },
+    reset: (keys: readonly string[]) => {
+      const ok = resetGlobal(store, optionsSource, keys);
+      if (ok) applyOptions(readGlobal(store, optionsSource));
+      return ok;
+    },
+  },
+  arm: () => {
+    clearTimeout(armTimer);
+    armTimer = setTimeout(() => dispatch({ type: 'disarm' }), RESET_ARM_MS);
+  },
   // In place of the launcher, so the launcher and the episode do not pile up in the history.
   navigate: openPage,
   pageOf: (episode: string) => files.get(episode)?.info?.page,
@@ -265,6 +288,38 @@ function applyTheme(): void {
   haptics.setDevice(device);
 }
 
+/** Makes a changed option take effect now: the sound and rumble levels, the text size, row spacing and motion. */
+function applyOptions(next: GlobalOptions): void {
+  const before = options;
+  options = next;
+  // The sound and the haptics are made for a level, so a changed level makes them again.
+  if (next.sfx !== before.sfx || next.rumble !== before.rumble) {
+    themed = undefined;
+    applyTheme();
+  }
+  applyLook();
+}
+
+/** The options that shape the page itself. */
+function applyLook(): void {
+  applyMenuScale(document.documentElement, innerWidth, innerHeight, options.text === 1);
+  const style = document.documentElement.style;
+  if (matchMedia('(pointer: coarse)').matches) {
+    style.setProperty('--lf-menu-row', `${densityRow(options.density)}px`);
+  }
+  const reduced =
+    options.motion === 1 ||
+    (options.motion === 0 && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  ui.classList.toggle('rm', reduced);
+}
+
+/** Left and right: a Settings row changes by a step, anywhere else they step between stops. */
+function sideways(dir: -1 | 1): void {
+  const row = view.selectedRow();
+  if (state.screen === 'settings' && row) dispatch({ type: 'step', row, dir });
+  else dispatch({ type: 'stop', dir });
+}
+
 const dispatch = (action: Action): void => {
   const before = state;
   const step = reduce(state, action);
@@ -304,8 +359,8 @@ document.addEventListener('keydown', (e) => {
     // Nothing is focused yet: Enter chooses the highlighted row.
     e.preventDefault();
     view.activateSelected();
-  } else if (e.key === 'ArrowLeft') dispatch({ type: 'stop', dir: -1 });
-  else if (e.key === 'ArrowRight') dispatch({ type: 'stop', dir: 1 });
+  } else if (e.key === 'ArrowLeft') sideways(-1);
+  else if (e.key === 'ArrowRight') sideways(1);
 });
 /** Whether a key press landed on a button or link of its own, which handles Enter itself. */
 function isControl(target: EventTarget | null): boolean {
@@ -320,8 +375,8 @@ document.addEventListener(
   (e) => useDevice(e.pointerType === 'touch' ? 'touch' : 'keyboard'),
   true,
 );
-document.addEventListener('pad-left', () => dispatch({ type: 'stop', dir: -1 }));
-document.addEventListener('pad-right', () => dispatch({ type: 'stop', dir: 1 }));
+document.addEventListener('pad-left', () => sideways(-1));
+document.addEventListener('pad-right', () => sideways(1));
 
 // The Back gesture's peek: the screen being left slides away over the one Back goes to.
 peek = createLauncherPeek({
@@ -345,7 +400,7 @@ if (new URLSearchParams(location.search).has('debug')) {
 // The window's text scale, now and when it changes.
 let strip: Strip | undefined;
 const scale = (): void => {
-  applyMenuScale(document.documentElement, innerWidth, innerHeight);
+  applyLook();
   strip?.resize(innerHeight);
   touch?.relayout();
   keepClearOfControls();
@@ -388,7 +443,7 @@ touch = createLauncherTouch({
   onGutters: keepClearOfControls,
   act: (action) => {
     if (action.kind === 'step') view.step(action.dir);
-    else if (action.kind === 'stop') dispatch({ type: 'stop', dir: action.dir });
+    else if (action.kind === 'stop') sideways(action.dir);
     else if (action.kind === 'select') view.activateSelected();
     else dispatch({ type: 'back' });
   },

@@ -58,3 +58,21 @@ describe('the launcher menu sounds', () => {
     expect(cueOf(about, { type: 'activate', row: 'version' }, step)).toBe('select');
   });
 });
+
+describe('the Settings sounds', () => {
+  const settings = reduce(app, { type: 'activate', row: 'settings' }).state;
+
+  it('changes a value with the change cue, and is silent where a meter cannot go further', () => {
+    expect(cue(settings, { type: 'step', row: 'opt:music', dir: -1 })).toBe('change');
+    expect(cue(settings, { type: 'activate', row: 'opt:audio' })).toBe('change');
+    expect(cue(settings, { type: 'activate', row: 'tab' })).toBe('change');
+    // Music starts at full, so there is nothing further up.
+    expect(cue(settings, { type: 'step', row: 'opt:music', dir: 1 })).toBeUndefined();
+  });
+
+  it('selects on the first tap on Reset and changes on the second', () => {
+    const armed = reduce(settings, { type: 'activate', row: 'reset' }).state;
+    expect(cue(settings, { type: 'activate', row: 'reset' })).toBe('select');
+    expect(cue(armed, { type: 'activate', row: 'reset' })).toBe('change');
+  });
+});

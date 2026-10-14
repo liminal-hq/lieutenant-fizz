@@ -84,6 +84,26 @@
   color: var(--lf-ink);
 }
 
+/* A volume meter in a row: eight blocks, the lit ones green (or the plate's ink on the selected row). */
+.menu .meter {
+  display: flex;
+  gap: max(2px, calc((var(--n) - 1) * 1px));
+}
+.menu .meter i {
+  width: calc(var(--n) * 3px);
+  height: calc(var(--n) * 5px);
+  background: rgba(255, 255, 255, 0.18);
+}
+.menu .meter i.on {
+  background: #55ff55;
+}
+.menu button.sel .meter i {
+  background: rgba(26, 16, 0, 0.25);
+}
+.menu button.sel .meter i.on {
+  background: var(--lf-ink);
+}
+
 /* A bullet of several frames is a strip drawn as a background that steps along it: one frame at a time, the
    whole run taking `--lf-bullet-ms`. The row's bob still applies. */
 .menu .bullet.strip {

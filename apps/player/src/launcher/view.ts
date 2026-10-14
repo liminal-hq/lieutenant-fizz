@@ -15,7 +15,7 @@ export const APP_VERSION: string = typeof __APP_VERSION__ === 'string' ? __APP_V
 /** How long after a swipe a tap on a row is ignored, so the lift that ends a swipe does not choose the row under it. */
 export const SWIPE_TAP_GUARD_MS = 350;
 
-const SCREEN_TITLES = { load: 'Load game', about: 'About' } as const;
+const SCREEN_TITLES = { load: 'Load game', about: 'About', settings: 'Settings' } as const;
 
 /** What the heading of the carousel says for the stop showing. */
 export function stopTitle(state: LauncherState): string {
@@ -43,6 +43,8 @@ export interface View {
   step(delta: -1 | 1): void;
   /** Chooses the selected row, for a key press when focus is not on a row. */
   activateSelected(): void;
+  /** The row selected now. */
+  selectedRow(): RowId | undefined;
   /** Whether focus is on one of the menu's rows. */
   rowHasFocus(): boolean;
 }
@@ -156,6 +158,8 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
       const value = r.id === 'version' ? APP_VERSION : r.value;
       return {
         label: r.label,
+        ...(r.kind ? { kind: r.kind } : {}),
+        ...(r.meter !== undefined ? { meter: r.meter } : {}),
         ...(value ? { value } : {}),
         ...(r.disabled ? { disabled: true } : {}),
       };
@@ -212,6 +216,9 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     },
     activateSelected() {
       if (selected !== undefined) hooks.onActivate(selected);
+    },
+    selectedRow() {
+      return selected;
     },
     rowHasFocus() {
       return !!document.activeElement && menu.contains(document.activeElement);

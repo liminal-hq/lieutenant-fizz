@@ -166,4 +166,28 @@ describe('applying the launcher effects', () => {
     });
     expect(log).toEqual([`toast:${SAVE_FAILED}, so the app stays open`]);
   });
+
+  it('saves an option and writes the store out at once, and says so when it would not save', async () => {
+    const { deps, log } = setup(async () => true);
+    const saved: string[] = [];
+    await applyEffects([{ kind: 'save-option', key: 'music', value: 3 }], {
+      ...deps,
+      options: { save: (k, v) => (saved.push(`${k}=${v}`), true), reset: () => true },
+    });
+    expect(saved).toEqual(['music=3']);
+    expect(log).toEqual(['flush']);
+    const failed = setup();
+    await applyEffects([{ kind: 'reset-options', keys: ['music'] }], {
+      ...failed.deps,
+      options: { save: () => true, reset: () => false },
+    });
+    expect(failed.log).toEqual([`toast:${SAVE_FAILED}`]);
+  });
+
+  it('starts the clock for Reset', async () => {
+    const { deps } = setup();
+    let armed = 0;
+    await applyEffects([{ kind: 'arm' }], { ...deps, arm: () => void armed++ });
+    expect(armed).toBe(1);
+  });
 });

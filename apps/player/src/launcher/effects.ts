@@ -22,6 +22,13 @@ export interface EffectDeps {
   reclaimBack?(): void;
   /** Closes the app: leaves fullscreen, writes the store out and quits. Resolves false when it stayed open (the write failed). */
   quit?(): Promise<boolean>;
+  /** Saves an app-wide option, or puts some back to their defaults; each returns false when the store would not take it. */
+  options?: {
+    save(key: string, value: number | boolean): boolean;
+    reset(keys: readonly string[]): boolean;
+  };
+  /** Starts the clock that disarms Reset if its second tap does not come. */
+  arm?(): void;
 }
 
 /** The sets of dependencies that are leaving the page now, so a second press while the first is still writing does not leave twice. */
@@ -43,6 +50,16 @@ export async function applyEffects(effects: readonly Effect[], deps: EffectDeps)
       );
     } else if (effect.kind === 'save-unlock') {
       if (!writeUnlocked(deps.store, effect.unlocked)) deps.toast(SAVE_FAILED);
+    } else if (effect.kind === 'save-option' || effect.kind === 'reset-options') {
+      const ok =
+        effect.kind === 'save-option'
+          ? deps.options?.save(effect.key, effect.value)
+          : deps.options?.reset(effect.keys);
+      if (!ok) deps.toast(SAVE_FAILED);
+      // Written out at once, so closing the window straight after a change does not lose it.
+      else void Promise.resolve(flushable(deps.store)?.flush()).catch(() => {});
+    } else if (effect.kind === 'arm') {
+      deps.arm?.();
     } else if (effect.kind === 'quit') {
       if (leaving.has(deps) || !deps.quit) return;
       leaving.add(deps);

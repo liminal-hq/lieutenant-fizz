@@ -76,7 +76,7 @@ body {
     gap: 0;
   }
   #launcher .menu button {
-    height: 40px;
+    height: var(--lf-menu-row, 40px);
   }
 }
 
@@ -245,6 +245,13 @@ body {
   .strip .ben .air {
     animation: none;
   }
+}
+/* The Motion option set to Reduced (or to follow a system that is) stills the strip too. */
+.rm .strip,
+.rm .strip .ben,
+.rm .strip .ben .run,
+.rm .strip .ben .air {
+  animation: none;
 }
 
 /* A Back-gesture peek: a copy of the screen being left slides away and fades over the screen Back goes to, which is

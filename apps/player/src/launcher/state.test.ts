@@ -85,7 +85,7 @@ describe('the carousel', () => {
     const soon = reduce(start(), { type: 'stop', dir: 1 }).state;
     expect(rowsOf(soon)).toEqual([{ id: 'soon', label: 'Coming soon', disabled: true }]);
     expect(press(soon, 'soon')).toEqual({ state: soon, effects: [] });
-    expect(ids(toApp(start()))).toEqual(['about']);
+    expect(ids(toApp(start()))).toEqual(['settings', 'about']);
   });
 
   it('does not change stop while a sub-screen is open', () => {
@@ -150,8 +150,8 @@ describe('Quit on the desktop', () => {
   const desktop = (): LauncherState => initialState(STOPS, false, {}, { canQuit: true });
 
   it('has a Quit row on App settings only where the app can close itself', () => {
-    expect(ids(toApp(start()))).toEqual(['about']);
-    expect(ids(toApp(desktop()))).toEqual(['about', 'quit']);
+    expect(ids(toApp(start()))).toEqual(['settings', 'about']);
+    expect(ids(toApp(desktop()))).toEqual(['settings', 'about', 'quit']);
   });
 
   it('asks to close the app, and nothing else does', () => {
@@ -246,5 +246,103 @@ describe('the debug menu unlock', () => {
 
   it('shows the debug rows from the start when it was unlocked on an earlier run', () => {
     expect(ids(toAbout(start(true)))).toContain('debug');
+  });
+});
+
+describe('the Settings screen', () => {
+  const desktop = (touch = false): LauncherState =>
+    initialState(STOPS, false, {}, { canQuit: true, touch });
+  const settings = (state: LauncherState = start()): LauncherState =>
+    press(toApp(state), 'settings').state;
+  const step = (state: LauncherState, row: RowId, dir: -1 | 1) =>
+    reduce(state, { type: 'step', row, dir });
+
+  it('opens from App settings on the Sound tab, with Back and Reset below the rows', () => {
+    const s = settings();
+    expect(s.screen).toBe('settings');
+    expect(hasBack(s)).toBe(true);
+    expect(ids(s)).toEqual([
+      'tab',
+      'opt:audio',
+      'opt:music',
+      'opt:sfx',
+      'opt:musicVersion',
+      'opt:sfxVersion',
+      'reset',
+      'back',
+    ]);
+  });
+
+  it('lists the rows each tab has, and a row only where the device can use it', () => {
+    const display = (state: LauncherState) => ids(step(state, 'tab', 1).state);
+    expect(display(settings())).toEqual([
+      'tab',
+      'opt:text',
+      'opt:motion',
+      'opt:awake',
+      'reset',
+      'back',
+    ]);
+    expect(display(settings(desktop(true)))).toEqual([
+      'tab',
+      'opt:text',
+      'opt:motion',
+      'opt:fullscreen',
+      'opt:awake',
+      'opt:density',
+      'reset',
+      'back',
+    ]);
+    const controls = step(step(settings(), 'tab', 1).state, 'tab', 1).state;
+    expect(ids(controls)).toEqual(['tab', 'opt:rumble', 'reset', 'back']);
+    expect(step(controls, 'tab', 1).state.tab).toBe('sound');
+  });
+
+  it('changes a value by a step and asks to save it, clamping a meter and silent at the end', () => {
+    const s = settings();
+    const full = s.options.music;
+    expect(step(s, 'opt:music', -1).effects).toEqual([
+      { kind: 'save-option', key: 'music', value: full - 1 },
+    ]);
+    expect(step(s, 'opt:music', 1)).toEqual({ state: s, effects: [] });
+    const silent = run(
+      s,
+      Array.from({ length: full + 3 }, (): Action => ({ type: 'step', row: 'opt:music', dir: -1 })),
+    ).state;
+    expect(silent.options.music).toBe(0);
+    expect(step(silent, 'opt:music', -1).effects).toEqual([]);
+  });
+
+  it('wraps a meter on a tap and goes round a choice either way', () => {
+    const s = settings();
+    const wrapped = press(s, 'opt:music').state;
+    expect(wrapped.options.music).toBe(0);
+    expect(press(wrapped, 'opt:audio').state.options.audio).toBe(1);
+    expect(step(s, 'opt:audio', -1).state.options.audio).toBe(2);
+  });
+
+  it('ignores a setting that is not on the tab showing', () => {
+    expect(step(settings(), 'opt:text', 1).effects).toEqual([]);
+    expect(step(start(), 'opt:music', 1).effects).toEqual([]);
+  });
+
+  it('resets the tab on the second tap, and not when anything comes between', () => {
+    const changed = press(settings(), 'opt:audio').state;
+    const armed = press(changed, 'reset');
+    expect(armed.effects).toEqual([{ kind: 'arm' }]);
+    expect(rowsOf(armed.state).find((r) => r.id === 'reset')?.value).toBe('Tap again');
+    const done = press(armed.state, 'reset');
+    expect(done.effects).toEqual([
+      {
+        kind: 'reset-options',
+        keys: ['audio', 'music', 'sfx', 'musicVersion', 'sfxVersion'],
+      },
+    ]);
+    expect(done.state.options.audio).toBe(0);
+    expect(done.state.armed).toBe(false);
+    // Another choice, or the timer, disarms it.
+    expect(step(armed.state, 'opt:music', -1).state.armed).toBe(false);
+    expect(reduce(armed.state, { type: 'disarm' }).state.armed).toBe(false);
+    expect(press(press(armed.state, 'tab').state, 'reset').effects).toEqual([{ kind: 'arm' }]);
   });
 });

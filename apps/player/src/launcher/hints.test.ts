@@ -56,4 +56,13 @@ describe('the launcher hints', () => {
       expect(hintText(hint)).not.toContain('{');
     }
   });
+
+  it('say how to change a value on the Settings screen', () => {
+    const app = reduce(reduce(initialState(stops, false), { type: 'stop', dir: 1 }).state, {
+      type: 'stop',
+      dir: 1,
+    }).state;
+    const settings = reduce(app, { type: 'activate', row: 'settings' }).state;
+    expect(hintsOf(settings)).toEqual(['{[↑↓]} Select', '{[←→]} Change', '{Esc} Back']);
+  });
 });

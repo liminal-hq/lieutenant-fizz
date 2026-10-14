@@ -22,5 +22,6 @@ export function hintsOf(state: LauncherState, device: InputDevice = 'keyboard'):
     hints.push('{Enter} Choose');
     return hints;
   }
+  if (state.screen === 'settings') return ['{[↑↓]} Select', '{[←→]} Change', '{Esc} Back'];
   return ['{[↑↓]} Select', '{Enter} Choose', '{Esc} Back'];
 }
