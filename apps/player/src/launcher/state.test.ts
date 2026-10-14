@@ -76,6 +76,13 @@ describe('the carousel', () => {
     expect(initialState(STOPS, false, {}, { stop: -1 }).stop).toBe(0);
   });
 
+  it('opens About on App settings when asked to, and ignores that on an episode', () => {
+    const last = STOPS.length - 1;
+    expect(initialState(STOPS, false, {}, { stop: last, about: true }).screen).toBe('about');
+    expect(initialState(STOPS, false, {}, { stop: 0, about: true }).screen).toBe('home');
+    expect(initialState(STOPS, false, {}, { stop: last }).screen).toBe('home');
+  });
+
   it('steps through the stops and loops past either end', () => {
     const one = start();
     expect(reduce(one, { type: 'stop', dir: -1 }).state.stop).toBe(STOPS.length - 1);

@@ -134,14 +134,21 @@ export function initialState(
   stops: readonly Stop[],
   unlocked: boolean,
   saves: Readonly<Record<string, SaveSummary>> = {},
-  caps: { canQuit?: boolean; stop?: number; options?: GlobalOptions; touch?: boolean } = {},
+  caps: {
+    canQuit?: boolean;
+    stop?: number;
+    options?: GlobalOptions;
+    touch?: boolean;
+    /** Open About, when the debug menu was left for it from there. Only App settings has one. */
+    about?: boolean;
+  } = {},
 ): LauncherState {
   const stop =
     caps.stop !== undefined && caps.stop >= 0 && caps.stop < stops.length ? caps.stop : 0;
   return {
     stops,
     stop,
-    screen: 'home',
+    screen: caps.about && stops[stop]?.kind === 'app' ? 'about' : 'home',
     taps: 0,
     unlocked,
     saves,

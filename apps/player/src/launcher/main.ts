@@ -44,7 +44,7 @@ import type { GlobalOptions } from '@lieutenant-fizz/engine/options';
 import { RESET_ARM_MS } from '@lieutenant-fizz/engine/two-tap';
 import { densityRow } from '@lieutenant-fizz/engine/menu/density';
 import { SILENT, createLauncherSound, type LauncherSound } from './sound';
-import { currentStop, hasBack, initialState, reduce, type Action } from './state';
+import { DEBUG_URL, currentStop, hasBack, initialState, reduce, type Action } from './state';
 import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { isPortrait } from '@lieutenant-fizz/engine/portrait';
 import { createStrip, type Strip } from './strip';
@@ -132,9 +132,20 @@ let options = readGlobal(store, optionsSource);
 const saves: Record<string, SaveSummary> = {};
 for (const [id, f] of files) if (f.info) saves[id] = readSaves(store, f.info);
 
+// Leaving for the debug menu from About comes back to About, not to the first screen.
+const RETURN_KEY = 'lf-launcher-return-v1';
+let returnToAbout = false;
+try {
+  returnToAbout = sessionStorage.getItem(RETURN_KEY) === 'about';
+  sessionStorage.removeItem(RETURN_KEY);
+} catch {
+  /* no session storage */
+}
+
 let state = initialState(stops, readUnlocked(store), saves, {
   canQuit: host.quit !== undefined,
   stop: readStop(store, stops),
+  about: returnToAbout,
   options,
   touch: matchMedia('(pointer: coarse)').matches,
 });
@@ -203,7 +214,16 @@ const deps = {
     armTimer = setTimeout(() => dispatch({ type: 'disarm' }), RESET_ARM_MS);
   },
   // In place of the launcher, so the launcher and the episode do not pile up in the history.
-  navigate: openPage,
+  navigate: (url: string) => {
+    if (url === DEBUG_URL && state.screen === 'about') {
+      try {
+        sessionStorage.setItem(RETURN_KEY, 'about');
+      } catch {
+        /* no session storage */
+      }
+    }
+    openPage(url);
+  },
   pageOf: (episode: string) => files.get(episode)?.info?.page,
   releaseBack: () => back.release(),
   reclaimBack: () => back.reclaim(hasBack(state)),
