@@ -8,6 +8,7 @@ import {
   renderRows,
   type BulletImage,
   type RowItem,
+  type RowsOptions,
 } from '@lieutenant-fizz/engine/menu/rows';
 import { MenuScroller } from '@lieutenant-fizz/engine/menu/scroller';
 import { swipeDirection } from '@lieutenant-fizz/engine/menu/swipe';
@@ -100,8 +101,18 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
   header.append(prev, title, next);
   const pips = make('div', 'pips');
   pips.setAttribute('aria-hidden', 'true');
+  // The Settings tab strip stands above the menu, outside what scrolls, so it keeps its place from tab to tab.
+  const bar = make('div', 'menu pinned');
+  bar.hidden = true;
   const menu = make('div', 'menu');
-  root.replaceChildren(header, pips, menu);
+  root.replaceChildren(header, pips, bar, menu);
+  /** How many rows the pinned bar holds (0 or 1): the menu's own rows are numbered after them. */
+  let offset = 0;
+  /** Every row's button, the bar's first. */
+  const buttons = (): HTMLElement[] => [
+    ...bar.querySelectorAll<HTMLElement>('button'),
+    ...menu.querySelectorAll<HTMLElement>('button'),
+  ];
   // A menu taller than the room scrolls, with chevrons at its edges (as the game's does).
   const scroller = new MenuScroller();
   scroller.attach(root, menu);
@@ -119,21 +130,21 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
   const mark = (id: RowId | undefined): void => {
     selected = id;
     const at = id === undefined ? -1 : ids.indexOf(id);
-    menu.dataset['sel'] = String(at);
-    menu
-      .querySelectorAll<HTMLElement>('button')
-      .forEach((b, i) => b.classList.toggle('sel', i === at));
+    // The menu numbers its own rows, so the scroller finds the selected one; the bar has none to find.
+    menu.dataset['sel'] = String(Math.max(0, at - offset));
+    buttons().forEach((b, i) => b.classList.toggle('sel', i === at));
   };
 
   // The pad and keyboard move focus; the selection follows.
-  menu.addEventListener('focusin', (e) => {
+  root.addEventListener('focusin', (e) => {
     const i = Number((e.target as HTMLElement).closest('button')?.dataset['i']);
     const id = Number.isInteger(i) ? ids[i] : undefined;
     if (!id) return;
     const moved = id !== selected;
     mark(id);
     if (moved && !quiet) {
-      scroller.reveal(menu);
+      if (ids.indexOf(id) < offset) menu.scrollTop = 0;
+      else scroller.reveal(menu);
       hooks.onMove();
     }
   });
@@ -167,7 +178,9 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
 
   const draw = (state: LauncherState): void => {
     const rows = rowsOf(state);
-    const had = document.activeElement && menu.contains(document.activeElement);
+    const had =
+      document.activeElement &&
+      (menu.contains(document.activeElement) || bar.contains(document.activeElement));
     ids = rows.map((r) => r.id);
     const home = state.screen === 'home';
     header.dataset['sub'] = home ? '' : 'true';
@@ -197,7 +210,10 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     const free = rows.findIndex((r) => !r.disabled);
     const kept = selected === undefined ? -1 : ids.indexOf(selected);
     const at = kept >= 0 && !rows[kept]?.disabled ? kept : Math.max(0, free);
-    renderRows(menu, items, at, {
+    // A tab strip is pinned above the menu; the rest scroll.
+    offset = items[0]?.tabs ? 1 : 0;
+    bar.hidden = offset === 0;
+    const options: Omit<RowsOptions<LauncherItem>, 'onClick'> = {
       bullet,
       decorate: (button, item) => {
         if (item.tabs) button.classList.add('tabstrip');
@@ -214,23 +230,32 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
           plate.append(tab);
         });
       },
+    };
+    /** The options for rows that start at `from` in the whole list (the buttons are numbered from `from`). */
+    const forRows = (from: number): RowsOptions<LauncherItem> => ({
+      ...options,
       onClick: (i) => {
-        const id = ids[i];
+        const id = ids[from + i];
         if (id) hooks.onActivate(id);
       },
       onHover: (i, e) => {
-        if (e.pointerType !== 'mouse' || rows[i]?.disabled) return;
+        if (e.pointerType !== 'mouse' || rows[from + i]?.disabled) return;
         quiet = true;
-        menu.querySelectorAll<HTMLElement>('button')[i]?.focus({ preventScroll: true });
+        buttons()[from + i]?.focus({ preventScroll: true });
         quiet = false;
       },
+    });
+    renderRows(bar, items.slice(0, offset), at < offset ? at : -1, forRows(0));
+    renderRows(menu, items.slice(offset), at - offset, forRows(offset));
+    menu.querySelectorAll<HTMLElement>('button').forEach((b, i) => {
+      b.dataset['i'] = String(i + offset);
     });
     mark(free < 0 ? undefined : ids[at]);
     fit();
     // Keep the pad's place; on first load there is nothing to keep, so the first row is only highlighted.
     if (had && free >= 0) {
       quiet = true;
-      menu.querySelectorAll<HTMLElement>('button')[at]?.focus({ preventScroll: true });
+      buttons()[at]?.focus({ preventScroll: true });
       quiet = false;
     }
   };
@@ -256,8 +281,7 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
       if (open.length === 0) return;
       const at = selected === undefined ? -1 : open.indexOf(ids.indexOf(selected));
       const next = open[(at + delta + open.length) % open.length];
-      if (next !== undefined)
-        menu.querySelectorAll<HTMLElement>('button')[next]?.focus({ preventScroll: true });
+      if (next !== undefined) buttons()[next]?.focus({ preventScroll: true });
     },
     activateSelected() {
       if (selected !== undefined) hooks.onActivate(selected);
@@ -267,7 +291,8 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     },
     relayout: fit,
     rowHasFocus() {
-      return !!document.activeElement && menu.contains(document.activeElement);
+      const at = document.activeElement;
+      return !!at && (menu.contains(at) || bar.contains(at));
     },
   };
 }

@@ -83,6 +83,16 @@ body {
   }
 }
 
+/* The Settings tab strip, above the menu and outside what scrolls. */
+#launcher .menu.pinned {
+  flex: none;
+  align-self: flex-start;
+  min-width: min(100%, calc(var(--n) * 11 * 14px));
+}
+#launcher .menu[hidden] {
+  display: none;
+}
+
 /* A scrolling menu lays every row out at one height (set by the page). */
 #launcher .menu[data-unit] > button {
   height: var(--lf-menu-unit);

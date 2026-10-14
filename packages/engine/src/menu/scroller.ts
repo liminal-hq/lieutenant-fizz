@@ -66,7 +66,7 @@ export class MenuScroller {
   fit(screens: readonly HTMLElement[], options: FitOptions): void {
     const { minRow } = options;
     for (const screen of screens) {
-      const menus = [...screen.querySelectorAll<HTMLElement>('.menu')];
+      const menus = [...screen.querySelectorAll<HTMLElement>('.menu:not(.pinned)')];
       const shown = menus.find((m) => !m.hidden && m.offsetParent);
       const keep = shown?.scrollTop ?? 0;
       for (const m of menus) {
