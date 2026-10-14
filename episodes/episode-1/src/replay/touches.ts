@@ -36,20 +36,22 @@ export interface Touch {
 /**
  * The touches that happened in play during an attempt. A touch on a menu, a card or the pause screen is left
  * out, since the replay shows the level. A touch is a hit when the recorder named a control under it, and a miss
- * otherwise.
+ * otherwise. Only fingers are read: a mouse or a pen is not a touch on the controls. A finger that went down
+ * just before the level started and was still down after it is part of the attempt, from where it went down.
  */
 export function touchesOf(events: readonly SessionEvent[], attempt: ReplayAttempt): Touch[] {
   const out: Touch[] = [];
   const open = new Map<number, Touch>();
-  // A level starts on the play screen.
   let playing = true;
-  for (let i = attempt.index; i < attempt.end; i++) {
+  for (let i = 0; i < attempt.end; i++) {
     const e = events[i]!;
+    // A level starts on the play screen.
+    if (i === attempt.index) playing = true;
     if (e.e === 'screen') {
       playing = e['to'] === 'play';
       continue;
     }
-    if (e.e !== 'ptr') continue;
+    if (e.e !== 'ptr' || e['ty'] !== 'touch') continue;
     const id = num(e, 'id');
     const x = num(e, 'x');
     const y = num(e, 'y');
@@ -77,7 +79,10 @@ export function touchesOf(events: readonly SessionEvent[], attempt: ReplayAttemp
       open.delete(id);
     }
   }
-  return out;
+  // The scan began at the start of the log to know which fingers were already down: keep those that were
+  // still down when the level began, and the ones that went down after.
+  const began = events[attempt.index]?.t ?? 0;
+  return out.filter((t) => t.up === null || t.up >= began);
 }
 
 /** How many ticks of a finger's trail are drawn, and how long a lifted finger lingers. */

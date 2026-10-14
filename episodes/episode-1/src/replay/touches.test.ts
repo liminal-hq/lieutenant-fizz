@@ -39,12 +39,20 @@ describe('touchesOf on the real recording', () => {
     expect(controls.has('jump')).toBe(true);
   });
 
-  it('keeps each touch inside its attempt', () => {
-    const [a] = attempts;
-    for (const t of touchesOf(session.events, a!)) {
-      expect(t.down).toBeGreaterThanOrEqual(a!.startTick);
-      expect(t.down).toBeLessThanOrEqual(a!.endTick);
+  it('keeps each touch inside its attempt, or still down when it began', () => {
+    for (const a of attempts) {
+      for (const t of touchesOf(session.events, a)) {
+        expect(t.down).toBeLessThanOrEqual(a.endTick);
+        if (t.down < a.startTick) expect(t.up === null || t.up >= a.startTick).toBe(true);
+      }
     }
+  });
+
+  it('shows the finger that was already down when attempt 2 began', () => {
+    const second = attempts[1]!;
+    const carried = touchesOf(session.events, second).filter((t) => t.down < second.startTick);
+    expect(carried.length).toBeGreaterThan(0);
+    for (const t of carried) expect(t.up === null || t.up >= second.startTick).toBe(true);
   });
 });
 
@@ -83,6 +91,30 @@ describe('touchesOf on small logs', () => {
       [25, 12],
     ]);
     expect(t!.up).toBe(3);
+  });
+
+  it('reads only fingers: a mouse or a pen is not a touch on the controls', () => {
+    const { s, a } = attempt([
+      { t: 1, e: 'ptr', k: 'down', id: 1, ty: 'mouse', x: 50, y: 60 },
+      { t: 2, e: 'ptr', k: 'up', id: 1, ty: 'mouse', x: 50, y: 60 },
+      { t: 3, e: 'ptr', k: 'down', id: 2, ty: 'pen', x: 70, y: 60, on: 'ctl:jump' },
+      { t: 4, e: 'ptr', k: 'down', id: 3, ty: 'touch', x: 90, y: 60, on: 'ctl:fire' },
+    ]);
+    expect(touchesOf(s.events, a).map((t) => t.control)).toEqual(['fire']);
+  });
+
+  it('carries a finger that went down before the level began and was still down after it', () => {
+    const s = sessionOf('s', [
+      { t: 1, e: 'ptr', k: 'down', id: 4, ty: 'touch', x: 10, y: 10, on: 'ctl:dpad' },
+      { t: 2, e: 'ptr', k: 'down', id: 5, ty: 'touch', x: 20, y: 20, on: 'ctl:jump' },
+      { t: 3, e: 'ptr', k: 'up', id: 5, ty: 'touch', x: 20, y: 20, on: 'ctl:jump' },
+      { t: 10, e: 'level', id: 1, name: 'L', attempt: 1 },
+      { t: 12, e: 'ptr', k: 'move', id: 4, ty: 'touch', x: 14, y: 10 },
+      { t: 15, e: 'ptr', k: 'up', id: 4, ty: 'touch', x: 14, y: 10 },
+    ]);
+    const got = touchesOf(s.events, findAttempts(s)[0]!);
+    // Finger 5 lifted before the level began and is not in it; finger 4 is, from where it went down.
+    expect(got.map((t) => [t.id, t.down, t.up])).toEqual([[4, 1, 15]]);
   });
 
   it('leaves out touches on a menu, a card or the pause screen', () => {
