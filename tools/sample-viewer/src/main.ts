@@ -5,6 +5,7 @@
 
 import { parseSession, type Session } from '@lieutenant-fizz/engine/session/log';
 import { readZip } from '@lieutenant-fizz/engine/zip-read';
+import { findAttempts } from '../../../episodes/episode-1/src/replay/replayer';
 import { summarise, type Summary } from './aggregate';
 import { boundsOf, drawPaths } from './charts';
 
@@ -29,6 +30,39 @@ const $ = <T extends HTMLElement>(id: string): T => {
 };
 
 const sessions: Session[] = [];
+
+/** The replay in the page, built the first time something is watched (it loads the game's sim and sprites). */
+let panel: import('./replay-panel').ReplayPanel | null = null;
+
+async function watch(session: Session, at: { order?: number; tick?: number }): Promise<void> {
+  const { ReplayPanel } = await import('./replay-panel');
+  panel ??= new ReplayPanel(
+    $('replay-section'),
+    $('replay-stage'),
+    $('replay-gl'),
+    () => summarise(sessions).spots,
+  );
+  if (!(await panel.watch(session, at))) {
+    $('problems').append(h('li', { text: `${session.name} has no level to watch` }));
+  }
+}
+
+/** A Watch button for a session (optionally at an attempt and a tick), left out when nothing in it can be replayed. */
+function watchButton(
+  session: Session,
+  at: { order?: number; tick?: number },
+  label: string,
+): HTMLElement | string {
+  if (!findAttempts(session).some((a) => a.entry)) return '';
+  const b = h('button', { text: 'Watch' });
+  b.type = 'button';
+  b.setAttribute('aria-label', label);
+  b.addEventListener('click', () => void watch(session, at));
+  return b;
+}
+
+// A way for the browser tests to see where the replay is.
+(window as unknown as { __viewer: object }).__viewer = { replay: () => panel?.state() ?? null };
 
 /** Ticks as minutes and seconds. */
 export const clock = (ticks: number): string => {
@@ -113,9 +147,10 @@ function render(): void {
     ...sessions.map((s) =>
       h(
         'li',
-        {},
+        { class: 'spot-row' },
         h('b', { text: s.name }),
         ` started ${s.startedAt || 'at an unknown time'}, ${String(s.specs['browser'] ?? '?')} ${String(s.specs['browserVersion'] ?? '')} on ${String(s.specs['os'] ?? '?')}${s.skipped ? `, ${s.skipped} unreadable lines skipped` : ''}`,
+        watchButton(s, {}, `Watch ${s.name}`),
       ),
     ),
   );
@@ -124,9 +159,25 @@ function render(): void {
   bars($('buttons'), summary.buttons);
   bars($('causes'), summary.causes);
   $('spots').replaceChildren(
-    ...summary.spots
-      .slice(0, 12)
-      .map((s) => h('li', { text: `${s.level}, tile ${s.x}, ${s.y}: ${s.count} (${s.cause})` })),
+    ...summary.spots.slice(0, 12).map((s) => {
+      // Watching a spot goes to the first death there, a moment before it.
+      const ref = s.refs[0];
+      const session = ref ? sessions.find((x) => x.name === ref.session) : undefined;
+      return h(
+        'li',
+        { class: 'spot-row' },
+        `${s.level}, tile ${s.x}, ${s.y}: ${s.count} (${s.cause})`,
+        ...(ref && session
+          ? [
+              watchButton(
+                session,
+                { order: ref.order, tick: ref.tick },
+                `Watch a death at ${s.level}, tile ${s.x}, ${s.y}`,
+              ),
+            ]
+          : []),
+      );
+    }),
   );
   if (!summary.spots.length)
     $('spots').append(h('li', { class: 'note', text: 'No lives lost yet.' }));

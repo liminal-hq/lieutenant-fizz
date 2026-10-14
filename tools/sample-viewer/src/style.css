@@ -182,3 +182,35 @@ canvas {
 label {
   color: var(--muted);
 }
+
+/* The replay screen is the game's own, so it reads the game's variables; they are set here from the viewer's. */
+:root {
+  --lf-panel: rgba(12, 12, 16, 0.88);
+  --lf-border: var(--line);
+  --lf-text: var(--text);
+  --lf-muted: var(--muted);
+  --lf-accent: var(--accent);
+  --lf-ink: #1a1000;
+  --lf-font: system-ui, sans-serif;
+  --lf-safe-top: 0px;
+  --lf-safe-right: 0px;
+  --lf-safe-bottom: 0px;
+  --lf-safe-left: 0px;
+}
+#replay-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 6px;
+  overflow: hidden;
+}
+#replay-gl {
+  position: absolute;
+  inset: 0;
+}
+.spot-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
