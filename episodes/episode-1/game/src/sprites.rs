@@ -70,6 +70,7 @@ sprites! {
     OwGrassFrost = "owGrassFrost", OwFrost0 = "owFrost0", OwFrost1 = "owFrost1", OwCake = "owCake", OwCrater = "owCrater",
     OwCave = "owCave", OwMesa = "owMesa", OwTower = "owTower", OwPlayhouse = "owPlayhouse", OwMeadow = "owMeadow", OwShaft = "owShaft", OwFoundry = "owFoundry", OwCastle = "owCastle", OwTele0 = "owTele0", OwTele1 = "owTele1", OwFlag = "owFlag",
     Saucer = "saucer", HillTop = "hillTop", MtnTop = "mtnTop", Fill = "fill", Star = "star", Cloud = "cloud", Mural = "mural",
+    OwShadowS = "owShadowS", OwShadowL = "owShadowL",
 }
 
 /// Per-tileset tile sprites are laid out in this order, 11 per tileset, starting at `CraterTop`.

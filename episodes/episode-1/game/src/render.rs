@@ -398,6 +398,13 @@ impl World {
         self.out[out::WORLD] = world as f32;
     }
 
+    /// Pushes a sprite standing on the tile `(tx, ty)`: centred on the tile across, its base on the tile's
+    /// bottom edge, so a taller sprite (a tree, a house) rises above the tile into the one north of it.
+    fn push_base(&mut self, tx: f64, ty: f64, id: Spr, o: &PushOpts) {
+        let h = self.sprite_h(id as u16);
+        self.push(tx + 0.5, ty + h / 32.0, id, o);
+    }
+
     fn draw_map(&mut self, alpha: f64, v: [f64; 4], fl: u32, _cam: (f64, f64)) -> usize {
         let cul = fl & flags::CULLING != 0;
         let (w, h) = (self.map.w, self.map.h);
@@ -417,6 +424,12 @@ impl World {
         let lit = PushOpts::default();
         let act = PushOpts { actor: true, ..lit };
         let glow = PushOpts::em();
+        let shade = PushOpts {
+            alpha: 0.55,
+            ..glow
+        };
+
+        // Pass 1: the ground, flat, in any order.
         for y in ty0..=ty1 {
             for x in tx0..=tx1 {
                 let tt = self.map.get(x, y);
@@ -445,84 +458,102 @@ impl World {
                     if tt == PATH { Spr::OwPath } else { theme.grass },
                     if tt == PATH { &act } else { &lit },
                 );
-                if tt == TREE {
-                    self.push(
-                        fx,
-                        fy,
-                        if hashf(x, y) < 0.5 {
-                            theme.trees[0]
-                        } else {
-                            theme.trees[1]
-                        },
-                        &lit,
-                    );
-                }
-                if tt == ROCK {
-                    self.push(fx, fy, theme.rock, &lit);
-                }
-                let building = match tt {
-                    HOUSE_A => Some(Spr::OwHouseA),
-                    HOUSE_B => Some(Spr::OwHouseB),
-                    SHOP => Some(Spr::OwShop),
-                    FOUNTAIN => Some(Spr::OwFountain),
-                    _ => None,
-                };
-                if let Some(s) = building {
-                    self.push(fx, fy, s, &lit);
-                }
             }
         }
-        for i in 0..self.points.len() {
-            let pt = self.points[i];
-            if pt.hidden && !self.met(pt.req) {
-                continue;
-            }
-            let (x, y) = (pt.x + 0.5, pt.y + 0.5);
-            match pt.kind {
-                crate::levels::PtKind::Saucer => self.push(x, y, Spr::Saucer, &lit),
-                crate::levels::PtKind::Sign => self.push(x, y, Spr::OwSign, &lit),
-                crate::levels::PtKind::Tele => {
-                    let on = self.met(pt.req);
-                    let s = if on && ((self.t * 4.0).floor() as i64) & 1 != 0 {
-                        Spr::OwTele1
-                    } else {
-                        Spr::OwTele0
-                    };
-                    self.push(
-                        x,
-                        y,
-                        s,
-                        &PushOpts {
-                            tint: if on { 0xffffff } else { 0x777777 },
-                            ..glow
-                        },
-                    );
-                }
-                crate::levels::PtKind::Level => {
-                    let s = crate::levels::LEVELS[usize::from(pt.level)].icon;
-                    let (bx, by) = if pt.big { (x + 0.5, y + 0.5) } else { (x, y) };
-                    self.push(bx, by, s, &lit);
-                    if self.game.is_done(pt.level) {
-                        self.push(
-                            x + 0.6,
-                            y + 0.9,
-                            Spr::OwFlag,
-                            &PushOpts { scale: 0.7, ..glow },
-                        );
-                    }
-                }
-            }
-        }
+
+        // Pass 2: everything that stands on the ground, from the north row down to the south one, so that what
+        // is further south (nearer the viewer) is drawn over what is behind it. A tall sprite rises above its
+        // tile, so rows up to two below the view still reach into it.
         let p = &self.p;
         let px = p.b.px + (p.b.x - p.b.px) * alpha;
         let py = p.b.py + (p.b.y - p.b.py) * alpha;
-        let s = if (p.anim.floor() as i64) & 1 != 0 {
-            Spr::BenMap1
-        } else {
-            Spr::BenMap0
-        };
-        let flip = p.face < 0.0;
-        self.push(px + 0.3, py + 0.4, s, &PushOpts { flip, ..act });
+        let ben_row = py.floor() as i32;
+        let first = (ty0 - 2).max(0);
+        for y in (first..=ty1).rev() {
+            for x in tx0..=tx1 {
+                let tt = self.map.get(x, y);
+                let tile = (f64::from(x), f64::from(y));
+                let theme = crate::levels::area_theme(crate::levels::area_at(&self.areas, x, y));
+                match tt {
+                    TREE => {
+                        self.push_base(tile.0, tile.1 - 0.05, Spr::OwShadowS, &shade);
+                        let tree = if hashf(x, y) < 0.5 {
+                            theme.trees[0]
+                        } else {
+                            theme.trees[1]
+                        };
+                        self.push_base(tile.0, tile.1, tree, &lit);
+                    }
+                    ROCK => {
+                        self.push_base(tile.0, tile.1 - 0.05, Spr::OwShadowS, &shade);
+                        self.push_base(tile.0, tile.1, theme.rock, &lit);
+                    }
+                    HOUSE_A | HOUSE_B | SHOP => {
+                        let s = match tt {
+                            HOUSE_A => Spr::OwHouseA,
+                            HOUSE_B => Spr::OwHouseB,
+                            _ => Spr::OwShop,
+                        };
+                        self.push_base(tile.0, tile.1 - 0.05, Spr::OwShadowL, &shade);
+                        self.push_base(tile.0, tile.1, s, &lit);
+                    }
+                    FOUNTAIN => self.push_base(tile.0, tile.1, Spr::OwFountain, &lit),
+                    _ => {}
+                }
+            }
+            for i in 0..self.points.len() {
+                let pt = self.points[i];
+                if pt.y.floor() as i32 != y || (pt.hidden && !self.met(pt.req)) {
+                    continue;
+                }
+                let (x, y) = (pt.x + 0.5, pt.y + 0.5);
+                match pt.kind {
+                    crate::levels::PtKind::Saucer => self.push(x, y, Spr::Saucer, &lit),
+                    crate::levels::PtKind::Sign => self.push(x, y, Spr::OwSign, &lit),
+                    crate::levels::PtKind::Tele => {
+                        let on = self.met(pt.req);
+                        let s = if on && ((self.t * 4.0).floor() as i64) & 1 != 0 {
+                            Spr::OwTele1
+                        } else {
+                            Spr::OwTele0
+                        };
+                        self.push(
+                            x,
+                            y,
+                            s,
+                            &PushOpts {
+                                tint: if on { 0xffffff } else { 0x777777 },
+                                ..glow
+                            },
+                        );
+                    }
+                    crate::levels::PtKind::Level => {
+                        let s = crate::levels::LEVELS[usize::from(pt.level)].icon;
+                        let (bx, by) = if pt.big { (x + 0.5, y + 0.5) } else { (x, y) };
+                        self.push(bx, by, s, &lit);
+                        if self.game.is_done(pt.level) {
+                            self.push(
+                                x + 0.6,
+                                y + 0.9,
+                                Spr::OwFlag,
+                                &PushOpts { scale: 0.7, ..glow },
+                            );
+                        }
+                    }
+                }
+            }
+            if y == ben_row {
+                let p = &self.p;
+                let s = if (p.anim.floor() as i64) & 1 != 0 {
+                    Spr::BenMap1
+                } else {
+                    Spr::BenMap0
+                };
+                let flip = p.face < 0.0;
+                self.push_base(px + 0.3 - 0.5, py - 0.05, Spr::OwShadowS, &shade);
+                self.push(px + 0.3, py + 0.4, s, &PushOpts { flip, ..act });
+            }
+        }
         (w * h) as usize
     }
 

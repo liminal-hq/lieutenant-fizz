@@ -426,6 +426,133 @@ fn the_map_is_lit_by_day_with_a_sun_that_leaves_flat_ground_at_full_brightness()
     }
 }
 
+/// A map world with each sprite the overworld draws given its own atlas coordinate, so instances can be told
+/// apart: the ground at 0.05, a shadow at 0.2, a tree at 0.4, Ben at 0.62.
+fn map_world_with_known_sprites() -> World {
+    use crate::sprites::Spr;
+    use lf_sim::SpriteRect;
+    let mut w = map_world();
+    let rect = |u: f32, h: f32| SpriteRect {
+        u,
+        v: u,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h,
+    };
+    w.spr[Spr::OwGrass as usize] = rect(0.05, 16.0);
+    w.spr[Spr::OwShadowS as usize] = rect(0.2, 4.0);
+    w.spr[Spr::OwTree0 as usize] = rect(0.4, 24.0);
+    w.spr[Spr::OwTree1 as usize] = rect(0.4, 24.0);
+    w.spr[Spr::BenMap0 as usize] = rect(0.62, 16.0);
+    w.spr[Spr::BenMap1 as usize] = rect(0.62, 16.0);
+    w.half_w = 11.0;
+    w.half_h = 6.5;
+    w
+}
+
+#[test]
+fn on_the_map_what_is_further_north_is_drawn_first_so_ben_walks_behind_trees() {
+    use lf_sim::STRIDE;
+    let mut w = map_world_with_known_sprites();
+    // Open ground in Crater Fields (the column cleared of the map's own trees): a tree three tiles north of
+    // Ben and one three tiles south.
+    for x in 8..=12 {
+        for y in 4..=16 {
+            w.map.set(x, y, GRASS);
+        }
+    }
+    for (x, y) in [(10, 13), (10, 7)] {
+        w.map.set(x, y, TREE);
+    }
+    w.p.b.x = 10.2;
+    w.p.b.y = 10.2;
+    w.cam_x = 10.5;
+    w.cam_y = 10.5;
+    w.pcx = 10.5;
+    w.pcy = 10.5;
+    w.render(1.0, crate::render::flags::CULLING);
+    let data = w.inst.as_slice();
+    let n = w.inst.len();
+    let u = |i: usize| data[i * STRIDE + 16];
+    let y = |i: usize| data[i * STRIDE + 13];
+    let ben = (0..n).find(|&i| u(i) == 0.62).expect("Ben is drawn");
+    // The trees in Ben's column (the rest of the view has the map's own).
+    let trees: Vec<usize> = (0..n)
+        .filter(|&i| u(i) == 0.4 && (data[i * STRIDE + 12] - 10.5).abs() < 1e-4)
+        .collect();
+    let north = trees
+        .iter()
+        .copied()
+        .find(|&i| y(i) > y(ben))
+        .expect("the north tree");
+    let south = trees
+        .iter()
+        .copied()
+        .find(|&i| y(i) < y(ben))
+        .expect("the south tree");
+    assert!(
+        north < ben,
+        "a tree north of Ben is behind him: drawn first"
+    );
+    assert!(
+        south > ben,
+        "a tree south of Ben is in front of him: drawn after"
+    );
+    // All the ground goes down before anything that stands on it.
+    let first_object = (0..n)
+        .find(|&i| [0.2, 0.4, 0.62].contains(&u(i)))
+        .expect("something stands on the ground");
+    assert!((0..n).filter(|&i| u(i) == 0.05).all(|i| i < first_object));
+    // A tree stands on its tile's bottom edge: 24 pixels tall, so its centre is 0.75 above the tile's base.
+    assert!((y(north) - (13.0 + 0.75)).abs() < 1e-4);
+}
+
+#[test]
+fn every_tree_and_ben_have_a_shadow_drawn_just_under_them() {
+    use lf_sim::STRIDE;
+    let mut w = map_world_with_known_sprites();
+    w.map.set(12, 11, TREE);
+    w.p.b.x = 10.2;
+    w.p.b.y = 10.2;
+    w.cam_x = 10.5;
+    w.cam_y = 10.5;
+    w.pcx = 10.5;
+    w.pcy = 10.5;
+    w.render(1.0, crate::render::flags::CULLING);
+    let data = w.inst.as_slice();
+    let n = w.inst.len();
+    let u = |i: usize| data[i * STRIDE + 16];
+    let mut seen = 0;
+    for i in (0..n).filter(|&i| u(i) == 0.4 || u(i) == 0.62) {
+        assert_eq!(u(i - 1), 0.2, "instance {i}: a shadow comes just before it");
+        seen += 1;
+    }
+    assert!(seen >= 2, "the tree and Ben");
+}
+
+#[test]
+fn a_tall_tree_just_below_the_view_still_reaches_into_it() {
+    use lf_sim::STRIDE;
+    let mut w = map_world_with_known_sprites();
+    // The view's bottom edge is at 13.2; a tree on row 12 stands on 12 and rises to 13.5, into the view.
+    w.map.set(10, 12, TREE);
+    w.p.b.x = 10.2;
+    w.p.b.y = 19.2;
+    w.cam_x = 10.5;
+    w.cam_y = 19.7;
+    w.pcx = 10.5;
+    w.pcy = 19.7;
+    w.render(1.0, crate::render::flags::CULLING);
+    let data = w.inst.as_slice();
+    let n = w.inst.len();
+    assert!(
+        (0..n)
+            .any(|i| data[i * STRIDE + 16] == 0.4 && (data[i * STRIDE + 13] - 12.75).abs() < 1e-4),
+        "the tree on row 12 is drawn"
+    );
+}
+
 #[test]
 fn the_maps_light_eases_between_areas_and_the_sun_stays_put() {
     use crate::render::out;
