@@ -12,6 +12,7 @@ import { songFor, type SongDef } from '@lieutenant-fizz/engine/music-songs';
  * theatre and the foundry keep their key (a lift would spoil the mood).
  */
 const DEFS: Record<string, SongDef> = {
+  title: { trim: 0.75, contrast: 5, lift: 2, arp: true },
   crater: { trim: 0.75, contrast: 5, lift: 2, arp: true },
   caves: { trim: 1, contrast: 7, lift: 0, arp: true },
   sky: { trim: 0.88, contrast: 7, lift: 2, arp: true },

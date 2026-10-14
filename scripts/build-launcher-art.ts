@@ -14,7 +14,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { MusicTrack, SfxVoice } from '../packages/engine/src/audio';
+import type { MusicSong, MusicTrack, SfxVoice } from '../packages/engine/src/audio';
 import type { HapticTable } from '../packages/engine/src/haptic-pattern';
 import { EGA } from '../packages/engine/src/palette';
 import { encodePngRgba } from '../packages/engine/src/png';
@@ -26,6 +26,7 @@ import {
 } from '../packages/engine/src/menu/theme';
 import { EPISODE_1_MENU, episodeMenuTheme } from '../episodes/episode-1/src/menu-theme';
 import { MUSIC, SFX } from '../episodes/episode-1/src/audio/patterns';
+import { buildSongs } from '../episodes/episode-1/src/audio/songs';
 import { FIZZ_HAPTICS } from '../episodes/episode-1/src/haptics/fizz-haptics';
 import { EPISODE_ID, EPISODE_KEYS, OPTIONS_KEY } from '../episodes/episode-1/src/options';
 import { SAVE_KEY, SLOT_COUNT, slotKey } from '../episodes/episode-1/src/save';
@@ -34,7 +35,7 @@ import {
   SCENE_H,
   SCENE_W,
   episode1Scene,
-  nightScene,
+  appScene,
   teaserScene,
   type SceneArt,
 } from './launcher-scenes';
@@ -184,8 +185,12 @@ export async function build(): Promise<Built[]> {
     sounds: EPISODE_1_MENU.sounds,
     voices,
     haptics: { cues: EPISODE_1_MENU.haptics, table: hapticsTable },
-    // The title theme is the episode's music in the launcher; it has no Enhanced song, so it plays the same in both.
-    music: { main: 'title', tracks: { title: MUSIC.title as MusicTrack } },
+    // The title theme is the episode's music in the launcher, as the Classic loop and the Enhanced song.
+    music: {
+      main: 'title',
+      tracks: { title: MUSIC.title as MusicTrack },
+      songs: { title: buildSongs(MUSIC).title as MusicSong },
+    },
     ...(frames.length
       ? {
           bullet: {
@@ -251,9 +256,9 @@ export async function build(): Promise<Built[]> {
   });
   const overworld = await overworldData();
   if (overworld) out.push({ path: 'episode-1/overworld.json', bytes: overworld });
-  // The scenes that belong to the app, not to an episode: App settings by night, and an episode that is not out.
+  // The scenes that belong to the app, not to an episode: App settings by day, and an episode that is not out.
   for (const [name, scene] of [
-    ['night', nightScene(all)],
+    ['app', appScene(all)],
     ['teaser', teaserScene(all)],
   ] as const) {
     out.push(...sceneFiles(`scenes/${name}/`, '', scene), {

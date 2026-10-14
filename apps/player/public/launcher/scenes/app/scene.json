@@ -2,7 +2,7 @@
   "width": 640,
   "height": 192,
   "ground": 32,
-  "skyTop": "#000000",
+  "skyTop": "#0000aa",
   "ben": true,
   "layers": [
     {
@@ -10,13 +10,12 @@
       "speed": 0
     },
     {
-      "src": "stars.png",
-      "speed": 0.03,
-      "field": true
-    },
-    {
       "src": "bodies.png",
       "speed": 0.05
+    },
+    {
+      "src": "clouds.png",
+      "speed": 0.12
     },
     {
       "src": "hills-far.png",

@@ -499,8 +499,8 @@ if (new URLSearchParams(location.search).has('debug')) {
 
 // The scenery behind the page: each stop's own, with a parallax slide as the carousel steps.
 const sceneUrl = (name: string): URL => new URL(`launcher/scenes/${name}/`, location.href);
-const [nightScene, teaserScene] = await Promise.all([
-  loadJson<SceneInfo>(new URL('scene.json', sceneUrl('night'))),
+const [appScene, teaserScene] = await Promise.all([
+  loadJson<SceneInfo>(new URL('scene.json', sceneUrl('app'))),
   loadJson<SceneInfo>(new URL('scene.json', sceneUrl('teaser'))),
 ]);
 const runnerOf = [...files.values()].find((f) => f.info?.runner);
@@ -518,8 +518,8 @@ function sceneOf(stop: Stop): { info: SceneInfo; base: URL } | undefined {
     const f = files.get(stop.id);
     if (f?.info?.scene) return { info: f.info.scene, base: f.base };
   }
-  const shared = stop.kind === 'app' ? nightScene : teaserScene;
-  if (shared) return { info: shared, base: sceneUrl(stop.kind === 'app' ? 'night' : 'teaser') };
+  const shared = stop.kind === 'app' ? appScene : teaserScene;
+  if (shared) return { info: shared, base: sceneUrl(stop.kind === 'app' ? 'app' : 'teaser') };
   const first = [...files.values()].find((f) => f.info?.scene);
   return first?.info?.scene ? { info: first.info.scene, base: first.base } : undefined;
 }

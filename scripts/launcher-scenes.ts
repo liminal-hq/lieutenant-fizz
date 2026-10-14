@@ -174,20 +174,34 @@ export function episode1Scene(sprites: ReadonlyMap<string, Grid>): SceneArt {
   };
 }
 
-/** Lays a checkerboard of black over what is drawn, which darkens it a step (the night's ground). */
-function dim(pen: Pen): void {
-  for (let y = 0; y < SCENE_H; y++)
-    for (let x = 0; x < SCENE_W; x++) if (pen.at(x, y) && (x + y) % 2 === 0) pen.px(x, y, 'k');
-}
-
-/** App settings: the same land by night, a big moon, many stars, glowing crystals and no clouds. */
-export function nightScene(sprites: ReadonlyMap<string, Grid>): SceneArt {
+/** App settings: a bright, friendly day over the same land, with a sun, plenty of clouds and Crater Fields' crystals. */
+export function appScene(sprites: ReadonlyMap<string, Grid>): SceneArt {
   const get = (name: string): Grid => sprite(sprites, name);
-  const rand = lcg(1999);
-  const stars = starField(rand, 150, ['W', 'W', 'L', 'c']);
   const bodies = new Pen(SCENE_W, SCENE_H);
-  blit(bodies, get('moon'), 410, 24, 2);
-  blit(bodies, get('planet'), 120, 46);
+  // The sun: a yellow disc with a pale middle and a ring of short rays.
+  const sun: [number, number] = [440, 44];
+  bodies.ell(sun[0], sun[1], 15, 15, 'y').ell(sun[0], sun[1], 9, 9, 'W');
+  for (let k = 0; k < 12; k++) {
+    const t = (k / 12) * Math.PI * 2;
+    bodies.line(
+      Math.round(sun[0] + Math.cos(t) * 20),
+      Math.round(sun[1] + Math.sin(t) * 20),
+      Math.round(sun[0] + Math.cos(t) * 27),
+      Math.round(sun[1] + Math.sin(t) * 27),
+      'y',
+    );
+  }
+  const clouds = new Pen(SCENE_W, SCENE_H);
+  for (const [x, y] of [
+    [30, 70],
+    [140, 40],
+    [236, 96],
+    [330, 58],
+    [520, 84],
+    [596, 36],
+  ] as const) {
+    blit(clouds, get('cloud'), x, y);
+  }
   const ground = new Pen(SCENE_W, SCENE_H);
   const top = get('craterTop');
   const fill = get('craterFill');
@@ -195,32 +209,35 @@ export function nightScene(sprites: ReadonlyMap<string, Grid>): SceneArt {
     blit(ground, top, x, GROUND);
     blit(ground, fill, x, GROUND + 16);
   }
-  dim(ground);
   for (const [name, x] of [
     ['crysC', 60],
-    ['crysM', 190],
-    ['crysC', 300],
-    ['crysC', 470],
+    ['crysM', 150],
+    ['crysC', 270],
+    ['crysM', 390],
+    ['crysC', 480],
     ['crysM', 580],
   ] as const) {
     blit(ground, get(name), x, GROUND - 16);
   }
+  blit(ground, get('cookie'), 210, GROUND - 24);
+  blit(ground, get('soda'), 520, GROUND - 24);
   return {
-    skyTop: 'k',
+    skyTop: 'B',
     ben: true,
     layers: [
-      { name: 'sky', pen: sky(['k', 'B']), speed: 0 },
-      { name: 'stars', pen: stars, speed: 0.03, field: true },
+      // Deep blue at the top, where the menu is, through a bright blue to cyan at the horizon.
+      { name: 'sky', pen: sky(['B', 'b', 'b', 'c']), speed: 0 },
       { name: 'bodies', pen: bodies, speed: 0.05 },
+      { name: 'clouds', pen: clouds, speed: 0.12 },
       {
         name: 'hills-far',
         pen: hills(
-          30,
+          32,
           [
             [2, 12, 1.1],
             [5, 5, 0.3],
           ],
-          'k',
+          'G',
         ),
         speed: 0.3,
       },
@@ -232,7 +249,7 @@ export function nightScene(sprites: ReadonlyMap<string, Grid>): SceneArt {
             [3, 8, 0.6],
             [7, 3, 2.4],
           ],
-          'D',
+          'g',
         ),
         speed: 0.55,
       },

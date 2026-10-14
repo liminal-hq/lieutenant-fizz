@@ -8,6 +8,7 @@ import { MUSIC, PATTERNS } from './patterns';
 import { buildSongs } from './songs';
 
 const CUES = [
+  'title',
   'crater',
   'caves',
   'sky',
@@ -24,7 +25,7 @@ const seconds = (id: string): number =>
   (songs[id]!.cycles.reduce((a, b) => a + b, 0) * 240) / songs[id]!.bpm;
 
 describe('the Enhanced songs', () => {
-  it('has a song for every level, overworld and boss cue, and none for the rest', () => {
+  it('has a song for the title and every level, overworld and boss cue, and none for the rest', () => {
     expect(Object.keys(songs).sort()).toEqual([...CUES].sort());
     for (const id of CUES) expect(MUSIC[id]).toBeDefined();
   });

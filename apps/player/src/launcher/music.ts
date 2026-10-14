@@ -42,7 +42,10 @@ export function libraryOf(themes: ReadonlyMap<string, MenuThemeData | undefined>
   return { tracks, songs };
 }
 
-/** The track that plays for a stop: the episode's main theme if it has one, otherwise the teaser score. */
+/**
+ * The track that plays for a stop: an episode's main theme, the series theme (the first episode's) on App settings,
+ * and the teaser score for an episode that is not out or has no music.
+ */
 export function trackOf(
   stop: Stop,
   themes: ReadonlyMap<string, MenuThemeData | undefined>,
@@ -50,6 +53,10 @@ export function trackOf(
   if (stop.kind === 'episode' && stop.playable) {
     const main = themes.get(stop.id)?.music?.main;
     if (main) return trackName(stop.id, main);
+  } else if (stop.kind === 'app') {
+    for (const [episode, theme] of themes) {
+      if (theme?.music?.main) return trackName(episode, theme.music.main);
+    }
   }
   return TEASER_TRACK;
 }

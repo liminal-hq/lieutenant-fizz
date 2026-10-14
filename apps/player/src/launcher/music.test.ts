@@ -54,11 +54,12 @@ describe('the music library', () => {
 });
 
 describe('the track of a stop', () => {
-  it('is the episode’s main theme, or the teaser for one not out, an episode with no music and App settings', () => {
+  it('is the episode’s main theme, the series theme on App settings, and the teaser for one not out or with no music', () => {
     expect(trackOf(stops[0]!, themes)).toBe('episode-1:title');
     expect(trackOf(stops[1]!, themes)).toBe(TEASER_TRACK);
-    expect(trackOf(stops[2]!, themes)).toBe(TEASER_TRACK);
+    expect(trackOf(stops[2]!, themes)).toBe('episode-1:title');
     expect(trackOf(stops[0]!, new Map())).toBe(TEASER_TRACK);
+    expect(trackOf(stops[2]!, new Map())).toBe(TEASER_TRACK);
   });
 });
 
