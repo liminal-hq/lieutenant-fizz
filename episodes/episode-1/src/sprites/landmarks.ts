@@ -262,28 +262,11 @@ export function lmHollow(): Grid {
 
 // ---------- Flags ----------
 
-/** A pennant on a pole flying yellow: the level is open. Two frames wave it. */
-export function flagOpen(f: number): Grid {
+/** A bare pole with a small socket at its foot, for a flag to be thrown onto when the level is cleared. */
+export function flagHolder(): Grid {
   const p = new Pen(16, 16);
-  p.rect(4, 2, 1, 13, 'N');
-  const dy = f ? 1 : 0;
-  for (let x = 0; x < 8; x++)
-    p.rect(5 + x, 2 + dy * (x > 3 ? 1 : 0), 1, 4 - Math.floor(x / 2), 'y');
-  p.rect(5, 2, 8, 1, 'r');
-  return p.outline();
-}
-
-/** A grey pennant with a padlock: the level is locked until the ones before it are cleared. */
-export function flagLocked(): Grid {
-  const p = new Pen(16, 16);
-  p.rect(4, 2, 1, 13, 'D');
-  for (let x = 0; x < 8; x++) p.rect(5 + x, 2, 1, 4 - Math.floor(x / 2), 'L');
-  p.rect(7, 9, 6, 5, 'D');
-  p.rect(8, 6, 4, 3, null);
-  p.rect(8, 6, 1, 3, 'L');
-  p.rect(11, 6, 1, 3, 'L');
-  p.rect(8, 6, 4, 1, 'L');
-  p.px(9, 11, 'k');
-  p.px(10, 11, 'k');
+  p.rect(5, 2, 1, 13, 'L');
+  p.px(5, 1, 'y');
+  p.rect(3, 13, 5, 2, 'N');
   return p.outline();
 }

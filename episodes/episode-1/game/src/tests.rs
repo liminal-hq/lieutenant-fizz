@@ -587,9 +587,7 @@ fn a_landmark_stands_behind_whoever_is_north_of_its_node_and_a_flag_shows_the_le
         .expect("a level node");
     let icon = crate::levels::LEVELS[usize::from(pt.level)].icon;
     w.spr[icon as usize] = rect(0.81, 32.0);
-    w.spr[Spr::OwFlagLocked as usize] = rect(0.83, 16.0);
-    w.spr[Spr::OwFlagOpen0 as usize] = rect(0.85, 16.0);
-    w.spr[Spr::OwFlagOpen1 as usize] = rect(0.85, 16.0);
+    w.spr[Spr::OwFlagHolder as usize] = rect(0.83, 16.0);
     w.spr[Spr::OwFlag as usize] = rect(0.87, 16.0);
     // Ben on the tile just north of the node, as when he walks down a path to it.
     stand_on(&mut w, i);
@@ -608,10 +606,84 @@ fn a_landmark_stands_behind_whoever_is_north_of_its_node_and_a_flag_shows_the_le
     assert!(lm < ben, "the landmark is behind Ben, north of its node");
     // Base-anchored: 32 pixels tall on a point 0.35 above the node tile's bottom edge.
     assert!((data[lm * STRIDE + 13] - (pt.y as f32 + 0.35 + 1.0)).abs() < 1e-3);
-    // A level not yet cleared shows a locked or an open flag, by whether its requirement is met.
-    let shown = if w.met(pt.req) { 0.85 } else { 0.83 };
-    assert!(at(shown).is_some(), "the flag for an uncleared level");
-    assert!(at(0.87).is_none() || w.game.is_done(pt.level));
+    // A level not yet cleared has a bare pole and no flag.
+    assert!(at(0.83).is_some(), "the holder for an uncleared level");
+    assert!(
+        (0..n).all(|k| (u(k) - 0.87).abs() > 1e-6),
+        "no flag on an uncleared level"
+    );
+}
+
+#[test]
+fn a_level_cleared_for_the_first_time_has_its_flag_thrown_to_the_pole_and_a_replay_does_not() {
+    use crate::sprites::Spr;
+    use lf_sim::{SpriteRect, STRIDE};
+    let mut w = map_world_with_known_sprites();
+    let rect = |u: f32| SpriteRect {
+        u,
+        v: u,
+        uw: 0.01,
+        vh: 0.01,
+        w: 16.0,
+        h: 16.0,
+    };
+    w.spr[Spr::OwFlagHolder as usize] = rect(0.83);
+    w.spr[Spr::OwFlag as usize] = rect(0.87);
+    let pt = w
+        .points
+        .iter()
+        .copied()
+        .find(|p| p.kind == crate::levels::PtKind::Level && !p.big)
+        .expect("a level node");
+    let pole = (f64::from(pt.x as f32) + 1.1, f64::from(pt.y as f32) + 1.4);
+    let flag_at = |w: &World| {
+        let data = w.inst.as_slice();
+        (0..w.inst.len())
+            .find(|&k| (data[k * STRIDE + 16] - 0.87).abs() < 1e-6)
+            .map(|k| {
+                (
+                    f64::from(data[k * STRIDE + 12]),
+                    f64::from(data[k * STRIDE + 13]),
+                )
+            })
+    };
+    // Cleared for the first time: the flag leaves Ben, goes up and arrives on the pole.
+    w.fresh_clear = Some(pt.level);
+    w.game.set_done(pt.level);
+    w.enter_map();
+    w.map_arm = 0.0;
+    w.p.b.x = pt.x + 3.0;
+    w.p.b.y = pt.y + 3.0;
+    w.cam_x = pt.x + 0.5;
+    w.cam_y = pt.y + 0.5;
+    w.pcx = w.cam_x;
+    w.pcy = w.cam_y;
+    assert!(w.flag_throw.is_some());
+    w.render(1.0, crate::render::flags::CULLING);
+    let start = flag_at(&w).expect("the flag is in flight");
+    assert!(
+        (start.0 - pole.0).abs() > 1.0,
+        "it starts away from the pole"
+    );
+    for _ in 0..30 {
+        w.step(0);
+    }
+    w.render(1.0, crate::render::flags::CULLING);
+    let mid = flag_at(&w).expect("still in flight");
+    assert!(
+        mid.1 > pole.1.min(start.1),
+        "it arcs above the straight line"
+    );
+    for _ in 0..60 {
+        w.step(0);
+    }
+    assert!(w.flag_throw.is_none(), "the throw is over");
+    w.render(1.0, crate::render::flags::CULLING);
+    let end = flag_at(&w).expect("the flag stands on the pole");
+    assert!((end.0 - pole.0).abs() < 1e-3 && (end.1 - pole.1).abs() < 1e-3);
+    // Entering the map again without a new clear throws nothing.
+    w.enter_map();
+    assert!(w.flag_throw.is_none());
 }
 
 /// Where the first instance with atlas coordinate `u` is, as (x, y, x scale, y scale), among those drawn.

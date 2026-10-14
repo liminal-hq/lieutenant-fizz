@@ -200,9 +200,7 @@ export function defineSprites(): SpriteDef[] {
   add('owLmFoundry', lm.lmFoundry());
   add('owLmGumdrop', lm.lmGumdrop());
   add('owLmHollow', lm.lmHollow());
-  add('owFlagOpen0', lm.flagOpen(0));
-  add('owFlagOpen1', lm.flagOpen(1));
-  add('owFlagLocked', lm.flagLocked());
+  add('owFlagHolder', lm.flagHolder());
   add('owBank', sc.owBank());
   add('owLipH', sc.owLipH());
   add('owLipV', sc.owLipV());

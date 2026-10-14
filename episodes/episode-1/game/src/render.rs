@@ -631,20 +631,27 @@ impl World {
                         );
                     }
                     crate::levels::PtKind::Level => {
-                        // The flag says whether the level is cleared, open or still locked.
-                        let (flag, scale) = if self.game.is_done(pt.level) {
-                            (Spr::OwFlag, 0.7)
-                        } else if self.met(pt.req) {
-                            let f = if ((self.t * 3.0).floor() as i64) & 1 != 0 {
-                                Spr::OwFlagOpen1
-                            } else {
-                                Spr::OwFlagOpen0
-                            };
-                            (f, 0.8)
+                        // Every level has a pole that holds only a flag: bare until the level is cleared, then the
+                        // flag is up. A level cleared just now has its flag thrown from Ben to the pole.
+                        let (fx, fy) = (x + 0.6, y + 0.9);
+                        let o = PushOpts { scale: 0.7, ..glow };
+                        let flying = self.flag_throw.filter(|&(l, _)| l == pt.level);
+                        if let Some((_, t)) = flying {
+                            let k = (t / crate::world::FLAG_THROW_SECS).clamp(0.0, 1.0);
+                            let (bx, by) = (self.p.b.x + 0.3, self.p.b.y + 0.4);
+                            let lift = 4.0 * k * (1.0 - k) * 1.6;
+                            self.push(fx, fy, Spr::OwFlagHolder, &o);
+                            self.push(
+                                bx + (fx - bx) * k,
+                                by + (fy - by) * k + lift,
+                                Spr::OwFlag,
+                                &o,
+                            );
+                        } else if self.game.is_done(pt.level) {
+                            self.push(fx, fy, Spr::OwFlag, &o);
                         } else {
-                            (Spr::OwFlagLocked, 0.8)
-                        };
-                        self.push(x + 0.6, y + 0.9, flag, &PushOpts { scale, ..glow });
+                            self.push(fx, fy, Spr::OwFlagHolder, &o);
+                        }
                     }
                 }
             }

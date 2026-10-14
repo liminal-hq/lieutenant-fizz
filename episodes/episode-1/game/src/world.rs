@@ -24,6 +24,8 @@ pub const MAX_INSTANCES: usize = 120_000;
 /// How long after Ben is back on the map a press is ignored. The press that closed the end card or the
 /// game over card may still be down, and it must not open the level straight away: it takes a new one.
 pub const MAP_ARM_SECS: f64 = 0.4;
+/// How long the flag takes to fly from Ben to the pole of a level cleared for the first time.
+pub const FLAG_THROW_SECS: f64 = 0.9;
 
 /// Whether a 0.6-tile body at `(x, y)` on the map stands clear of rivers, trees, rocks and buildings, and
 /// inside the map.
@@ -384,6 +386,10 @@ pub struct World {
     /// Seconds left before the map takes a press to open a level, so the press that closed a card
     /// does not open the level again the moment Ben is back.
     pub map_arm: f64,
+    /// The level cleared for the first time, until the map is next entered and its flag is thrown.
+    pub fresh_clear: Option<u8>,
+    /// A flag in flight to its pole on the map: the level and seconds since it left Ben.
+    pub flag_throw: Option<(u8, f64)>,
     /// The overworld's lights, worked out when the map is entered.
     pub map_lights: Vec<levels::MapLight>,
     /// The ambient light on the overworld now: it eases towards that of the area Ben is in.
@@ -490,6 +496,8 @@ impl World {
             map_areas: vec![],
             near: None,
             map_arm: 0.0,
+            fresh_clear: None,
+            flag_throw: None,
             map_lights: vec![],
             map_amb: [1.0; 3],
             inst: InstanceBuffer::new(MAX_INSTANCES),
@@ -555,6 +563,8 @@ impl World {
             map_areas: self.map_areas.clone(),
             near: self.near,
             map_arm: self.map_arm,
+            fresh_clear: self.fresh_clear,
+            flag_throw: self.flag_throw,
             map_lights: self.map_lights.clone(),
             map_amb: self.map_amb,
             inst: InstanceBuffer::new(1),
@@ -819,6 +829,11 @@ impl World {
         self.plats.clear();
         self.near = None;
         self.map_arm = MAP_ARM_SECS;
+        self.flag_throw = self
+            .fresh_clear
+            .take()
+            .filter(|&l| self.game.is_done(l))
+            .map(|l| (l, 0.0));
         // A saved position may belong to an older map: if Ben would start inside a river, a tree or
         // a rock, put him back at the saucer instead.
         let at = self
@@ -951,6 +966,9 @@ impl World {
 
     fn tick_map(&mut self, dt: f64) {
         self.map_arm = (self.map_arm - dt).max(0.0);
+        if let Some((l, t)) = self.flag_throw {
+            self.flag_throw = (t + dt < FLAG_THROW_SECS).then_some((l, t + dt));
+        }
         // The light eases from one area's to the next over about a second, so crossing a river is not a jump.
         let target = self.map_ambient_here();
         let k = (1.0 - (-dt / 0.4).exp()) as f32;
@@ -1340,6 +1358,9 @@ impl World {
                 if t == EXIT && !self.won {
                     self.won = true;
                     self.p.mantle = None;
+                    if !self.game.is_done(self.level_id) {
+                        self.fresh_clear = Some(self.level_id);
+                    }
                     self.game.set_done(self.level_id);
                     self.cap(px, py + 2.0, Cap::TaDa);
                     self.hud();
