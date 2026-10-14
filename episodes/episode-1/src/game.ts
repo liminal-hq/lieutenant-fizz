@@ -35,6 +35,7 @@ import {
 } from './sample-options';
 import { GAME_VERSION } from './version';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
+import type { Launch } from '@lieutenant-fizz/engine/launch';
 import { BackPeek } from '@lieutenant-fizz/engine/back-peek';
 import type { PredictiveBackBackend } from '@lieutenant-fizz/engine/predictive-back';
 import {
@@ -325,6 +326,8 @@ export interface GameOptions {
   predictiveBack?: PredictiveBackBackend;
   /** Where saves and settings are kept, chosen at boot by `createStorage`; left out, the browser's `localStorage`. */
   storage?: KeyValueStorage;
+  /** Where the launcher asked the game to start (`?launch=`). It only counts where the host can go back to the launcher; elsewhere the game opens on its own title screen. */
+  launch?: Launch;
 }
 
 /** The `display-mode` values an installed app runs in. */
@@ -492,6 +495,8 @@ export class Game {
   private readonly forcedBack: boolean;
   private unwatchBack: () => void = () => {};
   private readonly audio: GameAudio;
+  /** Where the launcher started this run, or undefined when the game opened on its own: the title is skipped and the way out is Back to launcher. */
+  private readonly launch: Launch | undefined;
   /** The menus' sounds: the cursor, a choice, Back, a change and "no" each play the effect the episode named for them. */
   private readonly menuSound = createMenuSounds(EPISODE_1_MENU.sounds, (name) =>
     this.audio.play(name),
@@ -733,6 +738,7 @@ export class Game {
     });
     ui.setTouchOpacity(this.touchSettings.opacity);
     // The app's WebView allows autoplay, so its audio starts at boot; the web waits for a gesture.
+    this.launch = options.hostBackend?.quitToLauncher ? options.launch : undefined;
     this.audio = new GameAudio({ ...PATTERNS, mix: MIX }, undefined, {
       unlockAtBoot: isAppHost(window),
     });
@@ -894,6 +900,7 @@ export class Game {
       this.frame(t);
     };
     this.raf = requestAnimationFrame(loop);
+    this.startLaunch();
   }
 
   dispose(): void {
@@ -1218,8 +1225,8 @@ export class Game {
           text: `You finished with ${e.a} snack points. Your last save is still on this device.`,
           primaryLabel: 'Load last save',
           primary: () => this.continueGame(),
-          secondaryLabel: 'Title screen',
-          secondary: () => this.quitToTitle(),
+          secondaryLabel: this.launch ? 'Back to launcher' : 'Title screen',
+          secondary: () => this.leaveRun(),
         });
         break;
       case Ev.DIALOGUE:
@@ -2073,9 +2080,16 @@ export class Game {
         { id: 'options', label: 'Options' },
       ];
       if (this.sim.x.mode() === Mode.LEVEL) items.push({ id: 'leave', label: 'Leave level' });
-      items.push({ id: 'quit', label: 'Quit to title' });
+      // A game the launcher started has no title screen to go back to: its way out is Back to launcher.
+      if (!this.launch) items.push({ id: 'quit', label: 'Quit to title' });
       const armed = resetArmed(this.resetAt, performance.now()) ? this.quitArmedId : null;
-      return withQuitRows(items, this.quitCaps(), true, armed);
+      return withQuitRows(
+        items,
+        this.quitCaps(),
+        true,
+        armed,
+        this.launch ? 'Back to launcher' : undefined,
+      );
     }
     if (this.screen === 'card' && this.card) {
       const items: MenuItem[] = [{ id: 'primary', label: this.card.primaryLabel }];
@@ -3318,8 +3332,8 @@ export class Game {
     this.showCard({
       title: 'The end of Episode 1',
       text: `Billy's home, the cocoa's back, and you finished with ${score} snack points and ${lives} ${lives === 1 ? 'life' : 'lives'} to spare. Mildred will be back.`,
-      primaryLabel: 'Play Again',
-      primary: () => this.quitToTitle(),
+      primaryLabel: this.launch ? 'Back to launcher' : 'Play Again',
+      primary: () => this.leaveRun(),
     });
   }
 
@@ -3381,6 +3395,22 @@ export class Game {
       return;
     }
     this.loadSlot(id);
+  }
+
+  /** Leaves a finished or lost run: back to the launcher that started it, or to the title screen. */
+  private leaveRun(): void {
+    if (this.launch) this.quitToLauncher();
+    else this.quitToTitle();
+  }
+
+  /** Starts where the launcher asked: a new game, the newest save, or a slot. A save that is not there leaves the title screen up. */
+  private startLaunch(): void {
+    const l = this.launch;
+    if (!l) return;
+    if (l.kind === 'new') this.newGame();
+    else if (l.kind === 'continue') {
+      if (this.hasSave) this.continueGame();
+    } else this.loadSlot(l.slot);
   }
 
   private quitToTitle(): void {

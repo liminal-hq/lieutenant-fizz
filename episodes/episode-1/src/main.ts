@@ -20,6 +20,7 @@ import {
   parseWakeParam,
 } from '@lieutenant-fizz/engine/lifecycle-policy';
 import { parseAudioParam } from '@lieutenant-fizz/engine/sound-field';
+import { parseLaunch } from '@lieutenant-fizz/engine/launch';
 import { createStorage } from '@lieutenant-fizz/engine/storage';
 import { fakePredictiveBack } from './fake-predictive-back';
 import { Game } from './game';
@@ -117,6 +118,7 @@ Game.start(stage, {
   hostBackend,
   ...(predictiveBack ? { predictiveBack } : {}),
   ...(fullscreenBackend ? { fullscreenBackend } : {}),
+  launch: parseLaunch(location.search),
   previewStinger: query.has('previewStinger'),
   touch: query.has('touch'),
   back: query.has('back'),

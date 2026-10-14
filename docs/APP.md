@@ -81,9 +81,9 @@ The designs show settings the game does not have today. In scope for the first a
 Not in scope for now: the **Language** row (the game has no localisation) and **V-sync** (a WebView cannot control it; a frame cap would be the nearest thing).
 
 ## Launching an episode
-The launcher navigates the WebView to the episode's own page with a launch contract in the URL, for example `episode-1/index.html?launch=continue`. Each episode's `main.ts` reads it through a small `parseLaunch()` in `packages/engine`.
-- **Values:** `continue` (the newest save, or the one the Continue row named), `new`, or `load` followed by a slot, matching the carousel's rows.
-- **Embedded mode:** `Game.start` skips the title screen and goes straight to the requested start. "Quit to title" in the pause menu becomes "Back to launcher" and navigates to `returnTo`.
+The launcher navigates the WebView to the episode's own page with a launch contract in the URL, for example `episode-1/index.html?launch=continue`. Each episode's `main.ts` reads it through `parseLaunch()` in `packages/engine/src/launch.ts` (`launchUrl()` writes it).
+- **Values:** `launch=continue` (the newest save), `launch=new`, or `launch=load:auto` and `launch=load:1` to `load:4` (the autosave or a manual slot), matching the carousel's rows. Anything else is no launch.
+- **Embedded mode (built):** it only counts where the host can go back to the launcher (`hostBackend.quitToLauncher`: the desktop and Android apps), so on the web the parameter is ignored. The game skips its title screen and starts as asked: `new` begins the story, `continue` loads the newest save and `load` loads the slot; a save that is not there leaves the title screen up with a message. The pause menu has no "Quit to title": its way out is a "Back to launcher" row (two taps, like Quit to launcher, and the store is written out first), and the Out of lives and end cards offer "Back to launcher" in place of "Title screen" and "Play Again". The launcher is `LAUNCHER_URL` (`host.ts`); there is no `returnTo`.
 - **Normal mode:** with no launch parameters nothing changes, so the website's Play button still opens the episode's own title screen.
 - Other ways to launch were considered and rejected for now: mounting the episode inside the launcher (needs a `mount`/`unmount` contract and careful WebGL and audio cleanup) and an iframe (focus, audio unlock, fullscreen and gamepad all get awkward).
 
