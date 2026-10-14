@@ -335,8 +335,13 @@ test('Fullscreen On starts the app fullscreen at launch, Auto and Off leave the 
     [0, false],
     [2, false],
   ] as const) {
+    // The options file wins over the old key once it exists (the game writes it as it opens), so the choice goes in the file.
     await page.addInitScript(
-      (c) => localStorage.setItem('lf-ep1-options-v1', JSON.stringify({ v: 1, fullscreen: c })),
+      (c) =>
+        localStorage.setItem(
+          'lf-options-v1',
+          JSON.stringify({ v: 1, global: { fullscreen: c }, episodes: {} }),
+        ),
       choice,
     );
     await open(page, 'title');

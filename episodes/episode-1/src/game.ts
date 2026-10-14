@@ -124,6 +124,13 @@ import { backAction, backEnabled, escAction, pauseAction, peekPlan } from './bac
 import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
 import { touchWordCap } from '@lieutenant-fizz/engine/font/scale';
 import { METER_BLOCKS, MOTIONS, TEXT_SIZES } from '@lieutenant-fizz/engine/options';
+import {
+  SCOPE_NAMES,
+  SOUND_KEYS,
+  fileScope,
+  markOverrides,
+  type OptionScope,
+} from './option-scope';
 import { gestureFor, isLive } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
 import { viewPoint } from './map-panel';
@@ -138,8 +145,10 @@ import { FullscreenControl, glyphGrid, type FullscreenPlace } from './fullscreen
 import { touchFaces, type ShellScreen, type SubScreen, type TouchFaces } from './touch-menus';
 import { EPISODE } from './episode';
 import {
+  clearOptionOverrides,
   DEFAULT_OPTIONS,
   LAYOUTS,
+  overriddenOptions,
   readOptions,
   musicVersionOf,
   reducedMotion,
@@ -1567,7 +1576,7 @@ export class Game {
     this.ui.setToggle('sfx', o.sfx > 0);
     this.ui.setToggle('captions', o.captions);
     this.syncHints();
-    if (save) writeOptions(this.store, o);
+    if (save) writeOptions(this.store, o, fileScope(this.optionScope));
     void this.syncLab();
   }
 
@@ -1939,6 +1948,7 @@ export class Game {
       row('Text size', 'text'),
       row('Motion', 'motion'),
       ...(this.touchCapable ? [{ id: 'touch', label: 'Touch controls' }] : []),
+      { id: 'scope', label: 'Applies to' },
       { id: 'back', label: 'Back' },
     ];
   }
@@ -1966,6 +1976,8 @@ export class Game {
       if (id === 'controller') return { id, label, value: controllerLinkValue(this.padBindings) };
       if (id === 'display') return { id, label, value: displayLinkValue(this.urlLocks(), o) };
       if (id === 'sample') return { id, label, value: this.sample ? 'Recording' : 'Off' };
+      if (id === 'scope')
+        return { id, label, kind: 'choice', value: SCOPE_NAMES[this.optionScope] };
       return key ? { id, label, kind: 'choice', value: text(key) } : { id, label };
     });
   }
@@ -1994,7 +2006,14 @@ export class Game {
     return [...rows, { id: 'back', label: 'Back' }];
   }
 
+  /** The rows on show, with a `*` on the ones this episode overrides for itself (Options, Sound and Display). */
   private menuItems(): MenuItem[] {
+    const items = this.baseMenuItems();
+    if (this.sub !== 'options' && this.sub !== 'sound' && this.sub !== 'display') return items;
+    return markOverrides(items, overriddenOptions(this.store));
+  }
+
+  private baseMenuItems(): MenuItem[] {
     if (this.sub === 'options') return this.optionItems();
     if (this.sub === 'sound')
       return soundItems(
@@ -2223,8 +2242,17 @@ export class Game {
       return;
     }
     if (this.sub !== 'options') return;
-    const key = this.optionRows()[this.menuIdx]?.key;
-    if (key) this.step(key, d, false);
+    const row = this.optionRows()[this.menuIdx];
+    if (row?.id === 'scope') this.toggleScope();
+    else if (row?.key) this.step(row.key, d, false);
+  }
+
+  /** Switches what a change applies to, between every episode and this one alone. */
+  private toggleScope(): void {
+    this.optionScope = this.optionScope === 'global' ? 'episode' : 'global';
+    this.menuSound.cue('change');
+    this.haptics.ui(this.optionScope === 'episode' ? 'toggleOn' : 'toggleOff');
+    this.syncUi();
   }
 
   private step(key: SettingKey, d: number, wrapMeter: boolean): void {
@@ -2250,7 +2278,8 @@ export class Game {
     } else if (this.sub === 'display') {
       if (!isDisplayStepRow(this.displayRowList()[i] ?? null) || this.menuItems()[i]?.disabled)
         return;
-    } else if (this.sub !== 'options' || !this.optionRows()[i]?.key) return;
+    } else if (this.sub !== 'options') return;
+    else if (!this.optionRows()[i]?.key && this.optionRows()[i]?.id !== 'scope') return;
     if (this.menuIdx !== i) {
       this.menuIdx = i;
       this.syncUi();
@@ -2492,7 +2521,14 @@ export class Game {
   private tapSoundReset(): void {
     if (resetArmed(this.resetAt, performance.now())) {
       this.disarmReset();
-      this.settings = resetSound(this.settings);
+      if (this.optionScope === 'episode') {
+        // For this episode alone Reset drops its overrides, so it follows the app-wide sound again (and its own
+        // Sound lab goes back to off); the app-wide values are not touched.
+        clearOptionOverrides(this.store, SOUND_KEYS);
+        this.settings = { ...readOptions(this.store), lab: DEFAULT_OPTIONS.lab };
+      } else {
+        this.settings = resetSound(this.settings);
+      }
       this.applySettings();
       this.syncUi();
       return;
@@ -2773,6 +2809,7 @@ export class Game {
       else if (id === 'controller') this.openController();
       else if (id === 'display') this.openDisplay();
       else if (id === 'touch') this.openSub('touch');
+      else if (id === 'scope') this.toggleScope();
       else if (id.startsWith('opt:')) {
         const key = id.slice(4) as SettingKey;
         this.step(key, 1, true);
@@ -3405,6 +3442,9 @@ export class Game {
     }
     this.loadSlot(id);
   }
+
+  /** What a change on the Options screens applies to: every episode, or this one alone. Not saved: each visit starts on every episode. */
+  private optionScope: OptionScope = 'global';
 
   /** The launcher asked for the Options screen: closing it goes back to the launcher, not to the title screen. */
   private leaveWhenOptionsClose = false;

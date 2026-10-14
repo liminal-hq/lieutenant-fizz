@@ -12,6 +12,8 @@ import {
   type GlobalOptions,
 } from '@lieutenant-fizz/engine/options';
 import {
+  clearOverrides,
+  overriddenKeys,
   readOptionsFile,
   resolveRaw,
   setValue,
@@ -99,6 +101,42 @@ type Store = Pick<KeyValueStorage, 'getItem' | 'setItem'>;
 
 const LEGACY = [{ episode: EPISODE_ID, key: OPTIONS_KEY }] as const;
 
+/** The options this episode overrides for itself (not counting its own), the rows the Options screens mark with a `*`. */
+export function overriddenOptions(store: Reader | null): ReadonlySet<string> {
+  try {
+    return new Set(
+      overriddenKeys(readOptionsFile(store, LEGACY, EPISODE_KEYS), EPISODE_ID, EPISODE_KEYS),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Drops this episode's overrides of these options (all of them without a list), so it follows the app-wide values
+ * again. Returns false when the store would not take it.
+ */
+export function clearOptionOverrides(store: Store | null, keys?: readonly string[]): boolean {
+  if (!store) return false;
+  try {
+    const file = clearOverrides(
+      readOptionsFile(store, LEGACY, EPISODE_KEYS),
+      EPISODE_ID,
+      EPISODE_KEYS,
+      keys ??
+        overriddenKeys(readOptionsFile(store, LEGACY, EPISODE_KEYS), EPISODE_ID, EPISODE_KEYS),
+    );
+    const saved = writeOptionsFile(store, file);
+    store.setItem(
+      OPTIONS_KEY,
+      serialiseOptions(parseOptionsRaw(resolveRaw(file, EPISODE_ID, EPISODE_KEYS))),
+    );
+    return saved;
+  } catch {
+    return false;
+  }
+}
+
 /** The options this episode sees: the app-wide values with its own overrides on top. */
 export function readOptions(store: Reader | null): Options {
   try {
@@ -112,8 +150,9 @@ export function readOptions(store: Reader | null): Options {
 /**
  * Saves what changed. The file is read again first and only the options that differ from what is saved are
  * written, in `scope` (every episode by default, or this one alone), so the launcher and the game never overwrite
- * each other's changes. An option only this episode has always goes in its own section. Returns false when the
- * store would not take it.
+ * each other's changes. An option only this episode has always goes in its own section. A change for every
+ * episode also drops this episode's own override of that option: the player said "all episodes", this one included.
+ * Returns false when the store would not take it.
  */
 export function writeOptions(store: Store | null, o: Options, scope: Scope = 'global'): boolean {
   if (!store) return false;
@@ -123,6 +162,7 @@ export function writeOptions(store: Store | null, o: Options, scope: Scope = 'gl
     for (const key of Object.keys(o) as (keyof Options)[]) {
       if (JSON.stringify(o[key]) !== JSON.stringify(before[key])) {
         file = setValue(file, scope, EPISODE_ID, key, o[key], EPISODE_KEYS);
+        if (scope === 'global') file = clearOverrides(file, EPISODE_ID, EPISODE_KEYS, [key]);
       }
     }
     const saved = writeOptionsFile(store, file);
