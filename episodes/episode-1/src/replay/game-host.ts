@@ -153,6 +153,8 @@ export class ReplayHost {
   private lastBits = 0;
   private lastText = 0;
   private lastAct = performance.now();
+  /** Whether the player tapped the bar away; it stays away until the next tap or key. */
+  private hidden = false;
   private dragging = false;
   private said = '';
   private bannerFor: string | null = null;
@@ -239,7 +241,13 @@ export class ReplayHost {
     d.gl.append(this.canvas);
     d.mount(this.root);
 
-    this.root.addEventListener('pointerdown', () => this.act());
+    // A tap on the open picture shows the bar or hides it; a tap on the bar or the layers sheet only keeps it up.
+    this.root.addEventListener('pointerdown', (ev) => {
+      const onBar = ev.target instanceof Node && this.bar.contains(ev.target);
+      if (onBar) this.act();
+      else if (this.hidden || this.bar.dataset.idle === 'true') this.act();
+      else this.hidden = true;
+    });
     this.scrub.addEventListener('pointerdown', () => (this.dragging = true));
     this.scrub.addEventListener('pointerup', () => (this.dragging = false));
     this.scrub.addEventListener('pointercancel', () => (this.dragging = false));
@@ -326,6 +334,7 @@ export class ReplayHost {
 
   /** Notes that the player did something, so the bar stays. */
   act(): void {
+    this.hidden = false;
     this.lastAct = performance.now();
     this.bar.dataset.idle = 'false';
   }
@@ -635,7 +644,7 @@ export class ReplayHost {
 
     this.showBanner(first);
     this.bar.dataset.idle = String(
-      this.transport.playing && now - this.lastAct > BAR_MS && this.sheet.hidden,
+      this.hidden || (this.transport.playing && now - this.lastAct > BAR_MS && this.sheet.hidden),
     );
   }
 

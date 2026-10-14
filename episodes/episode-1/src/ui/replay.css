@@ -51,6 +51,9 @@
   top: calc(var(--lf-safe-top) + 8px);
   left: calc(var(--lf-safe-left) + 8px);
   max-width: min(46ch, 60vw);
+  padding: 4px 8px;
+  font-size: 11px;
+  line-height: 1.25;
   pointer-events: none;
 }
 
@@ -136,10 +139,12 @@
 
 /* A phone held sideways has little height: the buttons keep their size and the words tighten. */
 @media (max-height: 460px) {
-  .replay-info,
   .replay-banner {
     font-size: 12px;
     padding: 4px 8px;
+  }
+  .replay-info {
+    font-size: 10px;
   }
   .replay-bar {
     padding: 4px 8px;

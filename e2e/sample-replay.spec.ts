@@ -167,6 +167,30 @@ test('it starts playing by itself', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('a tap on the open picture hides the controls and the next one brings them back', async ({
+  page,
+}) => {
+  const { errors } = await boot(page);
+  await recordARun(page);
+  expect(await lf(page, (g) => g.debugWatch())).toBe(true);
+  const bar = page.locator('#replay .replay-bar');
+  await expect(bar).toHaveAttribute('data-idle', 'false');
+  // The bar sits along the bottom, so the top middle of the picture is open space.
+  const box = (await page.locator('#replay').boundingBox())!;
+  const open = { x: box.x + box.width / 2, y: box.y + box.height * 0.4 };
+  await page.mouse.click(open.x, open.y);
+  await expect(bar).toHaveAttribute('data-idle', 'true');
+  // It stays away while it plays on, past the time the bar would have hidden itself anyway.
+  await page.waitForTimeout(400);
+  await expect(bar).toHaveAttribute('data-idle', 'true');
+  await page.mouse.click(open.x, open.y);
+  await expect(bar).toHaveAttribute('data-idle', 'false');
+  // A tap on the bar itself keeps it up.
+  await page.locator('#replay .replay-speed').click();
+  await expect(bar).toHaveAttribute('data-idle', 'false');
+  expect(errors).toEqual([]);
+});
+
 test('the keys play, pause and change the speed, and Esc takes the replay down', async ({
   page,
 }) => {
