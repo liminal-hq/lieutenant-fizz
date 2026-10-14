@@ -57,7 +57,7 @@ These are designed but not started. Starting values are first guesses to tune by
 
 ### 8c.7 Voice cap and priorities
 - At most 10 sounds at once on a coarse pointer and 20 elsewhere. Each sound's length is estimated from its envelopes; the same effect within 35 ms merges into one.
-- Priority 3, never dropped: `menu`, `click`, `hurt`, `life`, `key`, `usb`, `win`, `thoom`, `zzzap`, `stinger`. Most others are priority 2, and `crunch` and `plink` are priority 1. Over the cap, a new sound is dropped if its priority is no higher than the lowest one playing (Undertone gives no handle to stop a voice early).
+- Priority 3, never dropped: `menu`, `click`, `menuBack`, `menuDeny`, `menuSwipe`, `hurt`, `life`, `key`, `usb`, `win`, `thoom`, `zzzap`, `stinger`. Most others are priority 2, and `crunch` and `plink` are priority 1. Over the cap, a new sound is dropped if its priority is no higher than the lowest one playing (Undertone gives no handle to stop a voice early).
 
 ### 8c.9 Music crossfades
 - Smooth transitions between the title, levels and the boss: the old track fades out over 0.8 s while the new one fades in over 0.3 s (0.4 s into the boss). Two loops are alive at once, so this costs CPU.

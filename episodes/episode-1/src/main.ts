@@ -20,6 +20,7 @@ import {
   parseWakeParam,
 } from '@lieutenant-fizz/engine/lifecycle-policy';
 import { parseAudioParam } from '@lieutenant-fizz/engine/sound-field';
+import { parseLaunch, withoutLaunch } from '@lieutenant-fizz/engine/launch';
 import { createStorage } from '@lieutenant-fizz/engine/storage';
 import { fakePredictiveBack } from './fake-predictive-back';
 import { Game } from './game';
@@ -112,11 +113,17 @@ const storage = await createStorage({
   onError: (kind, error) => console.warn(`The ${kind} storage is unavailable`, error),
 });
 
+// The launch is read once. Taking it out of the address means a reload, or the app restoring the page, opens the
+// episode's own title screen instead of starting the launch again over a run in progress.
+const launch = parseLaunch(location.search);
+if (launch) history.replaceState(history.state, '', withoutLaunch(location.href));
+
 Game.start(stage, {
   storage,
   hostBackend,
   ...(predictiveBack ? { predictiveBack } : {}),
   ...(fullscreenBackend ? { fullscreenBackend } : {}),
+  launch,
   previewStinger: query.has('previewStinger'),
   touch: query.has('touch'),
   back: query.has('back'),

@@ -1,0 +1,27 @@
+// Build script registering the plugin's commands.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+const COMMANDS: &[&str] = &["show", "cancel"];
+
+fn main() {
+    tauri_plugin::Builder::new(COMMANDS)
+        .android_path("android")
+        .build();
+
+    inject_android_permissions().expect("Failed to inject Android manifest permissions for toast");
+}
+
+fn inject_android_permissions() -> std::io::Result<()> {
+    let permissions: Vec<&str> = vec![
+        // No explicit Android permissions required for Toast usage.
+    ];
+
+    tauri_plugin::mobile::update_android_manifest(
+        "tauri-plugin-toast.permissions",
+        "manifest",
+        permissions.join("\n"),
+    )
+    .map_err(std::io::Error::other)
+}

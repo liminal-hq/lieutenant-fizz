@@ -1,0 +1,36 @@
+// Android bridge for showing native toast messages.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+use serde::de::DeserializeOwned;
+use tauri::{
+    plugin::{PluginApi, PluginHandle},
+    AppHandle, Runtime,
+};
+
+use crate::models::ShowToastRequest;
+
+pub fn init<R: Runtime, C: DeserializeOwned>(
+    _app: &AppHandle<R>,
+    api: PluginApi<R, C>,
+) -> crate::Result<Toast<R>> {
+    let handle = api.register_android_plugin("com.plugin.toast", "ToastPlugin")?;
+    Ok(Toast(handle))
+}
+
+/// Access to the toast APIs.
+pub struct Toast<R: Runtime>(PluginHandle<R>);
+
+impl<R: Runtime> Toast<R> {
+    pub fn show(&self, payload: ShowToastRequest) -> crate::Result<()> {
+        self.0
+            .run_mobile_plugin("show", payload)
+            .map_err(Into::into)
+    }
+
+    /// Takes down the toast that is showing.
+    pub fn cancel(&self) -> crate::Result<()> {
+        self.0.run_mobile_plugin("cancel", ()).map_err(Into::into)
+    }
+}

@@ -25,13 +25,14 @@ export interface QuitCapabilities {
 /**
  * The menu with Quit to launcher and then Quit game last, for what the host can do. `confirm` is for the
  * pause menu, where the first tap arms a row (`armed` is its id) and the second does it; the title does it
- * on one tap. Without either capability the rows are returned as they are, so the web menus never change.
+ * on one tap. `launcherLabel` is the launcher row's text: an episode the launcher started says "Back to launcher". Without either capability the rows are returned as they are, so the web menus never change.
  */
 export function withQuitRows(
   items: MenuItem[],
   can: QuitCapabilities,
   confirm: boolean,
   armed: string | null,
+  launcherLabel = 'Quit to launcher',
 ): MenuItem[] {
   if (!can.game && !can.launcher) return items;
   const row = (id: string, label: string): MenuItem => ({
@@ -41,7 +42,7 @@ export function withQuitRows(
   });
   return [
     ...items,
-    ...(can.launcher ? [row(QUIT_LAUNCHER_ID, 'Quit to launcher')] : []),
+    ...(can.launcher ? [row(QUIT_LAUNCHER_ID, launcherLabel)] : []),
     ...(can.game ? [row(QUIT_GAME_ID, 'Quit game')] : []),
   ];
 }

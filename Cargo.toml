@@ -3,7 +3,7 @@ members = ["crates/sim", "episodes/episode-1/game"]
 # The Tauri app is its own workspace (own lockfile and profile) so its heavy dependencies and system
 # libraries stay out of the simulation's checks; see `apps/player/src-tauri/Cargo.toml`.
 # The plugin crates in `plugins/` are that app's path dependencies and stay out for the same reason.
-exclude = ["apps/player/src-tauri", "plugins/predictive-back"]
+exclude = ["apps/player/src-tauri", "plugins/predictive-back", "plugins/toast"]
 resolver = "2"
 
 [workspace.package]

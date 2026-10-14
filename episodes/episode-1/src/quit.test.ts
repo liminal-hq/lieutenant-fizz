@@ -17,6 +17,14 @@ const DESKTOP = { game: true, launcher: true };
 const ANDROID = { game: false, launcher: true };
 
 describe('withQuitRows', () => {
+  it('names the launcher row for an episode the launcher started', () => {
+    const rows = withQuitRows(ROWS, ANDROID, false, null, 'Back to launcher');
+    expect(rows.at(-1)).toMatchObject({ id: QUIT_LAUNCHER_ID, label: 'Back to launcher' });
+    expect(withQuitRows(ROWS, ANDROID, false, null).at(-1)).toMatchObject({
+      label: 'Quit to launcher',
+    });
+  });
+
   it('leaves the menu alone when the host cannot quit', () => {
     expect(withQuitRows(ROWS, NONE, false, null)).toBe(ROWS);
     expect(withQuitRows(ROWS, NONE, true, QUIT_GAME_ID)).toBe(ROWS);

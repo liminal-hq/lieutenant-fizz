@@ -1,85 +1,6 @@
-/* Menu rows: [bullet gutter][plate]. The soda bullet sits in a fixed gutter so rows never shift. */
-.menu {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.menu button {
-  /* Rows keep their height when a menu scrolls (`.menu[data-scroll]`, below). */
-  flex: none;
-  /* One full glyph cell high, so the line box never spills out of the row or its plate. */
-  --lf-line: 11px;
-  display: flex;
-  align-items: center;
-  gap: max(6px, calc(var(--n) * 2px));
-  height: calc(var(--n) * 11px);
-  padding: 0;
-  border: 0;
-  background: none;
-  text-align: left;
-  color: var(--lf-text);
-  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
-  cursor: pointer;
-}
-.menu .gut {
-  position: relative;
-  flex: none;
-  align-self: stretch;
-  width: calc(var(--lf-cw-mul) * 16px);
-}
-.menu .bullet {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 100%;
-  transform: translateY(-50%);
-  image-rendering: pixelated;
-  visibility: hidden;
-  pointer-events: none;
-}
-.menu button.sel .bullet {
-  visibility: visible;
-  animation: lf-bob 1.26s step-end infinite;
-}
-.menu .plate {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--n) * 3px);
-  align-self: stretch;
-  padding: 0 calc(var(--n) * 4px);
-}
-.menu button.sel .plate {
-  background: var(--lf-accent);
-  color: var(--lf-ink);
-  text-shadow: none;
-  clip-path: polygon(
-    4px 0,
-    calc(100% - 4px) 0,
-    calc(100% - 4px) 4px,
-    100% 4px,
-    100% calc(100% - 4px),
-    calc(100% - 4px) calc(100% - 4px),
-    calc(100% - 4px) 100%,
-    4px 100%,
-    4px calc(100% - 4px),
-    0 calc(100% - 4px),
-    0 4px,
-    4px 4px
-  );
-  animation: lf-plate 1.6s step-end infinite;
-}
-.menu button.dis {
-  color: var(--lf-dim);
-  text-shadow: none;
-  cursor: default;
-}
-.menu .val {
-  --n: var(--lf-n-small);
-  color: var(--lf-muted);
-}
-.menu button.sel .val {
-  color: var(--lf-ink);
-}
+@import '@lieutenant-fizz/engine/menu/rows.css';
+@import '@lieutenant-fizz/engine/menu/keys.css';
+
 .menu .meter {
   display: flex;
   gap: max(2px, calc((var(--n) - 1) * 1px));
@@ -272,51 +193,7 @@
   background: var(--lf-ink);
 }
 
-@keyframes lf-plate {
-  0% {
-    background: #ffaa40;
-  }
-  25% {
-    background: #ffb850;
-  }
-  50% {
-    background: #ffc860;
-  }
-  75% {
-    background: #ffb850;
-  }
-}
-@keyframes lf-bob {
-  0%,
-  100% {
-    transform: translate(0, -50%);
-  }
-  25% {
-    transform: translate(calc(var(--lf-cw-mul) * 1px), -50%);
-  }
-  75% {
-    transform: translate(calc(var(--lf-cw-mul) * -1px), -50%);
-  }
-}
-
 /* Hint bar: keycaps and button glyphs along the bottom, left-aligned with the content. */
-#ui .keys {
-  --n: var(--lf-n-hint);
-  position: absolute;
-  left: calc(var(--lf-pad-x) + var(--lf-safe-left));
-  bottom: calc(var(--lf-keys-bottom) + var(--lf-safe-bottom));
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: calc(var(--n) * 4px) calc(var(--n) * 9px);
-  color: var(--lf-muted);
-  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
-  pointer-events: none;
-}
-#ui .keys span {
-  white-space: nowrap;
-}
-
 #overlay .box {
   display: flex;
   flex-direction: column;

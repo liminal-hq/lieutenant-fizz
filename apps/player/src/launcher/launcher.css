@@ -1,0 +1,282 @@
+/* The launcher page: the game's menu look (tokens, rows, the Fizz font) on a plain sky. */
+@import '@lieutenant-fizz/engine/font/fizz.css';
+@import '@lieutenant-fizz/engine/menu/tokens.css';
+@import '@lieutenant-fizz/engine/menu/rows.css';
+@import '@lieutenant-fizz/engine/menu/keys.css';
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background:
+    radial-gradient(
+      120% 70% at 50% 100%,
+      rgba(244, 63, 94, 0.32),
+      rgba(167, 139, 250, 0.14) 45%,
+      rgba(5, 5, 7, 0) 75%
+    ),
+    #050507;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#launcher {
+  z-index: 1;
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--n) * 3px);
+  padding: max(var(--lf-pad-y), var(--lf-safe-top)) max(var(--lf-pad-x), var(--lf-safe-right))
+    max(var(--lf-pad-y), var(--lf-safe-bottom)) max(var(--lf-pad-x), var(--lf-safe-left));
+  pointer-events: auto;
+}
+
+#launcher h1 {
+  --n: var(--lf-n-head);
+  margin: 0;
+  font-weight: 700;
+  color: var(--lf-accent);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+}
+
+#launcher .menu {
+  align-self: flex-start;
+  min-width: min(100%, calc(var(--n) * 11 * 14px));
+}
+
+/* The plate fills the row, so a value (the version) sits at its right edge. The plate shows the selection, so
+   the pad script's outline on the focused row is not needed. */
+#launcher .menu button {
+  width: 100%;
+}
+#launcher .menu button:focus {
+  outline: none;
+}
+#launcher .menu .plate {
+  flex: 1;
+}
+
+/* On touch every row is as tall as the game's (the Cozy 40 dp), so the whole row is the target. */
+@media (pointer: coarse) {
+  #launcher .menu {
+    gap: 0;
+  }
+  #launcher .menu button {
+    height: 40px;
+  }
+}
+
+/* A value (the version) sits at the plate's right edge. */
+#launcher .menu .val {
+  margin-left: auto;
+}
+
+/* A short message: the plate's colours, over the bottom of the page. */
+.snackbar {
+  --n: var(--lf-n-small);
+  position: absolute;
+  left: 50%;
+  bottom: max(var(--lf-pad-y), var(--lf-safe-bottom));
+  transform: translateX(-50%);
+  max-width: calc(100% - 2 * var(--lf-pad-x));
+  padding: calc(var(--n) * 2px) calc(var(--n) * 5px);
+  background: var(--lf-accent);
+  color: var(--lf-ink);
+  text-align: center;
+}
+.snackbar[hidden] {
+  display: none;
+}
+
+/* The carousel's heading: the previous and next arrows either side of the stop's name, and a pip for each stop. */
+#launcher .carousel {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--n) * 3px);
+}
+#launcher .carousel h1 {
+  flex: 0 1 auto;
+}
+#launcher .arrow {
+  --n: var(--lf-n-head);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--lf-muted);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+  cursor: pointer;
+}
+#launcher .arrow:focus {
+  outline: none;
+  color: var(--lf-accent);
+}
+#launcher .arrow:disabled {
+  color: var(--lf-dim);
+  opacity: 0.4;
+  cursor: default;
+}
+#launcher .carousel[data-sub='true'] h1 {
+  margin-left: 0;
+}
+#launcher .pips {
+  display: flex;
+  gap: calc(var(--n) * 2px);
+  margin-top: calc(var(--n) * -1px);
+  padding-left: 44px;
+}
+#launcher .pips i {
+  width: calc(var(--n) * 4px);
+  height: calc(var(--n) * 4px);
+  background: rgba(255, 255, 255, 0.18);
+}
+#launcher .pips i.on {
+  background: var(--lf-accent);
+}
+
+/* The page's own display rules above must not show what the view has hidden (the arrows and pips off the home screen). */
+#launcher [hidden] {
+  display: none;
+}
+
+/* The demo strip: the scenery scrolls left along the bottom of the page, and Ben runs on the spot, hopping now and
+   then. One strip pixel is `--strip-scale` CSS pixels, a whole number, so the art stays crisp. It sits behind the
+   menu and fades out towards the top. */
+.strip {
+  --strip-scale: 1;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--strip-h) * var(--strip-scale) * 1px);
+  background-image: var(--strip-image);
+  background-repeat: repeat-x;
+  background-size: calc(var(--strip-w) * var(--strip-scale) * 1px)
+    calc(var(--strip-h) * var(--strip-scale) * 1px);
+  background-position: 0 0;
+  image-rendering: pixelated;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to top, #000 62%, transparent);
+  mask-image: linear-gradient(to top, #000 62%, transparent);
+  animation: lf-strip-scroll 26s linear infinite;
+}
+.strip .ben {
+  position: absolute;
+  left: 24%;
+  bottom: calc(var(--ground) * var(--strip-scale) * 1px);
+  width: calc(var(--ben-w) * var(--strip-scale) * 1px);
+  height: calc(var(--ben-h) * var(--strip-scale) * 1px);
+  animation: lf-ben-hop 4.2s ease-in-out infinite;
+}
+.strip .ben .run,
+.strip .ben .air {
+  position: absolute;
+  inset: 0;
+  background-image: var(--ben-image);
+  background-repeat: no-repeat;
+  background-size: calc(var(--ben-w) * var(--ben-frames) * var(--strip-scale) * 1px)
+    calc(var(--ben-h) * var(--strip-scale) * 1px);
+  image-rendering: pixelated;
+}
+.strip .ben .run {
+  animation: lf-ben-run 0.34s steps(2, jump-end) infinite;
+}
+.strip .ben .air {
+  background-position-x: calc(var(--ben-w) * -2 * var(--strip-scale) * 1px);
+  opacity: 0;
+  animation: lf-ben-air 4.2s step-end infinite;
+}
+/* The strip moves left as far as it is wide, so the end of one pass meets the start of the next. */
+@keyframes lf-strip-scroll {
+  to {
+    background-position-x: calc(var(--strip-w) * var(--strip-scale) * -1px);
+  }
+}
+@keyframes lf-ben-run {
+  to {
+    background-position-x: calc(var(--ben-w) * -2 * var(--strip-scale) * 1px);
+  }
+}
+/* A hop in the last third of the loop: up, then down. The jump picture shows while he is off the ground. */
+@keyframes lf-ben-hop {
+  0%,
+  72%,
+  100% {
+    transform: translateY(0);
+  }
+  82% {
+    transform: translateY(calc(var(--strip-scale) * -30px));
+  }
+}
+@keyframes lf-ben-air {
+  0%,
+  71.9% {
+    opacity: 0;
+  }
+  72% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .strip,
+  .strip .ben,
+  .strip .ben .run,
+  .strip .ben .air {
+    animation: none;
+  }
+}
+
+/* A Back-gesture peek: a copy of the screen being left slides away and fades over the screen Back goes to, which is
+   drawn behind it and takes no taps until the peek ends. The look comes from the page as `--lf-peek-x` and
+   `--lf-peek-a`; it follows the finger with no transition and glides back over 200 ms when the gesture is cancelled.
+   The edge the copy leaves behind fades in over `--lf-peek-feather` (a share of its width). */
+.peek-ghost {
+  pointer-events: none;
+  transform: translateX(var(--lf-peek-x, 0%));
+  opacity: var(--lf-peek-a, 1);
+  will-change: transform, opacity;
+  --lf-peek-feather: 0%;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--lf-peek-feather));
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--lf-peek-feather));
+}
+.peek-ghost[data-peek-edge='right'] {
+  -webkit-mask-image: linear-gradient(to left, transparent 0, #000 var(--lf-peek-feather));
+  mask-image: linear-gradient(to left, transparent 0, #000 var(--lf-peek-feather));
+}
+.peek-ghost[data-peek='settle'] {
+  transition:
+    transform 200ms ease-out,
+    opacity 200ms ease-out;
+}
+/* The screen Back goes to crossfades against the copy, and none of it is drawn while the copy is nearly whole, so
+   its text cannot show through. After a cancelled gesture it fades out as the copy returns. */
+#ui[data-peeking] #launcher:not(.peek-ghost) {
+  pointer-events: none;
+  opacity: var(--lf-peek-parent-a, 0);
+  visibility: var(--lf-peek-parent-v, hidden);
+}
+#ui[data-peeking='settle'] #launcher:not(.peek-ghost) {
+  transition: opacity 200ms ease-out;
+}
+
+/* The hint bar is for a keyboard: on touch there is nothing to press. */
+#ui .keys {
+  z-index: 2;
+}
+@media (pointer: coarse) {
+  #ui .keys {
+    display: none;
+  }
+}

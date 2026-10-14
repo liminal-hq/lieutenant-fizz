@@ -35,6 +35,7 @@ import {
 } from './sample-options';
 import { GAME_VERSION } from './version';
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
+import type { Launch } from '@lieutenant-fizz/engine/launch';
 import { BackPeek } from '@lieutenant-fizz/engine/back-peek';
 import type { PredictiveBackBackend } from '@lieutenant-fizz/engine/predictive-back';
 import {
@@ -273,6 +274,8 @@ import {
   type Prompt,
   type SlotRow,
 } from './ui';
+import { EPISODE_1_MENU, episodeMenuTheme } from './menu-theme';
+import { createMenuSounds } from '@lieutenant-fizz/engine/menu/sounds';
 
 export type Screen = ShellScreen;
 
@@ -323,6 +326,8 @@ export interface GameOptions {
   predictiveBack?: PredictiveBackBackend;
   /** Where saves and settings are kept, chosen at boot by `createStorage`; left out, the browser's `localStorage`. */
   storage?: KeyValueStorage;
+  /** Where the launcher asked the game to start (`?launch=`). It only counts where the host can go back to the launcher; elsewhere the game opens on its own title screen. */
+  launch?: Launch;
 }
 
 /** The `display-mode` values an installed app runs in. */
@@ -490,6 +495,12 @@ export class Game {
   private readonly forcedBack: boolean;
   private unwatchBack: () => void = () => {};
   private readonly audio: GameAudio;
+  /** Where the launcher started this run, or undefined when the game opened on its own: the title is skipped and the way out is Back to launcher. */
+  private readonly launch: Launch | undefined;
+  /** The menus' sounds: the cursor, a choice, Back, a change and "no" each play the effect the episode named for them. */
+  private readonly menuSound = createMenuSounds(EPISODE_1_MENU.sounds, (name) =>
+    this.audio.play(name),
+  );
   /** Whether `GameOptions.audio` chose the audio mode, rather than the default applying. */
   private readonly audioForced: boolean;
   /** The mode `?audio=` chose, which wins over the saved Style and is never saved. */
@@ -727,6 +738,7 @@ export class Game {
     });
     ui.setTouchOpacity(this.touchSettings.opacity);
     // The app's WebView allows autoplay, so its audio starts at boot; the web waits for a gesture.
+    this.launch = options.hostBackend?.quitToLauncher ? options.launch : undefined;
     this.audio = new GameAudio({ ...PATTERNS, mix: MIX }, undefined, {
       unlockAtBoot: isAppHost(window),
     });
@@ -846,7 +858,7 @@ export class Game {
       const [sim] = await Promise.all([Sim.load(simUrl)]);
       const sprites = defineSprites();
       const soda = sprites.find((d) => d.name === 'soda');
-      if (soda) ui.setBullet(soda.grid);
+      ui.setMenuTheme(episodeMenuTheme(soda?.grid));
       const ben: Partial<Record<BenPose, Grid>> = {};
       for (const pose of ['stand', 'jump', 'shoot', 'pogo', 'pogo2'] as const) {
         const def = sprites.find((d) => d.name === `ben_${pose}`);
@@ -888,6 +900,7 @@ export class Game {
       this.frame(t);
     };
     this.raf = requestAnimationFrame(loop);
+    this.startLaunch();
   }
 
   dispose(): void {
@@ -1212,8 +1225,8 @@ export class Game {
           text: `You finished with ${e.a} snack points. Your last save is still on this device.`,
           primaryLabel: 'Load last save',
           primary: () => this.continueGame(),
-          secondaryLabel: 'Title screen',
-          secondary: () => this.quitToTitle(),
+          secondaryLabel: this.launch ? 'Back to launcher' : 'Title screen',
+          secondary: () => this.leaveRun(),
         });
         break;
       case Ev.DIALOGUE:
@@ -2067,9 +2080,16 @@ export class Game {
         { id: 'options', label: 'Options' },
       ];
       if (this.sim.x.mode() === Mode.LEVEL) items.push({ id: 'leave', label: 'Leave level' });
-      items.push({ id: 'quit', label: 'Quit to title' });
+      // A game the launcher started has no title screen to go back to: its way out is Back to launcher.
+      if (!this.launch) items.push({ id: 'quit', label: 'Quit to title' });
       const armed = resetArmed(this.resetAt, performance.now()) ? this.quitArmedId : null;
-      return withQuitRows(items, this.quitCaps(), true, armed);
+      return withQuitRows(
+        items,
+        this.quitCaps(),
+        true,
+        armed,
+        this.launch ? 'Back to launcher' : undefined,
+      );
     }
     if (this.screen === 'card' && this.card) {
       const items: MenuItem[] = [{ id: 'primary', label: this.card.primaryLabel }];
@@ -2091,7 +2111,7 @@ export class Game {
       i = (i + d + n) % n;
       if (!items[i]?.disabled) break;
     }
-    this.audio.play('menu');
+    this.menuSound.cue('move');
     this.disarmReset();
     this.haptics.ui('move');
     this.menuIdx = i;
@@ -2124,7 +2144,7 @@ export class Game {
       return;
     }
     this.endRemap();
-    this.audio.play('click');
+    this.menuSound.cue('back');
     this.haptics.ui('back');
     this.disarmReset();
     this.cancelPreview();
@@ -2141,7 +2161,7 @@ export class Game {
   private leaveSubs(): void {
     if (!this.sub) return;
     this.endRemap();
-    this.audio.play('click');
+    this.menuSound.cue('back');
     this.haptics.ui('select');
     this.disarmReset();
     this.cancelPreview();
@@ -2202,7 +2222,7 @@ export class Game {
     const next = stepOption(this.settings, key, d, wrapMeter);
     if (next[key] === this.settings[key]) return;
     this.settings = next;
-    this.audio.play('menu');
+    this.menuSound.cue('change');
     const value = next[key];
     this.haptics.ui(typeof value === 'boolean' ? (value ? 'toggleOn' : 'toggleOff') : 'move');
     this.applySettings();
@@ -2249,7 +2269,7 @@ export class Game {
     this.disarmReset();
     this.settings = next;
     // Style, Effects and Effects version are heard in their previews; Music and the Sound lab row play the menu blip.
-    if (row === 'music' || row === 'musicVersion' || row === 'lab') this.audio.play('menu');
+    if (row === 'music' || row === 'musicVersion' || row === 'lab') this.menuSound.cue('change');
     this.applySettings();
     this.syncUi();
     this.schedulePreview(row);
@@ -2317,7 +2337,7 @@ export class Game {
     this.remap = cancelRemap(this.remap, performance.now(), reason);
     this.input.setPadListening(false);
     this.ui.toast(remapMessage(this.remap, this.padFamily()));
-    this.audio.play('click');
+    this.menuSound.cue('select');
     this.haptics.ui('back');
     this.syncUi();
   }
@@ -2359,10 +2379,10 @@ export class Game {
         writePadBindings(this.store, this.padBindings);
         this.input.setPadBindings(this.padBindings);
         this.syncHints();
-        this.audio.play('click');
+        this.menuSound.cue('select');
         this.haptics.ui('select');
       } else {
-        this.audio.play('click');
+        this.menuSound.cue('select');
         this.haptics.ui('back');
       }
       this.ui.toast(remapMessage(step.state, this.padFamily()));
@@ -2407,7 +2427,7 @@ export class Game {
     )
       return;
     this.settings = next;
-    this.audio.play('menu');
+    this.menuSound.cue('change');
     if (row === 'awake') this.haptics.ui(next.awake ? 'toggleOn' : 'toggleOff');
     else this.haptics.ui('move');
     this.applySettings();
@@ -2425,7 +2445,7 @@ export class Game {
     const feel = hapticsFeel(before, next, row);
     if (!feel) return;
     this.disarmReset();
-    this.audio.play('menu');
+    this.menuSound.cue('change');
     this.setHaptics(next);
     if (feel.kind === 'phone') this.haptics.preview('jump', 'device');
     else if (feel.kind === 'pad') this.haptics.preview('bonk', 'controller');
@@ -2480,7 +2500,7 @@ export class Game {
       next.size !== s.size || next.opacity !== s.opacity || next.leftHanded !== s.leftHanded;
     if (!changed) return;
     this.disarmReset();
-    this.audio.play('menu');
+    this.menuSound.cue('change');
     this.haptics.ui(
       next.leftHanded === s.leftHanded ? 'move' : next.leftHanded ? 'toggleOn' : 'toggleOff',
     );
@@ -2609,7 +2629,7 @@ export class Game {
     if (this.sub !== 'touchEdit') return;
     if (resetArmed(this.resetAt, performance.now())) {
       this.disarmReset();
-      this.audio.play('click');
+      this.menuSound.cue('select');
       this.haptics.ui('select');
       this.applyTouchSettings(resetPositions(this.touchSettings));
       this.syncUi();
@@ -2636,6 +2656,7 @@ export class Game {
     const it = items[i];
     if (!it) return;
     if (it.disabled) {
+      this.menuSound.cue('deny');
       this.haptics.ui('reject');
       return;
     }
@@ -2644,7 +2665,7 @@ export class Game {
     // or Quit game itself.
     if (i !== this.menuIdx) this.disarmReset();
     this.menuIdx = i;
-    this.audio.play('click');
+    this.menuSound.cue('select');
     const id = it.id ?? '';
     if (id !== 'back') this.haptics.ui('select');
     // Fullscreen is asked for here, inside the tap, not in the Ben-wave timer below: the browser only
@@ -2795,7 +2816,7 @@ export class Game {
     if (this.replay) this.replay.close();
     else if (this.sub) this.closeSub();
     else if (this.screen === 'pause') {
-      this.audio.play('click');
+      this.menuSound.cue('back');
       this.haptics.ui('back');
       this.resume();
     }
@@ -3311,8 +3332,8 @@ export class Game {
     this.showCard({
       title: 'The end of Episode 1',
       text: `Billy's home, the cocoa's back, and you finished with ${score} snack points and ${lives} ${lives === 1 ? 'life' : 'lives'} to spare. Mildred will be back.`,
-      primaryLabel: 'Play Again',
-      primary: () => this.quitToTitle(),
+      primaryLabel: this.launch ? 'Back to launcher' : 'Play Again',
+      primary: () => this.leaveRun(),
     });
   }
 
@@ -3374,6 +3395,22 @@ export class Game {
       return;
     }
     this.loadSlot(id);
+  }
+
+  /** Leaves a finished or lost run: back to the launcher that started it, or to the title screen. */
+  private leaveRun(): void {
+    if (this.launch) this.quitToLauncher();
+    else this.quitToTitle();
+  }
+
+  /** Starts where the launcher asked: a new game, the newest save, or a slot. A save that is not there leaves the title screen up. */
+  private startLaunch(): void {
+    const l = this.launch;
+    if (!l) return;
+    if (l.kind === 'new') this.newGame();
+    else if (l.kind === 'continue') {
+      if (this.hasSave) this.continueGame();
+    } else this.loadSlot(l.slot);
   }
 
   private quitToTitle(): void {
