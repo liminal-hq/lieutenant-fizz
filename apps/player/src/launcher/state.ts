@@ -60,6 +60,11 @@ export function rowsOf(state: LauncherState): readonly Row[] {
   return rows;
 }
 
+/** Whether Back has somewhere to go on the screen now: everything but the home screen. */
+export function hasBack(state: LauncherState): boolean {
+  return state.screen !== 'home';
+}
+
 export interface Step {
   readonly state: LauncherState;
   readonly effects: readonly Effect[];

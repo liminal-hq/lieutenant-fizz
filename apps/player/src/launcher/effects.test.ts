@@ -45,6 +45,24 @@ describe('applying the launcher effects', () => {
     expect(log).toEqual(['flush', 'go:debug.html']);
   });
 
+  it('hands Back to the system after the write and before it leaves', async () => {
+    const { deps, log } = setup(async () => true);
+    await applyEffects([{ kind: 'navigate', url: 'debug.html' }], {
+      ...deps,
+      releaseBack: async () => void log.push('release'),
+    });
+    expect(log).toEqual(['flush', 'release', 'go:debug.html']);
+  });
+
+  it('keeps Back when the write failed and the launcher stays', async () => {
+    const { deps, log } = setup(async () => false);
+    await applyEffects([{ kind: 'navigate', url: 'debug.html' }], {
+      ...deps,
+      releaseBack: async () => void log.push('release'),
+    });
+    expect(log).not.toContain('release');
+  });
+
   it('stays put and says so when the store could not be written', async () => {
     const failed = setup(async () => false);
     await applyEffects([{ kind: 'navigate', url: 'debug.html' }], failed.deps);

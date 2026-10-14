@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { createHostBackend } from '@lieutenant-fizz/engine/host';
+import { createPredictiveBack } from '@lieutenant-fizz/engine/predictive-back';
 import {
   pickFocus,
   pollPads,
@@ -93,6 +95,21 @@ const onIntent = (intent: Exclude<PadIntent, null>) => {
     focusAt(list[pickFocus(boxes, at, intent)]);
   }
 };
+
+// On Android, Back leaves these pages for the one named by `data-back`, as B does. The launcher (`menu`) answers
+// Back itself; here the system is told Back has somewhere to go, and again when the page is left.
+if (mode && mode !== 'menu') {
+  const backend = createPredictiveBack(createHostBackend().kind);
+  if (backend) {
+    const leave = (): void => {
+      void backend.setCanGoBack(false).then(() => {
+        location.href = document.body.dataset.back ?? 'index.html';
+      });
+    };
+    void backend.setCanGoBack(true);
+    void backend.onGesture({ invoked: leave });
+  }
+}
 
 const states: PadState[] = [];
 const frame = (now: number) => {

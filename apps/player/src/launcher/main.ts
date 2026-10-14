@@ -3,11 +3,14 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import { createHostBackend } from '@lieutenant-fizz/engine/host';
+import { createPredictiveBack } from '@lieutenant-fizz/engine/predictive-back';
 import { createStorage } from '@lieutenant-fizz/engine/storage';
 import { readUnlocked } from './dev-unlock';
+import { createLauncherBack } from './back';
 import { applyEffects } from './effects';
-import { initialState, reduce, type Action } from './state';
+import { hasBack, initialState, reduce, type Action } from './state';
 import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { render } from './view';
 
@@ -31,19 +34,31 @@ async function tauriCalls(): Promise<Pick<ToastDeps, 'invoke' | 'listen'>> {
 }
 
 const toast = await createToast({ kind: host.kind, snackbar, ...(await tauriCalls()) });
+let state = initialState(readUnlocked(store));
+
+// Back: the Android gesture in the app, and a history entry in a browser (the desktop app has no Back button).
+const back = await createLauncherBack({
+  backend: createPredictiveBack(host.kind),
+  guard:
+    host.kind === 'web'
+      ? new BackGuard(() => dispatch({ type: 'back' }), window.history, window)
+      : undefined,
+  onBack: () => dispatch({ type: 'back' }),
+});
+
 const deps = {
   store,
   toast,
   navigate: (url: string) => location.assign(new URL(url, location.href).href),
+  releaseBack: () => back.release(),
 };
-
-let state = initialState(readUnlocked(store));
 
 const dispatch = (action: Action): void => {
   const step = reduce(state, action);
   const changed = step.state !== state;
   state = step.state;
   if (changed) draw();
+  back.sync(hasBack(state));
   void applyEffects(step.effects, deps);
 };
 

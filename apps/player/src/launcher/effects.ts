@@ -13,6 +13,8 @@ export interface EffectDeps {
   toast(message: string, options?: { replace?: boolean }): void;
   /** Opens a page in this window. */
   navigate(url: string): void;
+  /** Hands Back to the system before the page is left; resolves once that has happened. */
+  releaseBack?(): Promise<void>;
 }
 
 /** What the player is told when the store would not take a write, so a page is not left with nothing saved. */
@@ -43,6 +45,7 @@ export async function applyEffects(effects: readonly Effect[], deps: EffectDeps)
         deps.toast(SAVE_FAILED);
         return;
       }
+      await deps.releaseBack?.();
       deps.navigate(effect.url);
       return;
     }
