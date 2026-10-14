@@ -10,6 +10,7 @@ import { closeApp } from '@lieutenant-fizz/engine/close-app';
 import type { FullscreenBackend } from '@lieutenant-fizz/engine/fullscreen-backend';
 import { createHostBackend, openPage, type HostBackend } from '@lieutenant-fizz/engine/host';
 import type { InputDevice } from '@lieutenant-fizz/engine/input';
+import type { MenuCue } from '@lieutenant-fizz/engine/menu/sounds';
 import {
   fakeNativeWindow,
   nativeFullscreenBackend,
@@ -42,6 +43,7 @@ import { EPISODE_1_OPTIONS_KEY, SILENT, createLauncherSound, type LauncherSound 
 import { currentStop, hasBack, initialState, reduce, type Action } from './state';
 import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { createStrip, type Strip } from './strip';
+import { createLauncherHaptics, NO_HAPTICS, type LauncherHaptics } from './haptics';
 import { createLauncherTouch, type LauncherTouch } from './touch';
 import { createView } from './view';
 import './launcher.css';
@@ -163,6 +165,13 @@ const deps = {
 
 // The menu's sounds, once a theme (which names them) has loaded.
 let sound: LauncherSound = SILENT;
+// The same cues for the hand: the phone buzzes (a pad rumbles) as the menu sounds.
+let haptics: LauncherHaptics = NO_HAPTICS;
+/** A menu cue, for the ear and the hand. */
+const menuCue = (cue: MenuCue): void => {
+  sound.cue(cue);
+  haptics.cue(cue);
+};
 
 /** The look of the stop on show: its own theme when it has one, otherwise the first episode's. */
 function themeOfStop(): { data: MenuThemeData; base: URL } | undefined {
@@ -184,6 +193,7 @@ let device: InputDevice = matchMedia('(pointer: coarse)').matches ? 'touch' : 'k
 const useDevice = (next: InputDevice): void => {
   if (next === device) return;
   device = next;
+  haptics.setDevice(device);
   touch?.setActive(device === 'touch');
   keepClearOfControls();
   drawHints();
@@ -220,7 +230,7 @@ function keepClearOfControls(): void {
 
 const view = createView(root, {
   onActivate: (row) => dispatch({ type: 'activate', row }),
-  onMove: () => sound.cue('move'),
+  onMove: () => menuCue('move'),
   onStop: (dir) => dispatch({ type: 'stop', dir }),
 });
 
@@ -235,13 +245,22 @@ function applyTheme(): void {
   // The audio of the look it replaces is let go, so stepping through stops does not pile up audio contexts.
   sound.dispose();
   sound = createLauncherSound(found.data, store, host.kind !== 'web');
+  haptics.dispose();
+  haptics = createLauncherHaptics({
+    data: found.data,
+    store,
+    kind: host.kind,
+    touchCapable: matchMedia('(pointer: coarse)').matches,
+    activePad: () => Array.from(navigator.getGamepads?.() ?? []).find((pad) => pad) ?? null,
+  });
+  haptics.setDevice(device);
 }
 
 const dispatch = (action: Action): void => {
   const before = state;
   const step = reduce(state, action);
   const cue = cueOf(before, action, step);
-  if (cue) sound.cue(cue);
+  if (cue) menuCue(cue);
   state = step.state;
   if (state !== before) {
     applyTheme();
@@ -281,6 +300,8 @@ document.addEventListener('keydown', (e) => {
 function isControl(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.closest('button, a[href]') !== null;
 }
+// A page in the background makes no buzz.
+document.addEventListener('visibilitychange', () => haptics.setActive(!document.hidden));
 document.addEventListener('pad-back', () => dispatch({ type: 'back' }));
 document.addEventListener('pad-active', () => useDevice('gamepad'));
 document.addEventListener(
@@ -370,6 +391,7 @@ touch = createLauncherTouch({
 touch.setActive(device === 'touch');
 const frame = (now: number): void => {
   touch?.frame(now);
+  haptics.flush();
   requestAnimationFrame(frame);
 };
 requestAnimationFrame(frame);

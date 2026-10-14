@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { SfxVoice } from '../packages/engine/src/audio';
+import type { HapticTable } from '../packages/engine/src/haptic-pattern';
 import { EGA } from '../packages/engine/src/palette';
 import { encodePngRgba } from '../packages/engine/src/png';
 import type { Colour } from '../packages/engine/src/palette';
@@ -26,6 +27,7 @@ import {
 } from '../packages/engine/src/menu/theme';
 import { EPISODE_1_MENU, episodeMenuTheme } from '../episodes/episode-1/src/menu-theme';
 import { SFX } from '../episodes/episode-1/src/audio/patterns';
+import { FIZZ_HAPTICS } from '../episodes/episode-1/src/haptics/fizz-haptics';
 import { SAVE_KEY, SLOT_COUNT, slotKey } from '../episodes/episode-1/src/save';
 import { defineSprites } from '../episodes/episode-1/src/sprites/catalog';
 
@@ -208,11 +210,19 @@ export function build(): Built[] {
     if (!found) throw new Error(`The menu cue effect ${effect} has no voices`);
     voices[effect] = found;
   }
+  // The haptic cues the menu uses, and only those: the launcher builds its own small table from them.
+  const hapticsTable: HapticTable = { cues: {}, captions: {} };
+  for (const id of new Set(Object.values(EPISODE_1_MENU.haptics))) {
+    const found = FIZZ_HAPTICS.cues[id];
+    if (!found) throw new Error(`The menu cue haptic ${id} is not in the haptic table`);
+    hapticsTable.cues[id] = found;
+  }
   const data: MenuThemeData = {
     colours: EPISODE_1_MENU.colours,
     plate: EPISODE_1_MENU.plate,
     sounds: EPISODE_1_MENU.sounds,
     voices,
+    haptics: { cues: EPISODE_1_MENU.haptics, table: hapticsTable },
     ...(frames.length
       ? {
           bullet: {

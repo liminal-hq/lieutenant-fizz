@@ -5,7 +5,8 @@
 
 import type { SfxVoice } from '../audio';
 import type { Grid } from '../pen';
-import type { MenuSounds } from './sounds';
+import type { HapticTable } from '../haptic-pattern';
+import type { MenuHaptics, MenuSounds } from './sounds';
 
 /** The colours a menu reads, as CSS colours. Any left out keep the page's defaults (`tokens.css`). */
 export interface MenuColours {
@@ -35,6 +36,8 @@ export interface MenuTheme {
   bulletStepMs?: number;
   /** The effect each menu cue plays. */
   sounds?: MenuSounds;
+  /** The haptic cue each menu cue plays. */
+  haptics?: MenuHaptics;
 }
 
 /** How long each bullet frame shows when the theme does not say. */
@@ -92,6 +95,8 @@ export interface MenuThemeData {
   /** The effect each menu cue plays, and the voices of each of those effects. */
   sounds?: MenuSounds;
   voices?: Record<string, readonly SfxVoice[]>;
+  /** The haptic cue each menu cue plays, and the table that holds those cues (only them). */
+  haptics?: { cues: MenuHaptics; table: HapticTable };
 }
 
 /** The theme a page applies from its data. The bullet picture is handled by the page (`bulletImageOf`). */

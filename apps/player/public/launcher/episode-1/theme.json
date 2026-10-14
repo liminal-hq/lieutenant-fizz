@@ -133,6 +133,113 @@
       }
     ]
   },
+  "haptics": {
+    "cues": {
+      "move": "ui.move",
+      "select": "ui.select",
+      "back": "ui.back",
+      "change": "ui.toggleOn",
+      "deny": "ui.reject",
+      "swipe": "ui.move"
+    },
+    "table": {
+      "cues": {
+        "ui.move": {
+          "pattern": {
+            "events": [
+              {
+                "kind": "transient",
+                "at": 0,
+                "intensity": 0.3,
+                "sharpness": 0.8
+              }
+            ]
+          },
+          "priority": 0,
+          "cooldownMs": 40,
+          "policy": "drop-if-busy",
+          "lane": "ui"
+        },
+        "ui.select": {
+          "pattern": {
+            "events": [
+              {
+                "kind": "transient",
+                "at": 0,
+                "intensity": 0.5,
+                "sharpness": 0.8
+              }
+            ]
+          },
+          "priority": 1,
+          "cooldownMs": 80,
+          "policy": "interrupt",
+          "lane": "ui"
+        },
+        "ui.back": {
+          "pattern": {
+            "events": [
+              {
+                "kind": "transient",
+                "at": 0,
+                "intensity": 0.4,
+                "sharpness": 0.5
+              }
+            ]
+          },
+          "priority": 1,
+          "cooldownMs": 80,
+          "policy": "interrupt",
+          "lane": "ui"
+        },
+        "ui.toggleOn": {
+          "pattern": {
+            "events": [
+              {
+                "kind": "transient",
+                "at": 0,
+                "intensity": 0.5,
+                "sharpness": 0.6
+              },
+              {
+                "kind": "transient",
+                "at": 70,
+                "intensity": 0.5,
+                "sharpness": 0.6
+              }
+            ]
+          },
+          "priority": 1,
+          "cooldownMs": 80,
+          "policy": "interrupt",
+          "lane": "ui"
+        },
+        "ui.reject": {
+          "pattern": {
+            "events": [
+              {
+                "kind": "transient",
+                "at": 0,
+                "intensity": 0.45,
+                "sharpness": 0.2
+              },
+              {
+                "kind": "transient",
+                "at": 60,
+                "intensity": 0.45,
+                "sharpness": 0.2
+              }
+            ]
+          },
+          "priority": 1,
+          "cooldownMs": 150,
+          "policy": "interrupt",
+          "lane": "ui"
+        }
+      },
+      "captions": {}
+    }
+  },
   "bullet": {
     "src": "bullet.png",
     "frames": 1,
