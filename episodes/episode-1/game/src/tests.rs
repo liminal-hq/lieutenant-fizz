@@ -4085,3 +4085,18 @@ fn a_levels_fingerprint_is_stable_and_follows_its_tiles_and_spawns() {
     moved.spawns[0].x += 1.0;
     assert_ne!(moved.fingerprint(), before, "a moved spawn");
 }
+
+#[test]
+fn a_new_game_forgets_a_flag_that_was_waiting_to_be_thrown() {
+    let mut w = World::new();
+    w.game_new();
+    w.game.set_done(0);
+    w.fresh_clear = Some(0);
+    w.game_new();
+    w.game.set_done(0);
+    w.enter_map();
+    assert!(
+        w.flag_throw.is_none(),
+        "nothing is thrown for the old session's clear"
+    );
+}

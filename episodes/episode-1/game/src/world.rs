@@ -582,6 +582,8 @@ impl World {
 
     pub fn game_new(&mut self) {
         self.game = Game::fresh();
+        self.fresh_clear = None;
+        self.flag_throw = None;
         self.hud();
     }
 
