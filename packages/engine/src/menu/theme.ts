@@ -76,3 +76,35 @@ export function bulletFrames(theme: MenuTheme): readonly Grid[] {
 export function bulletCycleMs(theme: MenuTheme): number {
   return Math.max(1, bulletFrames(theme).length) * (theme.bulletStepMs ?? BULLET_STEP_MS);
 }
+
+/**
+ * A theme as data: what an episode's build writes out for the launcher, which cannot import the episode's
+ * code. The bullet is a PNG of its frames side by side, named relative to the file that says so.
+ */
+export interface MenuThemeData {
+  colours?: MenuColours;
+  plate?: readonly [string, string, string];
+  bullet?: { src: string; frames: number; stepMs?: number };
+}
+
+/** The theme a page applies from its data. The bullet picture is handled by the page (`bulletImageOf`). */
+export function themeOfData(data: MenuThemeData): MenuTheme {
+  const theme: MenuTheme = {};
+  if (data.colours) theme.colours = data.colours;
+  if (data.plate) theme.plate = data.plate;
+  return theme;
+}
+
+/** The bullet as an image for `renderRows`, from a theme's data and the URL its `src` resolves to. */
+export function bulletImageOf(
+  data: MenuThemeData,
+  url: string,
+): { url: string; frames: number; cycleMs: number } | undefined {
+  const b = data.bullet;
+  if (!b) return undefined;
+  return {
+    url,
+    frames: Math.max(1, b.frames),
+    cycleMs: Math.max(1, b.frames) * (b.stepMs ?? BULLET_STEP_MS),
+  };
+}

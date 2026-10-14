@@ -1,0 +1,92 @@
+/* The launcher page: the game's menu look (tokens, rows, the Fizz font) on a plain sky. */
+@import '@lieutenant-fizz/engine/font/fizz.css';
+@import '@lieutenant-fizz/engine/menu/tokens.css';
+@import '@lieutenant-fizz/engine/menu/rows.css';
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background:
+    radial-gradient(
+      120% 70% at 50% 100%,
+      rgba(244, 63, 94, 0.32),
+      rgba(167, 139, 250, 0.14) 45%,
+      rgba(5, 5, 7, 0) 75%
+    ),
+    #050507;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#launcher {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--n) * 3px);
+  padding: max(var(--lf-pad-y), var(--lf-safe-top)) max(var(--lf-pad-x), var(--lf-safe-right))
+    max(var(--lf-pad-y), var(--lf-safe-bottom)) max(var(--lf-pad-x), var(--lf-safe-left));
+  pointer-events: auto;
+}
+
+#launcher h1 {
+  --n: var(--lf-n-head);
+  margin: 0;
+  font-weight: 700;
+  color: var(--lf-accent);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+}
+
+#launcher .menu {
+  align-self: flex-start;
+  min-width: min(100%, calc(var(--n) * 11 * 14px));
+}
+
+/* The plate fills the row, so a value (the version) sits at its right edge. The plate shows the selection, so
+   the pad script's outline on the focused row is not needed. */
+#launcher .menu button {
+  width: 100%;
+}
+#launcher .menu button:focus {
+  outline: none;
+}
+#launcher .menu .plate {
+  flex: 1;
+}
+
+/* On touch every row is as tall as the game's (the Cozy 40 dp), so the whole row is the target. */
+@media (pointer: coarse) {
+  #launcher .menu {
+    gap: 0;
+  }
+  #launcher .menu button {
+    height: 40px;
+  }
+}
+
+/* A value (the version) sits at the plate's right edge. */
+#launcher .menu .val {
+  margin-left: auto;
+}
+
+/* A short message: the plate's colours, over the bottom of the page. */
+.snackbar {
+  --n: var(--lf-n-small);
+  position: absolute;
+  left: 50%;
+  bottom: max(var(--lf-pad-y), var(--lf-safe-bottom));
+  transform: translateX(-50%);
+  max-width: calc(100% - 2 * var(--lf-pad-x));
+  padding: calc(var(--n) * 2px) calc(var(--n) * 5px);
+  background: var(--lf-accent);
+  color: var(--lf-ink);
+  text-align: center;
+}
+.snackbar[hidden] {
+  display: none;
+}

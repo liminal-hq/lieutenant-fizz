@@ -19,6 +19,7 @@
     "./menu/paint": "./src/menu/paint.ts",
     "./menu/rows": "./src/menu/rows.ts",
     "./menu/rows.css": "./src/menu/rows.css",
+    "./menu/scale-vars": "./src/menu/scale-vars.ts",
     "./menu/theme": "./src/menu/theme.ts",
     "./menu/tokens.css": "./src/menu/tokens.css",
     "./fullscreen-backend": "./src/fullscreen-backend.ts",
