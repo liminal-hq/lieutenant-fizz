@@ -63,6 +63,8 @@ export interface BenArt {
 export interface ViewHooks {
   /** The series logo shown above the carousel on the home screens, or undefined when there is none. */
   logo?(): Card | undefined;
+  /** The picture shown beside the logo for a stop (the app's icon on App settings), or undefined for none. */
+  iconOf?(stop: Stop): string | undefined;
   /** What the carousel says for a stop: the small line above the picker and the name in it. Undefined for the plain heading. */
   nameOf?(stop: Stop): { sub: string; name: string } | undefined;
   onActivate(row: RowId): void;
@@ -286,7 +288,16 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
         ]),
       ]);
       wordmark.setAttribute('aria-label', logo.words.join(' '));
-      head.replaceChildren(wordmark);
+      const icon = hooks.iconOf?.(stop);
+      head.classList.toggle('with-icon', !!icon);
+      if (icon) {
+        const img = make('img', 'app-icon');
+        img.alt = '';
+        img.src = icon;
+        head.replaceChildren(img, wordmark);
+      } else {
+        head.replaceChildren(wordmark);
+      }
       wordmark.querySelector('.logo')?.append(ben);
     } else {
       ben.remove();

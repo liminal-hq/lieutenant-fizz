@@ -190,6 +190,21 @@ body {
   }
 }
 
+/* App settings: the app's icon stands in the margin to the left of the logo, so the logo itself stays where it is
+   from stop to stop. It is as tall as the logo's letters and their edge. */
+#launcher.lf-title .head.with-icon {
+  position: relative;
+}
+#launcher .app-icon {
+  position: absolute;
+  right: 100%;
+  bottom: 0;
+  margin-right: calc(var(--lf-n-logo) * 2px);
+  height: calc(var(--lf-n-logo) * 12px);
+  width: auto;
+  image-rendering: pixelated;
+}
+
 /* The carousel's heading: the previous and next arrows either side of the stop's name, and a pip for each stop. */
 #launcher .carousel {
   display: flex;

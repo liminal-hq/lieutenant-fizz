@@ -244,6 +244,11 @@ export async function build(): Promise<Built[]> {
     { path: 'episode-1/ben-title.png', bytes: stripPng(titleBenFrames(all)) },
     ...sceneFiles('episode-1/', 'scene-', episode1),
   );
+  // The app's icon, which App settings shows beside the logo: the 128 px copy the app is built with.
+  out.push({
+    path: 'app-icon.png',
+    bytes: new Uint8Array(readFileSync(join(root, 'apps/player/src-tauri/icons/128x128.png'))),
+  });
   const overworld = await overworldData();
   if (overworld) out.push({ path: 'episode-1/overworld.json', bytes: overworld });
   // The scenes that belong to the app, not to an episode: App settings by night, and an episode that is not out.

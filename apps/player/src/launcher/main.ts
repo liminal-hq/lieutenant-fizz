@@ -329,6 +329,9 @@ function keepClearOfControls(): void {
 }
 
 const view = createView(root, {
+  // App settings shows the app's icon beside the logo.
+  iconOf: (stop) =>
+    stop.kind === 'app' ? new URL('launcher/app-icon.png', location.href).href : undefined,
   // The series logo: the first episode's, which every stop shares.
   logo: () => {
     const card = [...files.values()].find((f) => f.info?.card)?.info?.card;
