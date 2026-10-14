@@ -12,6 +12,7 @@ import {
 } from '@lieutenant-fizz/engine/menu/rows';
 import { MenuScroller } from '@lieutenant-fizz/engine/menu/scroller';
 import { swipeDirection } from '@lieutenant-fizz/engine/menu/swipe';
+import type { Stop } from './catalog';
 import { currentStop, rowsOf, type LauncherState, type RowId } from './state';
 
 declare const __APP_VERSION__: string | undefined;
@@ -50,7 +51,7 @@ export interface Card {
 
 export interface ViewHooks {
   /** The wordmark of an episode, or undefined when it has none (then its heading is plain text). */
-  cardOf?(episode: string): Card | undefined;
+  cardOf?(stop: Stop): Card | undefined;
   onActivate(row: RowId): void;
   /** The player moved the cursor (the pad, keyboard or a tab: not the page's own focus). */
   onMove(): void;
@@ -218,7 +219,7 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     const home = state.screen === 'home';
     header.dataset['sub'] = home ? '' : 'true';
     const stop = currentStop(state);
-    const card = home && stop.kind === 'episode' ? hooks.cardOf?.(stop.id) : undefined;
+    const card = home ? hooks.cardOf?.(stop) : undefined;
     root.classList.toggle('lf-title', !!card);
     title.classList.toggle('wordmark', !!card);
     if (card) {

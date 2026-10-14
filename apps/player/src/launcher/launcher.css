@@ -226,62 +226,83 @@ body {
   display: none;
 }
 
-/* The demo strip: the scenery scrolls left along the bottom of the page, and Ben runs on the spot, hopping now and
-   then. One strip pixel is `--strip-scale` CSS pixels, a whole number, so the art stays crisp. It sits behind the
-   menu and fades out towards the top. */
-.strip {
-  --strip-scale: 1;
+/* The scenery: layers of the episode's art scroll left at their own speeds along the bottom of the page, with Ben
+   running on the ground. One art pixel is `--scene-scale` CSS pixels, a whole number, so it stays crisp. The sky is
+   continued up to the top of the window in the colour of its top row, from black. Everything sits behind the menu.
+   While the carousel steps, `--slide` (-1 to 1) shifts each layer by its own share of the window's width (`--k`). */
+.scenes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.scene {
+  --scene-scale: 1;
+  --slide: 0;
+  --art-h: calc(var(--scene-h) * var(--scene-scale) * 1px);
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, #000, var(--sky-top) calc(100% - var(--art-h)));
+  background-color: var(--sky-top);
+}
+.scene .layer {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: calc(var(--strip-h) * var(--strip-scale) * 1px);
-  background-image: var(--strip-image);
+  height: var(--art-h);
+  background-image: var(--image);
   background-repeat: repeat-x;
-  background-size: calc(var(--strip-w) * var(--strip-scale) * 1px)
-    calc(var(--strip-h) * var(--strip-scale) * 1px);
+  background-size: calc(var(--scene-w) * var(--scene-scale) * 1px) var(--art-h);
   background-position: 0 0;
   image-rendering: pixelated;
-  pointer-events: none;
-  -webkit-mask-image: linear-gradient(to top, #000 80%, transparent);
-  mask-image: linear-gradient(to top, #000 80%, transparent);
-  animation: lf-strip-scroll 26s linear infinite;
+  transform: translateX(calc(var(--slide) * var(--sw) * var(--k) * 1px));
+  animation: lf-scene-scroll var(--scroll, 0s) linear infinite;
 }
-.strip .ben {
+/* The stars tile up as well and fade out towards the horizon. */
+.scene .layer.field {
+  top: 0;
+  height: auto;
+  bottom: calc((var(--ground) + 4) * var(--scene-scale) * 1px);
+  background-repeat: repeat;
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent);
+  mask-image: linear-gradient(to bottom, #000 45%, transparent);
+}
+.scene .ben {
   position: absolute;
   left: 24%;
-  bottom: calc(var(--ground) * var(--strip-scale) * 1px);
-  width: calc(var(--ben-w) * var(--strip-scale) * 1px);
-  height: calc(var(--ben-h) * var(--strip-scale) * 1px);
+  bottom: calc(var(--ground) * var(--scene-scale) * 1px);
+  width: calc(var(--ben-w) * var(--scene-scale) * 1px);
+  height: calc(var(--ben-h) * var(--scene-scale) * 1px);
   animation: lf-ben-hop 4.2s ease-in-out infinite;
 }
-.strip .ben .run,
-.strip .ben .air {
+.scene .ben .run,
+.scene .ben .air {
   position: absolute;
   inset: 0;
   background-image: var(--ben-image);
   background-repeat: no-repeat;
-  background-size: calc(var(--ben-w) * var(--ben-frames) * var(--strip-scale) * 1px)
-    calc(var(--ben-h) * var(--strip-scale) * 1px);
+  background-size: calc(var(--ben-w) * var(--ben-frames) * var(--scene-scale) * 1px)
+    calc(var(--ben-h) * var(--scene-scale) * 1px);
   image-rendering: pixelated;
 }
-.strip .ben .run {
+.scene .ben .run {
   animation: lf-ben-run 0.34s steps(2, jump-end) infinite;
 }
-.strip .ben .air {
-  background-position-x: calc(var(--ben-w) * -2 * var(--strip-scale) * 1px);
+.scene .ben .air {
+  background-position-x: calc(var(--ben-w) * -2 * var(--scene-scale) * 1px);
   opacity: 0;
   animation: lf-ben-air 4.2s step-end infinite;
 }
-/* The strip moves left as far as it is wide, so the end of one pass meets the start of the next. */
-@keyframes lf-strip-scroll {
+/* A layer moves left as far as the picture is wide, so the end of one pass meets the start of the next. */
+@keyframes lf-scene-scroll {
   to {
-    background-position-x: calc(var(--strip-w) * var(--strip-scale) * -1px);
+    background-position-x: calc(var(--scene-w) * var(--scene-scale) * -1px);
   }
 }
 @keyframes lf-ben-run {
   to {
-    background-position-x: calc(var(--ben-w) * -2 * var(--strip-scale) * 1px);
+    background-position-x: calc(var(--ben-w) * -2 * var(--scene-scale) * 1px);
   }
 }
 /* A hop in the last third of the loop: up, then down. The jump picture shows while he is off the ground. */
@@ -292,7 +313,7 @@ body {
     transform: translateY(0);
   }
   82% {
-    transform: translateY(calc(var(--strip-scale) * -30px));
+    transform: translateY(calc(var(--scene-scale) * -30px));
   }
 }
 @keyframes lf-ben-air {
@@ -308,18 +329,18 @@ body {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .strip,
-  .strip .ben,
-  .strip .ben .run,
-  .strip .ben .air {
+  .scene .layer,
+  .scene .ben,
+  .scene .ben .run,
+  .scene .ben .air {
     animation: none;
   }
 }
-/* The Motion option set to Reduced (or to follow a system that is) stills the strip too. */
-.rm .strip,
-.rm .strip .ben,
-.rm .strip .ben .run,
-.rm .strip .ben .air {
+/* The Motion option set to Reduced (or to follow a system that is) stills the scenery too. */
+.rm .scene .layer,
+.rm .scene .ben,
+.rm .scene .ben .run,
+.rm .scene .ben .air {
   animation: none;
 }
 

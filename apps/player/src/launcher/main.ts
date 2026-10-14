@@ -32,6 +32,8 @@ import {
   readSaves,
   stopsOf,
   type EpisodeInfo,
+  type SceneInfo,
+  type Stop,
   type EpisodesFile,
   type SaveSummary,
 } from './catalog';
@@ -47,7 +49,7 @@ import { SILENT, createLauncherSound, type LauncherSound } from './sound';
 import { DEBUG_URL, currentStop, hasBack, initialState, reduce, type Action } from './state';
 import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { isPortrait } from '@lieutenant-fizz/engine/portrait';
-import { createStrip, type Strip } from './strip';
+import { createScene, createStage } from './scene';
 import { createLauncherHaptics, NO_HAPTICS, type LauncherHaptics } from './haptics';
 import { createLauncherTouch, type LauncherTouch } from './touch';
 import { readStop, writeStop } from './stop-memory';
@@ -310,7 +312,23 @@ function keepClearOfControls(): void {
 }
 
 const view = createView(root, {
-  cardOf: (id) => files.get(id)?.info?.card,
+  cardOf: (stop) => {
+    if (stop.kind === 'app') {
+      return {
+        kicker: 'App settings',
+        words: ['Lieutenant', 'Fizz'],
+        line: `Version ${APP_VERSION}`,
+      };
+    }
+    if (!stop.playable) {
+      return {
+        kicker: 'Coming soon',
+        words: ['???'],
+        line: stop.title ? `Episode ${stop.number} · ${stop.title}` : `Episode ${stop.number}`,
+      };
+    }
+    return files.get(stop.id)?.info?.card;
+  },
   onActivate: (row) => dispatch({ type: 'activate', row }),
   onMove: () => menuCue('move'),
   onStop: (dir) => dispatch({ type: 'stop', dir }),
@@ -385,7 +403,10 @@ const dispatch = (action: Action): void => {
   if (cue) menuCue(cue);
   state = step.state;
   // The stop is remembered, so coming back from an episode (or the next launch) opens where the player was.
-  if (state.stop !== before.stop) writeStop(store, currentStop(state));
+  if (state.stop !== before.stop) {
+    writeStop(store, currentStop(state));
+    showScene(action.type === 'stop' ? action.dir : 0);
+  }
   if (state !== before) {
     applyTheme();
     view.render(state);
@@ -455,11 +476,49 @@ if (new URLSearchParams(location.search).has('debug')) {
   };
 }
 
+// The scenery behind the page: each stop's own, with a parallax slide as the carousel steps.
+const sceneUrl = (name: string): URL => new URL(`launcher/scenes/${name}/`, location.href);
+const [nightScene, teaserScene] = await Promise.all([
+  loadJson<SceneInfo>(new URL('scene.json', sceneUrl('night'))),
+  loadJson<SceneInfo>(new URL('scene.json', sceneUrl('teaser'))),
+]);
+const runnerOf = [...files.values()].find((f) => f.info?.runner);
+const stage = createStage(
+  ui,
+  () => ui.classList.contains('rm') || matchMedia('(prefers-reduced-motion: reduce)').matches,
+);
+/** The scenery of a stop: an episode's own, the teaser for one that is not out, and night for App settings. */
+function sceneOf(stop: Stop): { info: SceneInfo; base: URL } | undefined {
+  if (stop.kind === 'episode' && stop.playable) {
+    const f = files.get(stop.id);
+    if (f?.info?.scene) return { info: f.info.scene, base: f.base };
+  }
+  const shared = stop.kind === 'app' ? nightScene : teaserScene;
+  if (shared) return { info: shared, base: sceneUrl(stop.kind === 'app' ? 'night' : 'teaser') };
+  const first = [...files.values()].find((f) => f.info?.scene);
+  return first?.info?.scene ? { info: first.info.scene, base: first.base } : undefined;
+}
+/** Shows the scenery of the stop on show, sliding the way the carousel stepped. */
+function showScene(dir: -1 | 0 | 1): void {
+  const stop = currentStop(state);
+  const found = sceneOf(stop);
+  if (!found) return;
+  stage.show(
+    stop.kind === 'app' ? 'app' : `episode:${stop.id}`,
+    () =>
+      createScene(
+        found.info,
+        found.base,
+        runnerOf?.info?.runner ? { art: runnerOf.info.runner, base: runnerOf.base } : undefined,
+      ),
+    dir,
+  );
+}
+
 // The window's text scale, now and when it changes.
-let strip: Strip | undefined;
 const scale = (): void => {
   applyLook();
-  strip?.resize(innerHeight);
+  stage.resize(innerHeight, innerWidth);
   touch?.relayout();
   keepClearOfControls();
   view.relayout();
@@ -470,15 +529,6 @@ addEventListener('resize', () => {
   scale();
   showRotate();
 });
-
-// The demo strip, from the first episode that has one.
-for (const f of files.values()) {
-  if (f.info?.strip && f.info.runner) {
-    strip = createStrip(ui, { strip: f.info.strip, runner: f.info.runner }, f.base);
-    scale();
-    break;
-  }
-}
 
 // The saved Fullscreen option, applied once for this run of the app (the game applies it when it opens on its own).
 let session: Storage | undefined;
@@ -520,6 +570,8 @@ const frame = (now: number): void => {
 requestAnimationFrame(frame);
 
 applyTheme();
+showScene(0);
+scale();
 view.render(state);
 keepClearOfControls();
 drawHints();
