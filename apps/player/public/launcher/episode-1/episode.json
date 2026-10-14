@@ -81,7 +81,8 @@
       ],
       "sheet": {
         "src": "actors.png",
-        "cell": 16
+        "cell": 16,
+        "cells": 10
       }
     },
     "layers": [

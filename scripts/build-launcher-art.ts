@@ -184,7 +184,7 @@ function sceneInfo(scene: SceneArt, prefix: string): object {
     skyTop: EGA[scene.skyTop],
     ben: scene.ben,
     ...(scene.demo
-      ? { demo: { items: scene.demo, sheet: { src: 'actors.png', cell: ACTOR_CELL } } }
+      ? { demo: { items: scene.demo, sheet: { src: 'actors.png', cell: ACTOR_CELL, cells: TREAT_SPRITES.length + 6 } } }
       : {}),
     layers: scene.layers.map((l) => ({
       src: `${prefix}${l.name}.png`,

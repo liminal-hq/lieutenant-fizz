@@ -4,6 +4,16 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { RunnerArt, SceneInfo } from './catalog';
+import {
+  cuesBetween,
+  demoState,
+  periodFor,
+  type ActorState,
+  type Course,
+  type DemoCue,
+  type DemoItem,
+  type DemoState,
+} from './demo';
 
 /** How much of the window's height the scene's art may take. */
 export const SCENE_SHARE = 0.55;
@@ -50,7 +60,22 @@ export interface Scene {
   setSlide(slide: number): void;
   /** Sizes the art for a window of this height and width. */
   resize(viewportHeight: number, viewportWidth: number): void;
+  /** Starts or stops what moves of its own accord (Ben and what he meets); a stopped scene keeps its last picture. */
+  run(on: boolean): void;
 }
+
+/** What a scene needs of the page around it. */
+export interface SceneHooks {
+  /** Whether motion is reduced: what Ben meets then stands in place and he stands still. */
+  reducedMotion(): boolean;
+  /** Something happened in the scenery, for a sound and a buzz. */
+  cue(cue: DemoCue): void;
+}
+
+const NO_HOOKS: SceneHooks = { reducedMotion: () => false, cue: () => {} };
+
+/** Ben's left edge, as a share of the window's width. */
+const BEN_LEFT = 0.24;
 
 const div = (className: string): HTMLDivElement => {
   const node = document.createElement('div');
@@ -63,6 +88,7 @@ export function createScene(
   info: SceneInfo,
   base: URL,
   runner?: { art: RunnerArt; base: URL },
+  hooks: SceneHooks = NO_HOOKS,
 ): Scene {
   const el = div('scene');
   el.setAttribute('aria-hidden', 'true');
@@ -71,6 +97,7 @@ export function createScene(
   el.style.setProperty('--ground', String(info.ground));
   el.style.setProperty('--sky-top', info.skyTop);
   let ground: HTMLElement | undefined;
+  let actors: Actors | undefined;
   for (const layer of info.layers) {
     const node = div(layer.field ? 'layer field' : 'layer');
     node.style.setProperty('--image', `url("${new URL(layer.src, base).href}")`);
@@ -86,8 +113,15 @@ export function createScene(
     el.style.setProperty('--ben-frames', String(runner.art.frames));
     el.style.setProperty('--ben-image', `url("${new URL(runner.art.src, runner.base).href}")`);
     const ben = div('ben');
-    ben.append(div('run'), div('air'));
+    ben.dataset['pose'] = 'run';
+    ben.append(div('run'), div('air'), div('shoot'));
     ground.append(ben);
+    if (info.demo) {
+      el.style.setProperty('--actor-w', String(info.demo.sheet.cell));
+      el.style.setProperty('--actor-cells', String(info.demo.sheet.cells));
+      el.style.setProperty('--actors-image', `url("${new URL(info.demo.sheet.src, base).href}")`);
+      actors = createActors(ground, ben, info.width, info.height, info.demo.items, hooks);
+    }
   }
   return {
     el,
@@ -97,9 +131,129 @@ export function createScene(
     resize(viewportHeight, viewportWidth) {
       el.style.setProperty('--scene-scale', String(sceneScale(viewportHeight, info.height)));
       el.style.setProperty('--sw', String(viewportWidth));
+      actors?.resize(viewportHeight, viewportWidth);
+    },
+    run(on) {
+      actors?.run(on);
     },
   };
 }
+
+/** The treats and gloops over the ground, and Ben's hops and poses: drawn from `demoState` by transform alone. */
+interface Actors {
+  resize(viewportHeight: number, viewportWidth: number): void;
+  run(on: boolean): void;
+}
+
+/** The longest a frame may count for, so a pause or a slow frame does not skip over what Ben was doing. */
+const MAX_STEP_S = 0.1;
+
+function createActors(
+  ground: HTMLElement,
+  ben: HTMLElement,
+  artWidth: number,
+  artHeight: number,
+  items: readonly DemoItem[],
+  hooks: SceneHooks,
+): Actors {
+  const layer = div('actors');
+  ground.insertBefore(layer, ben);
+  const nodes = new Map<string, { el: HTMLElement; shown: string }>();
+  let scale = 1;
+  let course: Course = { items, speed: artWidth / GROUND_SECONDS, period: artWidth, benX: 0 };
+  let clock = 0;
+  let last: number | undefined;
+  let frame = 0;
+  let wanted = false;
+  let benShown = '';
+
+  const draw = (state: DemoState): void => {
+    const seen = new Set<string>();
+    for (const a of state.actors) {
+      seen.add(a.id);
+      let node = nodes.get(a.id);
+      if (!node) {
+        const el = div('actor');
+        layer.append(el);
+        node = { el, shown: '' };
+        nodes.set(a.id, node);
+      }
+      const key = actorKey(a, scale);
+      if (key !== node.shown) {
+        node.shown = key;
+        node.el.hidden = false;
+        node.el.style.backgroundPositionX = `calc(var(--actor-w) * ${-a.cell} * var(--scene-scale) * 1px)`;
+        node.el.style.transform = `translate(${a.x * scale}px, ${-a.y * scale}px) scale(${a.scale})`;
+        node.el.style.opacity = String(a.opacity);
+      }
+    }
+    for (const [id, node] of nodes) {
+      if (!seen.has(id) && node.shown !== '') {
+        node.shown = '';
+        node.el.hidden = true;
+      }
+    }
+    const lift = Math.round(state.ben.lift * scale);
+    const benKey = `${state.ben.pose}@${lift}`;
+    if (benKey !== benShown) {
+      benShown = benKey;
+      ben.dataset['pose'] = state.ben.pose;
+      ben.style.transform = lift ? `translateY(${-lift}px)` : '';
+    }
+  };
+
+  const tick = (now: number): void => {
+    frame = 0;
+    if (!wanted) return;
+    const step = last === undefined ? 0 : Math.min(MAX_STEP_S, (now - last) / 1000);
+    last = now;
+    const before = clock;
+    clock += step;
+    for (const cue of cuesBetween(before, clock, course)) hooks.cue(cue);
+    draw(demoState(clock, course));
+    frame = requestAnimationFrame(tick);
+  };
+
+  const refresh = (): void => {
+    if (hooks.reducedMotion()) draw(demoState(0, course, true));
+    else if (!frame) draw(demoState(clock, course));
+  };
+
+  const start = (): void => {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    last = undefined;
+    if (!wanted) return;
+    if (hooks.reducedMotion() || document.hidden) {
+      refresh();
+      return;
+    }
+    frame = requestAnimationFrame(tick);
+  };
+  document.addEventListener('visibilitychange', start);
+
+  return {
+    resize(viewportHeight, viewportWidth) {
+      scale = sceneScale(viewportHeight, artHeight);
+      const wide = viewportWidth / scale;
+      course = {
+        items,
+        speed: artWidth / GROUND_SECONDS,
+        period: periodFor(wide, artWidth),
+        benX: BEN_LEFT * wide,
+      };
+      refresh();
+    },
+    run(on) {
+      wanted = on;
+      start();
+    },
+  };
+}
+
+/** What changes how an actor looks, so a frame that left it as it was writes nothing. */
+const actorKey = (a: ActorState, scale: number): string =>
+  `${a.cell}|${Math.round(a.x * scale)}|${Math.round(a.y * scale)}|${a.scale.toFixed(2)}|${a.opacity.toFixed(2)}|${scale}`;
 
 export interface Stage {
   /**
@@ -137,9 +291,11 @@ export function createStage(
       const old = current;
       current = { key, scene };
       stage.append(scene.el);
+      scene.run(true);
       if (!old || dir === 0 || reducedMotion()) {
         scene.setSlide(0);
         old?.scene.el.remove();
+        old?.scene.run(false);
         return;
       }
       const incoming = scene;
@@ -150,6 +306,7 @@ export function createStage(
         cancelAnimationFrame(frame);
         incoming.setSlide(0);
         outgoing.el.remove();
+        outgoing.run(false);
         finish = undefined;
       };
       finish = done;
