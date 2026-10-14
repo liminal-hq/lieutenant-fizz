@@ -59,8 +59,8 @@ describe('the Enhanced songs', () => {
     }
   });
 
-  it('starts the overworld and the boss straight on the tune, and runs their last section into the first', () => {
-    for (const id of ['map', 'boss']) {
+  it('starts the title, the overworld and the boss straight on the tune, and runs their last section into the first', () => {
+    for (const id of ['title', 'map', 'boss']) {
       const song = songs[id]!;
       // The first section plays the lead or the melody, not a bare intro, and the last is a full section, not a fill.
       const first = song.streams.map((stream) => stream[0]).filter((part) => part !== null);
@@ -70,7 +70,7 @@ describe('the Enhanced songs', () => {
   });
 
   it('ends the other songs on a one-bar fill that turns back into the intro', () => {
-    for (const id of CUES.filter((c) => c !== 'map' && c !== 'boss')) {
+    for (const id of CUES.filter((c) => c !== 'title' && c !== 'map' && c !== 'boss')) {
       const song = songs[id]!;
       expect(song.cycles[song.cycles.length - 1], id).toBe(1);
       expect(song.cycles[0], id).toBe(2);

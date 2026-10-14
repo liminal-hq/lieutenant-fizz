@@ -9,10 +9,11 @@ import { songFor, type SongDef } from '@lieutenant-fizz/engine/music-songs';
 /**
  * How each cue becomes a song. The overworld and the boss start straight on the tune and have no fill,
  * since an intro distracts from their melody and the boss's tension is in the tempo; the caves, the
- * theatre and the foundry keep their key (a lift would spoil the mood).
+ * theatre and the foundry keep their key (a lift would spoil the mood). The title has no intro, no fill and no lift
+ * either, so its last tune, back in the home key, runs straight into its first on every loop.
  */
 const DEFS: Record<string, SongDef> = {
-  title: { trim: 0.75, contrast: 5, lift: 2, arp: true },
+  title: { trim: 0.75, contrast: 5, lift: 0, arp: true, intro: 0, noFill: true },
   crater: { trim: 0.75, contrast: 5, lift: 2, arp: true },
   caves: { trim: 1, contrast: 7, lift: 0, arp: true },
   sky: { trim: 0.88, contrast: 7, lift: 2, arp: true },
