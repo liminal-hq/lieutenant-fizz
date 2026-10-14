@@ -21,6 +21,25 @@ use lf_sim::{
 
 pub const MAX_INSTANCES: usize = 120_000;
 
+/// How long after Ben is back on the map a press is ignored. The press that closed the end card or the
+/// game over card may still be down, and it must not open the level straight away: it takes a new one.
+pub const MAP_ARM_SECS: f64 = 0.4;
+
+/// Whether a 0.6-tile body at `(x, y)` on the map stands clear of rivers, trees, rocks and buildings, and
+/// inside the map.
+fn map_body_free(map: &TileMap, (x, y): (f64, f64)) -> bool {
+    // Off the map entirely (a hand-edited save) is no better than inside a rock.
+    x >= 0.0
+        && y >= 0.0
+        && x + 0.6 < f64::from(map.w)
+        && y + 0.6 < f64::from(map.h)
+        && [(0.0, 0.0), (0.6, 0.0), (0.0, 0.6), (0.6, 0.6)]
+            .iter()
+            .all(|(dx, dy)| {
+                !map.solid((x + dx).floor() as i32, (y + dy).floor() as i32, false, 0.0)
+            })
+}
+
 /// How far a press must have dropped from its raised position before it can crush Ben: its
 /// bottom is then within about a tile of the floor.
 pub const PRESS_DANGER_DROP: f64 = 1.6;
@@ -359,6 +378,9 @@ pub struct World {
     /// Which overworld area each part of the map belongs to (map scene only).
     pub areas: Vec<levels::AreaRect>,
     pub near: Option<usize>,
+    /// Seconds left before the map takes a press to open a level, so the press that closed a card
+    /// does not open the level again the moment Ben is back.
+    pub map_arm: f64,
 
     // Output buffers shared with the shell
     pub inst: InstanceBuffer,
@@ -459,6 +481,7 @@ impl World {
             points: vec![],
             areas: vec![],
             near: None,
+            map_arm: 0.0,
             inst: InstanceBuffer::new(MAX_INSTANCES),
             lights: LightPool::new(256),
             lights_pos: [0.0; 64],
@@ -520,6 +543,7 @@ impl World {
             points: self.points.clone(),
             areas: self.areas.clone(),
             near: self.near,
+            map_arm: self.map_arm,
             inst: InstanceBuffer::new(1),
             lights: LightPool::new(1),
             lights_pos: [0.0; 64],
@@ -609,6 +633,16 @@ impl World {
         self.pcy = self.cam_y;
     }
 
+    /// Where Ben stands when he is back on the map from the level at node `(x, y)`: at the node's doorstep,
+    /// close enough that its prompt is up and one press opens the level again. That is the tile in front
+    /// of it (south, since y is up) when that is clear, else the node's own tile, which is always walkable.
+    fn doorstep(&self, x: f64, y: f64) -> (f64, f64) {
+        [(x + 0.2, y - 0.4), (x + 0.2, y + 0.1)]
+            .into_iter()
+            .find(|&p| map_body_free(&self.map, p))
+            .unwrap_or((x + 0.2, y + 0.1))
+    }
+
     pub fn enter_level(&mut self, id: u8) {
         let id = if id < levels::TABLE_LEN { id } else { 0 };
         if self.mode == Mode::Map {
@@ -617,7 +651,7 @@ impl World {
                 .iter()
                 .find(|p| matches!(p.kind, PtKind::Level | PtKind::Saucer) && p.level == id)
             {
-                self.game.map_pos = Some((pt.x + 0.2, pt.y - 1.0));
+                self.game.map_pos = Some(self.doorstep(pt.x, pt.y));
             }
         }
         self.load_level(id);
@@ -763,24 +797,13 @@ impl World {
         self.items.clear();
         self.plats.clear();
         self.near = None;
+        self.map_arm = MAP_ARM_SECS;
         // A saved position may belong to an older map: if Ben would start inside a river, a tree or
         // a rock, put him back at the saucer instead.
-        let free = |map: &lf_sim::TileMap, (x, y): (f64, f64)| {
-            // Off the map entirely (a hand-edited save) is no better than inside a rock.
-            x >= 0.0
-                && y >= 0.0
-                && x + 0.6 < f64::from(map.w)
-                && y + 0.6 < f64::from(map.h)
-                && [(0.0, 0.0), (0.6, 0.0), (0.0, 0.6), (0.6, 0.6)]
-                    .iter()
-                    .all(|(dx, dy)| {
-                        !map.solid((x + dx).floor() as i32, (y + dy).floor() as i32, false, 0.0)
-                    })
-        };
         let at = self
             .game
             .map_pos
-            .filter(|&p| free(&self.map, p))
+            .filter(|&p| map_body_free(&self.map, p))
             .unwrap_or(m.start);
         let mut b = Body::new(at.0, at.1, 0.6, 0.6);
         b.px = at.0;
@@ -894,6 +917,7 @@ impl World {
     // ---------- Overworld ----------
 
     fn tick_map(&mut self, dt: f64) {
+        self.map_arm = (self.map_arm - dt).max(0.0);
         let h = self.held;
         let vx = f64::from(u8::from(h & RIGHT != 0)) - f64::from(u8::from(h & LEFT != 0));
         let vy = f64::from(u8::from(h & UP != 0)) - f64::from(u8::from(h & DOWN != 0));
@@ -968,7 +992,7 @@ impl World {
             }
         }
         if let Some(i) = near {
-            if self.edge & (JUMP | FIRE | CONFIRM) != 0 {
+            if self.map_arm <= 0.0 && self.edge & (JUMP | FIRE | CONFIRM) != 0 {
                 self.activate(i);
             }
         }

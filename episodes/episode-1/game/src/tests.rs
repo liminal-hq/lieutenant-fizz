@@ -391,6 +391,8 @@ fn overworld_walk_prompt_and_enter_level() {
     w.step(0);
     let prompts = events_of(&w, ev::MAP_PROMPT);
     assert_eq!(prompts.last().unwrap().a, 1.0);
+    // A press only opens a level once the map is armed (see `MAP_ARM_SECS`).
+    w.map_arm = 0.0;
     w.step(JUMP);
     assert_eq!(w.mode, Mode::Level);
     assert_eq!(w.level_id, CRATER);
@@ -399,6 +401,69 @@ fn overworld_walk_prompt_and_enter_level() {
         w.game.map_pos.is_some(),
         "map position remembered for the return trip"
     );
+}
+
+#[test]
+fn ben_comes_back_to_the_map_at_his_levels_doorstep_with_its_prompt_up() {
+    use crate::levels::PtKind;
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    let nodes: Vec<_> = w
+        .points
+        .iter()
+        .copied()
+        .enumerate()
+        .filter(|(_, p)| matches!(p.kind, PtKind::Level | PtKind::Saucer))
+        .collect();
+    assert!(nodes.len() >= 16, "every level node and the saucer");
+    for (i, pt) in nodes {
+        w.enter_map();
+        w.enter_level(pt.level);
+        w.enter_map();
+        w.events.clear();
+        w.step(0);
+        let d = (w.p.b.x + 0.3 - (pt.x + 0.5)).hypot(w.p.b.y + 0.3 - (pt.y + 0.5));
+        assert!(
+            d < 0.95,
+            "node {i} at {},{}: Ben is {d:.2} tiles from it, outside its reach",
+            pt.x,
+            pt.y
+        );
+        assert_eq!(
+            w.near,
+            Some(i),
+            "node {i}: its prompt is up on the first step"
+        );
+        assert!(
+            !events_of(&w, ev::MAP_PROMPT).is_empty(),
+            "node {i}: a prompt is raised on the first step"
+        );
+    }
+}
+
+#[test]
+fn a_press_that_closed_a_card_does_not_reopen_the_level_but_the_next_one_does() {
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    w.enter_level(CRATER);
+    w.enter_map();
+    // The press is still down (or lands a moment later): the map is not armed yet.
+    w.step(JUMP);
+    assert_eq!(
+        w.mode,
+        Mode::Map,
+        "a press straight after returning opens nothing"
+    );
+    w.step(0);
+    // Half a second on, a fresh press opens it.
+    for _ in 0..30 {
+        w.step(0);
+    }
+    w.step(JUMP);
+    assert_eq!(w.mode, Mode::Level);
+    assert_eq!(w.level_id, CRATER);
 }
 
 #[test]
@@ -563,6 +628,7 @@ fn a_locked_level_point_refuses_entry_until_its_requirement_is_met() {
     let pt = w.points[i];
     w.p.b.x = pt.x + 0.2;
     w.p.b.y = pt.y + 0.2;
+    w.map_arm = 0.0;
     w.step(0);
     w.step(JUMP);
     assert_eq!(w.mode, Mode::Map, "locked level did not start");
@@ -1314,6 +1380,7 @@ fn map_world() -> World {
     let mut w = World::new();
     w.game_new();
     w.enter_map();
+    w.map_arm = 0.0;
     w.events.clear();
     w
 }
@@ -1323,6 +1390,8 @@ fn stand_on(w: &mut World, i: usize) {
     w.p.b.x = pt.x + 0.2;
     w.p.b.y = pt.y + 0.2;
     w.near = None;
+    // These tests press straight away: the map is already armed (see `MAP_ARM_SECS`).
+    w.map_arm = 0.0;
 }
 
 #[test]
@@ -2670,6 +2739,7 @@ fn the_saucer_opens_from_the_map_and_leaving_it_clears_nothing() {
     w.enter_map();
     w.p.b.x = 8.2;
     w.p.b.y = 10.2;
+    w.map_arm = 0.0;
     w.step(0);
     w.step(JUMP);
     assert_eq!(w.mode, Mode::Level);
