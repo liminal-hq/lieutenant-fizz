@@ -348,14 +348,29 @@ impl World {
         self.out[out::CLEAR_B] = c[2];
         self.out[out::CLEAR_A] = clear.1 as f32;
         self.out[out::SKY_GLOW] = f32::from(u8::from(sky_glow));
-        let amb = bio
-            .as_ref()
-            .map_or([1.0; 3], |b| if night { b.night } else { b.amb });
+        // The overworld is lit by day only: Options' night switch does not reach it.
+        let map_view = self.mode == Mode::Map;
+        let amb = if map_view {
+            self.map_amb
+        } else {
+            bio.as_ref()
+                .map_or([1.0; 3], |b| if night { b.night } else { b.amb })
+        };
         self.out[out::AMB_R] = amb[0];
         self.out[out::AMB_G] = amb[1];
         self.out[out::AMB_B] = amb[2];
-        self.out[out::LIGHTING] = f32::from(u8::from(bio.is_some()));
+        self.out[out::LIGHTING] = f32::from(u8::from(bio.is_some() || map_view));
         self.out[out::SUN_X..=out::SUN_B].fill(0.0);
+        if map_view {
+            // The same sun over every area, its colour the rest of full brightness: flat ground stays itself.
+            let d = map_sun_dir();
+            self.out[out::SUN_X] = d[0];
+            self.out[out::SUN_Y] = d[1];
+            self.out[out::SUN_Z] = d[2];
+            for (i, a) in amb.iter().enumerate() {
+                self.out[out::SUN_R + i] = ((1.0 - a) / d[2]).max(0.0);
+            }
+        }
         self.out[out::WORLD] = 0.0;
         let view = [
             cx - self.half_w - 1.0,
@@ -375,6 +390,7 @@ impl World {
         }
         let nl = match &bio {
             Some(b) => self.update_lights(b, night, (cx, cy)),
+            None if map_view => self.update_map_lights((cx, cy)),
             None => 0,
         };
         self.out[out::COUNT] = self.inst.len() as f32;
@@ -396,7 +412,11 @@ impl World {
             (0, w - 1, 0, h - 1)
         };
         let rf = ((self.t * 2.0).floor() as i64) & 1;
-        let em = PushOpts::em();
+        // The map is lit now. The ground, the scenery and the icons take the sun and the lights; Ben and the
+        // paths keep a minimum brightness so the way always reads; teleporters and flags glow of their own.
+        let lit = PushOpts::default();
+        let act = PushOpts { actor: true, ..lit };
+        let glow = PushOpts::em();
         for y in ty0..=ty1 {
             for x in tx0..=tx1 {
                 let tt = self.map.get(x, y);
@@ -414,7 +434,7 @@ impl World {
                         s,
                         &PushOpts {
                             tint: theme.river_tint,
-                            ..em
+                            ..lit
                         },
                     );
                     continue;
@@ -423,7 +443,7 @@ impl World {
                     fx,
                     fy,
                     if tt == PATH { Spr::OwPath } else { theme.grass },
-                    &em,
+                    if tt == PATH { &act } else { &lit },
                 );
                 if tt == TREE {
                     self.push(
@@ -434,11 +454,11 @@ impl World {
                         } else {
                             theme.trees[1]
                         },
-                        &em,
+                        &lit,
                     );
                 }
                 if tt == ROCK {
-                    self.push(fx, fy, theme.rock, &em);
+                    self.push(fx, fy, theme.rock, &lit);
                 }
                 let building = match tt {
                     HOUSE_A => Some(Spr::OwHouseA),
@@ -448,7 +468,7 @@ impl World {
                     _ => None,
                 };
                 if let Some(s) = building {
-                    self.push(fx, fy, s, &em);
+                    self.push(fx, fy, s, &lit);
                 }
             }
         }
@@ -459,8 +479,8 @@ impl World {
             }
             let (x, y) = (pt.x + 0.5, pt.y + 0.5);
             match pt.kind {
-                crate::levels::PtKind::Saucer => self.push(x, y, Spr::Saucer, &em),
-                crate::levels::PtKind::Sign => self.push(x, y, Spr::OwSign, &em),
+                crate::levels::PtKind::Saucer => self.push(x, y, Spr::Saucer, &lit),
+                crate::levels::PtKind::Sign => self.push(x, y, Spr::OwSign, &lit),
                 crate::levels::PtKind::Tele => {
                     let on = self.met(pt.req);
                     let s = if on && ((self.t * 4.0).floor() as i64) & 1 != 0 {
@@ -474,20 +494,20 @@ impl World {
                         s,
                         &PushOpts {
                             tint: if on { 0xffffff } else { 0x777777 },
-                            ..em
+                            ..glow
                         },
                     );
                 }
                 crate::levels::PtKind::Level => {
                     let s = crate::levels::LEVELS[usize::from(pt.level)].icon;
                     let (bx, by) = if pt.big { (x + 0.5, y + 0.5) } else { (x, y) };
-                    self.push(bx, by, s, &em);
+                    self.push(bx, by, s, &lit);
                     if self.game.is_done(pt.level) {
                         self.push(
                             x + 0.6,
                             y + 0.9,
                             Spr::OwFlag,
-                            &PushOpts { scale: 0.7, ..em },
+                            &PushOpts { scale: 0.7, ..glow },
                         );
                     }
                 }
@@ -502,7 +522,7 @@ impl World {
             Spr::BenMap0
         };
         let flip = p.face < 0.0;
-        self.push(px + 0.3, py + 0.4, s, &PushOpts { flip, ..em });
+        self.push(px + 0.3, py + 0.4, s, &PushOpts { flip, ..act });
         (w * h) as usize
     }
 
@@ -1124,6 +1144,29 @@ impl World {
         world
     }
 
+    /// The overworld's lights, each pulsing at its own rate, picked nearest the camera first by day.
+    fn update_map_lights(&mut self, cam: (f64, f64)) -> usize {
+        let t = self.t;
+        for i in 0..self.map_lights.len() {
+            let l = self.map_lights[i];
+            let k = if l.pulse > 0.0 {
+                0.85 + 0.15 * (t * std::f64::consts::TAU * l.pulse).sin()
+            } else {
+                1.0
+            };
+            self.lights.add(
+                cam,
+                l.x,
+                l.y,
+                l.z,
+                l.r,
+                [l.c[0] * k, l.c[1] * k, l.c[2] * k],
+            );
+        }
+        self.lights
+            .select(MAP_LIGHT_MUL, &mut self.lights_pos, &mut self.lights_col)
+    }
+
     fn update_lights(&mut self, bio: &LevelTheme, night: bool, cam: (f64, f64)) -> usize {
         let t = self.t;
         if bio.lantern && !self.p.hidden {
@@ -1218,6 +1261,17 @@ impl World {
         self.lights
             .select(mul, &mut self.lights_pos, &mut self.lights_col)
     }
+}
+
+/// How strong the overworld's point lights are by day, against 1.0 at night in a level.
+pub(crate) const MAP_LIGHT_MUL: f64 = 0.35;
+
+/// The direction to the overworld's sun in sprite space (x right, y up, z out of the screen): from the
+/// west-north-west and fairly high, so a sprite's relief catches light on its left and top.
+pub(crate) fn map_sun_dir() -> [f32; 3] {
+    let (x, y, z) = (-0.5f32, 0.3f32, 0.81f32);
+    let len = (x * x + y * y + z * z).sqrt();
+    [x / len, y / len, z / len]
 }
 
 /// Picks Ben's sprite from his current state.

@@ -404,6 +404,58 @@ fn overworld_walk_prompt_and_enter_level() {
 }
 
 #[test]
+fn the_map_is_lit_by_day_with_a_sun_that_leaves_flat_ground_at_full_brightness() {
+    use crate::render::out;
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    // Night does not reach the map: it is the same lit daytime either way.
+    for flags in [0, crate::render::flags::NIGHT] {
+        w.render(1.0, flags);
+        assert_eq!(w.out[out::LIGHTING], 1.0, "the map is lit");
+        let z = w.out[out::SUN_Z];
+        assert!(z > 0.5, "the sun is up");
+        for i in 0..3 {
+            let flat = w.out[out::AMB_R + i] + w.out[out::SUN_R + i] * z;
+            assert!(
+                (flat - 1.0).abs() < 1e-4,
+                "channel {i}: flat ground is at {flat}, not full brightness"
+            );
+        }
+        assert!(w.out[out::LIGHTS] >= 1.0, "the map has lights");
+    }
+}
+
+#[test]
+fn the_maps_light_eases_between_areas_and_the_sun_stays_put() {
+    use crate::render::out;
+    let mut w = World::new();
+    w.game_new();
+    w.enter_map();
+    let here = w.map_amb;
+    // Into Rock Candy Reach (the north-east), a long way from Crater Fields.
+    w.p.b.x = 40.0;
+    w.p.b.y = 30.0;
+    w.step(0);
+    assert_ne!(w.map_amb, here, "the light starts to move");
+    assert!(
+        w.map_amb != crate::levels::map_ambient(crate::levels::AREA_ROCK_CANDY_REACH),
+        "but it eases in and does not jump"
+    );
+    for _ in 0..180 {
+        w.step(0);
+    }
+    for (a, b) in w.map_amb.iter().zip(crate::levels::map_ambient(
+        crate::levels::AREA_ROCK_CANDY_REACH,
+    )) {
+        assert!((a - b).abs() < 0.01, "after a few seconds it has settled");
+    }
+    w.render(1.0, 0);
+    let flat = w.out[out::AMB_R] + w.out[out::SUN_R] * w.out[out::SUN_Z];
+    assert!((flat - 1.0).abs() < 1e-4);
+}
+
+#[test]
 fn render_writes_no_sun_in_a_level_whatever_was_left_in_the_out_array() {
     use crate::render::out;
     let mut w = World::new();

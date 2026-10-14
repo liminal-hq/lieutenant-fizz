@@ -164,7 +164,10 @@ describe.skipIf(!built)('Episode 1 WASM sim', () => {
     sim.x.set_view(10, 6);
     run(30, Input.RIGHT | Input.DOWN);
     expect(sim.render(1, RenderFlag.CULLING)).toBeGreaterThan(100);
-    expect(sim.out[Out.LIGHTING]).toBe(0);
+    // The map is lit now (day only), with a sun.
+    expect(sim.out[Out.LIGHTING]).toBe(1);
+    expect(sim.out[Out.SUN_R]).toBeGreaterThan(0);
+    expect(sim.out[Out.SUN_Z]).toBeGreaterThan(0.5);
   });
 
   it('gives the shell room for a sun, and writes none in a level', () => {

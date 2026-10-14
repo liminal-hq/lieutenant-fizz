@@ -2039,6 +2039,88 @@ pub fn area_theme(area: u8) -> AreaTheme {
     }
 }
 
+/// The ambient light on an area of the overworld by day. The sun is the same everywhere and makes up the
+/// rest of full brightness (`render.rs` gives it the colour `(1 - ambient) / z`), so flat ground is lit to
+/// exactly its own colour and only the relief in the sprites moves with the sun. The ambient is a little
+/// cool and the sun a little warm, tinted a touch for each area.
+pub fn map_ambient(area: u8) -> [f32; 3] {
+    match area {
+        AREA_MARSHMALLOW_MEADOWS => [0.60, 0.60, 0.69],
+        AREA_ROCK_CANDY_REACH => [0.58, 0.64, 0.70],
+        AREA_FROSTING_FRONTIER => [0.62, 0.66, 0.75],
+        AREA_GUMDROP_ISLE => [0.60, 0.62, 0.69],
+        _ => [0.58, 0.62, 0.68],
+    }
+}
+
+/// A light on the overworld: where, how high, how far it reaches, its colour, and a slow pulse in hertz
+/// (0 for steady).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MapLight {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+    pub r: f64,
+    pub c: [f64; 3],
+    pub pulse: f64,
+}
+
+/// The overworld's lights: a lantern at each level entrance, a beacon on the saucer, a pulse on each
+/// teleporter that is on (`met` says which are), a glow at the fountain and in the shop windows. They are
+/// few enough that the 16 the renderer takes always cover every one in view (a test sweeps the camera).
+pub fn map_lights(map: &TileMap, points: &[MapPoint], met: impl Fn(u16) -> bool) -> Vec<MapLight> {
+    let mut out = Vec::new();
+    for p in points {
+        let (x, y) = (p.x + 0.5, p.y + 0.5);
+        match p.kind {
+            PtKind::Saucer => out.push(MapLight {
+                x,
+                y,
+                z: 1.0,
+                r: 3.5,
+                c: [1.0, 0.85, 0.45],
+                pulse: 0.0,
+            }),
+            PtKind::Level => out.push(MapLight {
+                x,
+                y,
+                z: 0.9,
+                r: 2.6,
+                c: [1.0, 0.65, 0.3],
+                pulse: 0.0,
+            }),
+            // The hidden pad has `met` false until the secret is found, so it lights only once it shows.
+            PtKind::Tele if met(p.req) => out.push(MapLight {
+                x,
+                y,
+                z: 0.8,
+                r: 3.0,
+                c: [0.3, 1.0, 1.1],
+                pulse: 1.0,
+            }),
+            _ => {}
+        }
+    }
+    for x in 0..map.w {
+        for y in 0..map.h {
+            let (c, r) = match map.get(x, y) {
+                FOUNTAIN => ([0.4, 0.8, 1.0], 2.5),
+                SHOP => ([1.0, 0.8, 0.4], 2.0),
+                _ => continue,
+            };
+            out.push(MapLight {
+                x: f64::from(x) + 0.5,
+                y: f64::from(y) + 0.5,
+                z: 0.8,
+                r,
+                c,
+                pulse: 0.0,
+            });
+        }
+    }
+    out
+}
+
 pub struct MapData {
     pub map: TileMap,
     pub points: Vec<MapPoint>,
@@ -2618,6 +2700,72 @@ mod tests {
             h.f64(p.y);
         }
         h.0
+    }
+
+    #[test]
+    fn every_areas_ambient_light_is_readable_and_leaves_room_for_a_warm_sun() {
+        let d = crate::render::map_sun_dir();
+        for a in [
+            AREA_CRATER_FIELDS,
+            AREA_MARSHMALLOW_MEADOWS,
+            AREA_ROCK_CANDY_REACH,
+            AREA_FROSTING_FRONTIER,
+            AREA_GUMDROP_ISLE,
+        ] {
+            let amb = map_ambient(a);
+            let sun: Vec<f32> = amb.iter().map(|c| (1.0 - c) / d[2]).collect();
+            for i in 0..3 {
+                // Ground facing the screen gets exactly full brightness: ambient plus the sun's share.
+                assert!(
+                    (amb[i] + sun[i] * d[2] - 1.0).abs() < 1e-6,
+                    "area {a} channel {i}"
+                );
+                assert!(
+                    amb[i] >= 0.45,
+                    "area {a}: the shade is too dark to read under the thumbs"
+                );
+                assert!(sun[i] >= 0.0, "area {a}: ambient above full brightness");
+            }
+            assert!(
+                sun[0] > sun[2],
+                "area {a}: the sun is warmer than the shade"
+            );
+        }
+    }
+
+    #[test]
+    fn the_map_lights_fit_the_budget_wherever_the_camera_goes() {
+        let m = build_overworld();
+        // Every teleporter on and the hidden pad found: the most lights the map ever has.
+        let lights = map_lights(&m.map, &m.points, |_| true);
+        assert!(
+            lights.len() >= 20,
+            "level entrances, the saucer, pads and the town: {}",
+            lights.len()
+        );
+        // The widest view the shell asks for is about 26 by 12 tiles; round it up.
+        let (half_w, half_h) = (14.0, 7.0);
+        let mut worst = 0;
+        let mut x = half_w;
+        while x <= f64::from(m.map.w) - half_w {
+            let mut y = half_h;
+            while y <= f64::from(m.map.h) - half_h {
+                // A light matters when its reach touches the view.
+                let reaching = lights
+                    .iter()
+                    .filter(|l| {
+                        let dx = ((l.x - x).abs() - half_w).max(0.0);
+                        let dy = ((l.y - y).abs() - half_h).max(0.0);
+                        dx.hypot(dy) < l.r
+                    })
+                    .count();
+                worst = worst.max(reaching);
+                y += 1.0;
+            }
+            x += 1.0;
+        }
+        // The renderer takes the 16 nearest the camera; one spare means none ever pops in or out.
+        assert!(worst <= 15, "{worst} lights reach one view");
     }
 
     #[test]

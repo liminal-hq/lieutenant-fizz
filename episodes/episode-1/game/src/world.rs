@@ -381,6 +381,10 @@ pub struct World {
     /// Seconds left before the map takes a press to open a level, so the press that closed a card
     /// does not open the level again the moment Ben is back.
     pub map_arm: f64,
+    /// The overworld's lights, worked out when the map is entered.
+    pub map_lights: Vec<levels::MapLight>,
+    /// The ambient light on the overworld now: it eases towards that of the area Ben is in.
+    pub map_amb: [f32; 3],
 
     // Output buffers shared with the shell
     pub inst: InstanceBuffer,
@@ -482,6 +486,8 @@ impl World {
             areas: vec![],
             near: None,
             map_arm: 0.0,
+            map_lights: vec![],
+            map_amb: [1.0; 3],
             inst: InstanceBuffer::new(MAX_INSTANCES),
             lights: LightPool::new(256),
             lights_pos: [0.0; 64],
@@ -544,6 +550,8 @@ impl World {
             areas: self.areas.clone(),
             near: self.near,
             map_arm: self.map_arm,
+            map_lights: self.map_lights.clone(),
+            map_amb: self.map_amb,
             inst: InstanceBuffer::new(1),
             lights: LightPool::new(1),
             lights_pos: [0.0; 64],
@@ -814,8 +822,20 @@ impl World {
         self.cam_y = at.1;
         self.pcx = at.0;
         self.pcy = at.1;
+        let lights = levels::map_lights(&self.map, &self.points, |req| self.met(req));
+        self.map_lights = lights;
+        self.map_amb = self.map_ambient_here();
         self.hud();
         self.events.emit(ev::MAP_PROMPT, 0.0, 0.0, 0.0);
+    }
+
+    /// The ambient light of the overworld area Ben stands in.
+    fn map_ambient_here(&self) -> [f32; 3] {
+        let (x, y) = (
+            (self.p.b.x + 0.3).floor() as i32,
+            (self.p.b.y + 0.3).floor() as i32,
+        );
+        levels::map_ambient(levels::area_at(&self.areas, x, y))
     }
 
     // ---------- Tick ----------
@@ -918,6 +938,12 @@ impl World {
 
     fn tick_map(&mut self, dt: f64) {
         self.map_arm = (self.map_arm - dt).max(0.0);
+        // The light eases from one area's to the next over about a second, so crossing a river is not a jump.
+        let target = self.map_ambient_here();
+        let k = (1.0 - (-dt / 0.4).exp()) as f32;
+        for (a, t) in self.map_amb.iter_mut().zip(target) {
+            *a += (t - *a) * k;
+        }
         let h = self.held;
         let vx = f64::from(u8::from(h & RIGHT != 0)) - f64::from(u8::from(h & LEFT != 0));
         let vy = f64::from(u8::from(h & UP != 0)) - f64::from(u8::from(h & DOWN != 0));
