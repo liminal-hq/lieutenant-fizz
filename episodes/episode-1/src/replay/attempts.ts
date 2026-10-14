@@ -11,6 +11,8 @@ export interface PathPoint {
   x: number;
   y: number;
   t: number;
+  /** Whether the pogo stick was on at this point. */
+  pogo?: boolean;
 }
 
 export interface Attempt {
@@ -44,6 +46,8 @@ const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v)
 export function attemptsOf(session: Session): Attempt[] {
   const out: Attempt[] = [];
   let cur: Attempt | null = null;
+  // The pogo toggle as of the last `st` event; it carries over from one attempt to the next.
+  let pogo = false;
 
   const finish = (outcome: Outcome, tick: number | null): void => {
     if (!cur) return;
@@ -71,10 +75,12 @@ export function attemptsOf(session: Session): Attempt[] {
         path: [],
         pauses: 0,
       };
+    } else if (e.e === 'st') {
+      pogo = e['pogo'] === 1 || e['pogo'] === true;
     } else if (!cur) {
       continue;
     } else if (e.e === 'pos') {
-      cur.path.push({ x: num(e['x']), y: num(e['y']), t: e.t });
+      cur.path.push({ x: num(e['x']), y: num(e['y']), t: e.t, ...(pogo ? { pogo } : {}) });
     } else if (e.e === 'death') {
       cur.death = {
         cause: num(e['cause']),

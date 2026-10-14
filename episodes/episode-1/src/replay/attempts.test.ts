@@ -16,6 +16,21 @@ const play = (id: number, name: string, attempt: number, from: number, end: obje
 ];
 
 describe('attemptsOf', () => {
+  it('marks the path points where the pogo stick was on, and keeps it across a new attempt', () => {
+    const s = sessionOf('s', [
+      { t: 90, e: 'st', lives: 3, ammo: 0, score: 0, pogo: 0 },
+      { t: 100, e: 'level', id: 0, name: 'A', attempt: 1 },
+      { t: 104, e: 'pos', x: 1, y: 1 },
+      { t: 105, e: 'st', lives: 3, ammo: 0, score: 0, pogo: 1 },
+      { t: 108, e: 'pos', x: 2, y: 1 },
+      { t: 200, e: 'level', id: 0, name: 'A', attempt: 2 },
+      { t: 204, e: 'pos', x: 1, y: 1 },
+    ]);
+    const [first, second] = attemptsOf(s);
+    expect(first!.path.map((p) => p.pogo)).toEqual([undefined, true]);
+    expect(second!.path.map((p) => p.pogo)).toEqual([true]);
+  });
+
   it('ends an attempt at a clear, at a death, at the next level and at the end of the log', () => {
     const s = sessionOf('s', [
       ...play(0, 'Crater Fields', 1, 100, [

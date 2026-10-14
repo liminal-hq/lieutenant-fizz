@@ -10,6 +10,7 @@ import {
   drawCross,
   drawFinger,
   drawPolyline,
+  drawTrace,
   drawRing,
   toScreen,
   type Ctx2D,
@@ -75,7 +76,17 @@ export interface ExtraLayer {
 }
 
 /** The layers that can be switched on and off. */
-export const LAYERS = [
+export /** What the transport buttons show: Fizz font glyphs, which common system fonts also have in some shape. */
+const ICONS = {
+  play: '\u25BA',
+  pause: '\u2016',
+  lastTry: '|\u25C4',
+  nextTry: '\u25BA|',
+  lastDeath: '\u25C4\u2620',
+  nextDeath: '\u2620\u25BA',
+} as const;
+
+const LAYERS = [
   ['touch', 'Touches'],
   ['path', 'Path'],
   ['stays', 'Stays'],
@@ -180,7 +191,7 @@ export class ReplayHost {
       class: 'replay-scrub',
     });
     this.clock = h('span', { class: 'replay-clock' });
-    this.playBtn = this.button('Play', () => this.togglePlay(), 'replay-play');
+    this.playBtn = this.button('Play', () => this.togglePlay(), 'replay-play', ICONS.play);
     this.speedBtn = this.button('1x', () => this.cycleSpeed(), 'replay-speed');
     this.sheet = h('div', { class: 'replay-sheet', hidden: '' });
     for (const [id, label] of LAYERS) {
@@ -208,11 +219,11 @@ export class ReplayHost {
         'div',
         { class: 'replay-row' },
         this.button('Back', () => this.close()),
-        this.button('Last try', () => this.goAttempt(-1)),
-        this.button('Last death', () => this.jumpDeath(-1)),
+        this.button('Last try', () => this.goAttempt(-1), '', ICONS.lastTry),
+        this.button('Last death', () => this.jumpDeath(-1), '', ICONS.lastDeath),
         this.playBtn,
-        this.button('Next death', () => this.jumpDeath(1)),
-        this.button('Next try', () => this.goAttempt(1)),
+        this.button('Next death', () => this.jumpDeath(1), '', ICONS.nextDeath),
+        this.button('Next try', () => this.goAttempt(1), '', ICONS.nextTry),
         this.speedBtn,
         layersBtn,
       ),
@@ -292,8 +303,13 @@ export class ReplayHost {
 
   // ---------- Controls ----------
 
-  private button(label: string, run: () => void, cls = ''): HTMLButtonElement {
-    const b = h('button', { type: 'button', class: `replay-btn ${cls}`.trim() }, label);
+  /** A button that says `label` to a screen reader and in its tooltip, and shows `icon` when it has one. */
+  private button(label: string, run: () => void, cls = '', icon = ''): HTMLButtonElement {
+    const b = h('button', { type: 'button', class: `replay-btn ${cls}`.trim() }, icon || label);
+    if (icon) {
+      b.setAttribute('aria-label', label);
+      b.title = label;
+    }
     b.addEventListener('click', () => {
       this.act();
       run();
@@ -494,7 +510,14 @@ export class ReplayHost {
     if (this.layers.path && info) {
       // A replay that stopped matching shows what was recorded as a ghost, in full, behind its own run.
       if (this.replayer.drift) drawPolyline(ctx, info.path.map(screen), COLOURS.ghost, 2, 0.6);
-      drawPolyline(ctx, info.path.filter((p) => p.t <= tick).map(screen), COLOURS.path, 3, 0.9);
+      drawTrace(
+        ctx,
+        info.path.filter((p) => p.t <= tick).map((p) => ({ ...screen(p), flag: p.pogo })),
+        COLOURS.path,
+        COLOURS.pogo,
+        3,
+        0.9,
+      );
     }
     if (this.layers.stays && info) {
       for (const s of dwells(info)) {
@@ -561,7 +584,8 @@ export class ReplayHost {
   /** Keeps the buttons' words right after a change. */
   private sync(): void {
     const playing = this.transport.playing;
-    this.playBtn.textContent = playing ? 'Pause' : 'Play';
+    this.playBtn.textContent = playing ? ICONS.pause : ICONS.play;
+    this.playBtn.title = playing ? 'Pause' : 'Play';
     this.playBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
     this.speedBtn.textContent = `${this.transport.speed}x`;
     this.speedBtn.setAttribute('aria-label', `Speed ${this.transport.speed} times`);

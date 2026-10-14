@@ -32,6 +32,7 @@ export const COLOURS = {
   hit: '#7dd3fc',
   miss: '#e879f9',
   path: '#4ade80',
+  pogo: '#facc15',
   ghost: '#9a96b0',
   death: '#f43f5e',
   dwell: '#ffaa40',
@@ -164,6 +165,29 @@ export function drawPolyline(
   points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
   ctx.stroke();
   ctx.restore();
+}
+
+/**
+ * A line through canvas points drawn in two colours: segments that end on a flagged point (the pogo stick
+ * was on) take `flagged`, and the rest take `colour`. Each run of one colour is one stroke.
+ */
+export function drawTrace(
+  ctx: Ctx2D,
+  points: readonly { x: number; y: number; flag?: boolean }[],
+  colour: string,
+  flagged: string,
+  width = 2,
+  alpha = 1,
+): void {
+  // Segment i joins point i - 1 to point i and takes point i's flag; a run of equal flags is one stroke.
+  let start = 0;
+  for (let i = 1; i < points.length; i += 1) {
+    const here = points[i]!.flag === true;
+    const next = i + 1 < points.length ? points[i + 1]!.flag === true : !here;
+    if (here === next) continue;
+    drawPolyline(ctx, points.slice(start, i + 1), here ? flagged : colour, width, alpha);
+    start = i;
+  }
 }
 
 /** A cross, for where a life was lost. */

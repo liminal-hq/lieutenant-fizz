@@ -171,10 +171,14 @@ export const EXTRA: Record<string, string> = {
   // Solid triangles, 7 wide and 4 tall, resting on the baseline (cap rows 3 to 6).
   '▼': '......./......./......./#######/.#####./..###../...#...',
   '▲': '......./......./......./...#.../..###../.#####./#######',
+  // Pause: two upright bars.
+  '‖': '##.##/##.##/##.##/##.##/##.##/##.##/##.##',
+  // A skull, for where a life was lost.
+  '☠': '.#####./#######/#.###.#/#######/.#####./..#.#../.#.#.#.',
 };
 
 /** Characters drawn as single-colour pictures. They keep their shape under every style. */
-export const EMOJI = Array.from('🙂😀😉😮😢😠😎❤⭐✓✗👍🍁👽🛸🥤☕💾🎮🔊🔇🔒⚡🏆');
+export const EMOJI = Array.from('🙂😀😉😮😢😠😎❤⭐✓✗👍🍁👽🛸🥤☕💾🎮🔊🔇🔒⚡🏆☠');
 
 /** Glyphs that stay as wide as they are when condensing. */
 export const WIDE = new Set([

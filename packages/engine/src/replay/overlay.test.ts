@@ -12,6 +12,7 @@ import {
   drawFinger,
   drawPolyline,
   drawRing,
+  drawTrace,
   toScreen,
   toWorld,
   type Ctx2D,
@@ -130,6 +131,31 @@ describe('drawFinger', () => {
       }),
     );
     expect(strokes).toEqual([{ colour: COLOURS.hit, alpha: 0.25 }]);
+  });
+});
+
+describe('drawTrace', () => {
+  const pts = (flags: boolean[]) => flags.map((flag, i) => ({ x: i, y: 0, flag }));
+
+  it('draws one stroke in the plain colour when nothing is flagged', () => {
+    const a = fakeCtx();
+    drawTrace(a.ctx, pts([false, false, false]), COLOURS.path, COLOURS.pogo);
+    expect(a.strokes.map((s) => s.colour)).toEqual([COLOURS.path]);
+  });
+
+  it('colours the segments that end on a flagged point, and joins the runs without a gap', () => {
+    const a = fakeCtx();
+    drawTrace(a.ctx, pts([false, false, true, true, false, false]), COLOURS.path, COLOURS.pogo);
+    expect(a.strokes.map((s) => s.colour)).toEqual([COLOURS.path, COLOURS.pogo, COLOURS.path]);
+    // Each run starts where the last one ended: runs of 1, 2 and 2 segments make 5 lines.
+    expect(a.calls.filter((c) => c === 'move')).toHaveLength(3);
+    expect(a.calls.filter((c) => c === 'line')).toHaveLength(2 + 2 + 1);
+  });
+
+  it('draws nothing for fewer than two points', () => {
+    const a = fakeCtx();
+    drawTrace(a.ctx, pts([true]), COLOURS.path, COLOURS.pogo);
+    expect(a.calls).toEqual([]);
   });
 });
 
