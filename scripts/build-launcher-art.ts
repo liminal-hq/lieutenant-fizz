@@ -18,7 +18,7 @@ import type { MusicSong, MusicTrack, SfxVoice } from '../packages/engine/src/aud
 import type { HapticTable } from '../packages/engine/src/haptic-pattern';
 import { EGA } from '../packages/engine/src/palette';
 import { encodePngRgba } from '../packages/engine/src/png';
-import type { Grid } from '../packages/engine/src/pen';
+import { Pen, type Grid } from '../packages/engine/src/pen';
 import {
   bulletFrames,
   BULLET_STEP_MS,
@@ -37,6 +37,7 @@ import {
   episode1Scene,
   appScene,
   teaserScene,
+  TREAT_SPRITES,
   type SceneArt,
 } from './launcher-scenes';
 import { Sim } from '../episodes/episode-1/src/sim/sim';
@@ -89,9 +90,54 @@ export function titleBenFrames(sprites: ReadonlyMap<string, Grid>): Grid[] {
   });
 }
 
-/** Ben running (two frames) and in the air, side by side. */
+/** The size of one cell of the actors sheet, and how many there are. */
+const ACTOR_CELL = 16;
+
+/**
+ * What stands on the ground and flies through the scenery, one cell each side by side: the treats (in the order of
+ * `TREAT_SPRITES`), two frames of a gloop, a gloop squashed flat, two frames of dazed stars and the fizz bubble. A
+ * picture sits at the bottom of its cell, except the stars (the top, above a head) and the bubble (the middle).
+ */
+export function actorCells(sprites: ReadonlyMap<string, Grid>): Grid[] {
+  const get = (name: string): Grid => {
+    const g = sprites.get(name);
+    if (!g) throw new Error(`The scenery actors need the sprite ${name}`);
+    return g;
+  };
+  const place = (g: Grid, at: 'bottom' | 'top' | 'middle'): Grid => {
+    const cell = new Pen(ACTOR_CELL, ACTOR_CELL);
+    const dx = Math.floor((ACTOR_CELL - g.w) / 2);
+    const dy =
+      at === 'bottom' ? ACTOR_CELL - g.h : at === 'top' ? 0 : Math.floor((ACTOR_CELL - g.h) / 2);
+    for (let y = 0; y < g.h; y++)
+      for (let x = 0; x < g.w; x++) {
+        const c = g.at(x, y);
+        if (c) cell.px(x + dx, y + dy, c);
+      }
+    return cell;
+  };
+  // A gloop flattened to half its height: every other row.
+  const gloop = get('gloop0');
+  const flat = new Pen(gloop.w, gloop.h);
+  for (let y = 0; y < gloop.h / 2; y++)
+    for (let x = 0; x < gloop.w; x++) {
+      const c = gloop.at(x, y * 2);
+      if (c) flat.px(x, y + gloop.h / 2, c);
+    }
+  return [
+    ...TREAT_SPRITES.map((n) => place(get(n), 'bottom')),
+    place(get('gloop0'), 'bottom'),
+    place(get('gloop1'), 'bottom'),
+    place(flat, 'bottom'),
+    place(get('stars0'), 'top'),
+    place(get('stars1'), 'top'),
+    place(get('bubble'), 'middle'),
+  ];
+}
+
+/** Ben running (two frames), in the air and shooting, side by side. */
 export function runnerFrames(sprites: ReadonlyMap<string, Grid>): Grid[] {
-  const names = ['ben_run1', 'ben_run2', 'ben_jump'];
+  const names = ['ben_run1', 'ben_run2', 'ben_jump', 'ben_shoot'];
   return names.map((n) => {
     const g = sprites.get(n);
     if (!g) throw new Error(`The runner needs the sprite ${n}`);
@@ -137,6 +183,9 @@ function sceneInfo(scene: SceneArt, prefix: string): object {
     ground: GROUND_FROM_BOTTOM,
     skyTop: EGA[scene.skyTop],
     ben: scene.ben,
+    ...(scene.demo
+      ? { demo: { items: scene.demo, sheet: { src: 'actors.png', cell: ACTOR_CELL } } }
+      : {}),
     layers: scene.layers.map((l) => ({
       src: `${prefix}${l.name}.png`,
       speed: l.speed,
@@ -172,6 +221,18 @@ export async function build(): Promise<Built[]> {
     if (!found) throw new Error(`The menu cue effect ${effect} has no voices`);
     voices[effect] = found;
   }
+  // What happens in the scenery makes a sound too: the game's own effects for a pickup, a stomp, a shot and a hit.
+  const actions: Record<string, string> = {
+    pickup: 'soda',
+    stomp: 'bonk',
+    shot: 'fzzt',
+    hit: 'stun',
+  };
+  for (const effect of new Set(Object.values(actions))) {
+    const found = SFX[effect];
+    if (!found) throw new Error(`The scenery action effect ${effect} has no voices`);
+    voices[effect] = found;
+  }
   // The haptic cues the menu uses, and only those: the launcher builds its own small table from them.
   const hapticsTable: HapticTable = { cues: {}, captions: {} };
   for (const id of new Set(Object.values(EPISODE_1_MENU.haptics))) {
@@ -184,6 +245,7 @@ export async function build(): Promise<Built[]> {
     plate: EPISODE_1_MENU.plate,
     sounds: EPISODE_1_MENU.sounds,
     voices,
+    actions,
     haptics: { cues: EPISODE_1_MENU.haptics, table: hapticsTable },
     // The title theme is the episode's music in the launcher, as the Classic loop and the Enhanced song.
     music: {
@@ -216,7 +278,7 @@ export async function build(): Promise<Built[]> {
     // options from the app-wide ones.
     options: { episode: EPISODE_ID, legacyKey: OPTIONS_KEY, ownKeys: [...EPISODE_KEYS] },
     scene: sceneInfo(episode1, 'scene-'),
-    runner: { src: 'ben.png', width: 16, height: 24, frames: 3 },
+    runner: { src: 'ben.png', width: 16, height: 24, frames: 4 },
     // Ben on the title: one picture of each pose side by side, as the game's title shows him.
     titleBen: {
       src: 'ben-title.png',
@@ -247,6 +309,7 @@ export async function build(): Promise<Built[]> {
   out.push(
     { path: 'episode-1/ben.png', bytes: stripPng(runnerFrames(all)) },
     { path: 'episode-1/ben-title.png', bytes: stripPng(titleBenFrames(all)) },
+    { path: 'episode-1/actors.png', bytes: stripPng(actorCells(all)) },
     ...sceneFiles('episode-1/', 'scene-', episode1),
   );
   // The app's icon, which App settings shows beside the logo: the 128 px copy the app is built with.

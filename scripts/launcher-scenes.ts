@@ -29,7 +29,34 @@ export interface SceneArt {
   skyTop: Colour;
   /** Whether Ben runs along the ground. */
   ben: boolean;
+  /** The things Ben meets along the ground, where the launcher draws them over the ground layer. */
+  demo?: DemoItem[];
 }
+
+/** A treat or a gloop standing on the ground, as the launcher's scenery script holds it (see `demo.ts`). */
+export type DemoItem =
+  | { kind: 'treat'; sprite: number; x: number; y: number }
+  | { kind: 'gloop'; x: number; fate: 'stomp' | 'shot' };
+
+/** The cells of the actors sheet the treats take, in this order: the rest are the gloop, its stars and the bubble. */
+export const TREAT_SPRITES = ['soda', 'cookie', 'cheezie', 'choc'] as const;
+
+/**
+ * What Ben meets on a loop of Episode 1's ground, which is 640 pixels long. A treat is at the height of his body,
+ * and a gloop is far enough from the next thing that he has landed before it: the stomp comes a second and a half
+ * before a treat, the shot a few seconds before the gloop it stuns.
+ */
+export const EPISODE_1_DEMO: DemoItem[] = [
+  { kind: 'treat', sprite: 0, x: 60, y: 6 },
+  { kind: 'treat', sprite: 1, x: 100, y: 14 },
+  { kind: 'gloop', x: 180, fate: 'stomp' },
+  { kind: 'treat', sprite: 2, x: 250, y: 6 },
+  { kind: 'gloop', x: 335, fate: 'shot' },
+  { kind: 'treat', sprite: 3, x: 405, y: 10 },
+  { kind: 'gloop', x: 470, fate: 'stomp' },
+  { kind: 'treat', sprite: 0, x: 545, y: 6 },
+  { kind: 'treat', sprite: 1, x: 585, y: 14 },
+];
 
 const GROUND = SCENE_H - GROUND_FROM_BOTTOM;
 const HORIZON = GROUND - 4;
@@ -133,13 +160,10 @@ export function episode1Scene(sprites: ReadonlyMap<string, Grid>): SceneArt {
   for (const [name, x] of crystals) blit(ground, get(name), x, GROUND - 16);
   const ledge = get('craterPlat');
   for (const x of [248, 264, 280]) blit(ground, ledge, x, GROUND - 36);
-  blit(ground, get('cookie'), 256, GROUND - 52);
-  blit(ground, get('soda'), 272, GROUND - 52);
-  blit(ground, get('cheezie'), 464, GROUND - 24);
-  blit(ground, get('choc'), 160, GROUND - 22);
   return {
     skyTop: 'B',
     ben: true,
+    demo: EPISODE_1_DEMO,
     layers: [
       { name: 'sky', pen: sky(['B', 'B', 'M', 'r']), speed: 0 },
       { name: 'stars', pen: stars, speed: 0.03, field: true },
