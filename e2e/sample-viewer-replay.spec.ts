@@ -362,6 +362,7 @@ test('exports the run with its comments and notes, and a new page reads them bac
     const section = await page2.locator('#replay-section').getAttribute('hidden');
     throw new Error(
       `${String(e)}\nsecond page: replay section hidden=${String(section)}, problems=${JSON.stringify(problems)}, console=${JSON.stringify(seen)}`,
+      { cause: e },
     );
   }
   await expect(page2.locator('#comment-list li').first()).toContainText(
