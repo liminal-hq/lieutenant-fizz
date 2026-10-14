@@ -23,6 +23,7 @@ body {
 }
 
 #launcher {
+  z-index: 1;
   position: absolute;
   inset: 0;
   box-sizing: border-box;
@@ -144,4 +145,94 @@ body {
 /* The page's own display rules above must not show what the view has hidden (the arrows and pips off the home screen). */
 #launcher [hidden] {
   display: none;
+}
+
+/* The demo strip: the scenery scrolls left along the bottom of the page, and Ben runs on the spot, hopping now and
+   then. One strip pixel is `--strip-scale` CSS pixels, a whole number, so the art stays crisp. It sits behind the
+   menu and fades out towards the top. */
+.strip {
+  --strip-scale: 1;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--strip-h) * var(--strip-scale) * 1px);
+  background-image: var(--strip-image);
+  background-repeat: repeat-x;
+  background-size: calc(var(--strip-w) * var(--strip-scale) * 1px)
+    calc(var(--strip-h) * var(--strip-scale) * 1px);
+  background-position: 0 0;
+  image-rendering: pixelated;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to top, #000 62%, transparent);
+  mask-image: linear-gradient(to top, #000 62%, transparent);
+  animation: lf-strip-scroll 26s linear infinite;
+}
+.strip .ben {
+  position: absolute;
+  left: 24%;
+  bottom: calc(var(--ground) * var(--strip-scale) * 1px);
+  width: calc(var(--ben-w) * var(--strip-scale) * 1px);
+  height: calc(var(--ben-h) * var(--strip-scale) * 1px);
+  animation: lf-ben-hop 4.2s ease-in-out infinite;
+}
+.strip .ben .run,
+.strip .ben .air {
+  position: absolute;
+  inset: 0;
+  background-image: var(--ben-image);
+  background-repeat: no-repeat;
+  background-size: calc(var(--ben-w) * var(--ben-frames) * var(--strip-scale) * 1px)
+    calc(var(--ben-h) * var(--strip-scale) * 1px);
+  image-rendering: pixelated;
+}
+.strip .ben .run {
+  animation: lf-ben-run 0.34s steps(2, jump-end) infinite;
+}
+.strip .ben .air {
+  background-position-x: calc(var(--ben-w) * -2 * var(--strip-scale) * 1px);
+  opacity: 0;
+  animation: lf-ben-air 4.2s step-end infinite;
+}
+/* The strip moves left as far as it is wide, so the end of one pass meets the start of the next. */
+@keyframes lf-strip-scroll {
+  to {
+    background-position-x: calc(var(--strip-w) * var(--strip-scale) * -1px);
+  }
+}
+@keyframes lf-ben-run {
+  to {
+    background-position-x: calc(var(--ben-w) * -2 * var(--strip-scale) * 1px);
+  }
+}
+/* A hop in the last third of the loop: up, then down. The jump picture shows while he is off the ground. */
+@keyframes lf-ben-hop {
+  0%,
+  72%,
+  100% {
+    transform: translateY(0);
+  }
+  82% {
+    transform: translateY(calc(var(--strip-scale) * -30px));
+  }
+}
+@keyframes lf-ben-air {
+  0%,
+  71.9% {
+    opacity: 0;
+  }
+  72% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .strip,
+  .strip .ben,
+  .strip .ben .run,
+  .strip .ben .air {
+    animation: none;
+  }
 }

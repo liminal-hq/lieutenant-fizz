@@ -48,7 +48,14 @@ export function stopsOf(file: EpisodesFile): readonly Stop[] {
  * What the launcher needs of a playable episode and cannot import from its code, written out by
  * `scripts/build-launcher-art.ts`: the page that runs it and where its saves are kept.
  */
-export interface EpisodeInfo {
+/** The demo strip behind the menu and the runner on it, as pictures the build script wrote out. */
+export interface StripArt {
+  strip: { src: string; width: number; height: number };
+  /** Ben's frames side by side: two of running, then one in the air. */
+  runner: { src: string; width: number; height: number; frames: number };
+}
+
+export interface EpisodeInfo extends Partial<StripArt> {
   page: string;
   saves: { auto: string; slots: readonly string[] };
 }

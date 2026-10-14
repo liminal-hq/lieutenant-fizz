@@ -30,6 +30,7 @@ import { applyEffects } from './effects';
 import { SILENT, createLauncherSound } from './sound';
 import { currentStop, hasBack, initialState, reduce, type Action } from './state';
 import { createSnackbar, createToast, type ToastDeps } from './toast';
+import { createStrip, type Strip } from './strip';
 import { createView } from './view';
 import './launcher.css';
 
@@ -163,9 +164,22 @@ document.addEventListener('pad-left', () => dispatch({ type: 'stop', dir: -1 }))
 document.addEventListener('pad-right', () => dispatch({ type: 'stop', dir: 1 }));
 
 // The window's text scale, now and when it changes.
-const scale = (): void => applyMenuScale(document.documentElement, innerWidth, innerHeight);
+let strip: Strip | undefined;
+const scale = (): void => {
+  applyMenuScale(document.documentElement, innerWidth, innerHeight);
+  strip?.resize(innerHeight);
+};
 scale();
 addEventListener('resize', scale);
+
+// The demo strip, from the first episode that has one.
+for (const f of files.values()) {
+  if (f.info?.strip && f.info.runner) {
+    strip = createStrip(ui, { strip: f.info.strip, runner: f.info.runner }, f.base);
+    scale();
+    break;
+  }
+}
 
 applyTheme();
 view.render(state);
