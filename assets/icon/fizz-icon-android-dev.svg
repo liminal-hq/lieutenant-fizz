@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" shape-rendering="crispEdges">
 <rect width="512" height="512" fill="#0A0A0D"></rect>
+<g transform="translate(256 256) scale(0.72) translate(-256 -268)">
 <circle cx="256" cy="268" r="176" fill="#aa00aa" shape-rendering="geometricPrecision"></circle>
 <rect x="242" y="58" width="28" height="28" fill="#ff55ff" opacity="1"></rect><rect x="246" y="62" width="8" height="8" fill="#ffffff"></rect>
 <rect x="322" y="76" width="20" height="20" fill="#ff55ff" opacity="1"></rect>
@@ -24,6 +25,7 @@
 <path d="M236 300h20v20h-20ZM256 300h20v20h-20ZM196 340h20v20h-20ZM216 340h20v20h-20ZM236 340h20v20h-20ZM256 340h20v20h-20ZM276 340h20v20h-20ZM296 340h20v20h-20ZM176 360h20v20h-20ZM196 360h20v20h-20ZM216 360h20v20h-20ZM276 360h20v20h-20ZM296 360h20v20h-20ZM316 360h20v20h-20ZM156 380h20v20h-20ZM176 380h20v20h-20ZM196 380h20v20h-20ZM216 380h20v20h-20ZM276 380h20v20h-20ZM296 380h20v20h-20ZM316 380h20v20h-20ZM336 380h20v20h-20ZM156 400h20v20h-20ZM176 400h20v20h-20ZM196 400h20v20h-20ZM216 400h20v20h-20ZM236 400h20v20h-20ZM256 400h20v20h-20ZM276 400h20v20h-20ZM296 400h20v20h-20ZM316 400h20v20h-20ZM336 400h20v20h-20Z" fill="#ff5555"></path>
 <path d="M156 340h20v20h-20ZM176 340h20v20h-20ZM316 340h20v20h-20ZM336 340h20v20h-20ZM136 360h20v20h-20ZM156 360h20v20h-20ZM336 360h20v20h-20ZM356 360h20v20h-20ZM136 380h20v20h-20ZM356 380h20v20h-20ZM136 400h20v20h-20ZM356 400h20v20h-20ZM176 420h20v20h-20ZM196 420h20v20h-20ZM216 420h20v20h-20ZM236 420h20v20h-20ZM256 420h20v20h-20ZM276 420h20v20h-20ZM296 420h20v20h-20ZM316 420h20v20h-20Z" fill="#aa0000"></path>
 <path d="M236 360h20v20h-20ZM256 360h20v20h-20ZM236 380h20v20h-20ZM256 380h20v20h-20Z" fill="#ffff55"></path>
+</g>
   <!-- "Dev" ribbon banner. The lettering is baked vector outlines of Liberation Sans Bold's "Dev"
        (the same outlines Cadence and Threshold use) rather than <text>, because <text> needs a system
        font and renders as nothing inside the tauri-dev-mobile container. -->
