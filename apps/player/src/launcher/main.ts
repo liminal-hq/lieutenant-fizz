@@ -52,7 +52,7 @@ import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { isPortrait } from '@lieutenant-fizz/engine/portrait';
 import { BEN_LOOK, BEN_WAVE, benFrame, benScale } from '@lieutenant-fizz/engine/menu/title-ben';
 import { chromeHidden, isInstalled } from '@lieutenant-fizz/engine/lifecycle-policy';
-import { createScene, createStage } from './scene';
+import { SCENE_FPS, createScene, createStage } from './scene';
 import { libraryOf, musicSettingsOf, openLauncherMusic, trackOf } from './music';
 import { createLauncherHaptics, NO_HAPTICS, type LauncherHaptics } from './haptics';
 import { createLauncherTouch, type LauncherTouch } from './touch';
@@ -601,21 +601,26 @@ touch = createLauncherTouch({
   },
 });
 touch.setActive(device === 'touch');
+let benTick = 0;
 const frame = (now: number): void => {
-  // Ben on the logo: a hop and a pogo across it every so often, standing still under reduced motion.
-  const seconds = performance.now() / 1000;
-  const box = view.logoBox();
-  const scale = benScale(innerHeight);
-  view.setBen(
-    box
-      ? benFrame({ logoW: box.w, logoH: box.h, width: 16 * scale }, seconds - benT0, {
-          reduced: ui.classList.contains('rm') || motionQuery.matches,
-          waveLeft: Math.max(0, benWaveUntil - seconds),
-          looking: benLookUntil > seconds,
-        })
-      : null,
-    scale,
-  );
+  // Ben on the logo: a hop and a pogo across it every so often, standing still under reduced motion. He moves on
+  // the same 30 Hz grid as the scenery (a new frame for each move is the expensive part on a phone).
+  if (now - benTick >= 1000 / SCENE_FPS - 2) {
+    benTick = now;
+    const seconds = performance.now() / 1000;
+    const box = view.logoBox();
+    const scale = benScale(innerHeight);
+    view.setBen(
+      box
+        ? benFrame({ logoW: box.w, logoH: box.h, width: 16 * scale }, seconds - benT0, {
+            reduced: ui.classList.contains('rm') || motionQuery.matches,
+            waveLeft: Math.max(0, benWaveUntil - seconds),
+            looking: benLookUntil > seconds,
+          })
+        : null,
+      scale,
+    );
+  }
   touch?.frame(now);
   haptics.flush();
   requestAnimationFrame(frame);

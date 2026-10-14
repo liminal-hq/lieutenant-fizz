@@ -312,7 +312,7 @@ body {
 }
 .scene .layer[data-scroll] .belt {
   will-change: transform;
-  animation: lf-scene-scroll var(--scroll) linear infinite;
+  animation: lf-scene-scroll var(--scroll) steps(var(--steps), end) infinite;
 }
 /* The stars tile up as well and fade out towards the horizon. */
 .scene .layer.field {
@@ -331,19 +331,30 @@ body {
   bottom: calc(var(--ground) * var(--scene-scale) * 1px);
   width: calc(var(--ben-w) * var(--scene-scale) * 1px);
   height: calc(var(--ben-h) * var(--scene-scale) * 1px);
-  animation: lf-ben-hop 4.2s ease-in-out infinite;
+  animation: lf-ben-hop 4.2s steps(12, end) infinite;
+  will-change: transform;
 }
 .scene .ben .run,
 .scene .ben .air {
   position: absolute;
   inset: 0;
+  overflow: hidden;
+}
+.scene .ben .run .sheet,
+.scene .ben .air {
   background-image: var(--ben-image);
   background-repeat: no-repeat;
   background-size: calc(var(--ben-w) * var(--ben-frames) * var(--scene-scale) * 1px)
     calc(var(--ben-h) * var(--scene-scale) * 1px);
   image-rendering: pixelated;
 }
-.scene .ben .run {
+.scene .ben .run .sheet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--ben-w) * var(--ben-frames) * var(--scene-scale) * 1px);
+  height: 100%;
+  will-change: transform;
   animation: lf-ben-run 0.34s steps(2, jump-end) infinite;
 }
 .scene .ben .air {
@@ -359,7 +370,7 @@ body {
 }
 @keyframes lf-ben-run {
   to {
-    background-position-x: calc(var(--ben-w) * -2 * var(--scene-scale) * 1px);
+    transform: translate3d(calc(var(--ben-w) * -2 * var(--scene-scale) * 1px), 0, 0);
   }
 }
 /* A hop in the last third of the loop: up, then down. The jump picture shows while he is off the ground. */
@@ -388,7 +399,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .scene .layer .belt,
   .scene .ben,
-  .scene .ben .run,
+  .scene .ben .run .sheet,
   .scene .ben .air {
     animation: none;
   }
@@ -396,7 +407,7 @@ body {
 /* The Motion option set to Reduced (or to follow a system that is) stills the scenery too. */
 .rm .scene .layer .belt,
 .rm .scene .ben,
-.rm .scene .ben .run,
+.rm .scene .ben .run .sheet,
 .rm .scene .ben .air {
   animation: none;
 }

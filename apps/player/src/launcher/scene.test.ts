@@ -7,6 +7,8 @@ import { describe, expect, it } from 'vitest';
 import {
   GROUND_SECONDS,
   MIN_SCROLL_SPEED,
+  SCENE_FPS,
+  scrollSteps,
   MAX_SCENE_SCALE,
   parallax,
   sceneScale,
@@ -55,6 +57,14 @@ describe('the scrolling', () => {
     expect(scrollSeconds(1)).toBe(GROUND_SECONDS);
     expect(scrollSeconds(0.5)).toBe(GROUND_SECONDS * 2);
     expect(scrollSeconds(0)).toBeUndefined();
+  });
+
+  it('takes one step on the shared grid every thirtieth of a second, and at least one', () => {
+    expect(SCENE_FPS).toBe(30);
+    expect(scrollSteps(26)).toBe(780);
+    expect(scrollSteps(0.01)).toBe(1);
+    // Layers of different speeds all step on the same grid, so the page makes one frame for them all.
+    for (const seconds of [26, 52, 87, 216]) expect((seconds * SCENE_FPS) % 1).toBe(0);
   });
 
   it('leaves a layer that would take over four minutes a tile standing still, so it costs nothing', () => {

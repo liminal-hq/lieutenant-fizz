@@ -39,6 +39,17 @@ export const parallax = (speed: number): number => 0.4 + 0.6 * Math.min(1, Math.
 /** Seconds a layer takes to scroll one picture's width: the ground's pace divided by the layer's speed. */
 export const GROUND_SECONDS = 26;
 
+/**
+ * How many times a second the scenery moves. Every layer steps on the same grid, so the page produces one new frame
+ * for all of them 30 times a second instead of 120: pixel art that crawls a pixel or two a step looks the same, and
+ * on a phone the difference was most of the graphics work.
+ */
+export const SCENE_FPS = 30;
+
+/** How many steps a layer's belt takes to go once round in `seconds`: one grid step every 1/`SCENE_FPS` of a second. */
+export const scrollSteps = (seconds: number): number =>
+  Math.max(1, Math.round(seconds * SCENE_FPS));
+
 /** A layer slower than this (a tile in over four minutes) is as good as still: it has no animation and costs nothing. */
 export const MIN_SCROLL_SPEED = 0.1;
 
@@ -83,7 +94,9 @@ export function createScene(
     node.append(div('belt'));
     const seconds = scrollSeconds(layer.speed);
     if (seconds !== undefined) {
-      node.style.setProperty('--scroll', `${Math.round(seconds)}s`);
+      const whole = Math.round(seconds);
+      node.style.setProperty('--scroll', `${whole}s`);
+      node.style.setProperty('--steps', String(scrollSteps(whole)));
       node.dataset['scroll'] = '';
     }
     el.append(node);
@@ -95,7 +108,10 @@ export function createScene(
     el.style.setProperty('--ben-frames', String(runner.art.frames));
     el.style.setProperty('--ben-image', `url("${new URL(runner.art.src, runner.base).href}")`);
     const ben = div('ben');
-    ben.append(div('run'), div('air'));
+    // The running pictures are a sheet that a transform slides past a window: nothing is repainted as he runs.
+    const run = div('run');
+    run.append(div('sheet'));
+    ben.append(run, div('air'));
     ground.append(ben);
   }
   return {
