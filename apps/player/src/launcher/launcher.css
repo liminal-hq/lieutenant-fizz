@@ -3,6 +3,13 @@
 @import '@lieutenant-fizz/engine/menu/tokens.css';
 @import '@lieutenant-fizz/engine/menu/rows.css';
 @import '@lieutenant-fizz/engine/menu/keys.css';
+@import '@lieutenant-fizz/engine/touch-ui.css';
+
+/* The room the on-screen controls take beside the menu: set by the page, only where they would sit over it. */
+:root {
+  --lf-touch-left: 0px;
+  --lf-touch-right: 0px;
+}
 
 html,
 body {
@@ -31,8 +38,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: calc(var(--n) * 3px);
-  padding: max(var(--lf-pad-y), var(--lf-safe-top)) max(var(--lf-pad-x), var(--lf-safe-right))
-    max(var(--lf-pad-y), var(--lf-safe-bottom)) max(var(--lf-pad-x), var(--lf-safe-left));
+  padding: max(var(--lf-pad-y), var(--lf-safe-top))
+    max(var(--lf-pad-x), var(--lf-safe-right), var(--lf-touch-right))
+    max(var(--lf-pad-y), var(--lf-safe-bottom))
+    max(var(--lf-pad-x), var(--lf-safe-left), var(--lf-touch-left));
   pointer-events: auto;
 }
 

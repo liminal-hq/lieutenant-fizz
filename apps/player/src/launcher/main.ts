@@ -42,6 +42,7 @@ import { EPISODE_1_OPTIONS_KEY, SILENT, createLauncherSound, type LauncherSound 
 import { currentStop, hasBack, initialState, reduce, type Action } from './state';
 import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { createStrip, type Strip } from './strip';
+import { createLauncherTouch, type LauncherTouch } from './touch';
 import { createView } from './view';
 import './launcher.css';
 
@@ -178,10 +179,13 @@ keys.className = 'keys';
 keys.setAttribute('aria-hidden', 'true');
 ui.append(keys);
 // Which device the player last used decides the hints: keys for a keyboard and mouse, buttons for a pad, none for touch.
-let device: InputDevice = 'keyboard';
+// A phone starts with its on-screen controls; any other device starts on the keyboard until a touch.
+let device: InputDevice = matchMedia('(pointer: coarse)').matches ? 'touch' : 'keyboard';
 const useDevice = (next: InputDevice): void => {
   if (next === device) return;
   device = next;
+  touch?.setActive(device === 'touch');
+  keepClearOfControls();
   drawHints();
 };
 const drawHints = (): void => {
@@ -193,6 +197,26 @@ const drawHints = (): void => {
     }),
   );
 };
+
+// The on-screen controls (D-pad, Select and Back), shown while touch is the device in use.
+const touchLayer = document.createElement('div');
+touchLayer.id = 'touch';
+ui.append(touchLayer);
+// eslint-disable-next-line prefer-const -- assigned once below, after the view and `dispatch` it acts on exist
+let touch: LauncherTouch | undefined;
+
+/**
+ * Pads the menu away from a side's controls only where they would sit over it (the menu reaches down below the
+ * top of that side's highest control), so a short menu keeps the whole width.
+ */
+function keepClearOfControls(): void {
+  const room = touch?.room() ?? { left: 0, right: 0, leftTop: 0, rightTop: 0 };
+  const bottom = document.querySelector('#launcher .menu')?.getBoundingClientRect().bottom ?? 0;
+  const px = (side: number, top: number): string => `${top > 0 && bottom > top ? side : 0}px`;
+  const style = document.documentElement.style;
+  style.setProperty('--lf-touch-left', px(room.left, room.leftTop));
+  style.setProperty('--lf-touch-right', px(room.right, room.rightTop));
+}
 
 const view = createView(root, {
   onActivate: (row) => dispatch({ type: 'activate', row }),
@@ -222,6 +246,8 @@ const dispatch = (action: Action): void => {
   if (state !== before) {
     applyTheme();
     view.render(state);
+    touch?.refresh();
+    keepClearOfControls();
     drawHints();
   }
   back.sync(hasBack(state));
@@ -289,6 +315,8 @@ let strip: Strip | undefined;
 const scale = (): void => {
   applyMenuScale(document.documentElement, innerWidth, innerHeight);
   strip?.resize(innerHeight);
+  touch?.relayout();
+  keepClearOfControls();
 };
 scale();
 addEventListener('resize', scale);
@@ -327,7 +355,27 @@ if (
   void fullscreen.enter({ fullscreen: true, lock: false });
 }
 
+touch = createLauncherTouch({
+  layer: touchLayer,
+  store,
+  hasBack: () => hasBack(state),
+  onGutters: keepClearOfControls,
+  act: (action) => {
+    if (action.kind === 'step') view.step(action.dir);
+    else if (action.kind === 'stop') dispatch({ type: 'stop', dir: action.dir });
+    else if (action.kind === 'select') view.activateSelected();
+    else dispatch({ type: 'back' });
+  },
+});
+touch.setActive(device === 'touch');
+const frame = (now: number): void => {
+  touch?.frame(now);
+  requestAnimationFrame(frame);
+};
+requestAnimationFrame(frame);
+
 applyTheme();
 view.render(state);
+keepClearOfControls();
 drawHints();
 back.sync(hasBack(state));

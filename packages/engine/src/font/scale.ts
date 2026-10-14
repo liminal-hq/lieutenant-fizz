@@ -92,3 +92,16 @@ export function wrapText(text: string, columns: number): string[] {
   if (line) out.push(line);
   return out;
 }
+
+/** The room a word keeps from the edge of its face, on each side, in CSS pixels. */
+export const TOUCH_WORD_MARGIN = 4;
+
+/**
+ * The largest whole pixel scale at which a word `glyphs` pixels wide at scale 1 stays inside a round
+ * face `face` px across with `margin` px to spare on each side. Never below 1, so a very small face
+ * still shows its word.
+ */
+export function touchWordCap(face: number, glyphs: number, margin = TOUCH_WORD_MARGIN): number {
+  if (!(glyphs > 0)) return MAX_SCALE;
+  return Math.min(MAX_SCALE, Math.max(1, Math.floor((face - 2 * margin) / glyphs)));
+}

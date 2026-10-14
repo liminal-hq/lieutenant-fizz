@@ -122,6 +122,7 @@ import { FIZZ_HAPTICS } from './haptics/fizz-haptics';
 import { attractFade, attractLabel, nextAttract } from './attract';
 import { backAction, backEnabled, escAction, pauseAction, peekPlan } from './back';
 import { CURSOR_UI_SELECTOR, cursorHidden } from './cursor';
+import { touchWordCap } from '@lieutenant-fizz/engine/font/scale';
 import { gestureFor, isLive } from './lifecycle-rules';
 import { Cinematic, CINE_TALL } from './cine';
 import { viewPoint } from './map-panel';
@@ -129,7 +130,6 @@ import {
   isPortrait,
   TOUCH_WORD_GLYPHS,
   touchCount,
-  touchWordCap,
   watchResize,
   type TouchGutters,
 } from './layout';

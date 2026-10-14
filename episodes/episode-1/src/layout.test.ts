@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { scaleSteps } from '@lieutenant-fizz/engine/font/scale';
+import { scaleSteps, touchWordCap } from '@lieutenant-fizz/engine/font/scale';
 import { describe, expect, it } from 'vitest';
 import {
   captionAnimation,
@@ -17,7 +17,6 @@ import {
   titleCandidates,
   TOUCH_WORD_GLYPHS,
   touchCount,
-  touchWordCap,
   watchResize,
   type TouchGutters,
 } from './layout';
