@@ -9,7 +9,7 @@ use crate::ents::{Item, ItemKind, Kind, Spawn};
 use crate::render::Theme;
 use crate::sprites::Spr;
 use crate::tiles::*;
-use lf_sim::{Platform, TileMap};
+use lf_sim::{hashf, Platform, TileMap};
 
 pub const CRATER: u8 = 0;
 pub const CAVES: u8 = 1;
@@ -2258,10 +2258,11 @@ pub fn build_overworld() -> MapData {
         },
         pt(PtKind::Level, GUMDROP_ISLE, 24, 23, 0, 0, false),
         pt(PtKind::Level, WHISPER_HOLLOW, 41, 28, 0, 0, false),
-        // Crater Corners, the little town along the street east of the first level.
-        pt(PtKind::Sign, 0, 17, 6, 0, 0, false),
-        pt(PtKind::Sign, 1, 19, 6, 0, 0, false),
-        pt(PtKind::Sign, 2, 22, 6, 0, 0, false),
+        // Crater Corners, the little town around Zarg Lookout: the welcome sign and the bakery sign on
+        // the street east of the tower, and the fountain sign at the fountain west of it.
+        pt(PtKind::Sign, 0, 8, 16, 0, 0, false),
+        pt(PtKind::Sign, 1, 11, 16, 0, 0, false),
+        pt(PtKind::Sign, 2, 4, 16, 0, 0, false),
     ];
     let mut path = |x0: i32, y0: i32, x1: i32, y1: i32| {
         let (sx, sy) = ((x1 - x0).signum(), (y1 - y0).signum());
@@ -2283,7 +2284,6 @@ pub fn build_overworld() -> MapData {
     };
     path(8, 9, 14, 6);
     path(14, 6, 16, 14);
-    path(16, 6, 22, 6);
     path(16, 14, 6, 16);
     path(6, 16, 12, 19);
     path(12, 26, 5, 30);
@@ -2300,11 +2300,10 @@ pub fn build_overworld() -> MapData {
     path(33, 15, 34, 6);
     path(34, 6, 44, 6);
     let areas = overworld_areas();
-    let mut s: u64 = 99;
-    let mut r = move || {
-        s = (s * 16807) % 2_147_483_647;
-        s as f64 / 2_147_483_647.0
-    };
+    // Each tile draws its own roll from a hash of where it is, so moving a point or a path changes the
+    // trees and rocks near it and nowhere else. The offsets keep the roll apart from the one the renderer
+    // uses to pick a tree's look (`hashf(x, y)`), or every tree would pick the same look.
+    let r = |x: i32, y: i32| hashf(x.wrapping_add(7919), y.wrapping_add(104_729));
     for x in 2..w - 2 {
         for y in 2..h - 2 {
             if map.get(x, y) != GRASS {
@@ -2327,7 +2326,7 @@ pub fn build_overworld() -> MapData {
             }
             if !near {
                 let theme = area_theme(area_at(&areas, x, y));
-                let q = r();
+                let q = r(x, y);
                 if q < theme.tree_rate {
                     map.set(x, y, TREE);
                 } else if q < theme.tree_rate + theme.rock_rate {
@@ -2336,15 +2335,15 @@ pub fn build_overworld() -> MapData {
             }
         }
     }
-    // Crater Corners: houses and shops either side of the street, a fountain at its end.
+    // Crater Corners, around Zarg Lookout (6,16): a row of two houses and a shop north of the street that
+    // runs east from the tower (a building is drawn standing up, so each keeps a free tile above it), and a
+    // house and the fountain west of the tower. The street and the paths are untouched.
     for (x, y, t) in [
-        (17, 4, HOUSE_A),
-        (19, 4, HOUSE_B),
-        (21, 4, SHOP),
-        (18, 8, HOUSE_B),
-        (20, 8, HOUSE_A),
-        (22, 8, SHOP),
-        (23, 6, FOUNTAIN),
+        (7, 17, HOUSE_A),
+        (9, 17, HOUSE_B),
+        (11, 17, SHOP),
+        (4, 17, HOUSE_B),
+        (4, 15, FOUNTAIN),
     ] {
         map.set(x, y, t);
     }
@@ -2607,6 +2606,100 @@ mod tests {
         let v = build_level(CAVES);
         assert!(v.items.iter().any(|i| i.kind == KeyBlue));
         assert!(count(&v.map, DOOR_B) > 0);
+    }
+
+    /// A fingerprint of the overworld's tiles and where its points are, to notice an edit to the map.
+    fn overworld_fingerprint() -> u32 {
+        let m = build_overworld();
+        let mut h = Fnv::new();
+        m.map.data.iter().for_each(|&t| h.byte(t));
+        for p in &m.points {
+            h.f64(p.x);
+            h.f64(p.y);
+        }
+        h.0
+    }
+
+    #[test]
+    fn overworld_tiles_are_pinned() {
+        // A change to the map (a tile, a point) changes this on purpose: look at what moved, then update it.
+        // Trees and rocks come from a hash of each tile's place, so an edit moves only the ones near it.
+        assert_eq!(
+            overworld_fingerprint(),
+            0xb3e9_5796,
+            "the overworld changed: update the pinned fingerprint if that was meant"
+        );
+    }
+
+    #[test]
+    fn crater_corners_stands_around_zarg_lookout() {
+        let m = build_overworld();
+        let lookout = m
+            .points
+            .iter()
+            .find(|p| p.kind == PtKind::Level && p.level == ZARG_LOOKOUT)
+            .expect("the watchtower is on the map");
+        let area = area_at(&m.areas, lookout.x as i32, lookout.y as i32);
+        let town = [HOUSE_A, HOUSE_B, SHOP, FOUNTAIN];
+        let mut buildings = 0;
+        for x in 0..m.map.w {
+            for y in 0..m.map.h {
+                if !town.contains(&m.map.get(x, y)) {
+                    continue;
+                }
+                buildings += 1;
+                let d = (f64::from(x) - lookout.x).hypot(f64::from(y) - lookout.y);
+                assert!(
+                    d <= 8.0,
+                    "building at {x},{y} is {d:.1} tiles from the tower"
+                );
+                assert_eq!(
+                    area_at(&m.areas, x, y),
+                    area,
+                    "building at {x},{y} is in Crater Fields"
+                );
+                assert!(
+                    !m.map.solid(x, y + 1, false, 0.0) && m.map.get(x, y + 1) != PATH,
+                    "a tile stays free above the building at {x},{y}, so it can stand up there"
+                );
+            }
+        }
+        assert_eq!(buildings, 5, "two houses, a shop, a house and a fountain");
+        // Nothing of the old street is left east of the first level.
+        assert_ne!(m.map.get(20, 6), PATH);
+        assert!(!town.contains(&m.map.get(17, 4)) && !town.contains(&m.map.get(23, 6)));
+    }
+
+    #[test]
+    fn the_three_signs_stand_in_the_town_and_keep_clear_of_every_other_point() {
+        let m = build_overworld();
+        let lookout = m
+            .points
+            .iter()
+            .find(|p| p.kind == PtKind::Level && p.level == ZARG_LOOKOUT)
+            .expect("the watchtower is on the map");
+        let area = area_at(&m.areas, lookout.x as i32, lookout.y as i32);
+        let signs: Vec<&MapPoint> = m.points.iter().filter(|p| p.kind == PtKind::Sign).collect();
+        assert_eq!(signs.len(), 3);
+        // The texts are by number: welcome, the bakery, the fountain.
+        assert_eq!(signs.iter().map(|p| p.level).collect::<Vec<_>>(), [0, 1, 2]);
+        for (i, s) in signs.iter().enumerate() {
+            assert_eq!(
+                area_at(&m.areas, s.x as i32, s.y as i32),
+                area,
+                "sign {i} is in Crater Fields"
+            );
+            for (j, o) in m.points.iter().enumerate() {
+                if std::ptr::eq(*s, o) {
+                    continue;
+                }
+                let d = (s.x - o.x).hypot(s.y - o.y);
+                assert!(
+                    d >= 2.0,
+                    "sign {i} is {d:.1} tiles from point {j}, too close to tell apart"
+                );
+            }
+        }
     }
 
     #[test]

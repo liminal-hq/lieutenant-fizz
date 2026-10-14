@@ -29,7 +29,7 @@ const SPOTS = {
   crater: { x: 14, y: 6, title: 'Crater Fields' },
   marshmallow: { x: 5, y: 30, title: 'Marshmallow Meadows' },
   sugar: { x: 51, y: 30, title: 'Sugar Glass Gallery' },
-  sign: { x: 17, y: 6, title: 'Sign' },
+  sign: { x: 8, y: 16, title: 'Sign' },
 } as const;
 
 const lf = <T>(page: Page, fn: (g: Lf) => T): Promise<T> =>

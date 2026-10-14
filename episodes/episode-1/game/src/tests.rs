@@ -2734,24 +2734,19 @@ fn crater_corners_has_solid_buildings_and_signs_that_speak_when_approached() {
     let mut w = World::new();
     w.game_new();
     w.enter_map();
-    for (x, y) in [
-        (17, 4),
-        (19, 4),
-        (21, 4),
-        (18, 8),
-        (20, 8),
-        (22, 8),
-        (23, 6),
-    ] {
+    for (x, y) in [(7, 17), (9, 17), (11, 17), (4, 17), (4, 15)] {
         assert!(
             w.map.solid(x, y, false, 0.0),
             "building at {x},{y} blocks the way"
         );
     }
-    for (i, x) in [17.0, 19.0, 22.0].into_iter().enumerate() {
+    for (i, (x, y)) in [(8.0, 16.0), (11.0, 16.0), (4.0, 16.0)]
+        .into_iter()
+        .enumerate()
+    {
         w.events.clear();
         w.p.b.x = x + 0.2;
-        w.p.b.y = 6.2;
+        w.p.b.y = y + 0.2;
         w.step(0);
         assert!(
             events_of(&w, ev::MAP_PROMPT)
