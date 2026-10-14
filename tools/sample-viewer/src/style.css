@@ -214,3 +214,58 @@ label {
   gap: 10px;
   align-items: center;
 }
+
+#comments {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+#comments h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--accent);
+}
+#comment-form {
+  display: grid;
+  gap: 6px;
+}
+#comment-text {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+}
+#comment-author {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  min-width: 10ch;
+}
+#comment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+#comment-list li {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+#comment-list .comment-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+#replay-stage[data-pinning='true'] {
+  cursor: crosshair;
+}

@@ -260,6 +260,20 @@ export class ReplayHost {
     return this.playable[this.at]!;
   }
 
+  /** The level id of the attempt now showing. */
+  get levelId(): number {
+    return this.replayer.attempt!.id;
+  }
+
+  /** Goes to an exact tick of an attempt, by its place in the sample, and holds there. */
+  goto(order: number, tick: number): void {
+    const k = this.playable.indexOf(order);
+    if (k < 0) return;
+    if (k !== this.at) this.open(k);
+    this.transport.pause();
+    this.seek(tick);
+  }
+
   /**
    * Goes to an attempt by its place in the sample and, when a tick is given, to a moment and a half before it, then
    * plays. An attempt that cannot be replayed is left alone.

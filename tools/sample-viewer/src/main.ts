@@ -4,10 +4,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { parseSession, type Session } from '@lieutenant-fizz/engine/session/log';
-import { readZip } from '@lieutenant-fizz/engine/zip-read';
+import { readZip, type ZipEntry } from '@lieutenant-fizz/engine/zip-read';
 import { findAttempts } from '../../../episodes/episode-1/src/replay/replayer';
 import { summarise, type Spot, type Summary } from './aggregate';
 import { boundsOf, drawPaths } from './charts';
+import { CommentsUi } from './comments-ui';
 
 /** Builds an element. Text is always set as text, never as markup: every name here comes from a file. */
 function h<K extends keyof HTMLElementTagNameMap>(
@@ -30,6 +31,8 @@ const $ = <T extends HTMLElement>(id: string): T => {
 };
 
 const sessions: Session[] = [];
+/** The files of each loaded zip, as they came, by the session's name. */
+const entriesBySession = new Map<string, readonly ZipEntry[]>();
 
 /** The hot spots of the loaded samples, worked out when they change (the replay reads them every frame). */
 let spotList: readonly Spot[] = [];
@@ -40,11 +43,47 @@ let panel: import('./replay-panel').ReplayPanel | null = null;
 /** Counts the times the samples were cleared, so a Watch asked for before one is dropped when its code has loaded. */
 let clears = 0;
 
+const comments = new CommentsUi(
+  {
+    root: $('comments'),
+    form: $<HTMLFormElement>('comment-form'),
+    text: $<HTMLTextAreaElement>('comment-text'),
+    author: $<HTMLInputElement>('comment-author'),
+    pin: $<HTMLButtonElement>('comment-pin'),
+    place: $('comment-place'),
+    submit: $<HTMLButtonElement>('comment-submit'),
+    list: $('comment-list'),
+    exportBtn: $<HTMLButtonElement>('comments-export'),
+    status: $('comments-status'),
+  },
+  () => panel,
+  (s) => entriesBySession.get(s.name) ?? [],
+);
+
+// The c key starts a comment at the moment the replay is at, unless a field has the cursor.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'c' || e.ctrlKey || e.metaKey || e.altKey) return;
+  if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) return;
+  if (!panel?.open) return;
+  e.preventDefault();
+  comments.focusNew();
+});
+
 async function watch(session: Session, at: { order?: number; tick?: number }): Promise<void> {
   const asked = clears;
   const { ReplayPanel } = await import('./replay-panel');
   if (asked !== clears) return;
-  panel ??= new ReplayPanel($('replay-section'), $('replay-stage'), $('replay-gl'), () => spotList);
+  panel ??= new ReplayPanel(
+    $('replay-section'),
+    $('replay-stage'),
+    $('replay-gl'),
+    () => spotList,
+    {
+      opened: (s) => comments.opened(s),
+      closed: () => comments.closed(),
+      pinned: (place) => comments.pinned(place),
+    },
+  );
   if (!(await panel.watch(session, at))) {
     $('problems').append(h('li', { text: `${session.name} has no level to watch` }));
   }
@@ -227,15 +266,15 @@ async function load(files: FileList | File[]): Promise<void> {
   problems.replaceChildren();
   for (const file of Array.from(files)) {
     try {
-      const session = parseSession(
-        file.name,
-        await readZip(new Uint8Array(await file.arrayBuffer())),
-      );
+      const entries = await readZip(new Uint8Array(await file.arrayBuffer()));
+      const session = parseSession(file.name, entries);
       if (sessions.some((s) => s.id === session.id)) {
         problems.append(h('li', { text: `${file.name} is already loaded` }));
         continue;
       }
       sessions.push(session);
+      // The zip's own files are kept as they came, so an export can put them back byte for byte.
+      entriesBySession.set(session.name, entries);
     } catch (err) {
       problems.append(
         h('li', { text: err instanceof Error ? err.message : `${file.name} could not be read` }),

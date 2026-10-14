@@ -5,7 +5,9 @@
 
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { parseComments } from '../packages/engine/src/session/comments';
 import { sessionZip } from '../packages/engine/src/session/export';
+import { readZip } from '../packages/engine/src/zip-read';
 
 const VIEWER = 'http://127.0.0.1:5199/';
 const FIXTURE = new URL('../episodes/episode-1/src/replay/fixtures/fudge-bog/', import.meta.url);
@@ -189,5 +191,136 @@ test('says when the level has been edited since a sample was recorded', async ({
   await expect(page.locator('#replay .replay-banner')).toContainText(
     'Fudge Bog has been edited since this was recorded',
   );
+  expect(errors).toEqual([]);
+});
+
+test('comments: added at the moment, with a place, edited, deleted, and `c` starts one', async ({
+  page,
+}) => {
+  const { errors } = await open(page);
+  await load(page, 'fizz.zip', await fixtureZip());
+  await expect(page.locator('#comments')).toBeHidden();
+  await page.getByRole('button', { name: 'Watch fizz.zip' }).click();
+  await expect(page.locator('#comments')).toBeVisible();
+  await expect(page.locator('#comment-list')).toContainText('No comments yet.');
+
+  // The c key holds the replay and puts the cursor in the box.
+  await page.locator('body').press('c');
+  await expect(page.locator('#comment-text')).toBeFocused();
+  await expect.poll(async () => (await replay(page))!.playing).toBe(false);
+
+  // A comment at a moment, by name.
+  await scrubTo(page, 4300);
+  await page.locator('#comment-author').fill('Scott');
+  await page
+    .locator('#comment-text')
+    .fill('The pod’s puff is hard to see.\nIt blends with the wall.');
+  await page.getByRole('button', { name: 'Add comment' }).click();
+  const items = page.locator('#comment-list li');
+  await expect(items).toHaveCount(1);
+  await expect(items.first()).toContainText('Fudge Bog, try 1, 0:');
+  await expect(items.first()).toContainText('It blends with the wall.');
+  await expect(items.first()).toContainText('Scott');
+  await expect(page.locator('#comment-text')).toHaveValue('');
+
+  // A second one earlier in the attempt, with a place chosen by clicking the picture.
+  await scrubTo(page, 4150);
+  await page.getByRole('button', { name: 'Choose a place' }).click();
+  await expect(page.locator('#comment-place')).toContainText('Click the picture');
+  await page.locator('#replay-stage').click({ position: { x: 300, y: 150 } });
+  await expect(page.locator('#comment-place')).toContainText('Place: tile');
+  await page.locator('#comment-text').fill('Starts too fast here.');
+  await page.getByRole('button', { name: 'Add comment' }).click();
+  await expect(items).toHaveCount(2);
+  // They are in tick order: the earlier one is first.
+  await expect(items.first()).toContainText('Starts too fast here.');
+
+  // Going to one holds the replay at its moment.
+  await page.getByRole('button', { name: /^Go to comment 2/ }).click();
+  await expect.poll(async () => (await replay(page))!.tick).toBe(4300);
+  expect((await replay(page))!.playing).toBe(false);
+
+  // Editing changes the words, and deleting removes one.
+  await page.getByRole('button', { name: 'Edit comment 1' }).click();
+  await expect(page.locator('#comment-text')).toHaveValue('Starts too fast here.');
+  await page.locator('#comment-text').fill('Starts a little too fast.');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(items.first()).toContainText('Starts a little too fast.');
+  await expect(items.first()).toContainText('edited');
+  await page.getByRole('button', { name: 'Delete comment 2' }).click();
+  await expect(items).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+test('exports the run with its comments and notes, and a new page reads them back', async ({
+  page,
+  browser,
+}) => {
+  const { errors } = await open(page);
+  const original = await fixtureZip();
+  await load(page, 'fizz.zip', original);
+  await page.getByRole('button', { name: 'Watch fizz.zip' }).click();
+  // Pausing first keeps the scrub exact: a replay left playing runs on from where it was put.
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await scrubTo(page, 4300);
+  await page.locator('#comment-author').fill('Scott');
+  await page.locator('#comment-text').fill('The pod’s puff is hard to see.');
+  await page.getByRole('button', { name: 'Add comment' }).click();
+  await expect(page.locator('#comment-list li')).toHaveCount(1);
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export with comments' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('fizz-fixture-fudge-bog-notes.zip');
+  const exported = new Uint8Array(readFileSync((await download.path())!));
+  const files = await readZip(exported);
+  expect(files.map((f) => f.name).sort()).toEqual([
+    'comments.json',
+    'notes.md',
+    'session.ndjson',
+    'specs.json',
+  ]);
+
+  // The sample's own two files are exactly as they came.
+  const came = await readZip(new Uint8Array(original));
+  for (const name of ['session.ndjson', 'specs.json']) {
+    expect(files.find((f) => f.name === name)!.data).toEqual(
+      came.find((f) => f.name === name)!.data,
+    );
+  }
+
+  // The comments are in the file, and the notes carry them with what was happening and the replay's verdicts.
+  const decoder = new TextDecoder();
+  const parsed = parseComments(
+    decoder.decode(files.find((f) => f.name === 'comments.json')!.data),
+  )!;
+  expect(parsed.file.comments).toHaveLength(1);
+  expect(parsed.file.comments[0]).toMatchObject({
+    tick: 4300,
+    author: 'Scott',
+    attempt: 0,
+    level: 7,
+  });
+  const notes = decoder.decode(files.find((f) => f.name === 'notes.md')!.data);
+  expect(notes).toContain('# Play sample notes: fixture-fudge-bog');
+  expect(notes).toContain('> The pod’s puff is hard to see.');
+  expect(notes).toMatch(/\| (matches the recording|stops matching at [^|]+) \|/);
+  await expect(page.locator('#comments-status')).toContainText(
+    'fizz-fixture-fudge-bog-notes.zip with 1 comment',
+  );
+
+  // A new page (a fresh browser, with none of the first one's storage) opens the exported zip: the comment is there.
+  const fresh = await browser.newContext();
+  const page2 = await fresh.newPage();
+  await page2.goto(VIEWER);
+  await load(page2, 'notes.zip', Buffer.from(exported));
+  await page2.getByRole('button', { name: 'Watch notes.zip' }).click();
+  await expect(page2.locator('#comment-list li')).toHaveCount(1);
+  await expect(page2.locator('#comment-list li').first()).toContainText(
+    'The pod’s puff is hard to see.',
+  );
+  await expect(page2.locator('#comment-list li').first()).toContainText('Scott');
+  await fresh.close();
   expect(errors).toEqual([]);
 });
