@@ -1225,8 +1225,8 @@ export class Game {
           text: `You finished with ${e.a} snack points. Your last save is still on this device.`,
           primaryLabel: 'Load last save',
           primary: () => this.continueGame(),
-          secondaryLabel: this.launch ? 'Back to launcher' : 'Title screen',
-          secondary: () => this.leaveRun(),
+          secondaryLabel: 'Title screen',
+          secondary: () => this.quitToTitle(),
         });
         break;
       case Ev.DIALOGUE:
@@ -2069,7 +2069,13 @@ export class Game {
         { id: 'options', label: 'Options' },
         { id: 'controls', label: 'Controls' },
       ];
-      return withQuitRows(rows, this.quitCaps(), false, null);
+      return withQuitRows(
+        rows,
+        this.quitCaps(),
+        false,
+        null,
+        this.launch ? 'Back to launcher' : undefined,
+      );
     }
     if (this.screen === 'pause') {
       const items: MenuItem[] = [
@@ -2080,8 +2086,9 @@ export class Game {
         { id: 'options', label: 'Options' },
       ];
       if (this.sim.x.mode() === Mode.LEVEL) items.push({ id: 'leave', label: 'Leave level' });
-      // A game the launcher started has no title screen to go back to: its way out is Back to launcher.
-      if (!this.launch) items.push({ id: 'quit', label: 'Quit to title' });
+      // A game the launcher started keeps the title screen (the player can reach it from here), and the way
+      // back to the launcher is the row below it.
+      items.push({ id: 'quit', label: 'Quit to title' });
       const armed = resetArmed(this.resetAt, performance.now()) ? this.quitArmedId : null;
       return withQuitRows(
         items,
@@ -3332,8 +3339,8 @@ export class Game {
     this.showCard({
       title: 'The end of Episode 1',
       text: `Billy's home, the cocoa's back, and you finished with ${score} snack points and ${lives} ${lives === 1 ? 'life' : 'lives'} to spare. Mildred will be back.`,
-      primaryLabel: this.launch ? 'Back to launcher' : 'Play Again',
-      primary: () => this.leaveRun(),
+      primaryLabel: 'Play Again',
+      primary: () => this.quitToTitle(),
     });
   }
 
@@ -3395,12 +3402,6 @@ export class Game {
       return;
     }
     this.loadSlot(id);
-  }
-
-  /** Leaves a finished or lost run: back to the launcher that started it, or to the title screen. */
-  private leaveRun(): void {
-    if (this.launch) this.quitToLauncher();
-    else this.quitToTitle();
   }
 
   /** Starts where the launcher asked: a new game, the newest save, or a slot. A save that is not there leaves the title screen up. */

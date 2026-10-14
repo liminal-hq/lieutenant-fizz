@@ -6,7 +6,7 @@
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import type { BackPeek } from '@lieutenant-fizz/engine/back-peek';
 import { hintText } from '@lieutenant-fizz/engine/font/tokens';
-import { createHostBackend } from '@lieutenant-fizz/engine/host';
+import { createHostBackend, openPage } from '@lieutenant-fizz/engine/host';
 import { applyMenuScale } from '@lieutenant-fizz/engine/menu/scale-vars';
 import {
   applyMenuTheme,
@@ -120,7 +120,8 @@ const back = await createLauncherBack({
 const deps = {
   store,
   toast,
-  navigate: (url: string) => location.assign(new URL(url, location.href).href),
+  // In place of the launcher, so the launcher and the episode do not pile up in the history.
+  navigate: openPage,
   pageOf: (episode: string) => files.get(episode)?.info?.page,
   releaseBack: () => back.release(),
   reclaimBack: () => back.reclaim(hasBack(state)),

@@ -46,15 +46,28 @@ test.describe('the launch contract', () => {
     expect(errors).toEqual([]);
   });
 
-  test('the pause menu of a launched run says Back to launcher and has no Quit to title', async ({
+  test('the pause menu of a launched run keeps Quit to title and says Back to launcher', async ({
     page,
   }) => {
     const errors = await open(page, '&host=fake-desktop&launch=new');
     await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('pause'));
     await expect(page.locator('#overlay .menu button').first()).toBeVisible();
     const rows = (await page.locator('#overlay .menu button').allInnerTexts()).map((t) => t.trim());
+    expect(rows).toContain('Quit to title');
     expect(rows).toContain('Back to launcher');
-    expect(rows).not.toContain('Quit to title');
+    expect(rows).not.toContain('Quit to launcher');
+    expect(errors).toEqual([]);
+  });
+
+  test('the title screen of a launched run has a Back to launcher row', async ({ page }) => {
+    const errors = await open(page, '&host=fake-desktop&launch=new');
+    await page.evaluate(() => {
+      const lf = (window as unknown as { __lf: Lf }).__lf;
+      lf.debugShow('title');
+    });
+    await expect(page.locator('#title > .menu button').first()).toBeVisible();
+    const rows = (await page.locator('#title > .menu button').allInnerTexts()).map((t) => t.trim());
+    expect(rows).toContain('Back to launcher');
     expect(rows).not.toContain('Quit to launcher');
     expect(errors).toEqual([]);
   });
