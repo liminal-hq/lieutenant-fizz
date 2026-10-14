@@ -5,7 +5,13 @@
 
 import { describe, expect, it } from 'vitest';
 import { memoryStorage } from '@lieutenant-fizz/engine/storage';
-import { readSaves, stopsOf, type EpisodeInfo, type EpisodesFile } from './catalog';
+import {
+  readSaves,
+  stopsOf,
+  type EpisodeInfo,
+  type EpisodesFile,
+  type SaveSummary,
+} from './catalog';
 import {
   DEBUG_URL,
   TAPS_TO_UNLOCK,
@@ -85,7 +91,7 @@ describe('the carousel', () => {
     const soon = reduce(start(), { type: 'stop', dir: 1 }).state;
     expect(rowsOf(soon)).toEqual([{ id: 'soon', label: 'Coming soon', disabled: true }]);
     expect(press(soon, 'soon')).toEqual({ state: soon, effects: [] });
-    expect(ids(toApp(start()))).toEqual(['settings', 'about']);
+    expect(ids(toApp(start()))).toEqual(['settings', 'saves', 'about']);
   });
 
   it('does not change stop while a sub-screen is open', () => {
@@ -150,8 +156,8 @@ describe('Quit on the desktop', () => {
   const desktop = (): LauncherState => initialState(STOPS, false, {}, { canQuit: true });
 
   it('has a Quit row on App settings only where the app can close itself', () => {
-    expect(ids(toApp(start()))).toEqual(['settings', 'about']);
-    expect(ids(toApp(desktop()))).toEqual(['settings', 'about', 'quit']);
+    expect(ids(toApp(start()))).toEqual(['settings', 'saves', 'about']);
+    expect(ids(toApp(desktop()))).toEqual(['settings', 'saves', 'about', 'quit']);
   });
 
   it('asks to close the app, and nothing else does', () => {
@@ -355,6 +361,46 @@ describe('the Settings screen', () => {
     expect(reduce(picked.state, { type: 'pick-tab', tab: 'controls' })).toEqual({
       state: picked.state,
       effects: [],
+    });
+  });
+});
+
+describe('the Saves screen', () => {
+  const held = {
+    'episode-1': readSaves(memoryStorage({ 'lf-ep1-save-v1': save(1), 'lf-ep1-slot-2': save(2) }), {
+      page: 'p',
+      saves: { auto: 'lf-ep1-save-v1', slots: ['lf-ep1-slot-1', 'lf-ep1-slot-2'] },
+    }),
+  };
+  const open = (saves: Record<string, SaveSummary> = held): LauncherState =>
+    press(toApp(initialState(STOPS, false, saves)), 'saves').state;
+
+  it('lists export, import and a count for each playable episode, then Back', () => {
+    const s = open();
+    expect(s.screen).toBe('saves');
+    expect(hasBack(s)).toBe(true);
+    expect(rowsOf(s)).toEqual([
+      { id: 'export', label: 'Export all saves', value: '2 saves', disabled: false },
+      { id: 'import', label: 'Import saves' },
+      { id: 'info:episode-1', label: 'Episode 1', value: '2 saves', disabled: true },
+      { id: 'back', label: 'Back' },
+    ]);
+  });
+
+  it('asks for the file dialogs, and dims export when there is nothing to export', () => {
+    expect(press(open(), 'export').effects).toEqual([{ kind: 'export-saves' }]);
+    expect(press(open(), 'import').effects).toEqual([{ kind: 'import-saves' }]);
+    const empty = open({});
+    expect(rowsOf(empty)[0]).toMatchObject({ value: 'No saves', disabled: true });
+    expect(press(empty, 'export')).toEqual({ state: empty, effects: [] });
+    expect(press(empty, 'info:episode-1')).toEqual({ state: empty, effects: [] });
+  });
+
+  it('takes the new saves after an import', () => {
+    const empty = open({});
+    expect(rowsOf(reduce(empty, { type: 'saves', saves: held }).state)[0]).toMatchObject({
+      value: '2 saves',
+      disabled: false,
     });
   });
 });

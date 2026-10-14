@@ -27,12 +27,17 @@ export interface EffectDeps {
     save(key: string, value: number | boolean): boolean;
     reset(keys: readonly string[]): boolean;
   };
+  /** Exports and imports the saves file; each resolves what to tell the player, or undefined when they closed the dialog. */
+  saves?: { export(): Promise<string | undefined>; import(): Promise<string | undefined> };
   /** Starts the clock that disarms Reset if its second tap does not come. */
   arm?(): void;
 }
 
 /** The sets of dependencies that are leaving the page now, so a second press while the first is still writing does not leave twice. */
 const leaving = new WeakSet<EffectDeps>();
+
+/** The sets of dependencies with a file dialog open now. */
+const filing = new WeakSet<EffectDeps>();
 
 /** What the player is told when the store would not take a write, so a page is not left with nothing saved. */
 export const SAVE_FAILED = "Couldn't save: storage is full or blocked";
@@ -58,6 +63,21 @@ export async function applyEffects(effects: readonly Effect[], deps: EffectDeps)
       if (!ok) deps.toast(SAVE_FAILED);
       // Written out at once, so closing the window straight after a change does not lose it.
       else void Promise.resolve(flushable(deps.store)?.flush()).catch(() => {});
+    } else if (effect.kind === 'export-saves' || effect.kind === 'import-saves') {
+      // One file dialog at a time: a second tap while one is open does nothing.
+      if (filing.has(deps) || !deps.saves) return;
+      filing.add(deps);
+      try {
+        const message = await (effect.kind === 'export-saves'
+          ? deps.saves.export()
+          : deps.saves.import());
+        if (message) deps.toast(message);
+      } catch (error) {
+        console.warn('The saves file failed', error);
+        deps.toast("Couldn't use the file");
+      } finally {
+        filing.delete(deps);
+      }
     } else if (effect.kind === 'arm') {
       deps.arm?.();
     } else if (effect.kind === 'quit') {

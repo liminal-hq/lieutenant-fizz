@@ -52,7 +52,9 @@ import { createLauncherHaptics, NO_HAPTICS, type LauncherHaptics } from './hapti
 import { createLauncherTouch, type LauncherTouch } from './touch';
 import { readStop, writeStop } from './stop-memory';
 import { SETTINGS_TABS } from './settings';
-import { createView } from './view';
+import { openSaver } from '@lieutenant-fizz/engine/file-save';
+import { exportSaves, importSaves, saveKeysOf, type SavesDeps } from './saves';
+import { APP_VERSION, createView } from './view';
 import './launcher.css';
 
 const root = document.getElementById('launcher');
@@ -160,6 +162,21 @@ const back = await createLauncherBack({
   },
 });
 
+// The file dialogs the saves export and import use (the system's in the apps, the browser's on the web).
+const saver = await openSaver();
+const savesDeps: SavesDeps = {
+  store,
+  saver,
+  episodes: saveKeysOf([...files].map(([id, f]) => [id, f.info] as const)),
+  app: APP_VERSION,
+  now: () => new Date(),
+  flush: async () => (await flushable(store)?.flush()) !== false,
+  refresh: () => {
+    const next: Record<string, SaveSummary> = {};
+    for (const [id, f] of files) if (f.info) next[id] = readSaves(store, f.info);
+    dispatch({ type: 'saves', saves: next });
+  },
+};
 let armTimer: ReturnType<typeof setTimeout> | undefined;
 
 const deps = {
@@ -177,6 +194,7 @@ const deps = {
       return ok;
     },
   },
+  saves: { export: () => exportSaves(savesDeps), import: () => importSaves(savesDeps) },
   arm: () => {
     clearTimeout(armTimer);
     armTimer = setTimeout(() => dispatch({ type: 'disarm' }), RESET_ARM_MS);

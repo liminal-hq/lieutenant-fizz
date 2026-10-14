@@ -27,7 +27,12 @@ interface LauncherItem extends RowItem {
 /** How long after a swipe a tap on a row is ignored, so the lift that ends a swipe does not choose the row under it. */
 export const SWIPE_TAP_GUARD_MS = 350;
 
-const SCREEN_TITLES = { load: 'Load game', about: 'About', settings: 'Settings' } as const;
+const SCREEN_TITLES = {
+  load: 'Load game',
+  about: 'About',
+  settings: 'Settings',
+  saves: 'Saves',
+} as const;
 
 /** What the heading of the carousel says for the stop showing. */
 export function stopTitle(state: LauncherState): string {

@@ -31,7 +31,7 @@ import {
   type SettingsTab,
 } from './settings';
 
-export type Screen = 'home' | 'load' | 'about' | 'settings';
+export type Screen = 'home' | 'load' | 'about' | 'settings' | 'saves';
 
 /** A row of the menu. `slot:` rows are the saves on the Load game screen. */
 export type RowId =
@@ -42,6 +42,9 @@ export type RowId =
   | 'soon'
   | 'about'
   | 'settings'
+  | 'saves'
+  | 'export'
+  | 'import'
   | 'tab'
   | 'reset'
   | 'quit'
@@ -50,6 +53,7 @@ export type RowId =
   | 'hide-debug'
   | 'back'
   | `opt:${SettingKey}`
+  | `info:${string}`
   | `slot:${LaunchSlot}`;
 
 export interface LauncherState {
@@ -82,6 +86,8 @@ export type Action =
   | { type: 'step'; row: RowId; dir: -1 | 1 }
   /** Jump to a tab by tapping its name on the strip. */
   | { type: 'pick-tab'; tab: SettingsTab }
+  /** The saves held changed (an import): the new summaries, by episode id. */
+  | { type: 'saves'; saves: Readonly<Record<string, SaveSummary>> }
   /** The first tap on Reset timed out. */
   | { type: 'disarm' }
   /** Step to the next (1) or previous (-1) stop. */
@@ -102,7 +108,11 @@ export type Effect =
   /** Put these app-wide options back to their defaults in the options file. */
   | { kind: 'reset-options'; keys: readonly SettingKey[] }
   /** Start the clock that disarms Reset. */
-  | { kind: 'arm' };
+  | { kind: 'arm' }
+  /** Save every episode's saves to a file the player chooses. */
+  | { kind: 'export-saves' }
+  /** Merge a saves file the player chooses into the saves held. */
+  | { kind: 'import-saves' };
 
 export interface Row {
   readonly id: RowId;
@@ -160,6 +170,7 @@ export function rowsOf(state: LauncherState): readonly Row[] {
     if (stop.kind === 'app') {
       return [
         { id: 'settings', label: 'Settings' },
+        { id: 'saves', label: 'Saves' },
         { id: 'about', label: 'About' },
         ...(state.canQuit ? [{ id: 'quit' as const, label: 'Quit' }] : []),
       ];
@@ -181,6 +192,31 @@ export function rowsOf(state: LauncherState): readonly Row[] {
         label: slotLabel(e.slot),
         value: formatSaved(e.at),
       })),
+      { id: 'back', label: 'Back' },
+    ];
+  }
+  if (state.screen === 'saves') {
+    const total = totalSaves(state);
+    return [
+      {
+        id: 'export',
+        label: 'Export all saves',
+        value: total > 0 ? countLabel(total) : 'No saves',
+        disabled: total === 0,
+      },
+      { id: 'import', label: 'Import saves' },
+      ...state.stops.flatMap((s): Row[] =>
+        s.kind === 'episode' && s.playable
+          ? [
+              {
+                id: `info:${s.id}`,
+                label: `Episode ${s.number}`,
+                value: countLabel(state.saves[s.id]?.entries.length ?? 0),
+                disabled: true,
+              },
+            ]
+          : [],
+      ),
       { id: 'back', label: 'Back' },
     ];
   }
@@ -235,6 +271,14 @@ function remaining(taps: number): string {
   return `${left} more ${left === 1 ? 'tap' : 'taps'} to show the debug menu`;
 }
 
+/** How many saves are held across every episode. */
+export const totalSaves = (state: LauncherState): number =>
+  Object.values(state.saves).reduce((n, s) => n + s.entries.length, 0);
+
+/** `3 saves`, `1 save` or `No saves`. */
+const countLabel = (n: number): string =>
+  n === 0 ? 'No saves' : `${n} ${n === 1 ? 'save' : 'saves'}`;
+
 /** The slot a `slot:` row stands for. */
 function slotOf(row: RowId): LaunchSlot | undefined {
   if (!row.startsWith('slot:')) return undefined;
@@ -248,6 +292,7 @@ function slotOf(row: RowId): LaunchSlot | undefined {
  */
 function reduceScreen(state: LauncherState, action: Action): Step {
   if (action.type === 'disarm') return unchanged(state);
+  if (action.type === 'saves') return { state: { ...state, saves: action.saves }, effects: [] };
   if (action.type === 'pick-tab') {
     return state.screen === 'settings' && action.tab !== state.tab
       ? { state: { ...state, tab: action.tab }, effects: [] }
@@ -294,6 +339,12 @@ function reduceScreen(state: LauncherState, action: Action): Step {
       return { state: { ...state, screen: 'about', taps: 0 }, effects: [] };
     case 'settings':
       return { state: { ...state, screen: 'settings', taps: 0, tab: 'sound' }, effects: [] };
+    case 'saves':
+      return { state: { ...state, screen: 'saves', taps: 0 }, effects: [] };
+    case 'export':
+      return { state, effects: [{ kind: 'export-saves' }] };
+    case 'import':
+      return { state, effects: [{ kind: 'import-saves' }] };
     case 'tab':
     case 'reset':
       return state.screen === 'settings' ? settingsRow(state, row) : unchanged(state);

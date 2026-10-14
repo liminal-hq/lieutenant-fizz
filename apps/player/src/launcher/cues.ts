@@ -11,7 +11,7 @@ export function cueOf(before: LauncherState, action: Action, step: Step): MenuCu
   if (action.type === 'back') return step.state !== before ? 'back' : undefined;
   // Stepping to another stop is the swipe; at either end there is nowhere to step, so it is silent.
   if (action.type === 'stop') return step.state !== before ? 'swipe' : undefined;
-  if (action.type === 'disarm') return undefined;
+  if (action.type === 'disarm' || action.type === 'saves') return undefined;
   // An arrow on a Settings row changes it, and is silent where there is nothing more to change (a full meter).
   if (action.type === 'pick-tab') return step.state !== before ? 'change' : undefined;
   if (action.type === 'step') return step.state !== before ? 'change' : undefined;

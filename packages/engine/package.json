@@ -18,6 +18,7 @@
     "./font/scale": "./src/font/scale.ts",
     "./font/tokens": "./src/font/tokens.ts",
     "./portrait": "./src/portrait.ts",
+    "./saves-bundle": "./src/saves-bundle.ts",
     "./menu/density": "./src/menu/density.ts",
     "./menu/keys.css": "./src/menu/keys.css",
     "./menu/paint": "./src/menu/paint.ts",
