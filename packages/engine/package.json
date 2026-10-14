@@ -47,6 +47,8 @@
     "./sound-field": "./src/sound-field.ts",
     "./replay/overlay": "./src/replay/overlay.ts",
     "./replay/transport": "./src/replay/transport.ts",
+    "./session/bundle": "./src/session/bundle.ts",
+    "./session/comments": "./src/session/comments.ts",
     "./session/export": "./src/session/export.ts",
     "./session/indexeddb-store": "./src/session/indexeddb-store.ts",
     "./session/listeners": "./src/session/listeners.ts",
