@@ -41,10 +41,10 @@ export const GROUND_SECONDS = 26;
 
 /**
  * How many times a second the scenery moves. Every layer steps on the same grid, so the page produces one new frame
- * for all of them 30 times a second instead of 120: pixel art that crawls a pixel or two a step looks the same, and
- * on a phone the difference was most of the graphics work.
+ * for all of them that many times a second instead of at every vsync (120 on a Pixel 8 Pro), which on a phone is most
+ * of the graphics work. 30 was visibly choppy, so it is 60.
  */
-export const SCENE_FPS = 30;
+export const SCENE_FPS = 60;
 
 /** How many steps a layer's belt takes to go once round in `seconds`: one grid step every 1/`SCENE_FPS` of a second. */
 export const scrollSteps = (seconds: number): number =>

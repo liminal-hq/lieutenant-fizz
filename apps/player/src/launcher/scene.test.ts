@@ -59,9 +59,9 @@ describe('the scrolling', () => {
     expect(scrollSeconds(0)).toBeUndefined();
   });
 
-  it('takes one step on the shared grid every thirtieth of a second, and at least one', () => {
-    expect(SCENE_FPS).toBe(30);
-    expect(scrollSteps(26)).toBe(780);
+  it('takes one step on the shared grid every sixtieth of a second, and at least one', () => {
+    expect(SCENE_FPS).toBe(60);
+    expect(scrollSteps(26)).toBe(1560);
     expect(scrollSteps(0.01)).toBe(1);
     // Layers of different speeds all step on the same grid, so the page makes one frame for them all.
     for (const seconds of [26, 52, 87, 216]) expect((seconds * SCENE_FPS) % 1).toBe(0);

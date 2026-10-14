@@ -249,10 +249,19 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
 
   /** The size of the logo's letters, measured when the logo is drawn or fitted so a frame never has to read layout. */
   let logoBox: { w: number; h: number } | undefined;
+  // How far the letters' bottom edge sits above the bottom of the logo's box (the tagline's room under them).
+  let logoGap = 0;
   const measureLogo = (): void => {
     const hero = head.hidden ? undefined : head.querySelector<HTMLElement>('.hero');
     logoBox = hero ? { w: hero.offsetWidth, h: hero.offsetHeight } : undefined;
+    const box = hero?.parentElement;
+    logoGap =
+      hero && box ? Math.max(0, box.offsetHeight - (hero.offsetTop + hero.offsetHeight)) : 0;
   };
+  // The letters change size after they are drawn (the font arrives, the logo is fitted again), so they are measured
+  // again whenever their size does change, not just when the screen is drawn.
+  const heroSize =
+    typeof ResizeObserver === 'function' ? new ResizeObserver(() => measureLogo()) : undefined;
 
   /** Slides the episode's name in from the side the carousel stepped towards, unless motion is reduced. */
   const slideName = (dir: -1 | 1): void => {
@@ -387,6 +396,9 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     });
     fitLogo(!!logo);
     measureLogo();
+    heroSize?.disconnect();
+    const hero = head.querySelector<HTMLElement>('.hero');
+    if (hero) heroSize?.observe(hero);
     mark(free < 0 ? undefined : ids[at]);
     fit();
     // Keep the pad's place; on first load there is nothing to keep, so the first row is only highlighted.
@@ -468,7 +480,7 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
         s.bottom = '0px';
       }
       // He is placed from the logo's bottom left by a transform alone (no layout), and only when he has moved.
-      const place = `translate(${frame.x}px, ${-frame.y}px) scaleX(${frame.flip ? -1 : 1}) rotate(${frame.rot}deg)`;
+      const place = `translate(${frame.x}px, ${-frame.y - logoGap}px) scaleX(${frame.flip ? -1 : 1}) rotate(${frame.rot}deg)`;
       if (place !== benPlace) {
         benPlace = place;
         s.transform = place;

@@ -331,7 +331,7 @@ body {
   bottom: calc(var(--ground) * var(--scene-scale) * 1px);
   width: calc(var(--ben-w) * var(--scene-scale) * 1px);
   height: calc(var(--ben-h) * var(--scene-scale) * 1px);
-  animation: lf-ben-hop 4.2s steps(12, end) infinite;
+  animation: lf-ben-hop 4.2s steps(25, end) infinite;
   will-change: transform;
 }
 .scene .ben .run,
