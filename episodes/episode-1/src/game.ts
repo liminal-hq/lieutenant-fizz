@@ -353,6 +353,10 @@ const PAUSE_NOTE =
 
 const TALL = { level: 13, map: 12, cine: CINE_TALL };
 /** Ben's body on the map is this many world units across (`Body::new(x, y, 0.6, 0.6)` in the game crate). */
+/** The largest zip, and the most it may hold once unpacked, that Open a zip will take as a play sample. */
+const SAMPLE_ZIP_MAX_BYTES = 64 * 1024 * 1024;
+const SAMPLE_ZIP_MAX_UNPACKED = 256 * 1024 * 1024;
+
 const BEN_BODY = 0.6;
 
 /** The Episode 1 game shell: boots the engine, runs the loop and drives the screen flow. */
@@ -4067,13 +4071,21 @@ export class Game {
       this.ui.toast('The file could not be opened');
       return;
     }
+    // A play sample is a few megabytes; a file far past that is not one, and is not unpacked.
+    if (got.bytes.length > SAMPLE_ZIP_MAX_BYTES) {
+      this.ui.toast('That file is too large to be a play sample');
+      return;
+    }
     await this.startReplay(async () => {
       const [{ parseSession }, { readZip }] = await Promise.all([
         import('@lieutenant-fizz/engine/session/log'),
         import('@lieutenant-fizz/engine/zip-read'),
       ]);
       try {
-        return parseSession(got.name, await readZip(got.bytes));
+        return parseSession(
+          got.name,
+          await readZip(got.bytes, { maxTotal: SAMPLE_ZIP_MAX_UNPACKED }),
+        );
       } catch {
         this.ui.toast('That file is not a play sample');
         return null;

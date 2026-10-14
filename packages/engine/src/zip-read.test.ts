@@ -69,4 +69,26 @@ describe('readZip', () => {
     await expect(readZip(broken)).rejects.toThrow('fails its check');
     await expect(readZip(zip.subarray(0, zip.length - 30))).rejects.toThrow();
   });
+
+  it('refuses a zip whose files add up to more than the limit it is given', async () => {
+    const zip = await buildZip([
+      { name: 'a.txt', data: text('a'.repeat(600)) },
+      { name: 'b.txt', data: text('b'.repeat(600)) },
+    ]);
+    await expect(readZip(zip, { maxTotal: 1000 })).rejects.toThrow('too large to open');
+    expect(await readZip(zip, { maxTotal: 1200 })).toHaveLength(2);
+    expect(await readZip(zip)).toHaveLength(2);
+  });
+
+  it('stops inflating a file that is larger than it says it is', async () => {
+    const zip = new Uint8Array(
+      await buildZip([{ name: 'big.txt', data: text('z'.repeat(50_000)) }]),
+    );
+    const dv = new DataView(zip.buffer);
+    // The central directory entry's uncompressed size: say 10 bytes for 50,000.
+    let at = 0;
+    while (dv.getUint32(at, true) !== 0x02014b50) at += 1;
+    dv.setUint32(at + 24, 10, true);
+    await expect(readZip(zip)).rejects.toThrow('larger than it says');
+  });
 });
