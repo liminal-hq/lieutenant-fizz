@@ -163,6 +163,14 @@ export class PlaySample {
   }
 
   /**
+   * Call right after something outside a step queued events and left them in the queue (entering the map): they
+   * are written now, at the tick now, so the next step does not take them for its own.
+   */
+  outsideStep(): void {
+    this.recordNew();
+  }
+
+  /**
    * The touch controls' layout: the window, the safe-area insets and the whole spec, which is everything
    * `placeControls` needs to put the controls where they were. Written when it changes.
    */

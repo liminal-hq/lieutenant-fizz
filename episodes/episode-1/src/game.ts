@@ -3113,6 +3113,8 @@ export class Game {
   enterMap(): void {
     window.clearTimeout(this.completeTimer);
     this.sim.x.enter_map();
+    // The map's prompt waits in the sim's queue for the next frame; a sample writes it at this tick, not the next.
+    this.sample?.sample.outsideStep();
     this.screen = 'play';
     this.card = null;
     this.bossHp = null;

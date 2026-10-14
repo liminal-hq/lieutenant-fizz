@@ -203,6 +203,21 @@ describe('PlaySample event ticks', () => {
     ]);
   });
 
+  it('writes an event left in the queue outside a step at that tick, and not again with the next step', async () => {
+    const { sample, queue, clock, events } = await setup();
+    clock.tick = 70;
+    queue.push({ kind: Ev.TOAST, a: 1, b: 0, c: 0 });
+    sample.outsideStep();
+    // The next step runs (the clock moves on) with that event still queued, then raises one of its own.
+    clock.tick = 71;
+    queue.push({ kind: Ev.TOAST, a: 2, b: 0, c: 0 });
+    sample.tick(0);
+    expect((await events()).filter((e) => e.e === 'ev').map((e) => [e.t, e.a])).toEqual([
+      [70, 1],
+      [71, 2],
+    ]);
+  });
+
   it('writes an event raised outside any step once, then counts from the emptied queue', async () => {
     const { sample, queue, clock, events } = await setup();
     clock.tick = 50;
