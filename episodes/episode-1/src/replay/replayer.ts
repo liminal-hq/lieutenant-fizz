@@ -5,7 +5,7 @@
 
 import { num, type Session, type SessionEvent } from '@lieutenant-fizz/engine/session/log';
 import { Ev, State } from '../sim/protocol';
-import type { Sim } from '../sim/sim';
+import type { Sim, SimEvent } from '../sim/sim';
 import { attemptsOf, type Attempt } from './attempts';
 import { entryAt, LATE_TICKS, type Entry } from './entry';
 
@@ -90,6 +90,8 @@ export class Replayer {
   clearTick: number | null = null;
   /** How many recorded positions the replay has been compared against so far. */
   checked = 0;
+  /** What the sim raised on the last `step` (captions, a clear, a death), for a host to play or show. */
+  lastEvents: SimEvent[] = [];
 
   private index = -1;
   private current: ReplayAttempt | null = null;
@@ -232,7 +234,8 @@ export class Replayer {
     const { sim } = this;
     sim.step(this.wordAt(this.tick + 1));
     this.tick += 1;
-    for (const e of sim.drainEvents()) {
+    this.lastEvents = sim.drainEvents();
+    for (const e of this.lastEvents) {
       if (e.kind === Ev.LEVEL_COMPLETE && this.clearTick === null) this.noteClear();
     }
 

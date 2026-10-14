@@ -148,11 +148,17 @@ export interface ReviewState {
   recording: boolean;
   /** The system has a share menu for a file. */
   canShare: boolean;
+  /** The sample has a level start in it, so it can be watched. */
+  canWatch: boolean;
 }
 
-/** The rows of one session's screen: Save zip, Share where there is a share menu, Delete (asks twice) and Back. */
+/**
+ * The rows of one session's screen: Watch where there is a level to see, Save zip, Share where there is a share
+ * menu, Delete (asks twice) and Back.
+ */
 export function reviewItems(s: ReviewState): MenuItem[] {
   return [
+    ...(s.canWatch ? [{ id: 'review:watch', label: 'Watch', disabled: s.recording }] : []),
     { id: 'review:save', label: 'Save zip', disabled: s.recording },
     ...(s.canShare ? [{ id: 'review:share', label: 'Share', disabled: s.recording }] : []),
     {

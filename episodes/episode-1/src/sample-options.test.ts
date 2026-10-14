@@ -156,7 +156,7 @@ describe('sessionItems', () => {
 });
 
 describe('the screen for one sample', () => {
-  const state = { armed: false, recording: false, canShare: false };
+  const state = { armed: false, recording: false, canShare: false, canWatch: false };
 
   it('offers Save zip, Delete that asks twice, and Back, and Share only where there is a share menu', () => {
     expect(reviewItems(state).map((i) => i.label)).toEqual(['Save zip', 'Delete', 'Back']);
@@ -171,9 +171,19 @@ describe('the screen for one sample', () => {
     ).toBe('Tap again');
   });
 
-  it('cannot save, share or delete the sample being recorded', () => {
-    const rows = reviewItems({ ...state, recording: true, canShare: true });
-    for (const id of ['review:save', 'review:share', 'review:delete'])
+  it('offers Watch first, only for a sample with a level in it', () => {
+    expect(reviewItems({ ...state, canWatch: true }).map((i) => i.label)).toEqual([
+      'Watch',
+      'Save zip',
+      'Delete',
+      'Back',
+    ]);
+    expect(reviewItems(state).some((i) => i.id === 'review:watch')).toBe(false);
+  });
+
+  it('cannot watch, save, share or delete the sample being recorded', () => {
+    const rows = reviewItems({ ...state, recording: true, canShare: true, canWatch: true });
+    for (const id of ['review:watch', 'review:save', 'review:share', 'review:delete'])
       expect(rows.find((i) => i.id === id)?.disabled).toBe(true);
     expect(rows.find((i) => i.id === 'review:back')?.disabled).toBeUndefined();
   });

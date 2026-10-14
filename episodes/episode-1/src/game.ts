@@ -16,6 +16,7 @@ import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics
 import { detectHostKind, hostEnvOf, type HostBackend } from '@lieutenant-fizz/engine/host';
 import { readSpecs, specsEnvOf } from '@lieutenant-fizz/engine/session/specs';
 import type { SampleHandle } from './sample/start';
+import type { ReplayHost } from './replay/game-host';
 import type { FileSaver } from '@lieutenant-fizz/engine/file-save';
 import type { SampleStore, SessionInfo } from '@lieutenant-fizz/engine/session/store';
 import {
@@ -577,6 +578,9 @@ export class Game {
   private reviewDetail: ReviewDetail | null = null;
   /** The system can share a file, so the open sample's screen offers Share. */
   private canShareSample = false;
+  /** The replay of a saved sample, while one is being watched (its code is loaded the first time). */
+  private replay: ReplayHost | null = null;
+  private replayStarting = false;
   /** What saves and shares a sample's zip: the browser's, until the apps bring their own. */
   private fileSaver: FileSaver | null = null;
   /** How many samples a crash or a closed app left open, found at launch. */
@@ -966,6 +970,14 @@ export class Game {
       this.halfW = this.view.halfW;
       this.halfH = this.view.halfH;
       this.pixelScale = this.view.scale;
+    }
+    // A replay draws and listens for itself: the live game is not stepped, saved or recorded while it is up.
+    if (this.replay) {
+      const bits = this.input.peek();
+      this.replay.frame(dt, bits, { halfW: this.halfW, halfH: this.halfH });
+      this.lastBits = bits;
+      this.input.markTouchSeen();
+      return;
     }
     sim.x.set_view(this.halfW, this.halfH);
 
@@ -1417,6 +1429,12 @@ export class Game {
 
   private onCommand(c: Command): void {
     if (this.peek.active) return;
+    // While a replay is up, Esc or Pause takes it down and nothing else reaches the game under it.
+    if (this.replay) {
+      if (c.type === 'pause') this.replay.close();
+      else if (c.type === 'confirm') this.replay.togglePlay();
+      return;
+    }
     switch (c.type) {
       case 'confirm':
         if (this.screen !== 'play') this.input.discardLatched();
@@ -1739,6 +1757,11 @@ export class Game {
 
   /** Pauses a level in play, for when the page hides or the phone is turned upright. */
   private autoPause(): void {
+    // A replay that loses the window holds where it is.
+    if (this.replay) {
+      this.replay.pause();
+      return;
+    }
     if (this.screen !== 'play') return;
     this.screen = 'pause';
     this.menuIdx = 0;
@@ -1994,6 +2017,7 @@ export class Game {
         armed: resetArmed(this.resetAt, performance.now()),
         recording: this.sample?.recorder.sessionId === this.reviewId,
         canShare: this.canShareSample,
+        canWatch: (this.reviewDetail?.kinds['level'] ?? 0) > 0,
       });
     if (this.sub === 'saves') return this.slotItems();
     if (this.sub === 'touchEdit') return [];
@@ -2687,6 +2711,7 @@ export class Game {
       else if (id === 'review:delete') this.tapDeleteSample();
       else if (id === 'review:save') void this.saveReviewZip(false);
       else if (id === 'review:share') void this.saveReviewZip(true);
+      else if (id === 'review:watch') void this.watchSample(this.reviewId);
       return;
     }
     if (this.sub === 'options') {
@@ -2746,7 +2771,8 @@ export class Game {
 
   /** The Back button: closes the screen opened over the title or the pause menu, or resumes from the pause menu itself. */
   private backFromSub(): void {
-    if (this.sub) this.closeSub();
+    if (this.replay) this.replay.close();
+    else if (this.sub) this.closeSub();
     else if (this.screen === 'pause') {
       this.audio.play('click');
       this.haptics.ui('back');
@@ -2759,6 +2785,10 @@ export class Game {
    * what Back means on the screen showing, as `backAction` says.
    */
   back(): void {
+    if (this.replay) {
+      this.replay.close();
+      return;
+    }
     switch (backAction(this.screen, this.sub)) {
       case 'close':
         this.closeSub();
@@ -3974,6 +4004,97 @@ export class Game {
       console.warn('A play sample could not be read', err);
     }
     this.syncUi();
+  }
+
+  /**
+   * Opens the replay of a saved sample, loading its code the first time. It runs on a sim of its own, so the live
+   * game (its map, its level, its saves) is left as it was, and nothing is recorded or written while it is up.
+   */
+  private async watchSample(id: string, paused = false): Promise<void> {
+    if (this.replay || this.replayStarting || !id) return;
+    this.replayStarting = true;
+    try {
+      const [{ sessionFromStore }, host] = await Promise.all([
+        import('@lieutenant-fizz/engine/session/log'),
+        import('./replay/game-host'),
+      ]);
+      const read = await (await this.sampleStoreFor()).read(id);
+      if (!read) {
+        this.ui.toast('That sample is gone');
+        return;
+      }
+      const session = sessionFromStore(id, read);
+      if (!host.canReplay(session)) {
+        this.ui.toast('There is no level in this sample to watch');
+        return;
+      }
+      const sim = await Sim.load(simUrl);
+      sim.setSprites(this.atlas.rects);
+      this.ui.stage.dataset.replay = 'on';
+      this.replay = new host.ReplayHost({
+        sim,
+        session,
+        renderer: this.renderer,
+        gl: this.ui.gl,
+        mount: (node) => this.ui.mount(node),
+        drawOptions: () => ({
+          night: this.opts.night,
+          culling: this.opts.culling,
+          stress: this.opts.stress,
+          lighting: this.opts.lighting,
+          normals: this.opts.normals,
+          poster: this.opts.poster,
+        }),
+        playCaption: (captionId, x, y, cam) => {
+          const text = this.captionNames[captionId];
+          if (!text) return;
+          // As the game does: only Enhanced places a sound, so Classic is untouched.
+          const at =
+            this.audio.mode === 'enhanced'
+              ? placeSound(x, y, cam, { w: this.halfW, h: this.halfH })
+              : undefined;
+          this.audio.caption(text, at);
+        },
+        captionText: (captionId) => this.captionNames[captionId] ?? '',
+        paused,
+        onClose: () => {
+          this.replay = null;
+          delete this.ui.stage.dataset.replay;
+          this.syncUi();
+        },
+      });
+    } catch (err) {
+      console.warn('A play sample could not be watched', err);
+      this.replay = null;
+      delete this.ui.stage.dataset.replay;
+      this.ui.toast('That sample could not be watched');
+    } finally {
+      this.replayStarting = false;
+    }
+  }
+
+  /** Test hook: watches a saved sample (the newest, when none is named), optionally held at the start. */
+  async debugWatch(id?: string, paused = false): Promise<boolean> {
+    const list = await (await this.sampleStoreFor()).list();
+    await this.watchSample(id ?? list[list.length - 1]?.id ?? '', paused);
+    return this.replay !== null;
+  }
+
+  /** Test hook: what the replay is doing, or null when none is up. */
+  get debugReplay(): {
+    tick: number;
+    playing: boolean;
+    layers: string[];
+    drift: string | null;
+  } | null {
+    const r = this.replay;
+    if (!r) return null;
+    return {
+      tick: r.tick,
+      playing: r.playing,
+      layers: r.layersOn(),
+      drift: r.drift ? `${r.drift.kind}@${r.drift.tick}` : null,
+    };
   }
 
   /** Builds the open sample's zip and saves it (or opens the share menu with it), then says what happened. */
