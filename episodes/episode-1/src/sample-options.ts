@@ -61,7 +61,7 @@ export interface ConsentPage {
 export const CONSENT_PAGES: readonly ConsentPage[] = [
   {
     title: 'What is recorded',
-    text: 'Every key, button and touch, with exactly where and when, on every screen, including touches that miss and touches in the menus. Where Ben is as you play, the screens you visit, and what happens in the game. Your screen size, browser and system, and the date, time and time zone you start.',
+    text: 'Every key, button and touch, with exactly where and when, on every screen, including touches that miss and touches in the menus. Where Ben is as you play, the screens you visit, and what happens in the game. Your screen size, browser and system, where your touch controls sit, and the date, time and time zone you start.',
   },
   {
     title: 'What is not recorded',
@@ -115,8 +115,18 @@ export function sessionOf(id: string | undefined): string | null {
   return id?.startsWith('session:') ? id.slice(8) : null;
 }
 
-/** The saved sessions, newest first, then Back. A session still open says whether it is the one recording. */
-export function sessionItems(list: readonly SessionInfo[] | null, recordingId: string): MenuItem[] {
+/** The menu id of the row that opens a sample zip from a file. */
+export const OPEN_ZIP_ID = 'samples:open';
+
+/**
+ * The saved sessions, newest first, then Open a zip (where a file can be picked) and Back. A session still open
+ * says whether it is the one recording.
+ */
+export function sessionItems(
+  list: readonly SessionInfo[] | null,
+  recordingId: string,
+  canOpen = false,
+): MenuItem[] {
   if (list === null) return [{ id: 'back', label: 'Back', value: 'Reading…' }];
   const rows = [...list].reverse().map((s): MenuItem => ({
     id: sessionRowId(s.id),
@@ -128,7 +138,11 @@ export function sessionItems(list: readonly SessionInfo[] | null, recordingId: s
           ? sizeText(s.bytes)
           : `${sizeText(s.bytes)}, left open`,
   }));
-  return [...rows, { id: 'back', label: 'Back' }];
+  return [
+    ...rows,
+    ...(canOpen ? [{ id: OPEN_ZIP_ID, label: 'Open a zip' }] : []),
+    { id: 'back', label: 'Back' },
+  ];
 }
 
 /** What the review screen shows about a session beyond its size, read from the stored log. */
@@ -148,11 +162,17 @@ export interface ReviewState {
   recording: boolean;
   /** The system has a share menu for a file. */
   canShare: boolean;
+  /** The sample has a level start in it, so it can be watched. */
+  canWatch: boolean;
 }
 
-/** The rows of one session's screen: Save zip, Share where there is a share menu, Delete (asks twice) and Back. */
+/**
+ * The rows of one session's screen: Watch where there is a level to see, Save zip, Share where there is a share
+ * menu, Delete (asks twice) and Back.
+ */
 export function reviewItems(s: ReviewState): MenuItem[] {
   return [
+    ...(s.canWatch ? [{ id: 'review:watch', label: 'Watch', disabled: s.recording }] : []),
     { id: 'review:save', label: 'Save zip', disabled: s.recording },
     ...(s.canShare ? [{ id: 'review:share', label: 'Share', disabled: s.recording }] : []),
     {

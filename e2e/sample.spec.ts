@@ -84,6 +84,8 @@ test('a recorded session holds the keys, the touches, the screens and the specs,
   await lf(page, (g) => g.debugShow('options'));
   await page.keyboard.press('ArrowDown');
   await page.setViewportSize({ width: 800, height: 400 });
+  // Entering a level outside a step still writes the level and what it was entered with, once each.
+  await lf(page, (g) => g.debugShow('play'));
   await lf(page, (g) => g.stopSample());
   expect(await lf(page, (g) => g.sampling)).toBe(false);
 
@@ -93,14 +95,39 @@ test('a recorded session holds the keys, the touches, the screens and the specs,
   expect(session!.ended).toBe(true);
   expect(session!.header).toMatchObject({
     v: 1,
-    specs: { host: 'web', browser: expect.any(String), game: expect.any(String) },
+    // Revision 2, and a checksum of the sim the sample was made on.
+    specs: {
+      host: 'web',
+      browser: expect.any(String),
+      game: expect.any(String),
+      rec: 2,
+      sim: expect.stringMatching(/^[0-9a-f]{8}$/),
+    },
   });
   expect(String(session!.header['startedAt'])).toMatch(
     /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/,
   );
 
   const kinds = new Set(session!.events.map((e) => e['e']));
-  for (const k of ['rs', 'screen', 'key', 'ptr', 'opt', 'sub']) expect(kinds, k).toContain(k);
+  for (const k of ['rs', 'screen', 'key', 'ptr', 'opt', 'sub', 'touch', 'level', 'enter'])
+    expect(kinds, k).toContain(k);
+  const levels = session!.events.filter((e) => e['e'] === 'level');
+  const enters = session!.events.filter((e) => e['e'] === 'enter');
+  expect(levels).toHaveLength(1);
+  expect(enters).toHaveLength(1);
+  expect(enters[0]).toMatchObject({
+    id: levels[0]!['id'],
+    lives: expect.any(Number),
+    ammo: expect.any(Number),
+    lvh: expect.any(Number),
+  });
+  // The layout is written with the window, the insets and the whole spec, so the controls can be placed again.
+  expect(session!.events.find((e) => e['e'] === 'touch')).toMatchObject({
+    w: expect.any(Number),
+    h: expect.any(Number),
+    insets: { top: expect.any(Number) },
+    spec: { scale: expect.any(Number) },
+  });
   const keys = session!.events.filter((e) => e['e'] === 'key');
   expect(keys.some((e) => e['k'] === 'ArrowDown' && e['down'] === true)).toBe(true);
   expect(keys.some((e) => e['k'] === 'ArrowDown' && e['down'] === false)).toBe(true);

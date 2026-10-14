@@ -3,10 +3,12 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { summarise, type Summary } from './aggregate';
+import { parseSession, type Session } from '@lieutenant-fizz/engine/session/log';
+import { readZip, type ZipEntry } from '@lieutenant-fizz/engine/zip-read';
+import { findAttempts } from '../../../episodes/episode-1/src/replay/replayer';
+import { summarise, type Spot, type Summary } from './aggregate';
 import { boundsOf, drawPaths } from './charts';
-import { parseSession, type Session } from './session';
-import { readZip } from './zip-read';
+import { CommentsUi } from './comments-ui';
 
 /** Builds an element. Text is always set as text, never as markup: every name here comes from a file. */
 function h<K extends keyof HTMLElementTagNameMap>(
@@ -29,6 +31,84 @@ const $ = <T extends HTMLElement>(id: string): T => {
 };
 
 const sessions: Session[] = [];
+/** The files of each loaded zip, as they came, by the session's name. */
+const entriesBySession = new Map<string, readonly ZipEntry[]>();
+
+/** The hot spots of the loaded samples, worked out when they change (the replay reads them every frame). */
+let spotList: readonly Spot[] = [];
+
+/** The replay in the page, built the first time something is watched (it loads the game's sim and sprites). */
+let panel: import('./replay-panel').ReplayPanel | null = null;
+
+/** Counts the times the samples were cleared, so a Watch asked for before one is dropped when its code has loaded. */
+let clears = 0;
+
+const comments = new CommentsUi(
+  {
+    root: $('comments'),
+    form: $<HTMLFormElement>('comment-form'),
+    text: $<HTMLTextAreaElement>('comment-text'),
+    author: $<HTMLInputElement>('comment-author'),
+    pin: $<HTMLButtonElement>('comment-pin'),
+    place: $('comment-place'),
+    submit: $<HTMLButtonElement>('comment-submit'),
+    list: $('comment-list'),
+    exportBtn: $<HTMLButtonElement>('comments-export'),
+    status: $('comments-status'),
+  },
+  () => panel,
+  (s) => entriesBySession.get(s.id) ?? [],
+);
+
+// The c key starts a comment at the moment the replay is at, unless a field has the cursor.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'c' || e.ctrlKey || e.metaKey || e.altKey) return;
+  if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) return;
+  if (!panel?.open) return;
+  e.preventDefault();
+  comments.focusNew();
+});
+
+async function watch(session: Session, at: { order?: number; tick?: number }): Promise<void> {
+  const asked = clears;
+  const { ReplayPanel } = await import('./replay-panel');
+  if (asked !== clears) return;
+  panel ??= new ReplayPanel(
+    $('replay-section'),
+    $('replay-stage'),
+    $('replay-gl'),
+    () => spotList,
+    {
+      opened: (s) => comments.opened(s),
+      closed: () => comments.closed(),
+      pinned: (place) => comments.pinned(place),
+    },
+  );
+  if (!(await panel.watch(session, at))) {
+    $('problems').append(h('li', { text: `${session.name} has no level to watch` }));
+  }
+}
+
+/** A Watch button for a session (optionally at an attempt and a tick), left out when nothing in it can be replayed. */
+function watchButton(
+  session: Session,
+  at: { order?: number; tick?: number },
+  label: string,
+): HTMLElement | string {
+  // A button for one attempt needs that attempt to be replayable, not just some other attempt in the session.
+  const attempts = findAttempts(session);
+  const playable =
+    at.order === undefined ? attempts.some((a) => a.entry) : !!attempts[at.order]?.entry;
+  if (!playable) return '';
+  const b = h('button', { text: 'Watch' });
+  b.type = 'button';
+  b.setAttribute('aria-label', label);
+  b.addEventListener('click', () => void watch(session, at));
+  return b;
+}
+
+// A way for the browser tests to see where the replay is.
+(window as unknown as { __viewer: object }).__viewer = { replay: () => panel?.state() ?? null };
 
 /** Ticks as minutes and seconds. */
 export const clock = (ticks: number): string => {
@@ -106,6 +186,7 @@ function levelsTable(table: HTMLElement, summary: Summary): void {
 
 function render(): void {
   const summary = summarise(sessions);
+  spotList = summary.spots;
   $('results').hidden = sessions.length === 0;
   $('clear').hidden = sessions.length === 0;
 
@@ -113,9 +194,10 @@ function render(): void {
     ...sessions.map((s) =>
       h(
         'li',
-        {},
+        { class: 'spot-row' },
         h('b', { text: s.name }),
         ` started ${s.startedAt || 'at an unknown time'}, ${String(s.specs['browser'] ?? '?')} ${String(s.specs['browserVersion'] ?? '')} on ${String(s.specs['os'] ?? '?')}${s.skipped ? `, ${s.skipped} unreadable lines skipped` : ''}`,
+        watchButton(s, {}, `Watch ${s.name}`),
       ),
     ),
   );
@@ -124,9 +206,25 @@ function render(): void {
   bars($('buttons'), summary.buttons);
   bars($('causes'), summary.causes);
   $('spots').replaceChildren(
-    ...summary.spots
-      .slice(0, 12)
-      .map((s) => h('li', { text: `${s.level}, tile ${s.x}, ${s.y}: ${s.count} (${s.cause})` })),
+    ...summary.spots.slice(0, 12).map((s) => {
+      // Watching a spot goes to the first death there, a moment before it.
+      const ref = s.refs[0];
+      const session = ref ? sessions.find((x) => x.id === ref.session) : undefined;
+      return h(
+        'li',
+        { class: 'spot-row' },
+        `${s.level}, tile ${s.x}, ${s.y}: ${s.count} (${s.cause})`,
+        ...(ref && session
+          ? [
+              watchButton(
+                session,
+                { order: ref.order, tick: ref.tick },
+                `Watch a death at ${s.level}, tile ${s.x}, ${s.y}`,
+              ),
+            ]
+          : []),
+      );
+    }),
   );
   if (!summary.spots.length)
     $('spots').append(h('li', { class: 'note', text: 'No lives lost yet.' }));
@@ -168,15 +266,15 @@ async function load(files: FileList | File[]): Promise<void> {
   problems.replaceChildren();
   for (const file of Array.from(files)) {
     try {
-      const session = parseSession(
-        file.name,
-        await readZip(new Uint8Array(await file.arrayBuffer())),
-      );
+      const entries = await readZip(new Uint8Array(await file.arrayBuffer()));
+      const session = parseSession(file.name, entries);
       if (sessions.some((s) => s.id === session.id)) {
         problems.append(h('li', { text: `${file.name} is already loaded` }));
         continue;
       }
       sessions.push(session);
+      // The zip's own files are kept as they came, so an export can put them back byte for byte.
+      entriesBySession.set(session.id, entries);
     } catch (err) {
       problems.append(
         h('li', { text: err instanceof Error ? err.message : `${file.name} could not be read` }),
@@ -207,6 +305,9 @@ drop.addEventListener('drop', (e) => {
 });
 $('level').addEventListener('change', () => drawMap(summarise(sessions)));
 $('clear').addEventListener('click', () => {
+  // A replay of a sample that is no longer loaded closes with it.
+  clears += 1;
+  panel?.cancel();
   sessions.length = 0;
   $('problems').replaceChildren();
   render();

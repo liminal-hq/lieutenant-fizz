@@ -13,10 +13,26 @@ export type ShareOutcome = 'shared' | 'cancelled' | 'unknown' | 'failed';
 export type SaveOutcome = 'saved' | 'cancelled' | 'failed';
 
 /**
+ * How opening a file ended: the file's name and bytes, the player closing the dialog (a choice), a file larger than
+ * the limit asked for (left unread), or a failure.
+ */
+export type OpenOutcome =
+  | { status: 'opened'; name: string; bytes: Uint8Array }
+  | { status: 'cancelled' }
+  | { status: 'toolarge' }
+  | { status: 'failed' };
+
+/**
  * What the game saves a file with. The web build uses the browser; the apps swap in their own (the system
- * Save dialog, the share sheet). Both calls are made from a tap, since browsers only allow them from one.
+ * Save dialog, the share sheet). Each call is made from a tap, since browsers only allow them from one.
  */
 export interface FileSaver {
+  /**
+   * Opens the system file picker for a file the player chooses (by extension, without the dot) and reads it. With
+   * `maxBytes`, a file the picker reports as larger is not read, so a huge file cannot fill the page's memory; where
+   * the size cannot be known beforehand the caller still checks the bytes it gets.
+   */
+  open(extensions: readonly string[], maxBytes?: number): Promise<OpenOutcome>;
   /** Saves the file where the player chooses or to Downloads; resolves how it ended. */
   save(bytes: Uint8Array, name: string, mime: string): Promise<SaveOutcome>;
   /** Whether a share menu is available for a file. */
@@ -38,6 +54,8 @@ export interface WebSaverEnv {
   };
   File: typeof File;
   setTimeout(fn: () => void, ms: number): unknown;
+  /** Asks the player for a file (the page's file picker); resolves null when they close it. */
+  pickFile?: (accept: string) => Promise<File | null>;
 }
 
 /** The browser's own saver: a download through a link, and the Web Share sheet for a file where it exists. */
@@ -45,6 +63,21 @@ export function webSaver(env: WebSaverEnv): FileSaver {
   const fileOf = (bytes: Uint8Array, name: string, mime: string): File =>
     new env.File([bytes as BlobPart], name, { type: mime });
   return {
+    async open(extensions, maxBytes) {
+      try {
+        if (!env.pickFile) return { status: 'failed' };
+        const file = await env.pickFile(extensions.map((e) => `.${e}`).join(','));
+        if (!file) return { status: 'cancelled' };
+        if (maxBytes !== undefined && file.size > maxBytes) return { status: 'toolarge' };
+        return {
+          status: 'opened',
+          name: file.name,
+          bytes: new Uint8Array(await file.arrayBuffer()),
+        };
+      } catch {
+        return { status: 'failed' };
+      }
+    },
     async save(bytes, name, mime) {
       try {
         const url = env.URL.createObjectURL(new Blob([bytes as BlobPart], { type: mime }));
@@ -94,6 +127,28 @@ export function pageSaver(): FileSaver | null {
     navigator: navigator as unknown as WebSaverEnv['navigator'],
     File,
     setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+    pickFile: pickPageFile,
+  });
+}
+
+/**
+ * The page's file picker: a hidden file input, clicked from the tap that asked for it (browsers allow it only
+ * from one). It resolves null when the player closes the picker, in browsers that say so.
+ */
+function pickPageFile(accept: string): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.hidden = true;
+    const done = (file: File | null): void => {
+      input.remove();
+      resolve(file);
+    };
+    input.addEventListener('change', () => done(input.files?.[0] ?? null), { once: true });
+    input.addEventListener('cancel', () => done(null), { once: true });
+    document.body.append(input);
+    input.click();
   });
 }
 

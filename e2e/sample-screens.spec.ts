@@ -125,7 +125,13 @@ test('starting shows the REC mark, stopping hides it, and the sample is saved, l
 
   await choose(page, 'Saved samples', 'Saved samples');
   const rows = page.locator('#overlay .menu button');
-  await expect(rows).toHaveCount(2);
+  // The one sample, then Open a zip (a file can be picked here), then Back.
+  expect(await labels(page)).toEqual([
+    expect.stringMatching(/^[A-Z][a-z]{2} \d+, \d\d:\d\d$/),
+    'Open a zip',
+    'Back',
+  ]);
+  await expect(rows).toHaveCount(3);
   await expect(rows.first()).not.toContainText('Recording');
   await choose(page, await rows.first().locator('.lbl').innerText(), 'Saved sample');
   await expect(page.locator('#overlay .text')).toContainText('It was stopped normally');
@@ -155,7 +161,8 @@ test('starting shows the REC mark, stopping hides it, and the sample is saved, l
     'Enter',
     () => document.querySelector('#overlay h2')?.textContent === 'Saved samples',
   );
-  await expect(page.locator('#overlay .menu button')).toHaveCount(1);
+  // With the sample gone, Open a zip and Back are what is left.
+  await expect(page.locator('#overlay .menu button')).toHaveCount(2);
   expect(errors).toEqual([]);
 });
 

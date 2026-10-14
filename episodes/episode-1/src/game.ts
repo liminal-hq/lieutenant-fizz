@@ -16,12 +16,15 @@ import { GameHaptics, onScreen, routeFor } from '@lieutenant-fizz/engine/haptics
 import { detectHostKind, hostEnvOf, type HostBackend } from '@lieutenant-fizz/engine/host';
 import { readSpecs, specsEnvOf } from '@lieutenant-fizz/engine/session/specs';
 import type { SampleHandle } from './sample/start';
+import type { ReplayHost } from './replay/game-host';
+import type { Session } from '@lieutenant-fizz/engine/session/log';
 import type { FileSaver } from '@lieutenant-fizz/engine/file-save';
 import type { SampleStore, SessionInfo } from '@lieutenant-fizz/engine/session/store';
 import {
   ACTIVE_SAMPLE_KEY,
   CONSENT_PAGES,
   consentItems,
+  OPEN_ZIP_ID,
   reviewItems,
   reviewText,
   type ReviewDetail,
@@ -243,8 +246,9 @@ import { thumbDataUrl } from './thumb';
 import type { HapticsLab } from './ui/haptics-lab';
 import type { LabId, LabShell } from './ui/lab-shell';
 import type { SoundLab } from './ui/sound-lab';
-import { Ev, Mode, Out, RenderFlag, State, STEP, Table } from './sim/protocol';
-import { Sim } from './sim/sim';
+import { drawSimFrame, renderSim } from './sim/draw';
+import { Ev, Mode, Out, State, STEP, Table } from './sim/protocol';
+import { Sim, type SimEvent } from './sim/sim';
 import { defineSprites } from './sprites/catalog';
 import {
   CINE,
@@ -349,6 +353,10 @@ const PAUSE_NOTE =
 
 const TALL = { level: 13, map: 12, cine: CINE_TALL };
 /** Ben's body on the map is this many world units across (`Body::new(x, y, 0.6, 0.6)` in the game crate). */
+/** The largest zip, and the most it may hold once unpacked, that Open a zip will take as a play sample. */
+const SAMPLE_ZIP_MAX_BYTES = 64 * 1024 * 1024;
+const SAMPLE_ZIP_MAX_UNPACKED = 256 * 1024 * 1024;
+
 const BEN_BODY = 0.6;
 
 /** The Episode 1 game shell: boots the engine, runs the loop and drives the screen flow. */
@@ -576,6 +584,9 @@ export class Game {
   private reviewDetail: ReviewDetail | null = null;
   /** The system can share a file, so the open sample's screen offers Share. */
   private canShareSample = false;
+  /** The replay of a saved sample, while one is being watched (its code is loaded the first time). */
+  private replay: ReplayHost | null = null;
+  private replayStarting = false;
   /** What saves and shares a sample's zip: the browser's, until the apps bring their own. */
   private fileSaver: FileSaver | null = null;
   /** How many samples a crash or a closed app left open, found at launch. */
@@ -711,6 +722,7 @@ export class Game {
           const cap = touchWordCap(face[id].r * 2, TOUCH_WORD_GLYPHS[id]);
           this.touchUi.face(id).style.setProperty('--lf-word-cap', String(cap));
         }
+        this.noteTouchLayout();
       },
     });
     ui.setTouchOpacity(this.touchSettings.opacity);
@@ -929,7 +941,14 @@ export class Game {
     }
 
     const mode = sim.x.mode();
-    const tall = screen === 'cine' ? TALL.cine : mode === Mode.MAP ? TALL.map : TALL.level;
+    // A replay always shows a level, whatever the live game (which may be on the map behind the pause menu) is on.
+    const tall = this.replay
+      ? TALL.level
+      : screen === 'cine'
+        ? TALL.cine
+        : mode === Mode.MAP
+          ? TALL.map
+          : TALL.level;
     const r = this.renderer;
     // Fast picks its backing from the screen's target, so tell the renderer before the view is read.
     r.setTarget(tall);
@@ -964,6 +983,16 @@ export class Game {
       this.halfW = this.view.halfW;
       this.halfH = this.view.halfH;
       this.pixelScale = this.view.scale;
+    }
+    // A replay draws and listens for itself: the live game is not stepped, saved or recorded while it is up.
+    const replay = this.replay;
+    if (replay) {
+      const bits = this.input.peek();
+      // Reading the pad can raise its Pause, whose handler closes the replay: nothing is left to draw then.
+      if (this.replay === replay) replay.frame(dt, bits, { halfW: this.halfW, halfH: this.halfH });
+      this.lastBits = bits;
+      this.input.markTouchSeen();
+      return;
     }
     sim.x.set_view(this.halfW, this.halfH);
 
@@ -1004,19 +1033,19 @@ export class Game {
     } else if (screen === 'credits') {
       this.stepper.reset();
       this.alpha = 1;
-      sim.drainEvents().forEach((e) => this.onEvent(e));
+      this.drainSim().forEach((e) => this.onEvent(e));
       this.tickCredits(dt);
     } else if (screen === 'stinger') {
       this.stepper.reset();
       this.alpha = 1;
-      sim.drainEvents().forEach((e) => this.onEvent(e));
+      this.drainSim().forEach((e) => this.onEvent(e));
       this.tickStinger(dt);
     } else if (screen === 'cine') {
       this.alpha = this.stepper.advance(dt, () => this.cine.tick(STEP));
     } else {
       this.stepper.reset();
       this.alpha = 1;
-      sim.drainEvents().forEach((e) => this.onEvent(e));
+      this.drainSim().forEach((e) => this.onEvent(e));
     }
     if (this.touchMode) this.touchUi.frame(performance.now());
     this.haptics.flush();
@@ -1051,66 +1080,41 @@ export class Game {
 
   private draw(): void {
     const sim = this.sim;
-    let flags = 0;
-    if (this.opts.night) flags |= RenderFlag.NIGHT;
-    if (this.opts.culling) flags |= RenderFlag.CULLING;
-    if (this.opts.stress) flags |= RenderFlag.STRESS;
-    sim.render(this.alpha, flags);
-    const o = sim.out;
-    let count = o[Out.COUNT] ?? 0;
-    let camX = o[Out.CAM_X] ?? 0;
-    let camY = o[Out.CAM_Y] ?? 0;
-    let clear: [number, number, number, number] = [
-      o[Out.CLEAR_R] ?? 0,
-      o[Out.CLEAR_G] ?? 0,
-      o[Out.CLEAR_B] ?? 0,
-      o[Out.CLEAR_A] ?? 1,
-    ];
-    let ambient: [number, number, number] = [
-      o[Out.AMB_R] ?? 1,
-      o[Out.AMB_G] ?? 1,
-      o[Out.AMB_B] ?? 1,
-    ];
-    let lighting = (o[Out.LIGHTING] ?? 0) > 0.5 && this.opts.lighting && !this.flatDraw;
-    let lightCount = o[Out.LIGHTS] ?? 0;
-    let sky = (o[Out.SKY_GLOW] ?? 0) > 0.5;
+    let frame = renderSim(sim, this.alpha, {
+      night: this.opts.night,
+      culling: this.opts.culling,
+      stress: this.opts.stress,
+      lighting: this.opts.lighting && !this.flatDraw,
+    });
     const buf = sim.instanceBuffer;
     if (this.screen === 'cine') {
       this.writer.rebind(buf);
       this.writer.reset();
       this.cine.draw(this.writer);
-      count = this.writer.n;
-      camX = 0;
-      camY = 0;
-      clear = [0, 0, 0, 1];
-      ambient = [1, 1, 1];
-      lighting = false;
-      lightCount = 0;
-      sky = false;
+      frame = {
+        count: this.writer.n,
+        camX: 0,
+        camY: 0,
+        clear: [0, 0, 0, 1],
+        ambient: [1, 1, 1],
+        lighting: false,
+        lightCount: 0,
+        sky: false,
+      };
     }
-    this.ui.setSky(sky);
-    const info = this.renderer.render({
-      instances: buf,
-      count,
-      camX,
-      camY,
+    this.ui.setSky(frame.sky);
+    const info = drawSimFrame(this.renderer, sim, buf, frame, {
       halfW: this.halfW,
       halfH: this.halfH,
-      clear,
-      ambient,
-      lighting,
       normals: this.opts.normals,
       poster: this.opts.poster,
-      lightCount,
-      lightPos: sim.lightPos,
-      lightCol: sim.lightCol,
     });
     this.lastCount = info.instances;
     this.lastCalls = info.calls;
-    this.camDrawn.x = camX;
-    this.camDrawn.y = camY;
+    this.camDrawn.x = frame.camX;
+    this.camDrawn.y = frame.camY;
     if (this.touchMode && this.ui.promptShown) {
-      this.ui.dockPrompt(this.benAnchor(camX, camY), this.touchUi.boxes());
+      this.ui.dockPrompt(this.benAnchor(frame.camX, frame.camY), this.touchUi.boxes());
     }
   }
 
@@ -1137,12 +1141,20 @@ export class Game {
   // ---------- Events from the sim ----------
 
   private handleEvents(): void {
-    for (const e of this.sim.drainEvents()) this.onEvent(e);
+    for (const e of this.drainSim()) this.onEvent(e);
+  }
+
+  /**
+   * Empties the sim's event queue. A play sample has written every event a step raised already (at that step's
+   * tick); it first writes any that no step raised, so each is recorded once.
+   */
+  private drainSim(): SimEvent[] {
+    this.sample?.sample.beforeDrain();
+    return this.sim.drainEvents();
   }
 
   private onEvent(e: { kind: number; a: number; b: number; c: number }): void {
     const sim = this.sim;
-    this.sample?.sample.simEvent(e);
     switch (e.kind) {
       case Ev.CAPTION:
         this.caption(e.a, e.b, e.c);
@@ -1432,6 +1444,12 @@ export class Game {
 
   private onCommand(c: Command): void {
     if (this.peek.active) return;
+    // While a replay is up, Esc or Pause takes it down and nothing else reaches the game under it.
+    if (this.replay) {
+      if (c.type === 'pause') this.replay.close();
+      else if (c.type === 'confirm') this.replay.togglePlay();
+      return;
+    }
     switch (c.type) {
       case 'confirm':
         if (this.screen !== 'play') this.input.discardLatched();
@@ -1754,6 +1772,11 @@ export class Game {
 
   /** Pauses a level in play, for when the page hides or the phone is turned upright. */
   private autoPause(): void {
+    // A replay that loses the window holds where it is.
+    if (this.replay) {
+      this.replay.pause();
+      return;
+    }
     if (this.screen !== 'play') return;
     this.screen = 'pause';
     this.menuIdx = 0;
@@ -2003,12 +2026,17 @@ export class Game {
       });
     if (this.sub === 'sampleInfo') return consentItems(this.consentPage);
     if (this.sub === 'samples')
-      return sessionItems(this.sampleList, this.sample?.recorder.sessionId ?? '');
+      return sessionItems(
+        this.sampleList,
+        this.sample?.recorder.sessionId ?? '',
+        this.fileSaver !== null,
+      );
     if (this.sub === 'sampleReview')
       return reviewItems({
         armed: resetArmed(this.resetAt, performance.now()),
         recording: this.sample?.recorder.sessionId === this.reviewId,
         canShare: this.canShareSample,
+        canWatch: (this.reviewDetail?.kinds['level'] ?? 0) > 0,
       });
     if (this.sub === 'saves') return this.slotItems();
     if (this.sub === 'touchEdit') return [];
@@ -2463,6 +2491,7 @@ export class Game {
   private applyTouchSettings(next: TouchSettings): void {
     this.touchSettings = next;
     this.touchUi.setSpec(touchSpec(next, undefined, this.chromeless()));
+    this.noteTouchLayout();
     this.ui.setTouchOpacity(next.opacity);
     this.ui.setTouchGutters(this.touchGutters());
     writeTouchSettings(this.store, next);
@@ -2687,6 +2716,7 @@ export class Game {
     if (this.sub === 'samples') {
       const session = sessionOf(id);
       if (id === 'back') this.closeSub();
+      else if (id === OPEN_ZIP_ID) void this.openZip();
       else if (session) {
         this.reviewId = session;
         this.reviewDetail = null;
@@ -2701,6 +2731,7 @@ export class Game {
       else if (id === 'review:delete') this.tapDeleteSample();
       else if (id === 'review:save') void this.saveReviewZip(false);
       else if (id === 'review:share') void this.saveReviewZip(true);
+      else if (id === 'review:watch') void this.watchSample(this.reviewId);
       return;
     }
     if (this.sub === 'options') {
@@ -2760,7 +2791,8 @@ export class Game {
 
   /** The Back button: closes the screen opened over the title or the pause menu, or resumes from the pause menu itself. */
   private backFromSub(): void {
-    if (this.sub) this.closeSub();
+    if (this.replay) this.replay.close();
+    else if (this.sub) this.closeSub();
     else if (this.screen === 'pause') {
       this.audio.play('click');
       this.haptics.ui('back');
@@ -2773,6 +2805,10 @@ export class Game {
    * what Back means on the screen showing, as `backAction` says.
    */
   back(): void {
+    if (this.replay) {
+      this.replay.close();
+      return;
+    }
     switch (backAction(this.screen, this.sub)) {
       case 'close':
         this.closeSub();
@@ -2925,6 +2961,7 @@ export class Game {
   /** Places the controls again when fullscreen or an installed display mode comes or goes. */
   private syncLift(): void {
     this.touchUi.setSpec(touchSpec(this.touchSettings, undefined, this.chromeless()));
+    this.noteTouchLayout();
     this.ui.setTouchGutters(this.touchGutters());
   }
 
@@ -3102,6 +3139,8 @@ export class Game {
   enterMap(): void {
     window.clearTimeout(this.completeTimer);
     this.sim.x.enter_map();
+    // The map's prompt waits in the sim's queue for the next frame; a sample writes it at this tick, not the next.
+    this.sample?.sample.outsideStep();
     this.screen = 'play';
     this.card = null;
     this.bossHp = null;
@@ -3879,6 +3918,9 @@ export class Game {
         {
           view: {
             get: (i) => this.sim.get(i),
+            eventCount: () => this.sim.eventCount,
+            eventsSince: (from) => this.sim.eventsSince(from),
+            levelHash: (id) => this.sim.levelHash(id),
             inLevel: () => this.sim.x.mode() === Mode.LEVEL,
             levelName: (id) => LEVELS[id]?.name ?? '',
             captionName: (i) => this.captionNames[i] ?? '',
@@ -3901,6 +3943,7 @@ export class Game {
       handle.sample.screen(this.screen);
       handle.sample.sub(this.sub);
       handle.sample.settings(this.settings);
+      this.noteTouchLayout();
       return true;
     } catch (err) {
       console.warn('The play sample could not start', err);
@@ -3908,6 +3951,13 @@ export class Game {
     } finally {
       this.sampleStarting = false;
     }
+  }
+
+  /** Tells a running play sample where the touch controls are (it writes only a change). */
+  private noteTouchLayout(): void {
+    const running = this.sample;
+    if (!running) return;
+    running.sample.touch(this.touchUi.layoutInfo());
   }
 
   /** Stops the play sample, writing what is waiting. Resolves when it is stored. */
@@ -3944,6 +3994,15 @@ export class Game {
     }
     const current = this.sample?.recorder.sessionId ?? '';
     this.leftOpen = this.sampleList.filter((s) => !s.ended && s.id !== current).length;
+    // Asked here, so the list can offer Open a zip at once and the picker opens from the tap that chooses it.
+    if (this.fileSaver === null) {
+      try {
+        const { openSaver } = await import('@lieutenant-fizz/engine/file-save');
+        this.fileSaver = await openSaver();
+      } catch (err) {
+        console.warn('Opening files is not available here', err);
+      }
+    }
     this.syncUi();
   }
 
@@ -3974,6 +4033,161 @@ export class Game {
       console.warn('A play sample could not be read', err);
     }
     this.syncUi();
+  }
+
+  /**
+   * Opens the replay of a saved sample, loading its code the first time. It runs on a sim of its own, so the live
+   * game (its map, its level, its saves) is left as it was, and nothing is recorded or written while it is up.
+   */
+  private async watchSample(id: string, paused = false): Promise<void> {
+    if (!id) return;
+    await this.startReplay(async () => {
+      const { sessionFromStore } = await import('@lieutenant-fizz/engine/session/log');
+      const read = await (await this.sampleStoreFor()).read(id);
+      if (!read) {
+        this.ui.toast('That sample is gone');
+        return null;
+      }
+      return sessionFromStore(id, read);
+    }, paused);
+  }
+
+  /**
+   * Opens a sample zip the player picks (someone else's, or one saved earlier) and watches it. The zip is read in
+   * the page and not stored: nothing about it is kept once the replay is closed.
+   */
+  private async openZip(): Promise<void> {
+    if (this.replay || this.replayStarting) return;
+    const { openSaver } = await import('@lieutenant-fizz/engine/file-save');
+    const saver = (this.fileSaver ??= await openSaver());
+    if (!saver) {
+      this.ui.toast('This device cannot open a file');
+      return;
+    }
+    const got = await saver.open(['zip'], SAMPLE_ZIP_MAX_BYTES);
+    // Closing the dialog is a choice, so it says nothing.
+    if (got.status === 'cancelled') return;
+    if (got.status === 'toolarge') {
+      this.ui.toast('That file is too large to be a play sample');
+      return;
+    }
+    if (got.status === 'failed') {
+      this.ui.toast('The file could not be opened');
+      return;
+    }
+    // A play sample is a few megabytes; a file far past that is not one, and is not unpacked.
+    if (got.bytes.length > SAMPLE_ZIP_MAX_BYTES) {
+      this.ui.toast('That file is too large to be a play sample');
+      return;
+    }
+    await this.startReplay(async () => {
+      const [{ parseSession }, { readZip }] = await Promise.all([
+        import('@lieutenant-fizz/engine/session/log'),
+        import('@lieutenant-fizz/engine/zip-read'),
+      ]);
+      try {
+        return parseSession(
+          got.name,
+          await readZip(got.bytes, { maxTotal: SAMPLE_ZIP_MAX_UNPACKED }),
+        );
+      } catch {
+        this.ui.toast('That file is not a play sample');
+        return null;
+      }
+    }, false);
+  }
+
+  /** Starts the replay of the session `getSession` gives (null when there is none, having said why). */
+  private async startReplay(
+    getSession: () => Promise<Session | null>,
+    paused: boolean,
+  ): Promise<void> {
+    if (this.replay || this.replayStarting) return;
+    this.replayStarting = true;
+    // Where the player was when they asked: if they have gone elsewhere by the time the code, the sample and the
+    // sim have loaded, the replay is not opened over the new screen.
+    const askedOn = { sub: this.sub, review: this.reviewId, screen: this.screen };
+    const stillThere = (): boolean =>
+      this.sub === askedOn.sub &&
+      this.reviewId === askedOn.review &&
+      this.screen === askedOn.screen;
+    try {
+      const host = await import('./replay/game-host');
+      const session = await getSession();
+      if (!session) return;
+      if (!host.canReplay(session)) {
+        this.ui.toast('There is no level in this sample to watch');
+        return;
+      }
+      const sim = await Sim.load(simUrl);
+      if (!stillThere()) return;
+      sim.setSprites(this.atlas.rects);
+      this.ui.stage.dataset.replay = 'on';
+      this.replay = new host.ReplayHost({
+        sim,
+        session,
+        renderer: this.renderer,
+        gl: this.ui.gl,
+        mount: (node) => this.ui.mount(node),
+        drawOptions: () => ({
+          night: this.opts.night,
+          culling: this.opts.culling,
+          stress: this.opts.stress,
+          lighting: this.opts.lighting,
+          normals: this.opts.normals,
+          poster: this.opts.poster,
+        }),
+        playCaption: (captionId, x, y, cam) => {
+          const text = this.captionNames[captionId];
+          if (!text) return;
+          // As the game does: only Enhanced places a sound, so Classic is untouched.
+          const at =
+            this.audio.mode === 'enhanced'
+              ? placeSound(x, y, cam, { w: this.halfW, h: this.halfH })
+              : undefined;
+          this.audio.caption(text, at);
+        },
+        captionText: (captionId) => this.captionNames[captionId] ?? '',
+        paused,
+        held: this.lastBits,
+        onClose: () => {
+          this.replay = null;
+          delete this.ui.stage.dataset.replay;
+          this.syncUi();
+        },
+      });
+    } catch (err) {
+      console.warn('A play sample could not be watched', err);
+      this.replay = null;
+      delete this.ui.stage.dataset.replay;
+      this.ui.toast('That sample could not be watched');
+    } finally {
+      this.replayStarting = false;
+    }
+  }
+
+  /** Test hook: watches a saved sample (the newest, when none is named), optionally held at the start. */
+  async debugWatch(id?: string, paused = false): Promise<boolean> {
+    const list = await (await this.sampleStoreFor()).list();
+    await this.watchSample(id ?? list[list.length - 1]?.id ?? '', paused);
+    return this.replay !== null;
+  }
+
+  /** Test hook: what the replay is doing, or null when none is up. */
+  get debugReplay(): {
+    tick: number;
+    playing: boolean;
+    layers: string[];
+    drift: string | null;
+  } | null {
+    const r = this.replay;
+    if (!r) return null;
+    return {
+      tick: r.tick,
+      playing: r.playing,
+      layers: r.layersOn(),
+      drift: r.drift ? `${r.drift.kind}@${r.drift.tick}` : null,
+    };
   }
 
   /** Builds the open sample's zip and saves it (or opens the share menu with it), then says what happened. */
@@ -4050,6 +4264,9 @@ export class Game {
     const t = this.touchSettings;
     return readSpecs(specsEnvOf(detectHostKind(hostEnvOf())), {
       game: GAME_VERSION,
+      // The recording's revision, and a checksum of the sim it was made on (the same checksum, the same rules).
+      rec: 2,
+      sim: this.sim.wasmCrc,
       size: t.size,
       opacity: t.opacity,
       leftHanded: t.leftHanded,

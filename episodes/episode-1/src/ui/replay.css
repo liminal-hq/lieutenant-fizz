@@ -1,0 +1,154 @@
+/* The replay screen: the game's menus, HUD and touch controls step aside while a saved sample is watched. */
+[data-replay='on']
+  :is(
+    #title,
+    #overlay,
+    #hud,
+    #boss,
+    #prompt,
+    #touch,
+    #controls,
+    #dialogue,
+    #panelBtn,
+    #panel,
+    #backBtn,
+    #touchEdit,
+    #attractFade,
+    #attractTag
+  ) {
+  display: none !important;
+}
+
+#replay {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  font-family: var(--lf-font);
+  color: var(--lf-text);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+/* The layers canvas sits over the game's canvas, in the same box. */
+.replay-layers {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+.replay-info,
+.replay-banner,
+.replay-bar {
+  position: absolute;
+  padding: 8px 12px;
+  background: var(--lf-panel);
+  border: 2px solid var(--lf-border);
+  border-radius: 4px;
+}
+
+.replay-info {
+  top: calc(var(--lf-safe-top) + 8px);
+  left: calc(var(--lf-safe-left) + 8px);
+  /* The width is a share of the screen, not of the text, so a smaller font makes it shorter, not narrower. */
+  max-width: 45vw;
+  padding: 3px 6px;
+  font-size: 9px;
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+.replay-banner {
+  top: calc(var(--lf-safe-top) + 8px);
+  right: calc(var(--lf-safe-right) + 8px);
+  max-width: min(46ch, 38vw);
+  border-color: var(--lf-accent);
+  color: var(--lf-text);
+}
+
+.replay-bar {
+  left: calc(var(--lf-safe-left) + 8px);
+  right: calc(var(--lf-safe-right) + 8px);
+  bottom: calc(var(--lf-safe-bottom) + 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: opacity 0.2s;
+}
+
+/* While playing the bar steps back after a few seconds; a touch or a key brings it back. */
+.replay-bar[data-idle='true'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.replay-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.replay-btn {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 12px;
+  font-family: var(--lf-font);
+  font-size: 14px;
+  color: var(--lf-text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid var(--lf-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.replay-btn:focus-visible {
+  outline: 3px solid var(--lf-accent);
+  outline-offset: 2px;
+}
+
+.replay-btn[aria-pressed='true'],
+.replay-btn[aria-expanded='true'] {
+  background: var(--lf-accent);
+  color: var(--lf-ink);
+  border-color: var(--lf-accent);
+}
+
+.replay-scrub {
+  flex: 1 1 200px;
+  min-height: 48px;
+  accent-color: var(--lf-accent);
+}
+
+.replay-clock {
+  min-width: 11ch;
+  text-align: right;
+  color: var(--lf-muted);
+}
+
+.replay-sheet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* A hidden panel stays hidden: the display above would otherwise win over the hidden attribute. */
+.replay-sheet[hidden],
+.replay-banner[hidden] {
+  display: none;
+}
+
+/* A phone held sideways has little height: the buttons keep their size and the words tighten. */
+@media (max-height: 460px) {
+  .replay-banner {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+  .replay-info {
+    font-size: 8px;
+  }
+  .replay-bar {
+    padding: 4px 8px;
+    gap: 2px;
+  }
+}

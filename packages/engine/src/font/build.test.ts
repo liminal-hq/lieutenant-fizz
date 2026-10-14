@@ -54,7 +54,7 @@ describe('font metrics', () => {
   it('has the same glyph count in every face', () => {
     const counts = FACES.map((f) => parse(f).glyphs.length);
     expect(new Set(counts).size).toBe(1);
-    expect(counts[0]).toBe(309);
+    expect(counts[0]).toBe(311);
   });
 
   it('advances ordinary glyphs by their width plus one pixel', () => {

@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { crc32 } from '@lieutenant-fizz/engine/crc32';
 import { loadWasm, MemoryViews } from '@lieutenant-fizz/engine/wasm';
 import { Out, STRIDE, Table } from './protocol';
 
@@ -26,6 +27,9 @@ export interface SimExports {
   game_new(): void;
   load_attract(idx: number, still: number): void;
   enter_level(id: number): void;
+  level_hash(id: number): number;
+  shot_count(): number;
+  shot_get(i: number, field: number): number;
   enter_map(): void;
   enter_none(): void;
   set_view(halfW: number, halfH: number): void;
@@ -68,16 +72,34 @@ export class Sim {
   /** Capacity of the instance buffer, in instances. */
   readonly capacity: number;
 
-  private constructor(x: SimExports) {
+  /**
+   * A checksum (CRC-32, eight hex digits) of the WASM module's bytes. Two builds with the same checksum run the
+   * same rules, so a recording can say which build it was made on.
+   */
+  readonly wasmCrc: string;
+
+  private constructor(x: SimExports, wasmCrc: string) {
     this.x = x;
+    this.wasmCrc = wasmCrc;
     this.views = new MemoryViews(x.memory);
     this.capacity = x.instance_capacity();
     if (x.stride() !== STRIDE) throw new Error(`instance stride mismatch: wasm ${x.stride()}`);
   }
 
   static async load(source: string | URL | BufferSource): Promise<Sim> {
-    const { exports } = await loadWasm<SimExports>(source);
-    return new Sim(exports);
+    let bytes: BufferSource;
+    if (typeof source === 'string' || source instanceof URL) {
+      const res = await fetch(source);
+      if (!res.ok) throw new Error(`Failed to fetch ${String(source)}: ${res.status}`);
+      bytes = await res.arrayBuffer();
+    } else {
+      bytes = source;
+    }
+    const view = ArrayBuffer.isView(bytes)
+      ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+      : new Uint8Array(bytes);
+    const { exports } = await loadWasm<SimExports>(bytes);
+    return new Sim(exports, (crc32(view) >>> 0).toString(16).padStart(8, '0'));
   }
 
   /** Names of every entry in a Rust-owned table (sprites, captions, toasts). */
@@ -97,6 +119,30 @@ export class Sim {
     const w = this.x.thumb_w();
     const h = this.x.thumb_h();
     return { w, h, cells: this.views.u8('thumb', this.x.thumb_ptr(), w * h) };
+  }
+
+  /**
+   * A fingerprint of a level's tiles and what is placed in it. It changes when the level is edited, so a
+   * recording can tell its level is no longer the one it was made on. It does not cover the rules.
+   */
+  levelHash(id: number): number {
+    return this.x.level_hash(id) >>> 0;
+  }
+
+  /** Where Ben's fizz bubbles are and how they are moving, in tiles and tiles a second. Enemy shots are left out. */
+  benShots(): { x: number; y: number; vx: number; vy: number }[] {
+    const out: { x: number; y: number; vx: number; vy: number }[] = [];
+    const n = this.x.shot_count();
+    for (let i = 0; i < n; i += 1) {
+      if (this.x.shot_get(i, 4) !== 1) continue;
+      out.push({
+        x: this.x.shot_get(i, 0),
+        y: this.x.shot_get(i, 1),
+        vx: this.x.shot_get(i, 2),
+        vy: this.x.shot_get(i, 3),
+      });
+    }
+    return out;
   }
 
   /** The overworld area id at a tile position. */
@@ -147,13 +193,21 @@ export class Sim {
     return this.views.f32('lcol', this.x.lights_col_ptr(), 48);
   }
 
-  /** Drains the event queue. */
-  drainEvents(): SimEvent[] {
+  /** How many events are waiting in the queue. */
+  get eventCount(): number {
+    return this.x.events_len();
+  }
+
+  /**
+   * The queued events from the `from`th on, leaving the queue as it is: `drainEvents` still delivers every one.
+   * A recording reads each step's new events with this, so each is stamped with the tick of the step that raised it.
+   */
+  eventsSince(from: number): SimEvent[] {
     const n = this.x.events_len();
-    if (n === 0) return [];
+    if (from >= n) return [];
     const f = this.views.f32('events', this.x.events_ptr(), n * EVENT_STRIDE);
     const list: SimEvent[] = [];
-    for (let i = 0; i < n; i++) {
+    for (let i = Math.max(0, from); i < n; i++) {
       const o = i * EVENT_STRIDE;
       list.push({
         kind: f[o] ?? 0,
@@ -164,7 +218,13 @@ export class Sim {
         e: f[o + 5] ?? 0,
       });
     }
-    this.x.events_clear();
+    return list;
+  }
+
+  /** Drains the event queue. */
+  drainEvents(): SimEvent[] {
+    const list = this.eventsSince(0);
+    if (list.length) this.x.events_clear();
     return list;
   }
 

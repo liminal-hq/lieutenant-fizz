@@ -218,6 +218,81 @@ pub struct LevelData {
     pub rooms: Vec<Room>,
 }
 
+/// A 32-bit FNV-1a hash, built up byte by byte; used to fingerprint a level.
+struct Fnv(u32);
+
+impl Fnv {
+    fn new() -> Self {
+        Fnv(0x811c_9dc5)
+    }
+
+    fn byte(&mut self, b: u8) {
+        self.0 = (self.0 ^ u32::from(b)).wrapping_mul(0x0100_0193);
+    }
+
+    fn u32(&mut self, v: u32) {
+        v.to_le_bytes().into_iter().for_each(|b| self.byte(b));
+    }
+
+    fn f64(&mut self, v: f64) {
+        v.to_bits()
+            .to_le_bytes()
+            .into_iter()
+            .for_each(|b| self.byte(b));
+    }
+}
+
+impl LevelData {
+    /// A fingerprint of what the level is made of: its tiles and what is placed in it (spawns, items,
+    /// platforms, the start, the arena and the hidden rooms). It changes when a level is edited, so a
+    /// recording can tell its level is no longer the one it was made on. It does not cover the rules
+    /// (physics, enemy behaviour), which a build stamp covers, nor the theme, which only changes looks.
+    pub fn fingerprint(&self) -> u32 {
+        let mut h = Fnv::new();
+        h.byte(self.id);
+        h.byte(self.area);
+        h.u32(self.map.w as u32);
+        h.u32(self.map.h as u32);
+        self.map.data.iter().for_each(|&b| h.byte(b));
+        h.u32(self.map.switches);
+        h.byte(u8::from(self.map.floor_solid));
+        for s in &self.spawns {
+            h.byte(s.kind as u8);
+            h.f64(s.x);
+            h.f64(s.y);
+            h.f64(s.dir);
+            h.byte(u8::from(s.ride));
+        }
+        for i in &self.items {
+            h.byte(i.kind as u8);
+            h.f64(i.x);
+            h.f64(i.y);
+        }
+        for p in &self.plats {
+            for v in [
+                p.x, p.y, p.w, p.h, p.ax, p.ay, p.bx, p.by, p.speed, p.ph, p.dwell,
+            ] {
+                h.f64(v);
+            }
+        }
+        h.f64(self.start.0);
+        h.f64(self.start.1);
+        if let Some(a) = &self.arena {
+            h.byte(1);
+            h.f64(a.x0);
+            h.f64(a.x1);
+            h.f64(a.floor);
+        }
+        for r in &self.rooms {
+            for v in [r.x0, r.y0, r.x1, r.y1] {
+                h.u32(v as u32);
+            }
+            h.byte(u8::from(r.secret));
+        }
+        h.0
+    }
+}
+
 enum Seg {
     Flat,
     Up,

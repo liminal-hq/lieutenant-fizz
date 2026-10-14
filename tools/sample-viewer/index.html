@@ -26,6 +26,35 @@
         <button id="clear" type="button" hidden>Clear all</button>
       </section>
 
+      <section id="replay-section" aria-labelledby="replay-h" hidden>
+        <h2 id="replay-h">Replay</h2>
+        <div id="replay-stage"><div id="replay-gl"></div></div>
+        <p class="note">
+          The game’s own replay, run in this page on the sample’s presses. It checks itself against
+          what was recorded and says where it stops matching.
+        </p>
+
+        <div id="comments" hidden>
+          <h3 id="comments-h">Comments</h3>
+          <form id="comment-form" aria-labelledby="comments-h">
+            <label for="comment-text">A comment at this moment (press c to start one)</label>
+            <textarea id="comment-text" rows="3"></textarea>
+            <div class="spot-row">
+              <label for="comment-author">Your name</label>
+              <input id="comment-author" type="text" autocomplete="off" />
+              <button id="comment-pin" type="button">Choose a place</button>
+              <button id="comment-submit" type="submit">Add comment</button>
+            </div>
+            <p class="note" id="comment-place" aria-live="polite"></p>
+          </form>
+          <ol id="comment-list"></ol>
+          <div class="spot-row">
+            <button id="comments-export" type="button">Export with comments</button>
+            <span id="comments-status" class="note" role="status"></span>
+          </div>
+        </div>
+      </section>
+
       <div id="results" hidden>
         <section aria-labelledby="levels-h">
           <h2 id="levels-h">Levels</h2>

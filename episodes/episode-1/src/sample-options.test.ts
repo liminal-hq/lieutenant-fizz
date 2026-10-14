@@ -11,6 +11,7 @@ import {
   CONSENT_PAGES,
   consentItems,
   eventsText,
+  OPEN_ZIP_ID,
   reviewItems,
   reviewText,
   sampleItems,
@@ -147,6 +148,16 @@ describe('sessionItems', () => {
     expect(sessionOf(items[0]?.id)).toBe('now');
   });
 
+  it('offers Open a zip before Back where a file can be picked, and not otherwise', () => {
+    expect(sessionItems([], '').map((i) => i.label)).toEqual(['Back']);
+    expect(sessionItems([], '', true).map((i) => i.label)).toEqual(['Open a zip', 'Back']);
+    const rows = sessionItems([info({ id: 'x' })], '', true);
+    expect(rows).toHaveLength(3);
+    expect(rows.slice(1).map((i) => i.label)).toEqual(['Open a zip', 'Back']);
+    expect(rows[1]?.id).toBe(OPEN_ZIP_ID);
+    expect(sessionOf(OPEN_ZIP_ID)).toBeNull();
+  });
+
   it('shows only Back while reading, and round-trips ids', () => {
     expect(sessionItems(null, '')).toEqual([{ id: 'back', label: 'Back', value: 'Reading…' }]);
     expect(sessionOf(sessionRowId('x'))).toBe('x');
@@ -156,7 +167,7 @@ describe('sessionItems', () => {
 });
 
 describe('the screen for one sample', () => {
-  const state = { armed: false, recording: false, canShare: false };
+  const state = { armed: false, recording: false, canShare: false, canWatch: false };
 
   it('offers Save zip, Delete that asks twice, and Back, and Share only where there is a share menu', () => {
     expect(reviewItems(state).map((i) => i.label)).toEqual(['Save zip', 'Delete', 'Back']);
@@ -171,9 +182,19 @@ describe('the screen for one sample', () => {
     ).toBe('Tap again');
   });
 
-  it('cannot save, share or delete the sample being recorded', () => {
-    const rows = reviewItems({ ...state, recording: true, canShare: true });
-    for (const id of ['review:save', 'review:share', 'review:delete'])
+  it('offers Watch first, only for a sample with a level in it', () => {
+    expect(reviewItems({ ...state, canWatch: true }).map((i) => i.label)).toEqual([
+      'Watch',
+      'Save zip',
+      'Delete',
+      'Back',
+    ]);
+    expect(reviewItems(state).some((i) => i.id === 'review:watch')).toBe(false);
+  });
+
+  it('cannot watch, save, share or delete the sample being recorded', () => {
+    const rows = reviewItems({ ...state, recording: true, canShare: true, canWatch: true });
+    for (const id of ['review:watch', 'review:save', 'review:share', 'review:delete'])
       expect(rows.find((i) => i.id === id)?.disabled).toBe(true);
     expect(rows.find((i) => i.id === 'review:back')?.disabled).toBeUndefined();
   });

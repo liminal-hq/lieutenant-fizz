@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { Session } from './session';
+import type { Session, SessionEvent } from '@lieutenant-fizz/engine/session/log';
 
 export type Outcome = 'clear' | 'died' | 'left' | 'open';
 
@@ -11,11 +11,15 @@ export interface PathPoint {
   x: number;
   y: number;
   t: number;
+  /** Whether the pogo stick was on at this point. */
+  pogo?: boolean;
 }
 
 export interface Attempt {
-  /** The session it came from, by file name. */
+  /** The session it came from, by its id (two files can have the same name). */
   session: string;
+  /** Where it is among the session's attempts, from 0: the same as its place among the replay's attempts. */
+  order: number;
   levelId: number;
   level: string;
   /** Which try at this level in its session, from 1. */
@@ -26,7 +30,7 @@ export interface Attempt {
   ticks: number;
   outcome: Outcome;
   /** Where and how Ben died, when he did. */
-  death?: { cause: number; detail: number; x: number; y: number };
+  death?: { cause: number; detail: number; x: number; y: number; tick: number };
   path: PathPoint[];
   pauses: number;
 }
@@ -42,6 +46,8 @@ const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v)
 export function attemptsOf(session: Session): Attempt[] {
   const out: Attempt[] = [];
   let cur: Attempt | null = null;
+  // The pogo toggle as of the last `st` event; it carries over from one attempt to the next.
+  let pogo = false;
 
   const finish = (outcome: Outcome, tick: number | null): void => {
     if (!cur) return;
@@ -53,11 +59,25 @@ export function attemptsOf(session: Session): Attempt[] {
     cur = null;
   };
 
-  for (const e of session.events) {
+  const isPogo = (st: SessionEvent): boolean => st['pogo'] === 1 || st['pogo'] === true;
+  // The recorder writes a sample's `pos` and then its `st` on the same tick, so the state that goes with a point
+  // may come just after it: a `st` on the same tick as the point is the one that holds.
+  const pogoWith = (i: number): boolean => {
+    const t = events[i]!.t;
+    for (let j = i + 1; j < events.length && events[j]!.t === t; j += 1) {
+      if (events[j]!.e === 'st') return isPogo(events[j]!);
+    }
+    return pogo;
+  };
+
+  const events = session.events;
+  for (let i = 0; i < events.length; i += 1) {
+    const e = events[i]!;
     if (e.e === 'level') {
       finish('left', null);
       cur = {
-        session: session.name,
+        session: session.id,
+        order: out.length,
         levelId: num(e['id']),
         level: typeof e['name'] === 'string' && e['name'] ? e['name'] : `Level ${num(e['id'])}`,
         attempt: num(e['attempt']) || 1,
@@ -68,16 +88,24 @@ export function attemptsOf(session: Session): Attempt[] {
         path: [],
         pauses: 0,
       };
+    } else if (e.e === 'st') {
+      pogo = isPogo(e);
     } else if (!cur) {
       continue;
     } else if (e.e === 'pos') {
-      cur.path.push({ x: num(e['x']), y: num(e['y']), t: e.t });
+      cur.path.push({
+        x: num(e['x']),
+        y: num(e['y']),
+        t: e.t,
+        ...(pogoWith(i) ? { pogo: true } : {}),
+      });
     } else if (e.e === 'death') {
       cur.death = {
         cause: num(e['cause']),
         detail: num(e['detail']),
         x: num(e['x']),
         y: num(e['y']),
+        tick: e.t,
       };
     } else if (e.e === 'screen' && e['to'] === 'pause') {
       cur.pauses += 1;

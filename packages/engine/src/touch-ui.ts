@@ -212,6 +212,15 @@ export class TouchControls {
     this.relayout();
   }
 
+  /**
+   * What the controls are placed from now: the window, the safe-area insets and the spec. A recording keeps it
+   * so the layout can be rebuilt with `placeControls`.
+   */
+  layoutInfo(): { w: number; h: number; insets: Insets; spec: TouchSpec } {
+    const { w, h } = this.size();
+    return { w, h, insets: this.readInsets(), spec: this.spec };
+  }
+
   /** Reads the window size and the safe-area insets and places every control. */
   relayout(): void {
     if (!this.visible) return;
