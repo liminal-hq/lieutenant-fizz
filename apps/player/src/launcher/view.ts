@@ -37,6 +37,12 @@ export interface View {
   render(state: LauncherState): void;
   /** Sets the bullet beside the selected row. */
   setBullet(bullet: BulletImage | undefined): void;
+  /** Moves the selection to the next (1) or previous (-1) row that is not dimmed, wrapping round. */
+  step(delta: -1 | 1): void;
+  /** Chooses the selected row, for a key press when focus is not on a row. */
+  activateSelected(): void;
+  /** Whether focus is on one of the menu's rows. */
+  rowHasFocus(): boolean;
 }
 
 const make = <K extends keyof HTMLElementTagNameMap>(
@@ -186,6 +192,22 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     setBullet(nextBullet) {
       bullet = nextBullet;
       if (last) draw(last);
+    },
+    step(delta) {
+      if (!last) return;
+      const rows = rowsOf(last);
+      const open = rows.map((r, i) => (r.disabled ? -1 : i)).filter((i) => i >= 0);
+      if (open.length === 0) return;
+      const at = selected === undefined ? -1 : open.indexOf(ids.indexOf(selected));
+      const next = open[(at + delta + open.length) % open.length];
+      if (next !== undefined)
+        menu.querySelectorAll<HTMLElement>('button')[next]?.focus({ preventScroll: true });
+    },
+    activateSelected() {
+      if (selected !== undefined) hooks.onActivate(selected);
+    },
+    rowHasFocus() {
+      return !!document.activeElement && menu.contains(document.activeElement);
     },
   };
 }

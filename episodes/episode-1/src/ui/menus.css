@@ -1,4 +1,5 @@
 @import '@lieutenant-fizz/engine/menu/rows.css';
+@import '@lieutenant-fizz/engine/menu/keys.css';
 
 .menu .meter {
   display: flex;
@@ -193,23 +194,6 @@
 }
 
 /* Hint bar: keycaps and button glyphs along the bottom, left-aligned with the content. */
-#ui .keys {
-  --n: var(--lf-n-hint);
-  position: absolute;
-  left: calc(var(--lf-pad-x) + var(--lf-safe-left));
-  bottom: calc(var(--lf-keys-bottom) + var(--lf-safe-bottom));
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: calc(var(--n) * 4px) calc(var(--n) * 9px);
-  color: var(--lf-muted);
-  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
-  pointer-events: none;
-}
-#ui .keys span {
-  white-space: nowrap;
-}
-
 #overlay .box {
   display: flex;
   flex-direction: column;

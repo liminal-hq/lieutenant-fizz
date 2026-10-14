@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
+import { hintText } from '@lieutenant-fizz/engine/font/tokens';
 import { createHostBackend } from '@lieutenant-fizz/engine/host';
 import { applyMenuScale } from '@lieutenant-fizz/engine/menu/scale-vars';
 import type { MenuSoundPlayer } from '@lieutenant-fizz/engine/menu/sounds';
@@ -17,6 +18,7 @@ import { createPredictiveBack } from '@lieutenant-fizz/engine/predictive-back';
 import { createStorage } from '@lieutenant-fizz/engine/storage';
 import episodesFile from '../../../../site/episodes.json';
 import { createLauncherBack } from './back';
+import { hintsOf } from './hints';
 import { createLauncherPeek } from './peek';
 import {
   readSaves,
@@ -131,6 +133,21 @@ function themeOfStop(): { data: MenuThemeData; base: URL } | undefined {
 }
 let themed: MenuThemeData | undefined;
 
+// The keyboard's hints along the bottom (hidden on touch).
+const keys = document.createElement('div');
+keys.className = 'keys';
+keys.setAttribute('aria-hidden', 'true');
+ui.append(keys);
+const drawHints = (): void => {
+  keys.replaceChildren(
+    ...hintsOf(state).map((hint) => {
+      const span = document.createElement('span');
+      span.textContent = hintText(hint);
+      return span;
+    }),
+  );
+};
+
 const view = createView(root, {
   onActivate: (row) => dispatch({ type: 'activate', row }),
   onMove: () => sound.cue('move'),
@@ -157,6 +174,7 @@ const dispatch = (action: Action): void => {
   if (state !== before) {
     applyTheme();
     view.render(state);
+    drawHints();
   }
   back.sync(hasBack(state));
   void applyEffects(step.effects, deps);
@@ -166,9 +184,20 @@ const dispatch = (action: Action): void => {
 // (menu.ts passes them on).
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' || e.key === 'Backspace') dispatch({ type: 'back' });
-  else if (e.key === 'ArrowLeft') dispatch({ type: 'stop', dir: -1 });
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    view.step(e.key === 'ArrowDown' ? 1 : -1);
+  } else if ((e.key === 'Enter' || e.key === ' ') && !view.rowHasFocus() && !isControl(e.target)) {
+    // Nothing is focused yet: Enter chooses the highlighted row.
+    e.preventDefault();
+    view.activateSelected();
+  } else if (e.key === 'ArrowLeft') dispatch({ type: 'stop', dir: -1 });
   else if (e.key === 'ArrowRight') dispatch({ type: 'stop', dir: 1 });
 });
+/** Whether a key press landed on a button or link of its own, which handles Enter itself. */
+function isControl(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest('button, a[href]') !== null;
+}
 document.addEventListener('pad-back', () => dispatch({ type: 'back' }));
 document.addEventListener('pad-left', () => dispatch({ type: 'stop', dir: -1 }));
 document.addEventListener('pad-right', () => dispatch({ type: 'stop', dir: 1 }));
@@ -212,4 +241,5 @@ for (const f of files.values()) {
 
 applyTheme();
 view.render(state);
+drawHints();
 back.sync(hasBack(state));

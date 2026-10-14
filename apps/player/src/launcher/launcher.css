@@ -2,6 +2,7 @@
 @import '@lieutenant-fizz/engine/font/fizz.css';
 @import '@lieutenant-fizz/engine/menu/tokens.css';
 @import '@lieutenant-fizz/engine/menu/rows.css';
+@import '@lieutenant-fizz/engine/menu/keys.css';
 
 html,
 body {
@@ -268,4 +269,14 @@ body {
 }
 #ui[data-peeking='settle'] #launcher:not(.peek-ghost) {
   transition: opacity 200ms ease-out;
+}
+
+/* The hint bar is for a keyboard: on touch there is nothing to press. */
+#ui .keys {
+  z-index: 2;
+}
+@media (pointer: coarse) {
+  #ui .keys {
+    display: none;
+  }
 }

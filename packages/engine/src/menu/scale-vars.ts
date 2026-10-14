@@ -24,6 +24,8 @@ export function menuScaleVars(
     '--lf-cw-mul': String(steps.bullet),
     '--lf-pad-x': `${sidePadding(width)}px`,
     '--lf-pad-y': `${verticalPadding(height)}px`,
+    // How far the hint bar stands above the bottom edge: 4% of the height, from 16 to 36 px.
+    '--lf-keys-bottom': `${Math.min(36, Math.max(16, Math.round(height * 0.04)))}px`,
   };
 }
 

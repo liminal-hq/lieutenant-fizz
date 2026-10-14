@@ -1,0 +1,18 @@
+/* The hint bar along the bottom of a menu screen: keycap and button hints, one `span` each, built with `hintText`
+   (`font/tokens`). It takes its left edge and bottom from the page's padding tokens (`tokens.css`). */
+#ui .keys {
+  --n: var(--lf-n-hint);
+  position: absolute;
+  left: calc(var(--lf-pad-x) + var(--lf-safe-left));
+  bottom: calc(var(--lf-keys-bottom) + var(--lf-safe-bottom));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--n) * 4px) calc(var(--n) * 9px);
+  color: var(--lf-muted);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+  pointer-events: none;
+}
+#ui .keys span {
+  white-space: nowrap;
+}
