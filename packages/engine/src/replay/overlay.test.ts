@@ -9,10 +9,12 @@ import {
   COLOURS,
   drawControls,
   drawCross,
+  drawDot,
   drawFinger,
   drawPolyline,
   drawRing,
   drawTrace,
+  shiftedColour,
   toScreen,
   toWorld,
   type Ctx2D,
@@ -131,6 +133,22 @@ describe('drawFinger', () => {
       }),
     );
     expect(strokes).toEqual([{ colour: COLOURS.hit, alpha: 0.25 }]);
+  });
+});
+
+describe('drawDot and shiftedColour', () => {
+  it('fills a circle in the colour given', () => {
+    const a = fakeCtx();
+    drawDot(a.ctx, 4, 5, 3, '#fff');
+    expect(a.calls).toEqual(['save', 'begin', 'arc', 'fill', 'restore']);
+    expect(a.fills).toEqual([{ colour: '#fff', alpha: 1 }]);
+  });
+
+  it('moves the hue a little each time and comes round after twelve', () => {
+    expect(shiftedColour(0)).toBe('hsl(190, 90%, 62%)');
+    expect(shiftedColour(1)).toBe('hsl(220, 90%, 62%)');
+    expect(shiftedColour(12)).toBe(shiftedColour(0));
+    expect(new Set(Array.from({ length: 12 }, (_, n) => shiftedColour(n))).size).toBe(12);
   });
 });
 

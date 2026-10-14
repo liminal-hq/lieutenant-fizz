@@ -231,6 +231,28 @@ describe.skipIf(!built)('replaying the real Fudge Bog sample', () => {
     expect(at(99_999)[0]).toBe(replayer.attempt!.endTick);
   });
 
+  it('follows the fizz bubbles Ben fires, and the same ones after a seek back', (ctx) => {
+    if (sim.levelHash(7) !== FUDGE_BOG_HASH) ctx.skip(CHANGED);
+    const replayer = new Replayer(sim, session);
+    let fired = 0;
+    replayer.attempts.forEach((_, i) => {
+      replayer.load(i);
+      replayer.run();
+      fired += replayer.fizz.fizz.length;
+    });
+    expect(fired).toBeGreaterThan(0);
+
+    replayer.load(2);
+    replayer.run();
+    const whole = replayer.fizz.fizz.map((f) => [f.n, f.from, f.path.length, f.ended]);
+    // Back to the start and on again: the same bubbles, since a seek runs the attempt again from its start.
+    replayer.seek(replayer.attempt!.startTick);
+    expect(replayer.fizz.fizz).toEqual([]);
+    replayer.seek(replayer.attempt!.endTick);
+    expect(replayer.fizz.fizz.map((f) => [f.n, f.from, f.path.length, f.ended])).toEqual(whole);
+    for (const f of replayer.fizz.fizz) expect(f.from).toBeGreaterThan(replayer.attempt!.startTick);
+  });
+
   it('seeks the longest attempt in well under a second', (ctx) => {
     if (sim.levelHash(7) !== FUDGE_BOG_HASH) ctx.skip(CHANGED);
     const replayer = new Replayer(sim, session);

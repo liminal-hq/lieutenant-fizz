@@ -28,6 +28,8 @@ export interface SimExports {
   load_attract(idx: number, still: number): void;
   enter_level(id: number): void;
   level_hash(id: number): number;
+  shot_count(): number;
+  shot_get(i: number, field: number): number;
   enter_map(): void;
   enter_none(): void;
   set_view(halfW: number, halfH: number): void;
@@ -125,6 +127,22 @@ export class Sim {
    */
   levelHash(id: number): number {
     return this.x.level_hash(id) >>> 0;
+  }
+
+  /** Where Ben's fizz bubbles are and how they are moving, in tiles and tiles a second. Enemy shots are left out. */
+  benShots(): { x: number; y: number; vx: number; vy: number }[] {
+    const out: { x: number; y: number; vx: number; vy: number }[] = [];
+    const n = this.x.shot_count();
+    for (let i = 0; i < n; i += 1) {
+      if (this.x.shot_get(i, 4) !== 1) continue;
+      out.push({
+        x: this.x.shot_get(i, 0),
+        y: this.x.shot_get(i, 1),
+        vx: this.x.shot_get(i, 2),
+        vy: this.x.shot_get(i, 3),
+      });
+    }
+    return out;
   }
 
   /** The overworld area id at a tile position. */

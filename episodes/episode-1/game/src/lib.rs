@@ -182,6 +182,29 @@ pub extern "C" fn level_hash(id: u32) -> u32 {
     levels::build_level(u8::try_from(id).unwrap_or(u8::MAX)).fingerprint()
 }
 
+/// How many shots are in flight (read-only): Ben's fizz bubbles and the enemies' shots together.
+#[no_mangle]
+pub extern "C" fn shot_count() -> u32 {
+    u32::try_from(w().shots.len()).unwrap_or(u32::MAX)
+}
+
+/// One field of shot `i` (read-only): 0 x, 1 y, 2 vx, 3 vy, 4 whether it is Ben's (1) or an enemy's (0).
+/// Anything else, or a shot that is not there, reads 0. No rule reads this; a replay uses it to trace fizz.
+#[no_mangle]
+pub extern "C" fn shot_get(i: u32, field: u32) -> f64 {
+    let Some(s) = w().shots.get(i as usize) else {
+        return 0.0;
+    };
+    match field {
+        0 => s.x,
+        1 => s.y,
+        2 => s.vx,
+        3 => s.vy,
+        4 => f64::from(u8::from(s.ben)),
+        _ => 0.0,
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn enter_map() {
     w().enter_map();

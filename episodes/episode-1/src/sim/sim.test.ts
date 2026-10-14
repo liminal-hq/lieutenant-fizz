@@ -97,6 +97,24 @@ describe.skipIf(!built)('Episode 1 WASM sim', () => {
     expect(sim.get(State.AMMO)).toBe(4);
   });
 
+  it('reads where Ben’s fizz bubbles are, and leaves out nothing else', () => {
+    sim.x.game_new();
+    sim.x.enter_level(Level.CRATER);
+    sim.drainEvents();
+    run(40);
+    expect(sim.benShots()).toEqual([]);
+    sim.step(Input.FIRE);
+    const [first] = sim.benShots();
+    expect(sim.benShots()).toHaveLength(1);
+    // Facing right at the start, the bubble flies right at 16 tiles a second.
+    expect(first!.vx).toBe(16);
+    expect(first!.vy).toBe(0);
+    run(3);
+    const [later] = sim.benShots();
+    expect(later!.x).toBeGreaterThan(first!.x);
+    expect(sim.x.shot_get(99, 0)).toBe(0);
+  });
+
   it('exports the pogo toggle as a read-only state value', () => {
     sim.x.game_new();
     sim.x.enter_level(Level.CRATER);

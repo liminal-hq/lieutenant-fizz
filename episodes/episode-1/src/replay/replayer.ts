@@ -8,6 +8,7 @@ import { Ev, State } from '../sim/protocol';
 import type { Sim, SimEvent } from '../sim/sim';
 import { attemptsOf, type Attempt } from './attempts';
 import { entryAt, LATE_TICKS, type Entry } from './entry';
+import { FizzTracker } from './fizz';
 
 /** How far a replayed position may be from a recorded one: the log rounds to two decimals, so half a hundredth each way plus a margin. */
 export const POS_TOLERANCE = 0.011;
@@ -92,6 +93,8 @@ export class Replayer {
   checked = 0;
   /** What the sim raised on the last `step` (captions, a clear, a death), for a host to play or show. */
   lastEvents: SimEvent[] = [];
+  /** Where Ben's fizz bubbles went in the attempt so far. */
+  readonly fizz = new FizzTracker();
 
   private index = -1;
   private current: ReplayAttempt | null = null;
@@ -203,6 +206,7 @@ export class Replayer {
     this.deathTick = null;
     this.clearTick = null;
     this.checked = 0;
+    this.fizz.reset();
     this.pos = new Map();
     this.st = new Map();
     this.recordedDeath = null;
@@ -235,6 +239,7 @@ export class Replayer {
     sim.step(this.wordAt(this.tick + 1));
     this.tick += 1;
     this.lastEvents = sim.drainEvents();
+    this.fizz.observe(this.tick, sim.benShots());
     for (const e of this.lastEvents) {
       if (e.kind === Ev.LEVEL_COMPLETE && this.clearTick === null) this.noteClear();
     }

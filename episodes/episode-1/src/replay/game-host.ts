@@ -9,9 +9,11 @@ import {
   drawControls,
   drawCross,
   drawFinger,
+  drawDot,
   drawPolyline,
   drawTrace,
   drawRing,
+  shiftedColour,
   toScreen,
   type Ctx2D,
   type WorldView,
@@ -89,6 +91,7 @@ const ICONS = {
 const LAYERS = [
   ['touch', 'Touches'],
   ['path', 'Path'],
+  ['fizz', 'Fizz shots'],
   ['stays', 'Stays'],
   ['deaths', 'Deaths'],
   ['others', 'Other tries'],
@@ -164,6 +167,7 @@ export class ReplayHost {
     this.layers = {
       touch: touchMode,
       path: true,
+      fizz: true,
       stays: false,
       deaths: true,
       others: false,
@@ -526,6 +530,20 @@ export class ReplayHost {
       for (const s of dwells(info)) {
         const p = screen(s);
         drawRing(ctx, p.x, p.y, 10 + Math.min(30, s.ticks / 12), COLOURS.dwell);
+      }
+    }
+    if (this.layers.fizz) {
+      // Each bubble is its own colour, a little along the colour wheel from the one before: a dot where it was
+      // first seen, its path, a bright dot on it while it flies, and a ring where it ended.
+      for (const f of this.replayer.fizz.fizz) {
+        const colour = shiftedColour(f.n);
+        const pts = f.path.map(screen);
+        drawPolyline(ctx, pts, colour, 2, 0.85);
+        const first = pts[0]!;
+        const last = pts[pts.length - 1]!;
+        drawDot(ctx, first.x, first.y, 3, colour);
+        if (f.ended) drawRing(ctx, last.x, last.y, 6, colour);
+        else drawDot(ctx, last.x, last.y, 5, colour);
       }
     }
     if (this.layers.deaths) {

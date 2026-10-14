@@ -190,6 +190,25 @@ export function drawTrace(
   }
 }
 
+/** A filled dot. */
+export function drawDot(ctx: Ctx2D, x: number, y: number, r: number, colour: string): void {
+  ctx.save();
+  ctx.fillStyle = colour;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
+ * The colour of the `n`th thing of a kind, counting from 0: the hue moves a little each time, so neighbours
+ * differ slightly and one can be followed from where it starts to where it ends. It comes round after twelve.
+ */
+export function shiftedColour(n: number, base = 190, step = 30): string {
+  const hue = (((base + n * step) % 360) + 360) % 360;
+  return `hsl(${hue}, 90%, 62%)`;
+}
+
 /** A cross, for where a life was lost. */
 export function drawCross(ctx: Ctx2D, x: number, y: number, size: number, colour: string): void {
   ctx.save();
