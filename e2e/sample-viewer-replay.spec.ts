@@ -344,10 +344,26 @@ test('exports the run with its comments and notes, and a new page reads them bac
   // A new page (a fresh browser, with none of the first one's storage) opens the exported zip: the comment is there.
   const fresh = await browser.newContext();
   const page2 = await fresh.newPage();
+  const seen: string[] = [];
+  page2.on('pageerror', (e) => seen.push(`pageerror: ${e.message}`));
+  page2.on('console', (m) => {
+    if (m.type() === 'error' || m.type() === 'warning') seen.push(`${m.type()}: ${m.text()}`);
+  });
   await page2.goto(VIEWER);
   await load(page2, 'notes.zip', Buffer.from(exported));
   await page2.getByRole('button', { name: 'Watch notes.zip' }).click();
-  await expect(page2.locator('#comment-list li')).toHaveCount(1);
+  try {
+    // The replay opens first (it loads the sim and the sprites), and the comments come with it.
+    await expect(page2.locator('#replay-section')).toBeVisible({ timeout: 20_000 });
+    await expect(page2.locator('#comment-list li')).toHaveCount(1);
+  } catch (e) {
+    // What the second page saw, so a failure that only happens on a slow machine says why.
+    const problems = await page2.locator('#problems').innerText();
+    const section = await page2.locator('#replay-section').getAttribute('hidden');
+    throw new Error(
+      `${String(e)}\nsecond page: replay section hidden=${String(section)}, problems=${JSON.stringify(problems)}, console=${JSON.stringify(seen)}`,
+    );
+  }
   await expect(page2.locator('#comment-list li').first()).toContainText(
     'The pod’s puff is hard to see.',
   );
