@@ -90,3 +90,58 @@ body {
 .snackbar[hidden] {
   display: none;
 }
+
+/* The carousel's heading: the previous and next arrows either side of the stop's name, and a pip for each stop. */
+#launcher .carousel {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--n) * 3px);
+}
+#launcher .carousel h1 {
+  flex: 0 1 auto;
+}
+#launcher .arrow {
+  --n: var(--lf-n-head);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--lf-muted);
+  text-shadow: 0 calc(var(--n) * 1px) 0 #000;
+  cursor: pointer;
+}
+#launcher .arrow:focus {
+  outline: none;
+  color: var(--lf-accent);
+}
+#launcher .arrow:disabled {
+  color: var(--lf-dim);
+  opacity: 0.4;
+  cursor: default;
+}
+#launcher .carousel[data-sub='true'] h1 {
+  margin-left: 0;
+}
+#launcher .pips {
+  display: flex;
+  gap: calc(var(--n) * 2px);
+  margin-top: calc(var(--n) * -1px);
+  padding-left: 44px;
+}
+#launcher .pips i {
+  width: calc(var(--n) * 4px);
+  height: calc(var(--n) * 4px);
+  background: rgba(255, 255, 255, 0.18);
+}
+#launcher .pips i.on {
+  background: var(--lf-accent);
+}
+
+/* The page's own display rules above must not show what the view has hidden (the arrows and pips off the home screen). */
+#launcher [hidden] {
+  display: none;
+}

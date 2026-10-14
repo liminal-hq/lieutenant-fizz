@@ -74,6 +74,28 @@ describe('applying the launcher effects', () => {
     expect(threw.log).toEqual(['flush', `toast:${SAVE_FAILED}`]);
   });
 
+  it('starts an episode where the launch says, after the write and with Back handed over', async () => {
+    const { deps, log } = setup(async () => true);
+    await applyEffects(
+      [{ kind: 'launch', episode: 'episode-1', launch: { kind: 'load', slot: 2 } }],
+      {
+        ...deps,
+        pageOf: () => 'episode-1/index.html',
+        releaseBack: async () => void log.push('release'),
+      },
+    );
+    expect(log).toEqual(['flush', 'release', 'go:episode-1/index.html?launch=load:2']);
+  });
+
+  it('says so when the episode is not installed, and does not leave', async () => {
+    const { deps, log } = setup();
+    await applyEffects([{ kind: 'launch', episode: 'episode-9', launch: { kind: 'new' } }], {
+      ...deps,
+      pageOf: () => undefined,
+    });
+    expect(log).toEqual(["toast:That episode isn't installed"]);
+  });
+
   it('leaves at once when the store has nothing held back to write', async () => {
     const { deps, log } = setup();
     await applyEffects([{ kind: 'navigate', url: 'episode-1/index.html' }], deps);

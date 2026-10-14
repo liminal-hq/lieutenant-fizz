@@ -9,6 +9,7 @@ import type {
   PredictiveBackHandlers,
 } from '@lieutenant-fizz/engine/predictive-back';
 import { createLauncherBack } from './back';
+import { stopsOf } from './catalog';
 import { hasBack, initialState, reduce } from './state';
 
 function fakeBackend() {
@@ -26,7 +27,7 @@ function fakeBackend() {
 
 describe('Back on the launcher', () => {
   it('has somewhere to go on About and nowhere on the home screen', () => {
-    const home = initialState(false);
+    const home = initialState(stopsOf({ episodes: [] }), false);
     expect(hasBack(home)).toBe(false);
     expect(hasBack(reduce(home, { type: 'activate', row: 'about' }).state)).toBe(true);
   });

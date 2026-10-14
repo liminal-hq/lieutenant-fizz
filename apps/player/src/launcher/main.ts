@@ -5,23 +5,31 @@
 
 import { BackGuard } from '@lieutenant-fizz/engine/back-guard';
 import { createHostBackend } from '@lieutenant-fizz/engine/host';
-import { createPredictiveBack } from '@lieutenant-fizz/engine/predictive-back';
 import { applyMenuScale } from '@lieutenant-fizz/engine/menu/scale-vars';
+import type { MenuSoundPlayer } from '@lieutenant-fizz/engine/menu/sounds';
 import {
   applyMenuTheme,
   bulletImageOf,
   themeOfData,
   type MenuThemeData,
 } from '@lieutenant-fizz/engine/menu/theme';
+import { createPredictiveBack } from '@lieutenant-fizz/engine/predictive-back';
 import { createStorage } from '@lieutenant-fizz/engine/storage';
-import { readUnlocked } from './dev-unlock';
-import type { MenuSoundPlayer } from '@lieutenant-fizz/engine/menu/sounds';
+import episodesFile from '../../../../site/episodes.json';
 import { createLauncherBack } from './back';
+import {
+  readSaves,
+  stopsOf,
+  type EpisodeInfo,
+  type EpisodesFile,
+  type SaveSummary,
+} from './catalog';
 import { cueOf } from './cues';
+import { readUnlocked } from './dev-unlock';
 import { applyEffects } from './effects';
-import { hasBack, initialState, reduce, type Action } from './state';
-import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { SILENT, createLauncherSound } from './sound';
+import { currentStop, hasBack, initialState, reduce, type Action } from './state';
+import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { createView } from './view';
 import './launcher.css';
 
@@ -46,7 +54,41 @@ async function tauriCalls(): Promise<Pick<ToastDeps, 'invoke' | 'listen'>> {
 }
 
 const toast = await createToast({ kind: host.kind, snackbar, ...(await tauriCalls()) });
-let state = initialState(readUnlocked(store));
+
+// What each playable episode's build wrote out for the launcher (`scripts/build-launcher-art.ts`): the page that
+// runs it, where its saves are, and its menu look. An episode whose files are missing has no Continue or Load game
+// and keeps the default look.
+interface EpisodeFiles {
+  info: EpisodeInfo | undefined;
+  theme: MenuThemeData | undefined;
+  base: URL;
+}
+async function loadJson<T>(url: URL): Promise<T | undefined> {
+  try {
+    const response = await fetch(url);
+    return response.ok ? ((await response.json()) as T) : undefined;
+  } catch (error) {
+    console.warn(`${url.pathname} could not be loaded`, error);
+    return undefined;
+  }
+}
+const stops = stopsOf(episodesFile as EpisodesFile);
+const files = new Map<string, EpisodeFiles>();
+await Promise.all(
+  stops.map(async (stop) => {
+    if (stop.kind !== 'episode' || !stop.playable) return;
+    const base = new URL(`launcher/${stop.id}/`, location.href);
+    const [info, theme] = await Promise.all([
+      loadJson<EpisodeInfo>(new URL('episode.json', base)),
+      loadJson<MenuThemeData>(new URL('theme.json', base)),
+    ]);
+    files.set(stop.id, { info, theme, base });
+  }),
+);
+const saves: Record<string, SaveSummary> = {};
+for (const [id, f] of files) if (f.info) saves[id] = readSaves(store, f.info);
+
+let state = initialState(stops, readUnlocked(store), saves);
 
 // Back: the Android gesture in the app, and a history entry in a browser (the desktop app has no Back button).
 const back = await createLauncherBack({
@@ -62,53 +104,69 @@ const deps = {
   store,
   toast,
   navigate: (url: string) => location.assign(new URL(url, location.href).href),
+  pageOf: (episode: string) => files.get(episode)?.info?.page,
   releaseBack: () => back.release(),
 };
 
-// The menu's sounds, once the episode's theme (which names them) has loaded.
+// The menu's sounds, once a theme (which names them) has loaded.
 let sound: MenuSoundPlayer = SILENT;
+
+/** The look of the stop on show: its own theme when it has one, otherwise the first episode's. */
+function themeOfStop(): { data: MenuThemeData; base: URL } | undefined {
+  const stop = currentStop(state);
+  const own = stop.kind === 'episode' ? files.get(stop.id) : undefined;
+  const found = own?.theme ? own : [...files.values()].find((f) => f.theme);
+  return found?.theme ? { data: found.theme, base: found.base } : undefined;
+}
+let themed: MenuThemeData | undefined;
+
+const view = createView(root, {
+  onActivate: (row) => dispatch({ type: 'activate', row }),
+  onMove: () => sound.cue('move'),
+  onStop: (dir) => dispatch({ type: 'stop', dir }),
+});
+
+/** Applies the theme of the stop on show, when it is not the one applied already. */
+function applyTheme(): void {
+  const found = themeOfStop();
+  if (!found || found.data === themed) return;
+  themed = found.data;
+  applyMenuTheme(document.documentElement, themeOfData(found.data));
+  const b = found.data.bullet;
+  view.setBullet(b ? bulletImageOf(found.data, new URL(b.src, found.base).href) : undefined);
+  sound = createLauncherSound(found.data, store, host.kind !== 'web');
+}
 
 const dispatch = (action: Action): void => {
   const before = state;
   const step = reduce(state, action);
   const cue = cueOf(before, action, step);
   if (cue) sound.cue(cue);
-  const changed = step.state !== state;
   state = step.state;
-  if (changed) draw();
+  if (state !== before) {
+    applyTheme();
+    view.render(state);
+  }
   back.sync(hasBack(state));
   void applyEffects(step.effects, deps);
 };
 
-const view = createView(
-  root,
-  (row) => dispatch({ type: 'activate', row }),
-  () => sound.cue('move'),
-);
-const draw = (): void => view.render(state);
-
-// Back from the keyboard, and from the gamepad's B (menu.ts passes it on as `pad-back`).
+// The keyboard: Back, and the arrows between stops. The gamepad's B and left and right arrive as events
+// (menu.ts passes them on).
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' || e.key === 'Backspace') dispatch({ type: 'back' });
+  else if (e.key === 'ArrowLeft') dispatch({ type: 'stop', dir: -1 });
+  else if (e.key === 'ArrowRight') dispatch({ type: 'stop', dir: 1 });
 });
 document.addEventListener('pad-back', () => dispatch({ type: 'back' }));
+document.addEventListener('pad-left', () => dispatch({ type: 'stop', dir: -1 }));
+document.addEventListener('pad-right', () => dispatch({ type: 'stop', dir: 1 }));
 
 // The window's text scale, now and when it changes.
 const scale = (): void => applyMenuScale(document.documentElement, innerWidth, innerHeight);
 scale();
 addEventListener('resize', scale);
 
-draw();
+applyTheme();
+view.render(state);
 back.sync(hasBack(state));
-
-// Episode 1's menu look, written out at build time for the launcher (`scripts/build-launcher-art.ts`). Without it the
-// menus keep the defaults and have no bullet.
-try {
-  const url = new URL('launcher/episode-1/theme.json', location.href);
-  const data = (await (await fetch(url)).json()) as MenuThemeData;
-  applyMenuTheme(document.documentElement, themeOfData(data));
-  sound = createLauncherSound(data, store, host.kind !== 'web');
-  view.setBullet(data.bullet ? bulletImageOf(data, new URL(data.bullet.src, url).href) : undefined);
-} catch (error) {
-  console.warn('The menu theme could not be loaded', error);
-}

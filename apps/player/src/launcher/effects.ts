@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { flushable, type KeyValueStorage } from '@lieutenant-fizz/engine/storage';
+import { launchUrl } from '@lieutenant-fizz/engine/launch';
 import { writeUnlocked } from './dev-unlock';
 import type { Effect } from './state';
 
@@ -13,6 +14,8 @@ export interface EffectDeps {
   toast(message: string, options?: { replace?: boolean }): void;
   /** Opens a page in this window. */
   navigate(url: string): void;
+  /** The page an episode runs on, relative to the launcher, or undefined when it is not installed. */
+  pageOf?(episode: string): string | undefined;
   /** Hands Back to the system before the page is left; resolves once that has happened. */
   releaseBack?(): Promise<void>;
 }
@@ -34,6 +37,17 @@ export async function applyEffects(effects: readonly Effect[], deps: EffectDeps)
     } else if (effect.kind === 'save-unlock') {
       if (!writeUnlocked(deps.store, effect.unlocked)) deps.toast(SAVE_FAILED);
     } else {
+      // Leaving: for a page of the app, or for an episode, which is started where the launch says.
+      let url: string;
+      if (effect.kind === 'navigate') url = effect.url;
+      else {
+        const page = deps.pageOf?.(effect.episode);
+        if (!page) {
+          deps.toast("That episode isn't installed");
+          return;
+        }
+        url = launchUrl(page, effect.launch);
+      }
       let saved: boolean;
       try {
         saved = (await flushable(deps.store)?.flush()) !== false;
@@ -46,7 +60,7 @@ export async function applyEffects(effects: readonly Effect[], deps: EffectDeps)
         return;
       }
       await deps.releaseBack?.();
-      deps.navigate(effect.url);
+      deps.navigate(url);
       return;
     }
   }

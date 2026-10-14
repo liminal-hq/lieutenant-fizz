@@ -85,6 +85,11 @@ const onIntent = (intent: Exclude<PadIntent, null>) => {
     else location.href = document.body.dataset.back ?? 'index.html';
     return;
   }
+  // The launcher steps between its stops with left and right (a page that is not the launcher moves focus).
+  if (mode === 'menu' && (intent === 'left' || intent === 'right')) {
+    document.dispatchEvent(new CustomEvent(`pad-${intent}`));
+    return;
+  }
   const { list, at } = focusables();
   if (intent === 'wake') {
     if (at < 0) focusAt(list[0]);

@@ -6,9 +6,10 @@
 // Usage: bun scripts/build-launcher-art.ts [--check]
 //   --check  fail if the committed files differ from what this would write (used by validate)
 //
-// For each episode it writes `apps/player/public/launcher/<episode>/theme.json` (the colours, the plate's steps
-// and where the bullet is) and `bullet.png` (the bullet's frames side by side, one pixel per sprite pixel, which
-// the launcher scales up without smoothing). Both come from the grids and colours the game itself uses.
+// For each episode it writes, under `apps/player/public/launcher/<episode>/`: `episode.json` (the page that runs it
+// and where its saves are kept), `theme.json` (the colours, the plate's steps, the menu sounds and where the
+// bullet is) and `bullet.png` (the bullet's frames side by side, one pixel per sprite pixel, which the launcher
+// scales up without smoothing). They come from the grids, colours and effects the game itself uses.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -24,6 +25,7 @@ import {
 } from '../packages/engine/src/menu/theme';
 import { EPISODE_1_MENU, episodeMenuTheme } from '../episodes/episode-1/src/menu-theme';
 import { SFX } from '../episodes/episode-1/src/audio/patterns';
+import { SAVE_KEY, SLOT_COUNT, slotKey } from '../episodes/episode-1/src/save';
 import { defineSprites } from '../episodes/episode-1/src/sprites/catalog';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -91,7 +93,19 @@ export function build(): Built[] {
         }
       : {}),
   };
+  // What the launcher cannot import: the page that runs the episode and where its saves are kept.
+  const info = {
+    page: 'episode-1/index.html',
+    saves: {
+      auto: SAVE_KEY,
+      slots: Array.from({ length: SLOT_COUNT }, (_, i) => slotKey((i + 1) as 1 | 2 | 3 | 4)),
+    },
+  };
   const out: Built[] = [
+    {
+      path: 'episode-1/episode.json',
+      bytes: new TextEncoder().encode(`${JSON.stringify(info, null, 2)}\n`),
+    },
     {
       path: 'episode-1/theme.json',
       bytes: new TextEncoder().encode(`${JSON.stringify(data, null, 2)}\n`),
