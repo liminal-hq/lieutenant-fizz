@@ -77,8 +77,8 @@ export interface ViewHooks {
 }
 
 export interface View {
-  /** Redraws for a new state, keeping the selected row where it still exists. */
-  render(state: LauncherState): void;
+  /** Redraws for a new state, keeping the selected row where it still exists. `dir` is the way the carousel stepped, if it did. */
+  render(state: LauncherState, dir?: -1 | 1): void;
   /** Draws a state as a preview (the screen Back goes to, behind a peek) without taking the selection from the real one. */
   preview(state: LauncherState): void;
   /** Sets the bullet beside the selected row. */
@@ -142,6 +142,8 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
   const ben = make('div', 'ben');
   ben.hidden = true;
   let benArt: BenArt | undefined;
+  /** What the picture and size styles on Ben were last set for. */
+  let benKey = '';
   head.hidden = true;
   // The small line above the picker: the episode's number, which the name beside the arrows does not repeat.
   const sub = make('p', 'episode');
@@ -241,6 +243,13 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
       const tall = head.offsetHeight + sub.offsetHeight + header.offsetHeight;
       if (head.scrollWidth <= room && tall <= innerHeight * 0.4) return;
     }
+  };
+
+  /** The size of the logo's letters, measured when the logo is drawn or fitted so a frame never has to read layout. */
+  let logoBox: { w: number; h: number } | undefined;
+  const measureLogo = (): void => {
+    const hero = head.hidden ? undefined : head.querySelector<HTMLElement>('.hero');
+    logoBox = hero ? { w: hero.offsetWidth, h: hero.offsetHeight } : undefined;
   };
 
   /** Slides the episode's name in from the side the carousel stepped towards, unless motion is reduced. */
@@ -375,6 +384,7 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
       b.dataset['i'] = String(i + offset);
     });
     fitLogo(!!logo);
+    measureLogo();
     mark(free < 0 ? undefined : ids[at]);
     fit();
     // Keep the pad's place; on first load there is nothing to keep, so the first row is only highlighted.
@@ -386,14 +396,15 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
   };
 
   return {
-    render(state) {
+    render(state, dir) {
       const before = last;
       last = state;
       draw(state);
       if (before?.screen === 'home' && state.screen === 'home' && before.stop !== state.stop) {
-        // The name slides in from the side the carousel stepped towards, as the scenery does.
+        // The name slides in from the side the carousel stepped towards, as the scenery does. Without the step the
+        // way is worked out from the stops, which is only certain with more than two.
         const n = state.stops.length;
-        slideName((state.stop - before.stop + n) % n === 1 ? 1 : -1);
+        slideName(dir ?? ((state.stop - before.stop + n) % n === 1 ? 1 : -1));
       }
     },
     preview(state) {
@@ -420,27 +431,37 @@ export function createView(root: HTMLElement, hooks: ViewHooks): View {
     selectedRow() {
       return selected;
     },
-    relayout: fit,
+    relayout() {
+      // A new window size, text size or font changes how much room the logo has.
+      fitLogo(!head.hidden);
+      measureLogo();
+      fit();
+    },
     setBenArt(art) {
       benArt = art;
     },
     logoBox() {
-      const hero = ben.parentElement?.querySelector<HTMLElement>('.hero');
-      return hero && !head.hidden ? { w: hero.offsetWidth, h: hero.offsetHeight } : undefined;
+      return logoBox;
     },
     setBen(frame, scale) {
       const index = frame && benArt ? benArt.poses.indexOf(frame.pose) : -1;
       if (!frame || !benArt || index < 0 || head.hidden) {
         ben.hidden = true;
+        benKey = '';
         return;
       }
       ben.hidden = false;
       const s = ben.style;
-      s.width = `${benArt.width * scale}px`;
-      s.height = `${benArt.height * scale}px`;
-      s.backgroundImage = `url("${benArt.url}")`;
-      s.backgroundSize = `${benArt.width * benArt.poses.length * scale}px ${benArt.height * scale}px`;
-      s.backgroundPosition = `${-index * benArt.width * scale}px 0`;
+      // The picture and its size change with the pose and the scale; a frame usually only moves him.
+      const key = `${index}@${scale}@${benArt.url}`;
+      if (key !== benKey) {
+        benKey = key;
+        s.width = `${benArt.width * scale}px`;
+        s.height = `${benArt.height * scale}px`;
+        s.backgroundImage = `url("${benArt.url}")`;
+        s.backgroundSize = `${benArt.width * benArt.poses.length * scale}px ${benArt.height * scale}px`;
+        s.backgroundPosition = `${-index * benArt.width * scale}px 0`;
+      }
       s.left = `${frame.x}px`;
       s.bottom = `${frame.y}px`;
       s.transform = `scaleX(${frame.flip ? -1 : 1}) rotate(${frame.rot}deg)`;

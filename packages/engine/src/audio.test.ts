@@ -224,6 +224,48 @@ describe('GameAudio music fades', () => {
     expect(fadeNodes(ctx)).toHaveLength(0);
   });
 
+  it('takes a finished loop’s gain out of the graph, and stops a fading loop at once when music is turned off', async () => {
+    vi.useFakeTimers();
+    try {
+      const stops = [vi.fn(), vi.fn(), vi.fn()];
+      let n = 0;
+      vi.spyOn(Undertone.Pattern.prototype, 'loop').mockImplementation(() => ({
+        stop: stops[n++ % 3]!,
+      }));
+      const audio = new GameAudio(patterns, async () => Undertone, { musicFades: true });
+      await vi.advanceTimersByTimeAsync(0);
+      listeners.get('pointerdown')!();
+      await vi.advanceTimersByTimeAsync(0);
+      const ctx = FakeContext.instances[0]!;
+      const disconnects = (): number =>
+        ctx.nodes.filter((node) => (node as unknown as { disconnected?: boolean }).disconnected)
+          .length;
+      for (const node of ctx.nodes) {
+        (node as unknown as { disconnect: () => void }).disconnect = () => {
+          (node as unknown as { disconnected: boolean }).disconnected = true;
+        };
+      }
+      audio.playMusic('title');
+      audio.playMusic('other', false, 1);
+      await vi.advanceTimersByTimeAsync(1300);
+      expect(stops[0]).toHaveBeenCalledTimes(1);
+      // The new loop's gain is made after the nodes above were patched, so patch it too, then turn the music off
+      // while another fade is still going.
+      for (const node of ctx.nodes) {
+        (node as unknown as { disconnect: () => void }).disconnect = () => {
+          (node as unknown as { disconnected: boolean }).disconnected = true;
+        };
+      }
+      audio.playMusic('title', false, 5);
+      audio.setMusic(false);
+      expect(stops[1]).toHaveBeenCalledTimes(1);
+      expect(disconnects()).toBeGreaterThanOrEqual(1);
+      audio.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('stops tracks still fading out when the audio is disposed', async () => {
     vi.useFakeTimers();
     try {

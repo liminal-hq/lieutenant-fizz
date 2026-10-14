@@ -509,6 +509,7 @@ export class GameAudio {
   /** Loops that are fading out, with the timers that stop them. */
   private readonly retiring = new Set<{
     handle: { stop(): void };
+    fade: GainNode;
     timer: ReturnType<typeof setTimeout>;
   }>();
   /** The Enhanced music route, built the first time Enhanced music plays. */
@@ -823,9 +824,12 @@ export class GameAudio {
       oldFade.gain.linearRampToValueAtTime(0, now + fadeSeconds);
       const retired = {
         handle: old,
+        fade: oldFade,
         timer: setTimeout(
           () => {
             old.stop();
+            // The loop is done with its gain, so take it out of the graph.
+            oldFade.disconnect();
             this.retiring.delete(retired);
           },
           fadeSeconds * 1000 + 150,
@@ -907,6 +911,16 @@ export class GameAudio {
     });
   }
 
+  /** Stops the loops still fading out, and takes their gains out of the graph. */
+  private stopRetiring(): void {
+    for (const r of this.retiring) {
+      clearTimeout(r.timer);
+      r.handle.stop();
+      r.fade.disconnect();
+    }
+    this.retiring.clear();
+  }
+
   /**
    * Chooses which arrangement of the music plays. The running track starts again from the top on the
    * new one; a track with no song plays as Classic in either style.
@@ -924,6 +938,7 @@ export class GameAudio {
     this.handle?.stop();
     this.handle = null;
     this.loopFade = null;
+    this.stopRetiring();
     if (on && this.track) this.playMusic(this.track, true);
   }
 
@@ -972,11 +987,7 @@ export class GameAudio {
     this.master = null;
     this.handle?.stop();
     this.handle = null;
-    for (const r of this.retiring) {
-      clearTimeout(r.timer);
-      r.handle.stop();
-    }
-    this.retiring.clear();
+    this.stopRetiring();
     window.removeEventListener('pointerdown', this.unlock);
     window.removeEventListener('pointerup', this.unlock);
     window.removeEventListener('keydown', this.unlock);

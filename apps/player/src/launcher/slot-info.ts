@@ -99,11 +99,13 @@ export interface SlotContext {
   overworld?: OverworldData;
 }
 
-/** The area a map position is in, by name; the first area where there is no overworld or the position is off it. */
+/** The area a map position is in, by name; the first area where there is no position or it is off the overworld, and none without the overworld. */
 export function placeOf(ctx: SlotContext, map: { x: number; y: number } | undefined): string {
   const o = ctx.overworld;
   const first = ctx.areas[0] ?? '';
-  if (!o || !map) return first;
+  // Without the overworld the place is not known, so none is claimed.
+  if (!o) return '';
+  if (!map) return first;
   const x = Math.floor(map.x);
   const y = Math.floor(map.y);
   if (x < 0 || y < 0 || x >= o.w || y >= o.h) return first;
@@ -131,19 +133,24 @@ export function slotRowOf(
     played: formatPlayed(progress.played),
     date: formatDate(progress.at),
   };
-  let picture = '';
-  if (ctx.overworld) {
-    try {
-      picture = thumb(ctx.overworld, progress);
-    } catch {
-      picture = '';
-    }
-  }
+  const overworld = ctx.overworld;
+  let picture: string | undefined;
   return {
-    title: slotTitle(summary),
+    // Without a place (no overworld) the title is the slot's name alone.
+    title: summary.place ? slotTitle(summary) : summary.name,
     detail: slotDetail(summary, 'load'),
     brief: slotBrief(summary, 'load'),
-    thumb: picture,
+    // Made when the row is first drawn (the Load game screen), not when the saves are read at launch.
+    get thumb(): string {
+      if (picture === undefined) {
+        try {
+          picture = overworld ? thumb(overworld, progress) : '';
+        } catch {
+          picture = '';
+        }
+      }
+      return picture;
+    },
     empty: false,
     cleared: summary.cleared,
     total: summary.total,

@@ -153,6 +153,21 @@ try {
   /* no session storage */
 }
 
+// The scenery behind the page: each stop's own, with a parallax slide as the carousel steps.
+const sceneUrl = (name: string): URL => new URL(`launcher/scenes/${name}/`, location.href);
+const [appScene, teaserScene] = await Promise.all([
+  loadJson<SceneInfo>(new URL('scene.json', sceneUrl('app'))),
+  loadJson<SceneInfo>(new URL('scene.json', sceneUrl('teaser'))),
+]);
+const runnerOf = [...files.values()].find((f) => f.info?.runner);
+// The music: each episode's main theme and, for one not out and App settings, the teaser score, crossfading as the
+// carousel steps. It follows the Music, Style and Music version options.
+const themes = new Map([...files].map(([id, f]) => [id, f.theme] as const));
+const music = openLauncherMusic(libraryOf(themes), musicSettingsOf(options), host.kind !== 'web');
+const stage = createStage(
+  ui,
+  () => ui.classList.contains('rm') || matchMedia('(prefers-reduced-motion: reduce)').matches,
+);
 let state = initialState(stops, readUnlocked(store), saves, {
   canQuit: host.quit !== undefined,
   stop: readStop(store, stops),
@@ -427,7 +442,7 @@ const dispatch = (action: Action): void => {
   }
   if (state !== before) {
     applyTheme();
-    view.render(state);
+    view.render(state, action.type === 'stop' ? action.dir : undefined);
     touch?.refresh();
     keepClearOfControls();
     drawHints();
@@ -497,21 +512,6 @@ if (new URLSearchParams(location.search).has('debug')) {
   };
 }
 
-// The scenery behind the page: each stop's own, with a parallax slide as the carousel steps.
-const sceneUrl = (name: string): URL => new URL(`launcher/scenes/${name}/`, location.href);
-const [appScene, teaserScene] = await Promise.all([
-  loadJson<SceneInfo>(new URL('scene.json', sceneUrl('app'))),
-  loadJson<SceneInfo>(new URL('scene.json', sceneUrl('teaser'))),
-]);
-const runnerOf = [...files.values()].find((f) => f.info?.runner);
-// The music: each episode's main theme and, for one not out and App settings, the teaser score, crossfading as the
-// carousel steps. It follows the Music, Style and Music version options.
-const themes = new Map([...files].map(([id, f]) => [id, f.theme] as const));
-const music = openLauncherMusic(libraryOf(themes), musicSettingsOf(options), host.kind !== 'web');
-const stage = createStage(
-  ui,
-  () => ui.classList.contains('rm') || matchMedia('(prefers-reduced-motion: reduce)').matches,
-);
 /** The scenery of a stop: an episode's own, the teaser for one that is not out, and night for App settings. */
 function sceneOf(stop: Stop): { info: SceneInfo; base: URL } | undefined {
   if (stop.kind === 'episode' && stop.playable) {
@@ -526,9 +526,10 @@ function sceneOf(stop: Stop): { info: SceneInfo; base: URL } | undefined {
 /** Shows the scenery of the stop on show, sliding the way the carousel stepped. */
 function showScene(dir: -1 | 0 | 1): void {
   const stop = currentStop(state);
+  // The music does not wait on the scenery: a stop whose pictures did not load still has its track.
+  music.play(trackOf(stop, themes), dir === 0 ? 0 : undefined);
   const found = sceneOf(stop);
   if (!found) return;
-  music.play(trackOf(stop, themes), dir === 0 ? 0 : undefined);
   stage.show(
     stop.kind === 'app' ? 'app' : `episode:${stop.id}`,
     () =>

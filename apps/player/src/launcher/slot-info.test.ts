@@ -71,7 +71,7 @@ describe('the place of a save', () => {
     expect(placeOf(ctx, { x: 1.2, y: 0.1 })).toBe('Crater Fields');
     expect(placeOf(ctx, { x: 9, y: 9 })).toBe('Crater Fields');
     expect(placeOf(ctx, undefined)).toBe('Crater Fields');
-    expect(placeOf({ ...ctx, overworld: undefined }, { x: 0.5, y: 1.5 })).toBe('Crater Fields');
+    expect(placeOf({ ...ctx, overworld: undefined }, { x: 0.5, y: 1.5 })).toBe('');
   });
 });
 
@@ -91,6 +91,16 @@ describe('a save as a row', () => {
     });
     expect(row.detail).toContain('Lives 3 · 1,240 pts · 0:42 played');
     expect(slotRowOf('auto', progress, ctx, noPicture).detail).toMatch(/read-only$/);
+  });
+
+  it('makes the picture only when it is first read', () => {
+    const progress = readProgress(save({ lives: 1 }))!;
+    let made = 0;
+    const row = slotRowOf(1, progress, ctx, () => (made++, 'data:lazy'));
+    expect(made).toBe(0);
+    expect(row.thumb).toBe('data:lazy');
+    expect(row.thumb).toBe('data:lazy');
+    expect(made).toBe(1);
   });
 
   it('has no picture where the overworld is not known, or the picture fails', () => {
@@ -116,10 +126,8 @@ describe('the saves an episode has', () => {
       info,
     );
     expect(found.newest).toBe(1);
-    expect(found.entries.map((e) => e.row?.title)).toEqual([
-      'Autosave · Crater Fields',
-      'Slot 1 · Crater Fields',
-    ]);
+    // With no overworld the place is not known, so the title is the slot alone.
+    expect(found.entries.map((e) => e.row?.title)).toEqual(['Autosave', 'Slot 1']);
   });
 
   it('have none for an episode that does not', () => {

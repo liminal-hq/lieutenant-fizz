@@ -131,8 +131,8 @@ document.addEventListener('click', (e) => {
   if (!link || link.target || link.hasAttribute('download')) return;
   const url = new URL(link.href, location.href);
   if (url.origin !== location.origin) return;
-  // A link to a place on this page (a hash) stays an ordinary link.
-  if (url.pathname === location.pathname && url.search === location.search) return;
+  // A link to a place on this page (a hash) stays an ordinary link; a link to the page itself opens it in place.
+  if (url.hash && url.pathname === location.pathname && url.search === location.search) return;
   e.preventDefault();
   openPage(url.href);
 });
