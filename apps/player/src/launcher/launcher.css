@@ -315,10 +315,10 @@ body {
   bottom: calc(var(--ground) * var(--scene-scale) * 1px);
   width: calc(var(--ben-w) * var(--scene-scale) * 1px);
   height: calc(var(--ben-h) * var(--scene-scale) * 1px);
-  animation: lf-ben-hop 4.2s ease-in-out infinite;
 }
 .scene .ben .run,
-.scene .ben .air {
+.scene .ben .air,
+.scene .ben .shoot {
   position: absolute;
   inset: 0;
   background-image: var(--ben-image);
@@ -330,10 +330,41 @@ body {
 .scene .ben .run {
   animation: lf-ben-run 0.34s steps(2, jump-end) infinite;
 }
-.scene .ben .air {
+.scene .ben .air,
+.scene .ben .shoot {
   background-position-x: calc(var(--ben-w) * -2 * var(--scene-scale) * 1px);
   opacity: 0;
-  animation: lf-ben-air 4.2s step-end infinite;
+}
+.scene .ben .shoot {
+  background-position-x: calc(var(--ben-w) * -3 * var(--scene-scale) * 1px);
+}
+/* Ben's picture follows what he is doing, which the page sets; he hops by a transform of the page's. */
+.scene .ben[data-pose='air'] .run,
+.scene .ben[data-pose='shoot'] .run {
+  opacity: 0;
+}
+.scene .ben[data-pose='air'] .air,
+.scene .ben[data-pose='shoot'] .shoot {
+  opacity: 1;
+}
+/* What Ben meets: treats and gloops on the ground, each a cell of one sheet, placed by the page. */
+.scene .actors {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.scene .actor {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--ground) * var(--scene-scale) * 1px);
+  width: calc(var(--actor-w) * var(--scene-scale) * 1px);
+  height: calc(var(--actor-w) * var(--scene-scale) * 1px);
+  background-image: var(--actors-image);
+  background-repeat: no-repeat;
+  background-size: calc(var(--actor-w) * var(--actor-cells) * var(--scene-scale) * 1px)
+    calc(var(--actor-w) * var(--scene-scale) * 1px);
+  image-rendering: pixelated;
+  transform-origin: 50% 100%;
 }
 /* A layer moves left as far as the picture is wide, so the end of one pass meets the start of the next. */
 @keyframes lf-scene-scroll {
@@ -346,42 +377,15 @@ body {
     background-position-x: calc(var(--ben-w) * -2 * var(--scene-scale) * 1px);
   }
 }
-/* A hop in the last third of the loop: up, then down. The jump picture shows while he is off the ground. */
-@keyframes lf-ben-hop {
-  0%,
-  72%,
-  100% {
-    transform: translateY(0);
-  }
-  82% {
-    transform: translateY(calc(var(--scene-scale) * -30px));
-  }
-}
-@keyframes lf-ben-air {
-  0%,
-  71.9% {
-    opacity: 0;
-  }
-  72% {
-    opacity: 1;
-  }
-  92% {
-    opacity: 0;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .scene .layer,
-  .scene .ben,
-  .scene .ben .run,
-  .scene .ben .air {
+  .scene .ben .run {
     animation: none;
   }
 }
 /* The Motion option set to Reduced (or to follow a system that is) stills the scenery too. */
 .rm .scene .layer,
-.rm .scene .ben,
-.rm .scene .ben .run,
-.rm .scene .ben .air {
+.rm .scene .ben .run {
   animation: none;
 }
 

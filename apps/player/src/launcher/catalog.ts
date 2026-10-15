@@ -6,6 +6,7 @@
 import type { LaunchSlot } from '@lieutenant-fizz/engine/launch';
 import type { SlotRow } from '@lieutenant-fizz/engine/menu/slot-row';
 import type { KeyValueStorage } from '@lieutenant-fizz/engine/storage';
+import type { DemoItem } from './demo';
 import { readProgress, slotRowOf, type OverworldData } from './slot-info';
 
 /** One entry of `site/episodes.json`: the list the website and the launcher share. */
@@ -50,7 +51,7 @@ export function stopsOf(file: EpisodesFile): readonly Stop[] {
  * What the launcher needs of a playable episode and cannot import from its code, written out by
  * `scripts/build-launcher-art.ts`: the page that runs it and where its saves are kept.
  */
-/** Ben's frames side by side: two of running, then one in the air. */
+/** Ben's frames side by side: two of running, one in the air and one shooting. */
 export interface RunnerArt {
   src: string;
   width: number;
@@ -66,6 +67,12 @@ export interface SceneLayerInfo {
 }
 
 /** The scenery behind the menu, as pictures the build script wrote out, back to front. */
+/** What Ben meets along the ground: the things (see `demo.ts`) and the sheet of their pictures, `cells` cells of `cell` pixels. */
+export interface SceneDemo {
+  items: readonly DemoItem[];
+  sheet: { src: string; cell: number; cells: number };
+}
+
 export interface SceneInfo {
   width: number;
   height: number;
@@ -74,6 +81,7 @@ export interface SceneInfo {
   /** The colour of the sky's top row, which the page continues up to the top. */
   skyTop: string;
   ben: boolean;
+  demo?: SceneDemo;
   layers: readonly SceneLayerInfo[];
 }
 

@@ -104,6 +104,8 @@ export interface MenuThemeData {
   /** The effect each menu cue plays, and the voices of each of those effects. */
   sounds?: MenuSounds;
   voices?: Record<string, readonly SfxVoice[]>;
+  /** The effect each thing that happens in the launcher's scenery plays (a pickup, a stomp, a shot, a hit), with its voices in `voices`. */
+  actions?: Record<string, string>;
   /** The haptic cue each menu cue plays, and the table that holds those cues (only them). */
   haptics?: { cues: MenuHaptics; table: HapticTable };
   /** The episode's music for the launcher: its tracks (and Enhanced songs for some), and the name of its main theme. */

@@ -25,6 +25,66 @@
     "ground": 32,
     "skyTop": "#0000aa",
     "ben": true,
+    "demo": {
+      "items": [
+        {
+          "kind": "treat",
+          "sprite": 0,
+          "x": 60,
+          "y": 6
+        },
+        {
+          "kind": "treat",
+          "sprite": 1,
+          "x": 100,
+          "y": 14
+        },
+        {
+          "kind": "gloop",
+          "x": 180,
+          "fate": "stomp"
+        },
+        {
+          "kind": "treat",
+          "sprite": 2,
+          "x": 250,
+          "y": 6
+        },
+        {
+          "kind": "gloop",
+          "x": 335,
+          "fate": "shot"
+        },
+        {
+          "kind": "treat",
+          "sprite": 3,
+          "x": 405,
+          "y": 10
+        },
+        {
+          "kind": "gloop",
+          "x": 470,
+          "fate": "stomp"
+        },
+        {
+          "kind": "treat",
+          "sprite": 0,
+          "x": 545,
+          "y": 6
+        },
+        {
+          "kind": "treat",
+          "sprite": 1,
+          "x": 585,
+          "y": 14
+        }
+      ],
+      "sheet": {
+        "src": "actors.png",
+        "cell": 16,
+        "cells": 10
+      }
+    },
     "layers": [
       {
         "src": "scene-sky.png",
@@ -61,7 +121,7 @@
     "src": "ben.png",
     "width": 16,
     "height": 24,
-    "frames": 3
+    "frames": 4
   },
   "titleBen": {
     "src": "ben-title.png",

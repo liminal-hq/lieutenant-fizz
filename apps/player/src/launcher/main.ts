@@ -52,6 +52,7 @@ import { createSnackbar, createToast, type ToastDeps } from './toast';
 import { isPortrait } from '@lieutenant-fizz/engine/portrait';
 import { BEN_LOOK, BEN_WAVE, benFrame, benScale } from '@lieutenant-fizz/engine/menu/title-ben';
 import { chromeHidden, isInstalled } from '@lieutenant-fizz/engine/lifecycle-policy';
+import type { DemoCue } from './demo';
 import { createScene, createStage } from './scene';
 import { libraryOf, musicSettingsOf, openLauncherMusic, trackOf } from './music';
 import { createLauncherHaptics, NO_HAPTICS, type LauncherHaptics } from './haptics';
@@ -276,6 +277,12 @@ const menuCue = (cue: MenuCue): void => {
   const now = performance.now() / 1000;
   if (cue === 'move') benLookUntil = now + BEN_LOOK;
   else if (cue === 'select') benWaveUntil = now + BEN_WAVE;
+};
+/** Something happened in the scenery: a soft sound, and a light buzz for a pickup or a stomp. */
+const sceneCue = (cue: DemoCue): void => {
+  sound.action(cue);
+  if (cue === 'pickup') haptics.cue('change');
+  else if (cue === 'stomp') haptics.cue('select');
 };
 let benLookUntil = 0;
 let benWaveUntil = 0;
@@ -538,6 +545,11 @@ function showScene(dir: -1 | 0 | 1): void {
         found.info,
         found.base,
         runnerOf?.info?.runner ? { art: runnerOf.info.runner, base: runnerOf.base } : undefined,
+        {
+          reducedMotion: () =>
+            ui.classList.contains('rm') || matchMedia('(prefers-reduced-motion: reduce)').matches,
+          cue: sceneCue,
+        },
       ),
     dir,
   );
