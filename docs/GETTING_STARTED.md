@@ -93,7 +93,7 @@ A newer APK installs over an older one from the same release line. Once the game
 
 ## Saves and settings
 
-Progress autosaves on every overworld visit, and the pause menu has four save slots (F5 quick-saves, F9 loads). Saves and settings stay on the device: the browser keeps them in its own storage and the apps in their own data file. The browser and the apps do not share them, and there is no cloud sync.
+Progress autosaves on every overworld visit, and the pause menu has four save slots, and F5 and F9 quick-save and quick-load in a slot of their own. Saves and settings stay on the device: the browser keeps them in its own storage and the apps in their own data file. The browser and the apps do not share them, and there is no cloud sync.
 
 ## If it will not start
 
