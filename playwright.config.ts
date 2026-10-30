@@ -40,6 +40,12 @@ const FLAKY_TITLES: RegExp[] = [
   /Row spacing on Display resizes the open screen at once and is saved/,
   // e2e/touch-menus.spec.ts
   /a tap on Back closes saves on the pause menu/,
+  // Desktop specs that time out waiting on the page on CI's software GL (shard 1) and pass locally and on a re-run.
+  // e2e/controller-options.spec.ts
+  /several buttons can be collected for one action, one toggled off, and Enter finishes at once/,
+  /Escape discards what was collected and keeps the old buttons/,
+  // e2e/haptics-map.spec.ts
+  /coming back from a level with the pogo on, and walking, raise no cue/,
   // e2e/touch-sound.spec.ts
   /Options > Sound on touch: full-height rows, the Style stepper switches the mode, and Back returns to Sound/,
   /the Sound lab row shows the Lab button without \?debug, and it is still there after a reload/,
