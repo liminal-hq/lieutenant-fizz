@@ -514,6 +514,10 @@ export class Game {
   titlesView: TitlesView | null = null;
   /** The opening titles on show, or at their gate, over the title screen; null otherwise. */
   private titlesRun: TitlesRun | null = null;
+  /** Whether the buttons have all been let go since the titles' last press, so the next one counts. */
+  private titlesArmed = true;
+  /** Whether the titles' song has begun to fade into the next music. */
+  private titlesFading = false;
   /** The music last asked for, to tell when it changes into or out of the titles' song. */
   private musicNow: string | null = null;
   /** The menus' sounds: the cursor, a choice, Back, a change and "no" each play the effect the episode named for them. */
@@ -1447,7 +1451,10 @@ export class Game {
     const edge = bits & ~this.lastBits;
     // The opening titles take every button: the first opens the gate, the next skips them.
     if (this.titlesRun) {
-      if (edge) this.pressTitles();
+      // A button counts once everything has been let go since the last press, so the one that opened the gate cannot
+      // also skip the titles when a slow frame delivers it late.
+      if (bits === 0) this.titlesArmed = true;
+      else if (edge && this.titlesArmed) this.pressTitles();
       return;
     }
     const s = this.screen;
@@ -3520,6 +3527,8 @@ export class Game {
       return;
     }
     this.titlesRun = new TitlesRun(after, gate, loops);
+    this.titlesFading = false;
+    this.titlesArmed = true;
     this.ui.showTitles(true);
     this.ui.setLoading(gate, this.touchMode ? 'Tap to start' : 'Press any key to start');
     this.titlesView.draw(0, 0, this.reducedMotion);
@@ -3540,6 +3549,7 @@ export class Game {
     const run = this.titlesRun;
     if (!run) return;
     run.press(performance.now());
+    this.titlesArmed = false;
     this.ui.setLoading(false);
     this.syncUi();
   }
@@ -3569,6 +3579,10 @@ export class Game {
     if (run.advance(dt)) {
       this.endTitles();
       return;
+    }
+    if (run.leavingSoon !== this.titlesFading) {
+      this.titlesFading = run.leavingSoon;
+      this.syncUi();
     }
     this.titlesView?.draw(run.atGate ? 0 : run.moment, run.blackout, this.reducedMotion);
   }
@@ -3790,7 +3804,14 @@ export class Game {
 
   private musicFor(): string | null {
     const s = this.screen;
-    if (this.titlesRun) return this.titlesRun.playing ? OPENING_TITLES_TRACK : null;
+    if (this.titlesRun) {
+      if (!this.titlesRun.playing) return null;
+      // The song fades into the next music as the picture fades out, rather than running on to the end.
+      if (this.titlesRun.leavingSoon) {
+        return this.titlesRun.after === 'new' ? (CINE_TRACK[0] ?? 'yard') : 'title';
+      }
+      return OPENING_TITLES_TRACK;
+    }
     if (s === 'title' || s === 'loading') return 'title';
     if (s === 'cine') return CINE_TRACK[this.story.scene] ?? 'cine';
     if (s === 'ending' || s === 'credits') return 'ending';

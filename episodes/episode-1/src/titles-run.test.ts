@@ -116,6 +116,30 @@ describe('playing twice', () => {
   });
 });
 
+describe('the sound fading out', () => {
+  it('begins as the picture’s fade out begins, 1.3 seconds before the end', () => {
+    const run = new TitlesRun('menu', false);
+    expect(run.leavingSoon).toBe(false);
+    let t = 0;
+    while (!run.leavingSoon && t < 20) {
+      run.advance(1 / 60);
+      t += 1 / 60;
+    }
+    expect(run.time).toBeCloseTo(TITLES_SECONDS - 1.3, 1);
+  });
+
+  it('waits for the last pass when the titles play twice, begins at once on a skip, and not at the gate', () => {
+    const twice = new TitlesRun('menu', false, 2);
+    for (let i = 0; i < 60 * 12; i++) twice.advance(1 / 60);
+    expect(twice.time).toBeGreaterThan(TITLES_SECONDS - 1.3);
+    expect(twice.leavingSoon).toBe(false);
+    const skipped = new TitlesRun('menu', false);
+    skipped.press(5000);
+    expect(skipped.leavingSoon).toBe(true);
+    expect(new TitlesRun('menu', true).leavingSoon).toBe(false);
+  });
+});
+
 describe('the idle title', () => {
   it('waits two passes of the title song as it plays, less the fade, so the cut follows a loop of the music', () => {
     expect(classicLoopSeconds(140)).toBeCloseTo(13.71, 2);

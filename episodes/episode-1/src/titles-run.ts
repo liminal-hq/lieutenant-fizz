@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { TITLES_SECONDS } from './titles';
+import { FADE_OUT_FROM, TITLES_SECONDS } from './titles';
 
 /** What follows the titles: the title menu, or a new game's story. */
 export type TitlesAfter = 'menu' | 'new';
@@ -47,6 +47,17 @@ export class TitlesRun {
   /** Whether the run is at the gate, waiting for the first key. */
   get atGate(): boolean {
     return this.waiting;
+  }
+
+  /**
+   * Whether the titles' song should now be crossing into the next music: from the moment the picture starts to fade
+   * out at the end of the last pass, or as soon as a skip begins. The sound fades with the picture, not after it.
+   */
+  get leavingSoon(): boolean {
+    return (
+      !this.waiting &&
+      (this.leaving !== null || this.time >= TITLES_SECONDS * this.loops - FADE_OUT_FROM)
+    );
   }
 
   /** Whether the titles' picture and music are on (not at the gate). */
