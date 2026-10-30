@@ -50,6 +50,11 @@ describe('the keys an episode keeps saves under', () => {
       ]),
     ).toEqual([{ id: 'e', keys: ['auto', 's1', 's2'] }]);
   });
+
+  it('end with the quick-save when the episode has one', () => {
+    const withQuick: EpisodeInfo = { ...info, saves: { ...info.saves, quick: 'q' } };
+    expect(saveKeysOf([['e', withQuick]])).toEqual([{ id: 'e', keys: ['auto', 's1', 's2', 'q'] }]);
+  });
 });
 
 describe('exporting the saves', () => {

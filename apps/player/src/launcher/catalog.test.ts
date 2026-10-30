@@ -57,6 +57,16 @@ describe("reading an episode's saves", () => {
     expect(found.newest).toBe(3);
   });
 
+  it('reads the quick-save as a slot of its own, and counts it towards the newest', () => {
+    const withQuick: EpisodeInfo = { ...info, saves: { ...info.saves, quick: 'q' } };
+    const store = memoryStorage({ auto: save(100), s2: save(200), q: save(300) });
+    const found = readSaves(store, withQuick);
+    expect(found.entries.map((e) => e.slot)).toEqual(['auto', 2, 'quick']);
+    expect(found.newest).toBe('quick');
+    // An episode that does not list a quick-save key never reads one.
+    expect(readSaves(memoryStorage({ q: save(300) }), info)).toEqual(NO_SAVES);
+  });
+
   it('skips what is not a save', () => {
     const store = memoryStorage({
       auto: 'not json',
@@ -81,6 +91,7 @@ describe('naming saves', () => {
   it('calls the autosave Autosave and the others by number', () => {
     expect(slotLabel('auto')).toBe('Autosave');
     expect(slotLabel(2)).toBe('Slot 2');
+    expect(slotLabel('quick')).toBe('Quick save');
   });
 
   it('writes a short date', () => {

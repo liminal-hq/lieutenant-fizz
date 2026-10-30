@@ -33,9 +33,10 @@ const empty = (): SlotSummary =>
   full({ empty: true, place: '', cleared: 0, lives: 0, score: 0, played: '', date: '' });
 
 describe('slot text', () => {
-  it('names the autosave and the four slots', () => {
+  it('names the autosave, the four slots and the quick-save', () => {
     expect(slotName('auto')).toBe('Autosave');
     expect(slotName(3)).toBe('Slot 3');
+    expect(slotName('quick')).toBe('Quick save');
   });
 
   it('counts cleared levels out of the total and ignores the secret flag above it', () => {

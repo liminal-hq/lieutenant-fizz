@@ -45,6 +45,9 @@ describe('slotBrief', () => {
 
   it('says what an empty slot is for', () => {
     expect(slotBrief(summarise(2, null, ''), 'save')).toBe('Save here');
+    expect(summarise('quick', null, '').name).toBe('Quick save');
+    expect(summarise('quick', null, '').readOnly).toBe(true);
+    expect(summarise(2, null, '').readOnly).toBe(false);
     expect(slotBrief(summarise(2, null, ''), 'load')).toBe('Nothing saved');
   });
 });
