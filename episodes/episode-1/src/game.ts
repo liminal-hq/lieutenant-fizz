@@ -135,7 +135,7 @@ import {
 import { gestureFor, isLive } from './lifecycle-rules';
 import { isPortrait } from '@lieutenant-fizz/engine/portrait';
 import { Cinematic, CINE_TALL } from './cine';
-import { TitlesRun, idleSeconds, type TitlesAfter } from './titles-run';
+import { TitlesRun, classicLoopSeconds, idleSeconds, type TitlesAfter } from './titles-run';
 import { titleSprites } from './titles-sprites';
 import { TitlesView } from './titles-view';
 import { viewPoint } from './map-panel';
@@ -514,6 +514,8 @@ export class Game {
   titlesView: TitlesView | null = null;
   /** The opening titles on show, or at their gate, over the title screen; null otherwise. */
   private titlesRun: TitlesRun | null = null;
+  /** The music last asked for, to tell when it changes into or out of the titles' song. */
+  private musicNow: string | null = null;
   /** The menus' sounds: the cursor, a choice, Back, a change and "no" each play the effect the episode named for them. */
   private readonly menuSound = createMenuSounds(EPISODE_1_MENU.sounds, (name) =>
     this.audio.play(name),
@@ -758,8 +760,10 @@ export class Game {
     this.launch = options.hostBackend?.quitToLauncher ? options.launch : undefined;
     this.titlesWanted =
       options.titles ?? !(typeof navigator !== 'undefined' && navigator.webdriver);
+    // Music fades, so the titles' song can cross into the title menu's instead of cutting to it.
     this.audio = new GameAudio({ ...PATTERNS, mix: MIX }, undefined, {
       unlockAtBoot: isAppHost(window),
+      musicFades: true,
     });
     this.audioForced = options.audio !== undefined;
     this.audioUrl = options.audio;
@@ -1046,8 +1050,13 @@ export class Game {
     // Gameplay haptics follow the level only; the title's attract loop raises captions too and gets its own rule below.
     this.haptics.setGameplay(screen === 'play');
     // The attract loop is felt, quietly, only where it is on show: the bare title, not behind a sub-screen.
-    this.haptics.setAttract(screen === 'title' && !this.sub && this.visible);
-    if (screen === 'play' || screen === 'title') {
+    this.haptics.setAttract(screen === 'title' && !this.sub && this.visible && !this.titlesRun);
+    if (this.titlesRun) {
+      // The titles cover the title screen: its attract loop stands still and makes no sound under them.
+      this.stepper.reset();
+      this.alpha = 1;
+      this.drainSim();
+    } else if (screen === 'play' || screen === 'title') {
       this.alpha = this.stepper.advance(dt, () => {
         const bits = screen === 'play' ? this.input.poll() : 0;
         sim.step(bits);
@@ -3505,16 +3514,25 @@ export class Game {
    * browser keeps sound off until a key or tap; a launcher's New game has had its tap and plays at once. They end
    * on the title menu, or on the story when `after` is `'new'`.
    */
-  private startTitles(after: TitlesAfter, gate: boolean): void {
+  private startTitles(after: TitlesAfter, gate: boolean, loops = 1): void {
     if (!this.titlesView) {
       if (after === 'new') this.newGame();
       return;
     }
-    this.titlesRun = new TitlesRun(after, gate);
+    this.titlesRun = new TitlesRun(after, gate, loops);
     this.ui.showTitles(true);
     this.ui.setLoading(gate, this.touchMode ? 'Tap to start' : 'Press any key to start');
     this.titlesView.draw(0, 0, this.reducedMotion);
     this.syncUi();
+  }
+
+  /** How long the title menu may sit before the titles come back, in milliseconds: two passes of the title song as it is playing. */
+  private titleWait(): number {
+    const song = this.audio.musicStyle === 'enhanced' ? PATTERNS.songs?.['title'] : undefined;
+    const loop = song
+      ? (song.cycles.reduce((a, b) => a + b, 0) * 240) / song.bpm
+      : classicLoopSeconds(MUSIC['title']?.bpm ?? 140);
+    return idleSeconds(loop) * 1000;
   }
 
   /** A key, tap or button while the titles are up: opens the gate, or skips them. */
@@ -3542,9 +3560,9 @@ export class Game {
     const run = this.titlesRun;
     if (!run) {
       const bare = this.screen === 'title' && !this.sub && this.visible;
-      const idle = idleSeconds(MUSIC['title']?.bpm ?? 140) * 1000;
-      if (this.titlesWanted && bare && !this.peek.active && now - this.idleAt > idle) {
-        this.startTitles('menu', false);
+      if (this.titlesWanted && bare && !this.peek.active && now - this.idleAt > this.titleWait()) {
+        // Left alone for a while, they play twice, as the DOS port plays them.
+        this.startTitles('menu', false, 2);
       }
       return;
     }
@@ -3552,7 +3570,7 @@ export class Game {
       this.endTitles();
       return;
     }
-    this.titlesView?.draw(run.atGate ? 0 : run.time, run.blackout, this.reducedMotion);
+    this.titlesView?.draw(run.atGate ? 0 : run.moment, run.blackout, this.reducedMotion);
   }
 
   private quitToTitle(): void {
@@ -3791,7 +3809,14 @@ export class Game {
   private updateMusic(): void {
     if (this.labMusic) return;
     const t = this.musicFor();
-    if (t !== null || this.screen !== 'pause') this.audio.playMusic(t);
+    // Into or out of the opening titles' song the two overlap for a moment, so the title's does not cut in on its tail.
+    const crossing =
+      this.musicNow !== null &&
+      t !== null &&
+      t !== this.musicNow &&
+      (t === OPENING_TITLES_TRACK || this.musicNow === OPENING_TITLES_TRACK);
+    if (t !== null || this.screen !== 'pause') this.audio.playMusic(t, false, crossing ? 1.2 : 0);
+    if (t !== null || this.screen !== 'pause') this.musicNow = t;
   }
 
   // ---------- Debug hooks (only exposed with ?debug) ----------

@@ -5,7 +5,13 @@
 
 import { describe, expect, it } from 'vitest';
 import { TITLES_SECONDS } from './titles';
-import { LEAVE_SECONDS, PRESS_GUARD_MS, TitlesRun, idleSeconds } from './titles-run';
+import {
+  LEAVE_SECONDS,
+  PRESS_GUARD_MS,
+  TitlesRun,
+  classicLoopSeconds,
+  idleSeconds,
+} from './titles-run';
 
 describe('the gate', () => {
   it('holds the clock until the first press, then plays from the start', () => {
@@ -90,9 +96,30 @@ describe('playing', () => {
   });
 });
 
+describe('playing twice', () => {
+  it('runs two passes in a row when asked, the picture starting over for the second', () => {
+    const run = new TitlesRun('menu', false, 2);
+    let steps = 0;
+    let atSecondStart = -1;
+    while (!run.advance(1 / 60) && steps < 5000) {
+      steps++;
+      if (atSecondStart < 0 && run.time >= TITLES_SECONDS) atSecondStart = run.moment;
+    }
+    expect(steps).toBeGreaterThan(1520);
+    expect(steps).toBeLessThan(1560);
+    expect(atSecondStart).toBeLessThan(0.1);
+    expect(run.time).toBeCloseTo(TITLES_SECONDS * 2, 1);
+  });
+
+  it('plays one pass by default', () => {
+    expect(new TitlesRun('menu', false).loops).toBe(1);
+  });
+});
+
 describe('the idle title', () => {
-  it('waits two passes of the 140 bpm title song, about 27 seconds', () => {
-    expect(idleSeconds(140)).toBeCloseTo(27.43, 2);
-    expect(idleSeconds(120)).toBeCloseTo(32, 9);
+  it('waits two passes of the title song as it plays, less the fade, so the cut follows a loop of the music', () => {
+    expect(classicLoopSeconds(140)).toBeCloseTo(13.71, 2);
+    expect(idleSeconds(classicLoopSeconds(140))).toBeCloseTo(2 * 13.714 - LEAVE_SECONDS, 2);
+    expect(idleSeconds(30)).toBeCloseTo(60 - LEAVE_SECONDS, 9);
   });
 });

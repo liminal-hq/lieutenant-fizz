@@ -20,7 +20,7 @@ const MAX_STEP = 0.1;
 /**
  * The opening titles as they play. A page opened on its own first waits at a gate for a key or a tap, which lets
  * the browser play sound; the launcher's New game has had its tap already and starts playing at once. Any key, tap
- * or button then fades the titles out, and they end by themselves after one pass.
+ * or button then fades the titles out, and they end by themselves after their passes.
  */
 export class TitlesRun {
   /** Seconds into the titles. */
@@ -33,8 +33,15 @@ export class TitlesRun {
   constructor(
     readonly after: TitlesAfter,
     gate: boolean,
+    /** How many passes of the titles play in a row: one at the start, two when a title menu left alone brings them back. */
+    readonly loops = 1,
   ) {
     this.waiting = gate;
+  }
+
+  /** Seconds into the pass on show, which the picture follows (the music loops by itself). */
+  get moment(): number {
+    return this.time % TITLES_SECONDS;
   }
 
   /** Whether the run is at the gate, waiting for the first key. */
@@ -68,7 +75,7 @@ export class TitlesRun {
       return this.leaving >= LEAVE_SECONDS;
     }
     this.time += step;
-    return this.time >= TITLES_SECONDS;
+    return this.time >= TITLES_SECONDS * this.loops;
   }
 
   /** How much black a skip has faded in, from 0 to 1. */
@@ -77,8 +84,11 @@ export class TitlesRun {
   }
 }
 
+/** How long one pass of a Classic track of eight bars of four beats lasts, in seconds, at `bpm`. */
+export const classicLoopSeconds = (bpm: number): number => (8 * 4 * 60) / bpm;
+
 /**
- * How long the bare title menu may be left alone before the titles come back: two passes of its song, as the DOS port
- * waits. `bpm` is the title music's tempo, and its song is eight bars of four beats.
+ * How long the bare title menu may be left alone before the titles come back: two passes of its song, less the fade
+ * out, as the DOS port waits. `loop` is how long one pass of the song that is playing lasts.
  */
-export const idleSeconds = (bpm: number): number => 2 * ((8 * 4 * 60) / bpm);
+export const idleSeconds = (loop: number): number => 2 * loop - LEAVE_SECONDS;

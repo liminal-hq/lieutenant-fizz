@@ -4,21 +4,21 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { LIMINAL_MARK_SVG } from './liminal-mark';
-import { TITLES_H, TITLES_W } from './titles';
 import { drawTitles } from './titles-draw';
 import type { TitleSprite } from './titles-sprites';
 
-/** Paints the titles on a canvas the page sizes with CSS (it keeps its shape and is letterboxed). */
+/** The largest side of the canvas's pixels, so a very large screen does not make a canvas too big to paint every frame. */
+const MAX_SIDE = 2560;
+
+/** Paints the titles on a canvas the page sizes with CSS to fill the stage; its pixels follow its size. */
 export class TitlesView {
   private readonly g: CanvasRenderingContext2D | null;
   private mark: HTMLImageElement | null = null;
 
   constructor(
-    canvas: HTMLCanvasElement,
+    private readonly canvas: HTMLCanvasElement,
     private readonly sprites: ReadonlyMap<string, TitleSprite>,
   ) {
-    canvas.width = TITLES_W;
-    canvas.height = TITLES_H;
     this.g = canvas.getContext('2d');
     const img = new Image();
     img.onload = () => {
@@ -37,11 +37,21 @@ export class TitlesView {
   draw(T: number, black: number, calm: boolean): void {
     const g = this.g;
     if (!g) return;
-    drawTitles(g, T, { sprites: this.sprites, mark: this.mark }, { calm });
+    const c = this.canvas;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const fit = Math.min(1, MAX_SIDE / Math.max(c.clientWidth, c.clientHeight, 1) / dpr);
+    const width = Math.max(2, Math.round(c.clientWidth * dpr * fit));
+    const height = Math.max(2, Math.round(c.clientHeight * dpr * fit));
+    if (c.width !== width || c.height !== height) {
+      c.width = width;
+      c.height = height;
+    }
+    drawTitles(g, T, { sprites: this.sprites, mark: this.mark }, { calm, width, height });
     if (black > 0) {
+      g.setTransform(1, 0, 0, 1, 0, 0);
       g.globalAlpha = black;
       g.fillStyle = '#000000';
-      g.fillRect(0, 0, TITLES_W, TITLES_H);
+      g.fillRect(0, 0, width, height);
       g.globalAlpha = 1;
     }
   }
