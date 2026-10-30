@@ -128,7 +128,11 @@ function drawGround(g: Ctx, T: number, left: number, right: number): void {
 }
 
 function drawChase(g: Ctx, T: number, assets: TitlesAssets, left: number): void {
-  for (const e of enemies(T)) {
+  // The hopper is knocked back along the ground, behind the gloop that rears up to take the next bubble, so it is drawn first.
+  const zargs = enemies(T).sort(
+    (a, b) => Number(b.sprite.startsWith('hopper')) - Number(a.sprite.startsWith('hopper')),
+  );
+  for (const e of zargs) {
     const s = assets.sprites.get(e.sprite);
     const w = e.w * e.px;
     const h = e.h * e.px;
