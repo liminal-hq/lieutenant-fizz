@@ -222,9 +222,13 @@ export function flash(T: number): number {
   return Math.max(0, 1 - Math.abs(T - t - 0.05) / 0.18) * (T > t ? 0.85 : 0.4);
 }
 
+/** How long before the end the fade out begins and how long before the end it is black, in seconds. */
+export const FADE_OUT_FROM = 1.3;
+export const FADE_OUT_BLACK = 0.2;
+
 /** How black the screen is: fully so at the very start and end, so the loop turns over unseen. */
 export function fade(T: number): number {
-  const end = slide(TITLES_SECONDS - 0.6, TITLES_SECONDS, 0, 1)(T);
+  const end = slide(TITLES_SECONDS - FADE_OUT_FROM, TITLES_SECONDS - FADE_OUT_BLACK, 0, 1)(T);
   const start = 1 - slide(0, 0.4, 0, 1)(T);
   return Math.max(end, start);
 }

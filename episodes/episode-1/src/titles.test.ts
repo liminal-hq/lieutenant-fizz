@@ -87,6 +87,11 @@ describe('the titles’ timeline', () => {
     expect(fade(0)).toBe(1);
     expect(fade(TITLES_SECONDS)).toBe(1);
     expect(fade(6)).toBe(0);
+    // The fade out begins 1.3 s before the end and is black 0.2 s before it, so the last moment is a held black.
+    expect(fade(TITLES_SECONDS - 1.4)).toBe(0);
+    expect(fade(TITLES_SECONDS - 0.75)).toBeGreaterThan(0.3);
+    expect(fade(TITLES_SECONDS - 0.75)).toBeLessThan(0.7);
+    expect(fade(TITLES_SECONDS - 0.2)).toBe(1);
   });
 });
 
