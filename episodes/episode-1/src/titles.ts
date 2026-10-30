@@ -258,7 +258,7 @@ export function speedLines(T: number, view: View = DESIGN): SpeedLine[] {
 }
 
 /** How many screen pixels one pixel of Ben's sprite takes. */
-export const BEN_PX = 22;
+export const BEN_PX = 17;
 /** The size of Ben's sprite, in its own pixels. */
 export const BEN_W = 16;
 export const BEN_H = 24;
@@ -301,17 +301,19 @@ export function benPose(t: number): BenPose {
   };
 }
 
-/** The moment Ben appears, and the number of shots he fires. */
+/** The moment Ben appears. */
 export const BEN_FROM = CUES.chase + 0.25;
-export const BUBBLE_COUNT = 16;
 
 /** How fast a fizz bubble flies, in pixels a second, and how long a stunned Zarg stays down. */
-const SHOT_SPEED = 1700;
+const SHOT_SPEED = 1536;
 export const STUN_SECONDS = 0.9;
-/** How far a hit knocks a Zarg back. */
-const KNOCK = 40;
 /** How long a Zarg is flashed white by a hit. */
 export const HIT_FLASH = 0.08;
+/** How far a bubble reaches either side of its middle (across and up and down): its box meets a Zarg's when they overlap. */
+const REACH = 28;
+const REACH_Y = 16;
+/** How fast the ground runs under a Zarg that is knocked down on it, and how far it can be carried back. */
+const GROUND_SPEED = 900;
 
 interface EnemyDef {
   /** The sprite's name without its frame, such as `gloop` for `gloop0` and `gloop1`. */
@@ -325,12 +327,19 @@ interface EnemyDef {
   /** Screen pixels per sprite pixel. */
   px: number;
   phase: number;
+  /** The yellow hopper: it jumps high, and it is the key the shots are timed to. */
   hops?: boolean;
+  /** A bigger bounce on the spot (the gloop). */
+  bounce?: number;
+  /** Knocked down on the moving ground, it slides back with it (the hopper). */
+  slides?: boolean;
+  /** Rears up into the line of fire when the hopper is down in front of it (the gloop). */
+  rears?: boolean;
 }
 
 const ENEMIES: readonly EnemyDef[] = [
-  { sprite: 'gloop', w: 16, h: 16, x: 120, fly: 0, px: 11, phase: 0.0 },
-  { sprite: 'hopper', w: 16, h: 16, x: 420, fly: 0, px: 11, phase: 1.1, hops: true },
+  { sprite: 'gloop', w: 16, h: 16, x: 120, fly: 0, px: 11, phase: 0.0, bounce: 55, rears: true },
+  { sprite: 'hopper', w: 16, h: 16, x: 420, fly: 0, px: 11, phase: 1.1, hops: true, slides: true },
   { sprite: 'beetle', w: 16, h: 16, x: 700, fly: 0, px: 10, phase: 2.3 },
   { sprite: 'sentry', w: 24, h: 16, x: -120, fly: 0, px: 11, phase: 0.7 },
   { sprite: 'bat', w: 16, h: 16, x: 300, fly: 330, px: 11, phase: 0.4 },
@@ -338,86 +347,160 @@ const ENEMIES: readonly EnemyDef[] = [
   { sprite: 'phantom', w: 16, h: 24, x: 30, fly: 270, px: 11, phase: 2.8 },
 ];
 
-/** A Zarg's place before anything has hit it: where its box is, and how it moves on its own. */
-function walking(i: number, t: number): { x: number; bottom: number; w: number; h: number } {
-  const e = ENEMIES[i]!;
-  const arrive = CUES.chase + 0.6 + i * 0.12;
-  const x = slide(arrive, arrive + 1.0, e.x - 1400, e.x)(t) + Math.sin(t * 2.1 + e.phase) * 50;
-  const hop = e.hops
-    ? Math.abs(Math.sin(t * 4 + e.phase)) * 120
-    : Math.abs(Math.sin(t * 7 + e.phase)) * 14;
-  const bob = e.fly ? Math.sin(t * 3 + e.phase) * 36 : 0;
-  return { x, bottom: GROUND - e.fly - hop + bob, w: e.w * e.px, h: e.h * e.px };
+const HOPPER = ENEMIES.findIndex((e) => e.slides);
+const GLOOP = ENEMIES.findIndex((e) => e.rears);
+
+interface Hit {
+  enemy: number;
+  at: number;
 }
 
-/** How far a hit at time `at` has pushed a Zarg back by time `t`: out and held, then eased back once it has recovered. */
-function knocked(t: number, at: number): number {
-  const d = t - at;
-  if (d < 0) return 0;
-  if (d < 0.25) return Math.sin((d / 0.25) * (Math.PI / 2));
-  if (d < STUN_SECONDS) return 1;
-  if (d < STUN_SECONDS + 0.3) return 1 - slide(0, 1, 0, 1)((d - STUN_SECONDS) / 0.3);
-  return 0;
+interface Pose {
+  x: number;
+  bottom: number;
+  w: number;
+  h: number;
+  /** The hit that has this Zarg down, if one has. */
+  stun: Hit | undefined;
 }
 
-export interface Shot {
-  /** When Ben fires, how long the bubble flies, and where it goes. */
-  fired: number;
-  flight: number;
-  from: { x: number; y: number };
-  to: { x: number; y: number };
-  /** The Zarg it stuns, or null for a bubble that finds none. */
-  target: number | null;
+/** When the hopper was last hit by time `t`, the hit that stuns the gloop after it, and when the hopper is back on its feet. */
+function hopperState(
+  t: number,
+  hits: readonly Hit[],
+): { hit: Hit; gloop?: Hit; recover: number } | null {
+  let hit: Hit | undefined;
+  for (const c of hits) if (c.enemy === HOPPER && c.at <= t) hit = c;
+  if (!hit) return null;
+  const h = hit;
+  const gloop = hits.find((c) => c.enemy === GLOOP && c.at > h.at);
+  return { hit, gloop, recover: Math.min(h.at + 1.6, gloop ? gloop.at + 0.75 : Infinity) };
+}
+
+function hopperDown(t: number, hits: readonly Hit[]): ReturnType<typeof hopperState> {
+  const hs = hopperState(t, hits);
+  return hs && t < hs.recover ? hs : null;
 }
 
 /**
- * Ben's shots, worked out once. He fires every 0.32 s and aims at the next Zarg that is up and standing in the
- * open; the bubble flies straight at where it will be, stuns it for 0.9 s on the hit (as the DOS port does and as
- * the game's own fizz shot does) and is spent. Each shot sees the stuns the ones before it caused.
+ * Where a Zarg is at time `t`, given the hits so far. A hit grounds it for 0.9 s and knocks it back a little; the
+ * hopper is knocked back furthest, so it drops out of the line of fire, and the gloop behind it rears up to be hit
+ * next. This is the DOS port's choreography (its `mock.ts`), in this picture's pixels.
  */
-function planShots(): { shots: Shot[]; stuns: { enemy: number; at: number }[] } {
-  const shots: Shot[] = [];
-  const stuns: { enemy: number; at: number }[] = [];
-  const standing = (i: number, t: number): boolean =>
-    !stuns.some((s) => s.enemy === i && t >= s.at - 0.4 && t < s.at + STUN_SECONDS + 0.3);
-  for (let n = 0; n < BUBBLE_COUNT; n++) {
-    const fired = CUES.chase + 1.3 + n * 0.32;
-    const m = benPose(fired).muzzle;
-    let hit: Shot | null = null;
-    for (let k = 0; k < ENEMIES.length && !hit; k++) {
-      const j = (n + k) % ENEMIES.length;
-      let flight = 0.4;
-      // Aim at where the Zarg will be when the bubble gets there, which the flight time depends on: a few passes settle it.
-      const centre = (t: number): { x: number; y: number } => {
-        const b = walking(j, t);
-        return { x: b.x + b.w / 2, y: b.bottom - b.h / 2 };
-      };
-      for (let pass = 0; pass < 5; pass++) {
-        const c = centre(fired + flight);
-        flight = Math.hypot(m.x - c.x, m.y - c.y) / SHOT_SPEED;
-      }
-      const c = centre(fired + flight);
-      const onScreen = c.x > 120 && c.x < m.x - 120;
-      if (onScreen && standing(j, fired + flight)) {
-        hit = { fired, flight, from: m, to: c, target: j };
-        stuns.push({ enemy: j, at: fired + flight });
+function pose(i: number, t: number, hits: readonly Hit[]): Pose {
+  const e = ENEMIES[i]!;
+  const arrive = CUES.chase + 0.6 + i * 0.12;
+  let x = slide(arrive, arrive + 1.0, e.x - 1400, e.x)(t) + Math.sin(t * 2.1 + e.phase) * 50;
+  let hop = e.hops
+    ? Math.abs(Math.sin(t * 4 + e.phase)) * 120
+    : Math.abs(Math.sin(t * (e.bounce ? 5 : 7) + e.phase)) * (e.bounce ?? 12);
+  let stun: Hit | undefined;
+  for (const h of hits) if (h.enemy === i && t >= h.at && t < h.at + STUN_SECONDS) stun = h;
+  if (e.rears) {
+    // With the hopper down in front of it, the gloop rears up into the line of fire.
+    const hs = hopperDown(t, hits);
+    if (hs && t > hs.hit.at + 0.15) hop = Math.abs(Math.sin((t - hs.hit.at) * 7)) * 132;
+  }
+  if (e.slides) {
+    // Knocked down on the moving ground it slides back with it until the gloop behind it is stunned too, then
+    // springs forward to its place in the pack.
+    stun = undefined;
+    const hs = hopperState(t, hits);
+    if (hs) {
+      const back = (tt: number): number =>
+        -Math.min(GROUND_SPEED * Math.max(0, tt - hs.hit.at - 0.08), 460);
+      if (t < hs.recover) {
+        stun = hs.hit;
+        const k = Math.min(1, (t - hs.hit.at) / 0.2);
+        const hopAtHit = Math.abs(Math.sin(hs.hit.at * 4 + e.phase)) * 120;
+        hop = Math.max(0, hopAtHit * (1 - k) + Math.sin(k * Math.PI) * 33);
+        x += back(t);
+      } else if (t < hs.recover + 0.5) {
+        const k = (t - hs.recover) / 0.5;
+        x += back(hs.recover) * Math.pow(1 - k, 3);
+        hop = Math.sin(k * Math.PI) * 187;
       }
     }
-    shots.push(
-      hit ?? {
-        fired,
-        flight: 1600 / SHOT_SPEED,
-        from: m,
-        to: { x: m.x - 1600, y: m.y },
-        target: null,
-      },
-    );
+  } else if (stun) {
+    const k = Math.min(1, (t - stun.at) / 0.25);
+    x -= 33 * Math.sin((k * Math.PI) / 2);
+    // A hit Zarg drops to the ground (a flier stays where it hangs).
+    hop = 0;
   }
-  return { shots, stuns };
+  const bob = e.fly ? Math.sin(t * 3 + e.phase) * 36 : 0;
+  return { x, bottom: GROUND - e.fly - hop + bob, w: e.w * e.px, h: e.h * e.px, stun };
+}
+
+export interface Shot {
+  /** When Ben fires, and where the muzzle is then. Every bubble flies straight left from there. */
+  fired: number;
+  from: { x: number; y: number };
+  /** When it hits a Zarg and which one, or null for a bubble that flies on and off the screen. */
+  hit: Hit | null;
+}
+
+/**
+ * Ben's shots, worked out once as the DOS port works them out. Every bubble flies dead straight left from the muzzle
+ * and stuns the first Zarg whose box it runs into. He fires every 0.32 s, but times his fizz to the hopper: while it
+ * is in the pack he fires so the bubble meets it at the top of a jump, the one place it crosses the line of fire;
+ * the hit knocks it back out of the way and the next bubble reaches the gloop, which rears up to meet it. He holds
+ * his fire between the gloop's stun and the hopper landing back in the pack. Each shot sees the hits before it.
+ */
+function planShots(): { shots: Shot[]; hits: Hit[] } {
+  const hits: Hit[] = [];
+  const shots: Shot[] = [];
+  const muzzle = (t: number): { x: number; y: number } => benPose(t).muzzle;
+  const nextShot = (t: number): number => {
+    const hs = hopperState(t, hits);
+    if ((hs && t < hs.recover + 0.5) || t < CUES.chase + 1.2) return t;
+    const ph = ENEMIES[HOPPER]!.phase;
+    for (let k = Math.ceil(((t + 0.3) * 4 + ph - Math.PI / 2) / Math.PI); k < 999; k++) {
+      const peak = (Math.PI / 2 + k * Math.PI - ph) / 4;
+      let t0 = peak - 0.45;
+      for (let n = 0; n < 3; n++) {
+        const p = pose(HOPPER, peak, hits);
+        t0 = peak - (muzzle(t0).x - REACH - (p.x + p.w)) / SHOT_SPEED;
+      }
+      if (t0 >= t) return t0;
+    }
+    return t;
+  };
+  let tNext = CUES.chase + 1.3;
+  for (let n = 0; n < 24; n++) {
+    const fired = nextShot(tNext);
+    tNext = fired + 0.32;
+    if (fired > CUES.chase + 6.2) break;
+    // Ben holds his fire from the gloop's stun until the hopper has landed back in the pack, so nothing in flight
+    // meets the hopper mid-jump.
+    const hs = hopperState(fired, hits);
+    if (hs?.gloop && fired >= hs.gloop.at && fired < hs.recover + 0.6) continue;
+    const m = muzzle(fired);
+    let hit: Hit | null = null;
+    for (let a = 0; a <= 1.4 && !hit; a += 1 / 60) {
+      const bx = m.x - REACH - SHOT_SPEED * a;
+      for (let j = 0; j < ENEMIES.length && !hit; j++) {
+        const p = pose(j, fired + a, hits);
+        if (
+          bx - REACH <= p.x + p.w &&
+          bx + REACH >= p.x &&
+          m.y + REACH_Y >= p.bottom - p.h &&
+          m.y - REACH_Y <= p.bottom
+        ) {
+          hit = { enemy: j, at: fired + a };
+        }
+      }
+    }
+    if (hit) hits.push(hit);
+    shots.push({ fired, from: m, hit });
+  }
+  return { shots, hits };
 }
 
 let plan: ReturnType<typeof planShots> | undefined;
 const planned = (): ReturnType<typeof planShots> => (plan ??= planShots());
+
+/** The moments Ben fires and what each shot hits, for the tests: the shots held back are not in the list. */
+export const shotsPlanned = (): readonly Shot[] => planned().shots;
 
 export interface Fizz {
   kind: 'bubble' | 'pop';
@@ -428,24 +511,27 @@ export interface Fizz {
   alpha: number;
 }
 
-/** The fizz bubbles in flight, and the pops of the ones that hit. */
+/** The fizz bubbles in flight, flying straight left, and the pops of the ones that hit. */
 export function fizz(T: number): Fizz[] {
   const out: Fizz[] = [];
   for (const s of planned().shots) {
     const age = T - s.fired;
     if (age < 0) continue;
-    if (age < s.flight) {
-      const k = age / s.flight;
-      out.push({
-        kind: 'bubble',
-        x: s.from.x + (s.to.x - s.from.x) * k,
-        y: s.from.y + (s.to.y - s.from.y) * k,
-        scale: 4 + 3 * Math.min(1, age / 0.15),
-        alpha: 1,
-      });
-    } else if (s.target !== null && age < s.flight + 0.25) {
-      const d = (age - s.flight) / 0.25;
-      out.push({ kind: 'pop', x: s.to.x, y: s.to.y, scale: 4 + d * 8, alpha: 1 - d });
+    const spent = s.hit ? s.hit.at - s.fired : Infinity;
+    const x = s.from.x - REACH - SHOT_SPEED * Math.min(age, spent);
+    if (age < spent) {
+      if (x > -200) {
+        out.push({
+          kind: 'bubble',
+          x,
+          y: s.from.y,
+          scale: 4 + 3 * Math.min(1, age / 0.15),
+          alpha: 1,
+        });
+      }
+    } else if (s.hit && age < spent + 0.25) {
+      const d = (age - spent) / 0.25;
+      out.push({ kind: 'pop', x, y: s.from.y, scale: 4 + d * 8, alpha: 1 - d });
     }
   }
   return out;
@@ -471,25 +557,18 @@ export interface Enemy {
 
 /** The seven Zargs charging in from the left, each at its own pace, and stunned where a bubble has hit. */
 export function enemies(T: number): Enemy[] {
-  const { stuns } = planned();
+  const { hits } = planned();
   return ENEMIES.map((e, i) => {
-    const base = walking(i, T);
-    const hit = stuns.filter((s) => s.enemy === i && T >= s.at).pop();
-    const stunned = !!hit && T < hit.at + STUN_SECONDS;
-    const x = base.x - (hit ? KNOCK * knocked(T, hit.at) : 0);
-    // A stunned Zarg stops hopping and drops to the ground it was over.
-    const bottom = stunned
-      ? GROUND - e.fly + (e.fly ? Math.sin(T * 3 + e.phase) * 36 : 0)
-      : base.bottom;
+    const p = pose(i, T, hits);
     return {
-      sprite: `${e.sprite}${stunned ? 0 : frameAt(T + e.phase, 6)}`,
-      x,
-      bottom,
+      sprite: `${e.sprite}${p.stun ? 0 : frameAt(T + e.phase, 6)}`,
+      x: p.x,
+      bottom: p.bottom,
       px: e.px,
       w: e.w,
       h: e.h,
-      stunned,
-      flash: !!hit && T - hit.at < HIT_FLASH,
+      stunned: !!p.stun,
+      flash: !!p.stun && T - p.stun.at < HIT_FLASH,
       stars: Math.floor(T * 6) % 2 === 0 ? 0 : 1,
     };
   });

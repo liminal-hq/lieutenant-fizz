@@ -22,6 +22,7 @@ import {
   fizz,
   flash,
   presents,
+  shotsPlanned,
   speedLines,
   stars,
   wordRows,
@@ -135,15 +136,16 @@ describe('the chase', () => {
     expect(Math.abs(p.muzzle.y - p.y)).toBeLessThan(BEN_H * 22);
   });
 
-  it('fires no bubble before 7.7 seconds, then one every 0.32 seconds, and all are gone by the end', () => {
-    expect(fizz(7.6)).toEqual([]);
-    expect(fizz(7.9).length).toBeGreaterThan(0);
-    for (const b of fizz(9)) {
+  it('fires no bubble before Ben’s first shot, and all are gone by the end', () => {
+    const first = shotsPlanned()[0]!.fired;
+    expect(first).toBeGreaterThan(CUES.chase + 1.2);
+    expect(fizz(first - 0.01)).toEqual([]);
+    expect(fizz(first + 0.1).length).toBeGreaterThan(0);
+    for (const b of fizz(first + 0.3)) {
       expect(b.scale).toBeGreaterThan(0);
       expect(b.alpha).toBeGreaterThan(0);
       expect(b.alpha).toBeLessThanOrEqual(1);
     }
-    // Sixteen are fired, and the last is spent a second or so after the loop's black.
     expect(fizz(14)).toEqual([]);
   });
 
@@ -160,46 +162,61 @@ describe('the chase', () => {
     expect(enemies(7.8).every((e) => e.x > -1400)).toBe(true);
   });
 
-  it('stuns the Zargs the bubbles hit, one after another, as the DOS port does', () => {
+  it('flies every bubble straight left from the muzzle, never aimed', () => {
+    for (const s of shotsPlanned()) {
+      // The same height for the whole flight, from the first frame to the pop.
+      for (const age of [0.02, 0.1, 0.25, 0.4]) {
+        const f = fizz(s.fired + age).filter((b) => Math.abs(b.y - s.from.y) < 0.001);
+        expect(f.length, `shot at ${s.fired}`).toBeGreaterThan(0);
+        expect(f.every((b) => b.x <= s.from.x)).toBe(true);
+      }
+    }
+  });
+
+  it('times the shots to the hopper: each meets it near the top of a jump, and the gloop is stunned next', () => {
+    const shots = shotsPlanned();
+    const hopperHits = shots.filter((s) => s.hit?.enemy === 1);
+    expect(hopperHits.length).toBeGreaterThanOrEqual(2);
+    for (const s of hopperHits) {
+      // The hopper jumps as |sin(4t + 1.1)|; the bubble arrives where that is near its peak.
+      expect(Math.abs(Math.sin(4 * s.hit!.at + 1.1)), `hit at ${s.hit!.at}`).toBeGreaterThan(0.6);
+    }
+    // After the hopper is knocked out of the way, the next bubble that lands is on the gloop behind it.
+    const order = shots.filter((s) => s.hit && s.hit.enemy <= 1).map((s) => s.hit!.enemy);
+    expect(order.slice(0, 2)).toEqual([1, 0]);
+    // Ben fires on the hopper's rhythm, not every 0.32 s: the first shot waits for a jump.
+    expect(shots[0]!.fired).toBeGreaterThan(CUES.chase + 1.3);
+  });
+
+  it('stuns the hopper and the gloop, with the stars over them, and nothing before the first bubble lands', () => {
     const stunned = new Set<string>();
     let flashes = 0;
-    const times: number[] = [];
+    let first = Infinity;
     for (let n = 0; n < TITLES_TICKS; n++) {
       const T = tick(n);
       for (const e of enemies(T)) {
         if (e.stunned) {
           stunned.add(e.sprite.replace(/[01]$/, ''));
-          // A stunned Zarg is on its first frame, with the stars over it.
+          first = Math.min(first, T);
+          // A stunned Zarg is on its first frame.
           expect(e.sprite).toMatch(/0$/);
         }
         if (e.flash) flashes++;
       }
-      if (enemies(T).some((e) => e.stunned)) times.push(T);
     }
-    // More than the hopper and the gloop: the web version stuns every Zarg Ben can reach.
-    expect(stunned.size).toBeGreaterThanOrEqual(5);
+    expect(stunned.has('hopper')).toBe(true);
+    expect(stunned.has('gloop')).toBe(true);
     expect(flashes).toBeGreaterThan(0);
-    // Nothing is stunned until the first bubble has had time to land, and the sequence ends clear of stuns.
-    expect(Math.min(...times)).toBeGreaterThan(CUES.chase + 1.3);
+    expect(first).toBeGreaterThan(shotsPlanned()[0]!.fired);
     expect(enemies(14).some((e) => e.stunned)).toBe(false);
   });
 
   it('keeps a Zarg down for 0.9 seconds after a hit, then lets it up', () => {
-    // Find the first stun, then follow that Zarg.
-    let first = -1;
-    let who = -1;
-    for (let n = 0; n < TITLES_TICKS && first < 0; n++) {
-      enemies(tick(n)).forEach((e, i) => {
-        if (e.stunned && first < 0) {
-          first = n;
-          who = i;
-        }
-      });
-    }
-    expect(first).toBeGreaterThan(0);
-    const T0 = tick(first);
-    expect(enemies(T0 + STUN_SECONDS - 0.05)[who]!.stunned).toBe(true);
-    expect(enemies(T0 + STUN_SECONDS + 0.05)[who]!.stunned).toBe(false);
+    // The gloop is hit and stays put, so follow it (the hopper is carried back until it recovers).
+    const hit = shotsPlanned().find((s) => s.hit?.enemy === 0)!.hit!;
+    expect(enemies(hit.at + 0.05)[0]!.stunned).toBe(true);
+    expect(enemies(hit.at + STUN_SECONDS - 0.05)[0]!.stunned).toBe(true);
+    expect(enemies(hit.at + STUN_SECONDS + 0.05)[0]!.stunned).toBe(false);
   });
 
   it('pops a bubble where it hits, and the pops are puffs of the game’s own sprite', () => {
