@@ -10,14 +10,16 @@ import {
   BEN_H,
   BEN_W,
   CUES,
+  DESIGN,
+  STUN_SECONDS,
   TITLES_H,
   TITLES_SECONDS,
   TITLES_TICKS,
   TITLES_W,
   benPose,
-  bubbles,
   enemies,
   fade,
+  fizz,
   flash,
   presents,
   speedLines,
@@ -133,28 +135,88 @@ describe('the chase', () => {
     expect(Math.abs(p.muzzle.y - p.y)).toBeLessThan(BEN_H * 22);
   });
 
-  it('fires no bubble before 7.7 seconds, then one every 0.32 seconds, each flying left of the muzzle', () => {
-    expect(bubbles(7.6)).toEqual([]);
-    expect(bubbles(7.9).length).toBeGreaterThan(0);
-    for (const b of bubbles(9)) {
-      expect(b.radius).toBeGreaterThan(0);
+  it('fires no bubble before 7.7 seconds, then one every 0.32 seconds, and all are gone by the end', () => {
+    expect(fizz(7.6)).toEqual([]);
+    expect(fizz(7.9).length).toBeGreaterThan(0);
+    for (const b of fizz(9)) {
+      expect(b.scale).toBeGreaterThan(0);
       expect(b.alpha).toBeGreaterThan(0);
       expect(b.alpha).toBeLessThanOrEqual(1);
     }
-    // Sixteen are fired, and the last pops about a second after the loop's black (13.35 s).
-    expect(bubbles(13.4)).toEqual([]);
+    // Sixteen are fired, and the last is spent a second or so after the loop's black.
+    expect(fizz(14)).toEqual([]);
   });
 
-  it('sends seven Zargs in, each on one of its two frames, and flashes one only while bubbles fly', () => {
-    const calm = enemies(9, false);
+  it('sends seven Zargs in, each on one of its two frames, none stunned before a bubble lands', () => {
+    const calm = enemies(7.0);
     expect(calm).toHaveLength(7);
     for (const e of calm) {
       expect(e.sprite).toMatch(/^[a-z]+[01]$/);
-      expect(e.zap).toBe(false);
+      expect(e.stunned).toBe(false);
+      expect(e.flash).toBe(false);
     }
     expect(new Set(calm.map((e) => e.sprite.replace(/[01]$/, ''))).size).toBe(7);
     // Every one has arrived by the time Ben starts firing.
-    expect(enemies(7.8, true).every((e) => e.x > -1400)).toBe(true);
+    expect(enemies(7.8).every((e) => e.x > -1400)).toBe(true);
+  });
+
+  it('stuns the Zargs the bubbles hit, one after another, as the DOS port does', () => {
+    const stunned = new Set<string>();
+    let flashes = 0;
+    const times: number[] = [];
+    for (let n = 0; n < TITLES_TICKS; n++) {
+      const T = tick(n);
+      for (const e of enemies(T)) {
+        if (e.stunned) {
+          stunned.add(e.sprite.replace(/[01]$/, ''));
+          // A stunned Zarg is on its first frame, with the stars over it.
+          expect(e.sprite).toMatch(/0$/);
+        }
+        if (e.flash) flashes++;
+      }
+      if (enemies(T).some((e) => e.stunned)) times.push(T);
+    }
+    // More than the hopper and the gloop: the web version stuns every Zarg Ben can reach.
+    expect(stunned.size).toBeGreaterThanOrEqual(5);
+    expect(flashes).toBeGreaterThan(0);
+    // Nothing is stunned until the first bubble has had time to land, and the sequence ends clear of stuns.
+    expect(Math.min(...times)).toBeGreaterThan(CUES.chase + 1.3);
+    expect(enemies(14).some((e) => e.stunned)).toBe(false);
+  });
+
+  it('keeps a Zarg down for 0.9 seconds after a hit, then lets it up', () => {
+    // Find the first stun, then follow that Zarg.
+    let first = -1;
+    let who = -1;
+    for (let n = 0; n < TITLES_TICKS && first < 0; n++) {
+      enemies(tick(n)).forEach((e, i) => {
+        if (e.stunned && first < 0) {
+          first = n;
+          who = i;
+        }
+      });
+    }
+    expect(first).toBeGreaterThan(0);
+    const T0 = tick(first);
+    expect(enemies(T0 + STUN_SECONDS - 0.05)[who]!.stunned).toBe(true);
+    expect(enemies(T0 + STUN_SECONDS + 0.05)[who]!.stunned).toBe(false);
+  });
+
+  it('pops a bubble where it hits, and the pops are puffs of the game’s own sprite', () => {
+    let pops = 0;
+    for (let n = 0; n < TITLES_TICKS; n++)
+      pops += fizz(tick(n)).filter((f) => f.kind === 'pop').length;
+    expect(pops).toBeGreaterThan(0);
+  });
+});
+
+describe('a screen of another shape', () => {
+  it('spreads the stars and the speed lines across the whole width and height', () => {
+    const wide = { w: 2560, h: 1080 };
+    const tall = { w: 1920, h: 1440 };
+    expect(Math.max(...stars(2, wide).map((s) => s.x))).toBeGreaterThan(DESIGN.w);
+    expect(Math.max(...stars(2, tall).map((s) => s.y))).toBeGreaterThan(DESIGN.h);
+    expect(Math.max(...speedLines(8, wide).map((l) => l.x))).toBeGreaterThan(DESIGN.w);
   });
 });
 
@@ -191,7 +253,7 @@ describe('the titles’ sprites', () => {
     expect(opaque).toBeGreaterThan(50);
   });
 
-  it('builds one canvas and one silhouette for each', () => {
+  it('builds a canvas, a black silhouette and a white one for each', () => {
     const made: [number, number][] = [];
     const sprites = titleSprites(defs, (w, h) => {
       made.push([w, h]);
@@ -202,7 +264,7 @@ describe('the titles’ sprites', () => {
       } as never;
     });
     expect([...sprites.keys()].sort()).toEqual([...TITLES_SPRITES].sort());
-    expect(made).toHaveLength(TITLES_SPRITES.length * 2);
+    expect(made).toHaveLength(TITLES_SPRITES.length * 3);
   });
 });
 
@@ -267,6 +329,6 @@ describe('painting the titles', () => {
     expect(sees(1.5).get('drawImage') ?? 0).toBe(1);
     const chase = sees(9);
     expect(chase.get('drawImage') ?? 0).toBeGreaterThan(8);
-    expect(chase.get('arc') ?? 0).toBeGreaterThan(0);
+    expect(chase.get('ellipse') ?? 0).toBeGreaterThan(0);
   });
 });

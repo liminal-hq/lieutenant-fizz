@@ -14,6 +14,18 @@
 export const TITLES_W = 1920;
 export const TITLES_H = 1080;
 
+/**
+ * The space the titles are painted into: at least 1920 by 1080 of it is the picture's own (centred), and a screen that is
+ * wider or taller than that gets more backdrop around it, so the titles fill the screen as the title menu does.
+ */
+export interface View {
+  w: number;
+  h: number;
+}
+
+/** The picture's own space. */
+export const DESIGN: View = { w: TITLES_W, h: TITLES_H };
+
 /** One pass of the titles, in seconds and in 60 Hz ticks. */
 export const TITLES_SECONDS = 12.8;
 export const TITLES_TICKS = 768;
@@ -82,16 +94,16 @@ export interface Star {
   alpha: number;
 }
 
-/** Seventy stars drifting left and twinkling. */
-export function stars(T: number): Star[] {
-  const span = TITLES_W + 40;
+/** Seventy stars drifting left and twinkling, placed across the whole `view`. */
+export function stars(T: number, view: View = DESIGN): Star[] {
+  const span = view.w + 40;
   return Array.from({ length: 70 }, (_, i) => {
     const size = rnd(i + 9) > 0.8 ? 8 : 4;
     const x = ((((rnd(i) * span - T * (20 + size * 8)) % span) + span) % span) - 20;
     const twinkle = 0.35 + 0.65 * Math.abs(Math.sin(T * (1 + rnd(i + 3) * 2) + i));
     return {
       x: Math.round(x / 4) * 4,
-      y: Math.round((rnd(i + 1) * 900) / 4) * 4,
+      y: Math.round((rnd(i + 1) * 900 * (view.h / TITLES_H)) / 4) * 4,
       size,
       colour: STAR_COLOURS[i % 5] ?? '#ffffff',
       alpha: twinkle,
@@ -236,11 +248,11 @@ export interface SpeedLine {
 export const speedLineAlpha = (T: number): number =>
   win(T, CUES.chase + 0.4, CUES.chase + 0.8, 99, 100) * 0.5;
 
-export function speedLines(T: number): SpeedLine[] {
+/** Fourteen streaks racing left across the whole `view`. */
+export function speedLines(T: number, view: View = DESIGN): SpeedLine[] {
   return Array.from({ length: 14 }, (_, i) => {
     const length = 120 + rnd(i + 40) * 260;
-    const x =
-      TITLES_W - ((T * (1600 + rnd(i) * 900) + rnd(i + 5) * TITLES_W) % (TITLES_W + length));
+    const x = view.w - ((T * (1600 + rnd(i) * 900) + rnd(i + 5) * view.w) % (view.w + length));
     return { x, y: 420 + rnd(i + 20) * 520, length };
   });
 }
@@ -289,42 +301,24 @@ export function benPose(t: number): BenPose {
   };
 }
 
-/** The moment Ben appears, and the first and number of bubbles. */
+/** The moment Ben appears, and the number of shots he fires. */
 export const BEN_FROM = CUES.chase + 0.25;
 export const BUBBLE_COUNT = 16;
 
-export interface Bubble {
-  x: number;
-  y: number;
-  radius: number;
-  alpha: number;
-}
-
-/** The fizz bubbles in flight: one every 0.32 s, each flying left from the muzzle, then popping. */
-export function bubbles(T: number): Bubble[] {
-  const out: Bubble[] = [];
-  const life = 0.7;
-  for (let i = 0; i < BUBBLE_COUNT; i++) {
-    const t0 = CUES.chase + 1.3 + i * 0.32;
-    const age = T - t0;
-    if (age < 0 || age > life + 0.15) continue;
-    const k = Math.min(1, age / life);
-    const popping = age > life;
-    const radius = popping ? 34 + (age - life) * 300 : 10 + k * 22;
-    const born = benPose(t0);
-    out.push({
-      x: born.muzzle.x - radius * 0.6 - k * (720 + rnd(i) * 200),
-      y: born.muzzle.y,
-      radius,
-      alpha: popping ? 1 - (age - life) / 0.15 : 1,
-    });
-  }
-  return out;
-}
+/** How fast a fizz bubble flies, in pixels a second, and how long a stunned Zarg stays down. */
+const SHOT_SPEED = 1700;
+export const STUN_SECONDS = 0.9;
+/** How far a hit knocks a Zarg back. */
+const KNOCK = 40;
+/** How long a Zarg is flashed white by a hit. */
+export const HIT_FLASH = 0.08;
 
 interface EnemyDef {
   /** The sprite's name without its frame, such as `gloop` for `gloop0` and `gloop1`. */
   sprite: string;
+  /** The sprite's size in its own pixels. */
+  w: number;
+  h: number;
   x: number;
   /** How high above the ground a flier hangs. */
   fly: number;
@@ -335,14 +329,127 @@ interface EnemyDef {
 }
 
 const ENEMIES: readonly EnemyDef[] = [
-  { sprite: 'gloop', x: 120, fly: 0, px: 11, phase: 0.0 },
-  { sprite: 'hopper', x: 420, fly: 0, px: 11, phase: 1.1, hops: true },
-  { sprite: 'beetle', x: 700, fly: 0, px: 10, phase: 2.3 },
-  { sprite: 'sentry', x: -120, fly: 0, px: 11, phase: 0.7 },
-  { sprite: 'bat', x: 300, fly: 330, px: 11, phase: 0.4 },
-  { sprite: 'drone', x: 600, fly: 440, px: 10, phase: 1.9 },
-  { sprite: 'phantom', x: 30, fly: 270, px: 11, phase: 2.8 },
+  { sprite: 'gloop', w: 16, h: 16, x: 120, fly: 0, px: 11, phase: 0.0 },
+  { sprite: 'hopper', w: 16, h: 16, x: 420, fly: 0, px: 11, phase: 1.1, hops: true },
+  { sprite: 'beetle', w: 16, h: 16, x: 700, fly: 0, px: 10, phase: 2.3 },
+  { sprite: 'sentry', w: 24, h: 16, x: -120, fly: 0, px: 11, phase: 0.7 },
+  { sprite: 'bat', w: 16, h: 16, x: 300, fly: 330, px: 11, phase: 0.4 },
+  { sprite: 'drone', w: 16, h: 16, x: 600, fly: 440, px: 10, phase: 1.9 },
+  { sprite: 'phantom', w: 16, h: 24, x: 30, fly: 270, px: 11, phase: 2.8 },
 ];
+
+/** A Zarg's place before anything has hit it: where its box is, and how it moves on its own. */
+function walking(i: number, t: number): { x: number; bottom: number; w: number; h: number } {
+  const e = ENEMIES[i]!;
+  const arrive = CUES.chase + 0.6 + i * 0.12;
+  const x = slide(arrive, arrive + 1.0, e.x - 1400, e.x)(t) + Math.sin(t * 2.1 + e.phase) * 50;
+  const hop = e.hops
+    ? Math.abs(Math.sin(t * 4 + e.phase)) * 120
+    : Math.abs(Math.sin(t * 7 + e.phase)) * 14;
+  const bob = e.fly ? Math.sin(t * 3 + e.phase) * 36 : 0;
+  return { x, bottom: GROUND - e.fly - hop + bob, w: e.w * e.px, h: e.h * e.px };
+}
+
+/** How far a hit at time `at` has pushed a Zarg back by time `t`: out and held, then eased back once it has recovered. */
+function knocked(t: number, at: number): number {
+  const d = t - at;
+  if (d < 0) return 0;
+  if (d < 0.25) return Math.sin((d / 0.25) * (Math.PI / 2));
+  if (d < STUN_SECONDS) return 1;
+  if (d < STUN_SECONDS + 0.3) return 1 - slide(0, 1, 0, 1)((d - STUN_SECONDS) / 0.3);
+  return 0;
+}
+
+export interface Shot {
+  /** When Ben fires, how long the bubble flies, and where it goes. */
+  fired: number;
+  flight: number;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  /** The Zarg it stuns, or null for a bubble that finds none. */
+  target: number | null;
+}
+
+/**
+ * Ben's shots, worked out once. He fires every 0.32 s and aims at the next Zarg that is up and standing in the
+ * open; the bubble flies straight at where it will be, stuns it for 0.9 s on the hit (as the DOS port does and as
+ * the game's own fizz shot does) and is spent. Each shot sees the stuns the ones before it caused.
+ */
+function planShots(): { shots: Shot[]; stuns: { enemy: number; at: number }[] } {
+  const shots: Shot[] = [];
+  const stuns: { enemy: number; at: number }[] = [];
+  const standing = (i: number, t: number): boolean =>
+    !stuns.some((s) => s.enemy === i && t >= s.at - 0.4 && t < s.at + STUN_SECONDS + 0.3);
+  for (let n = 0; n < BUBBLE_COUNT; n++) {
+    const fired = CUES.chase + 1.3 + n * 0.32;
+    const m = benPose(fired).muzzle;
+    let hit: Shot | null = null;
+    for (let k = 0; k < ENEMIES.length && !hit; k++) {
+      const j = (n + k) % ENEMIES.length;
+      let flight = 0.4;
+      // Aim at where the Zarg will be when the bubble gets there, which the flight time depends on: a few passes settle it.
+      const centre = (t: number): { x: number; y: number } => {
+        const b = walking(j, t);
+        return { x: b.x + b.w / 2, y: b.bottom - b.h / 2 };
+      };
+      for (let pass = 0; pass < 5; pass++) {
+        const c = centre(fired + flight);
+        flight = Math.hypot(m.x - c.x, m.y - c.y) / SHOT_SPEED;
+      }
+      const c = centre(fired + flight);
+      const onScreen = c.x > 120 && c.x < m.x - 120;
+      if (onScreen && standing(j, fired + flight)) {
+        hit = { fired, flight, from: m, to: c, target: j };
+        stuns.push({ enemy: j, at: fired + flight });
+      }
+    }
+    shots.push(
+      hit ?? {
+        fired,
+        flight: 1600 / SHOT_SPEED,
+        from: m,
+        to: { x: m.x - 1600, y: m.y },
+        target: null,
+      },
+    );
+  }
+  return { shots, stuns };
+}
+
+let plan: ReturnType<typeof planShots> | undefined;
+const planned = (): ReturnType<typeof planShots> => (plan ??= planShots());
+
+export interface Fizz {
+  kind: 'bubble' | 'pop';
+  x: number;
+  y: number;
+  /** Screen pixels per sprite pixel for a bubble, and the pop's scale. */
+  scale: number;
+  alpha: number;
+}
+
+/** The fizz bubbles in flight, and the pops of the ones that hit. */
+export function fizz(T: number): Fizz[] {
+  const out: Fizz[] = [];
+  for (const s of planned().shots) {
+    const age = T - s.fired;
+    if (age < 0) continue;
+    if (age < s.flight) {
+      const k = age / s.flight;
+      out.push({
+        kind: 'bubble',
+        x: s.from.x + (s.to.x - s.from.x) * k,
+        y: s.from.y + (s.to.y - s.from.y) * k,
+        scale: 4 + 3 * Math.min(1, age / 0.15),
+        alpha: 1,
+      });
+    } else if (s.target !== null && age < s.flight + 0.25) {
+      const d = (age - s.flight) / 0.25;
+      out.push({ kind: 'pop', x: s.to.x, y: s.to.y, scale: 4 + d * 8, alpha: 1 - d });
+    }
+  }
+  return out;
+}
 
 export interface Enemy {
   /** The sprite to draw, such as `gloop1`. */
@@ -351,26 +458,39 @@ export interface Enemy {
   /** The sprite's bottom edge, which the caller subtracts its drawn height from. */
   bottom: number;
   px: number;
-  /** A flash of brightness as a bubble stuns it. */
-  zap: boolean;
+  /** The sprite's size in its own pixels. */
+  w: number;
+  h: number;
+  /** Down and dazed by a hit, with the game's stun stars over it. */
+  stunned: boolean;
+  /** Flashed white in the instant of a hit. */
+  flash: boolean;
+  /** Which of the stars' two frames is on. */
+  stars: 0 | 1;
 }
 
-/** The seven Zargs charging in from the left, each at its own pace. */
-export function enemies(T: number, anyBubble: boolean): Enemy[] {
-  const C = CUES.chase;
+/** The seven Zargs charging in from the left, each at its own pace, and stunned where a bubble has hit. */
+export function enemies(T: number): Enemy[] {
+  const { stuns } = planned();
   return ENEMIES.map((e, i) => {
-    const arrive = C + 0.6 + i * 0.12;
-    const x = slide(arrive, arrive + 1.0, e.x - 1400, e.x)(T) + Math.sin(T * 2.1 + e.phase) * 50;
-    const hop = e.hops
-      ? Math.abs(Math.sin(T * 4 + e.phase)) * 120
-      : Math.abs(Math.sin(T * 7 + e.phase)) * 14;
-    const bob = e.fly ? Math.sin(T * 3 + e.phase) * 36 : 0;
+    const base = walking(i, T);
+    const hit = stuns.filter((s) => s.enemy === i && T >= s.at).pop();
+    const stunned = !!hit && T < hit.at + STUN_SECONDS;
+    const x = base.x - (hit ? KNOCK * knocked(T, hit.at) : 0);
+    // A stunned Zarg stops hopping and drops to the ground it was over.
+    const bottom = stunned
+      ? GROUND - e.fly + (e.fly ? Math.sin(T * 3 + e.phase) * 36 : 0)
+      : base.bottom;
     return {
-      sprite: `${e.sprite}${frameAt(T + e.phase, 6)}`,
+      sprite: `${e.sprite}${stunned ? 0 : frameAt(T + e.phase, 6)}`,
       x,
-      bottom: GROUND - e.fly - hop + bob,
+      bottom,
       px: e.px,
-      zap: anyBubble && Math.sin(T * 9 + e.phase * 3) > 0.92,
+      w: e.w,
+      h: e.h,
+      stunned,
+      flash: !!hit && T - hit.at < HIT_FLASH,
+      stars: Math.floor(T * 6) % 2 === 0 ? 0 : 1,
     };
   });
 }

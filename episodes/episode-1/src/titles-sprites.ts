@@ -7,9 +7,13 @@ import type { SpriteDef } from '@lieutenant-fizz/engine/atlas';
 import { EGA, hexToRgb } from '@lieutenant-fizz/engine/palette';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 
-/** Ben, firing backwards, and both frames of each Zarg that chases him. */
+/** Ben, firing backwards, both frames of each Zarg that chases him, and the game's own fizz bubble, stun stars and puff. */
 export const TITLES_SPRITES: readonly string[] = [
   'ben_shoot',
+  'bubble',
+  'stars0',
+  'stars1',
+  'puff',
   ...['gloop', 'hopper', 'beetle', 'sentry', 'bat', 'drone', 'phantom'].flatMap((n) => [
     `${n}0`,
     `${n}1`,
@@ -21,6 +25,8 @@ export interface TitleSprite {
   image: CanvasImageSource;
   /** The sprite's pixels all black, for the drop shadow under Ben. */
   silhouette: CanvasImageSource;
+  /** The sprite's pixels all white, for the flash of a hit. */
+  white: CanvasImageSource;
   /** The sprite's size in its own pixels. */
   w: number;
   h: number;
@@ -90,6 +96,7 @@ export function titleSprites(
     out.set(name, {
       image: spriteCanvas(grid, undefined, make),
       silhouette: spriteCanvas(grid, '#000000', make),
+      white: spriteCanvas(grid, '#ffffff', make),
       w: grid.w,
       h: grid.h,
     });

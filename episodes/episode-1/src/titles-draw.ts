@@ -16,9 +16,9 @@ import {
   TITLES_H,
   TITLES_W,
   benPose,
-  bubbles,
   enemies,
   fade,
+  fizz,
   flash,
   groundLift,
   groundScroll,
@@ -26,6 +26,7 @@ import {
   speedLineAlpha,
   speedLines,
   stars,
+  type View,
   wordRows,
   wordmark,
 } from './titles';
@@ -69,11 +70,11 @@ function shadowed(
   g.fillText(text, x, y);
 }
 
-function backdrop(g: Ctx): void {
+function backdrop(g: Ctx, view: View): void {
   // An ellipse centred 40% down, from #12101c to #050507 by 70% of the way to the far corner.
   g.save();
-  g.translate(TITLES_W / 2, TITLES_H * 0.4);
-  g.scale((TITLES_W / 2) * Math.SQRT2, TITLES_H * 0.6 * Math.SQRT2);
+  g.translate(view.w / 2, view.h * 0.4);
+  g.scale((view.w / 2) * Math.SQRT2, view.h * 0.6 * Math.SQRT2);
   const grad = g.createRadialGradient(0, 0, 0, 0, 0, 1);
   grad.addColorStop(0, '#12101c');
   grad.addColorStop(0.7, '#050507');
@@ -82,8 +83,8 @@ function backdrop(g: Ctx): void {
   g.restore();
 }
 
-function drawStars(g: Ctx, T: number): void {
-  for (const s of stars(T)) {
+function drawStars(g: Ctx, T: number, view: View): void {
+  for (const s of stars(T, view)) {
     g.globalAlpha = s.alpha;
     g.fillStyle = s.colour;
     g.fillRect(s.x, s.y, s.size, s.size);
@@ -102,62 +103,62 @@ function drawRows(g: Ctx, T: number): void {
   g.globalAlpha = 1;
 }
 
-function drawSpeedLines(g: Ctx, T: number): void {
+/** Drawn in the view's own space, so the lines run the whole width of the screen; `down` is where the picture's top is. */
+function drawSpeedLines(g: Ctx, T: number, view: View, down: number): void {
   const alpha = speedLineAlpha(T);
   if (alpha <= 0) return;
   g.globalAlpha = alpha;
   g.fillStyle = '#55ffff';
-  for (const l of speedLines(T)) g.fillRect(l.x, l.y, l.length, 6);
+  for (const l of speedLines(T, view)) g.fillRect(l.x, l.y + down, l.length, 6);
   g.globalAlpha = 1;
 }
 
-function drawGround(g: Ctx, T: number): void {
+/** The ground, from the left edge of the view (`left`, at or below 0) to its right edge and on down past the bottom. */
+function drawGround(g: Ctx, T: number, left: number, right: number): void {
   const top = GROUND + groundLift(T);
   g.fillStyle = ACCENT;
-  g.fillRect(0, top, TITLES_W, 12);
+  g.fillRect(left, top, right - left, 12);
   g.fillStyle = '#aa5500';
-  g.fillRect(0, top + 12, TITLES_W, TITLES_H - top);
+  g.fillRect(left, top + 12, right - left, 2000);
   g.fillStyle = '#552a00';
-  const scroll = groundScroll(T);
-  for (let i = 0; i < 22; i++) g.fillRect(scroll + i * 96, top + 36 + (i % 2) * 36, 48, 12);
-}
-
-/** Draws a sprite with its bottom-left at (x, bottom), `px` screen pixels to a sprite pixel. */
-function drawSprite(
-  g: Ctx,
-  s: TitleSprite,
-  x: number,
-  bottom: number,
-  px: number,
-  lit: boolean,
-): void {
-  const w = s.w * px;
-  const h = s.h * px;
-  g.drawImage(s.image, x, bottom - h, w, h);
-  if (lit) {
-    // A stunned Zarg flashes: the same picture drawn again on top, adding its light.
-    g.globalCompositeOperation = 'lighter';
-    g.drawImage(s.image, x, bottom - h, w, h);
-    g.globalCompositeOperation = 'source-over';
+  const scroll = groundScroll(T) + Math.floor(left / 96) * 96;
+  for (let i = 0; i < Math.ceil((right - left) / 96) + 2; i++) {
+    g.fillRect(scroll + i * 96, top + 36 + (i % 2) * 36, 48, 12);
   }
 }
 
-function drawChase(g: Ctx, T: number, assets: TitlesAssets): void {
-  const shots = bubbles(T);
-  for (const e of enemies(T, shots.length > 0)) {
+function drawChase(g: Ctx, T: number, assets: TitlesAssets, left: number): void {
+  for (const e of enemies(T)) {
     const s = assets.sprites.get(e.sprite);
+    const w = e.w * e.px;
+    const h = e.h * e.px;
     // Before the chase they wait off the left edge.
-    if (s && e.x + s.w * e.px > 0) drawSprite(g, s, e.x, e.bottom, e.px, e.zap);
+    if (!s || e.x + w <= left) continue;
+    const top = e.bottom - h;
+    g.drawImage(e.flash ? s.white : s.image, e.x, top, w, h);
+    if (e.stunned) {
+      // The stars turn over a stunned Zarg, as they do in the game.
+      const stars = assets.sprites.get(`stars${e.stars}`);
+      if (stars) {
+        const sw = stars.w * e.px;
+        g.drawImage(
+          stars.image,
+          e.x + w / 2 - sw / 2,
+          top - stars.h * e.px * 0.9,
+          sw,
+          stars.h * e.px,
+        );
+      }
+    }
   }
-  for (const b of shots) {
-    g.globalAlpha = b.alpha;
-    g.beginPath();
-    g.arc(b.x, b.y, Math.max(0, b.radius - 3), 0, Math.PI * 2);
-    g.fillStyle = 'rgba(85, 255, 255, 0.35)';
-    g.fill();
-    g.lineWidth = 6;
-    g.strokeStyle = '#ffffff';
-    g.stroke();
+  // The game's own fizz bubble, flying at the Zargs, and the puff where it hits.
+  for (const f of fizz(T)) {
+    const s = assets.sprites.get(f.kind === 'bubble' ? 'bubble' : 'puff');
+    if (!s) continue;
+    const w = s.w * f.scale;
+    const h = s.h * f.scale;
+    g.globalAlpha = f.alpha;
+    g.drawImage(s.image, f.x - w / 2, f.y - h / 2, w, h);
   }
   g.globalAlpha = 1;
   if (T <= BEN_FROM) return;
@@ -270,33 +271,50 @@ function drawWordmark(g: Ctx, T: number): void {
 }
 
 /**
- * Paints the titles as they are at `T` seconds, in a 1920 by 1080 space. The caller sizes the canvas and sets the
- * transform that fits that space to it, and waits for the pixel font to load first.
+ * Paints the titles as they are at `T` seconds on a canvas of `width` by `height` pixels. The picture is laid out in
+ * 1920 by 1080 and scaled to fit; a screen of another shape gets more of the backdrop (stars, word rows, ground,
+ * speed lines) rather than bars, so the titles fill it as the title menu does. The caller waits for the pixel font to
+ * load first. `calm` leaves out the white flash and the speed lines, for a player who has asked for less motion.
  */
-export function drawTitles(g: Ctx, T: number, assets: TitlesAssets): void {
+export function drawTitles(
+  g: Ctx,
+  T: number,
+  assets: TitlesAssets,
+  options: { calm?: boolean; width?: number; height?: number } = {},
+): void {
+  const width = options.width ?? TITLES_W;
+  const height = options.height ?? TITLES_H;
+  const k = Math.min(width / TITLES_W, height / TITLES_H);
+  const view: View = { w: width / k, h: height / k };
+  const ox = (view.w - TITLES_W) / 2;
+  const oy = (view.h - TITLES_H) / 2;
   g.save();
+  g.setTransform(k, 0, 0, k, 0, 0);
   g.imageSmoothingEnabled = false;
   plainText(g);
   g.globalAlpha = 1;
-  backdrop(g);
-  drawStars(g, T);
+  backdrop(g, view);
+  drawStars(g, T, view);
+  if (!options.calm) drawSpeedLines(g, T, view, oy);
+  g.save();
+  g.translate(ox, oy);
   drawRows(g, T);
-  drawSpeedLines(g, T);
-  drawGround(g, T);
-  drawChase(g, T, assets);
+  drawGround(g, T, -ox, view.w - ox);
+  drawChase(g, T, assets, -ox);
   drawPresents(g, T, assets);
   drawWordmark(g, T);
-  const f = flash(T);
+  g.restore();
+  const f = options.calm ? 0 : flash(T);
   if (f > 0) {
     g.globalAlpha = f;
     g.fillStyle = '#ffffff';
-    g.fillRect(0, 0, TITLES_W, TITLES_H);
+    g.fillRect(0, 0, view.w, view.h);
   }
   const black = fade(T);
   if (black > 0) {
     g.globalAlpha = black;
     g.fillStyle = '#000000';
-    g.fillRect(0, 0, TITLES_W, TITLES_H);
+    g.fillRect(0, 0, view.w, view.h);
   }
   g.restore();
 }
