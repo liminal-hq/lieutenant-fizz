@@ -43,6 +43,8 @@ const audio = parseAudioParam(query.get('audio'));
 
 // `?title=split` tries the phone title with the logo and the menu on opposite sides.
 const title = query.get('title') === 'split' ? 'split' : undefined;
+// `?titles=on` plays the opening titles even in a browser driven by a test; `?titles=off` never plays them.
+const titlesParam = query.get('titles');
 
 // Haptics (the phone's vibration and a controller's rumble) are on where the device has them. `?haptics`
 // (or `?haptics=on`) forces them on and `?haptics=off` forces them off, for this visit only.
@@ -131,6 +133,7 @@ Game.start(stage, {
   ...(pixels ? { pixels } : {}),
   ...(audio ? { audio } : {}),
   ...(title ? { title } : {}),
+  ...(titlesParam === 'on' || titlesParam === 'off' ? { titles: titlesParam === 'on' } : {}),
   ...(fullscreen ? { fullscreen } : {}),
   ...(host ? { host } : {}),
   ...(wake ? { wake } : {}),

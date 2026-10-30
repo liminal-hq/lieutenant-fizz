@@ -116,6 +116,7 @@ import {
 } from '@lieutenant-fizz/engine/touch-settings';
 import simUrl from './wasm/sim.wasm?url';
 import { MIX, mixFor, mixNameFor, type MixName } from './audio/mix';
+import { OPENING_TITLES_TRACK } from './audio/opening-titles';
 import { MUSIC, PATTERNS, SFX } from './audio/patterns';
 import { ROOMS, roomFor, roomProfile, type RoomName } from './audio/rooms';
 import { FIZZ_HAPTICS } from './haptics/fizz-haptics';
@@ -134,6 +135,9 @@ import {
 import { gestureFor, isLive } from './lifecycle-rules';
 import { isPortrait } from '@lieutenant-fizz/engine/portrait';
 import { Cinematic, CINE_TALL } from './cine';
+import { TitlesRun, idleSeconds, type TitlesAfter } from './titles-run';
+import { titleSprites } from './titles-sprites';
+import { TitlesView } from './titles-view';
 import { viewPoint } from './map-panel';
 import { TOUCH_WORD_GLYPHS, touchCount, watchResize, type TouchGutters } from './layout';
 import { FullscreenControl, glyphGrid, type FullscreenPlace } from './fullscreen-button';
@@ -289,6 +293,11 @@ export interface GameOptions {
   reducedMotion?: boolean;
   /** Pins touch mode on (the on-screen controls and the phone HUD), for development on a desktop. */
   touch?: boolean;
+  /**
+   * Plays the opening titles when the episode opens on its own and after a launcher's New game (`?titles=on`), or
+   * not at all (`?titles=off`). Left out they play, except in a browser driven by a test (`navigator.webdriver`).
+   */
+  titles?: boolean;
   /**
    * `sharp` draws at a whole pixel scale and `soft` keeps the fractional scale. `fast` shows the
    * Sharp view with one canvas pixel per sprite pixel, which the browser scales up. Left out, touch
@@ -499,6 +508,12 @@ export class Game {
   private readonly audio: GameAudio;
   /** Where the launcher started this run, or undefined when the game opened on its own: the title is skipped and the way out is Back to launcher. */
   private readonly launch: Launch | undefined;
+  /** Whether the opening titles play at all: `?titles` says, and a browser driven by a test skips them unless asked. */
+  private readonly titlesWanted: boolean;
+  /** Paints the opening titles; set once the sprites are built. */
+  titlesView: TitlesView | null = null;
+  /** The opening titles on show, or at their gate, over the title screen; null otherwise. */
+  private titlesRun: TitlesRun | null = null;
   /** The menus' sounds: the cursor, a choice, Back, a change and "no" each play the effect the episode named for them. */
   private readonly menuSound = createMenuSounds(EPISODE_1_MENU.sounds, (name) =>
     this.audio.play(name),
@@ -741,6 +756,8 @@ export class Game {
     ui.setTouchOpacity(this.touchSettings.opacity);
     // The app's WebView allows autoplay, so its audio starts at boot; the web waits for a gesture.
     this.launch = options.hostBackend?.quitToLauncher ? options.launch : undefined;
+    this.titlesWanted =
+      options.titles ?? !(typeof navigator !== 'undefined' && navigator.webdriver);
     this.audio = new GameAudio({ ...PATTERNS, mix: MIX }, undefined, {
       unlockAtBoot: isAppHost(window),
     });
@@ -876,6 +893,7 @@ export class Game {
       game = new Game(sim, atlas, ui, renderer, options);
       if (options.title) ui.setTitleLayout(options.title);
       game.initTouchFaces(grid('ben_pogo'), grid('soda'));
+      game.titlesView = new TitlesView(ui.titlesCanvas, titleSprites(sprites));
     } catch (e) {
       console.error(e);
       ui.setLoading(false);
@@ -895,6 +913,8 @@ export class Game {
     for (const k of Object.keys(this.opts) as (keyof Game['opts'])[])
       this.ui.setToggle(k, this.opts[k]);
     this.syncUi();
+    // A page opened on its own starts with the opening titles, once a key or tap has let the sound play.
+    if (!this.launch && this.titlesWanted) this.startTitles('menu', true);
     this.last = performance.now();
     const loop = (t: number): void => {
       if (this.disposed) return;
@@ -1066,7 +1086,8 @@ export class Game {
     this.haptics.flush();
     this.tickTypewriter(dt);
     this.tickTitle();
-    this.draw();
+    this.tickTitles(dt, t);
+    if (!this.titlesRun) this.draw();
 
     if (dt > 0) this.fpsE += (1 / dt - this.fpsE) * 0.05;
     this.statT += dt;
@@ -1367,7 +1388,7 @@ export class Game {
 
   /** Advances the attract loop, fades between levels, and animates Ben on the title. */
   private tickTitle(): void {
-    if (this.screen !== 'title') {
+    if (this.screen !== 'title' || this.titlesRun) {
       this.ui.setAttract(null);
       this.ui.setBen(null);
       return;
@@ -1415,6 +1436,11 @@ export class Game {
     // The screen is half gone under a Back gesture: it takes no selection until the gesture ends.
     if (this.peek.active) return;
     const edge = bits & ~this.lastBits;
+    // The opening titles take every button: the first opens the gate, the next skips them.
+    if (this.titlesRun) {
+      if (edge) this.pressTitles();
+      return;
+    }
     const s = this.screen;
     const key = `${s}:${this.sub ?? ''}`;
     if (key !== this.menuKey) {
@@ -1464,6 +1490,10 @@ export class Game {
     if (this.replay) {
       if (c.type === 'pause') this.replay.close();
       else if (c.type === 'confirm') this.replay.togglePlay();
+      return;
+    }
+    if (this.titlesRun && !['fullscreen', 'zoom', 'zoomReset', 'togglePanel'].includes(c.type)) {
+      this.pressTitles();
       return;
     }
     switch (c.type) {
@@ -1753,7 +1783,11 @@ export class Game {
   };
 
   /** A key, mouse or touch press counts as input for the idle clock. */
-  private readonly onInputEvent = (): void => this.noteInput(performance.now());
+  private readonly onInputEvent = (e: Event): void => {
+    this.noteInput(performance.now());
+    // Any key, click or tap lets the titles' sound play and then skips them.
+    if (this.titlesRun && !(e instanceof KeyboardEvent && e.repeat)) this.pressTitles();
+  };
 
   private noteInput(now: number): void {
     this.idleAt = now;
@@ -1898,7 +1932,7 @@ export class Game {
    */
   private syncTouch(): void {
     const s = this.screen;
-    const on = this.touchMode && s !== 'loading' && !this.rotated;
+    const on = this.touchMode && s !== 'loading' && !this.rotated && !this.titlesRun;
     const faces: TouchFaces = touchFaces(s, this.sub);
     const edit = on && !!faces.edit;
     this.touchUi.setVisible(on);
@@ -2878,7 +2912,7 @@ export class Game {
       this.replay.close();
       return;
     }
-    switch (backAction(this.screen, this.sub)) {
+    switch (backAction(this.screen, this.sub, !!this.titlesRun)) {
       case 'close':
         this.closeSub();
         break;
@@ -2891,7 +2925,8 @@ export class Game {
         this.resume();
         break;
       case 'skip':
-        if (this.screen === 'cine') this.skipCine();
+        if (this.titlesRun) this.pressTitles();
+        else if (this.screen === 'cine') this.skipCine();
         else this.skipEnding();
         break;
       default:
@@ -3046,7 +3081,9 @@ export class Game {
   /** Holds the Back guard entry only while the screen has an answer to Back and the mode allows it. */
   private syncBack(): void {
     this.backGuard.set(
-      backGuardAllowed(this.caps) && this.backOn() && backAction(this.screen, this.sub) !== null,
+      backGuardAllowed(this.caps) &&
+        this.backOn() &&
+        backAction(this.screen, this.sub, !!this.titlesRun) !== null,
     );
     this.syncPredictiveBack();
   }
@@ -3056,7 +3093,7 @@ export class Game {
    * gesture reaches `back()` there and, at the title, the system backgrounds the app.
    */
   private syncPredictiveBack(): void {
-    const can = backAction(this.screen, this.sub) !== null;
+    const can = backAction(this.screen, this.sub, !!this.titlesRun) !== null;
     if (this.backReleased || !this.predictiveBack || can === this.canGoBackSent) return;
     this.canGoBackSent = can;
     void this.predictiveBack.setCanGoBack(can);
@@ -3103,6 +3140,7 @@ export class Game {
 
   /** Enter / jump / fire: finish the typewriter, then advance whatever is on screen. */
   primary(): void {
+    if (this.titlesRun) return;
     const s = this.screen;
     if (s === 'cine') this.pressStory(() => this.skipCine());
     else if (s === 'dialogue') this.typeOrNext(() => this.nextLine());
@@ -3448,13 +3486,73 @@ export class Game {
   private startLaunch(): void {
     const l = this.launch;
     if (!l) return;
-    if (l.kind === 'new') this.newGame();
-    else if (l.kind === 'options') {
+    if (l.kind === 'new') {
+      // A new game from the launcher plays the opening titles first; its tap has already let the sound play.
+      if (this.titlesWanted) this.startTitles('new', false);
+      else this.newGame();
+    } else if (l.kind === 'options') {
       this.leaveWhenOptionsClose = true;
       this.openSub('options');
     } else if (l.kind === 'continue') {
       if (this.hasSave) this.continueGame();
     } else this.loadSlot(l.slot);
+  }
+
+  // ---------- The opening titles ----------
+
+  /**
+   * Plays the opening titles over the title screen. A page opened on its own waits at a gate first, because the
+   * browser keeps sound off until a key or tap; a launcher's New game has had its tap and plays at once. They end
+   * on the title menu, or on the story when `after` is `'new'`.
+   */
+  private startTitles(after: TitlesAfter, gate: boolean): void {
+    if (!this.titlesView) {
+      if (after === 'new') this.newGame();
+      return;
+    }
+    this.titlesRun = new TitlesRun(after, gate);
+    this.ui.showTitles(true);
+    this.ui.setLoading(gate, this.touchMode ? 'Tap to start' : 'Press any key to start');
+    this.titlesView.draw(0, 0, this.reducedMotion);
+    this.syncUi();
+  }
+
+  /** A key, tap or button while the titles are up: opens the gate, or skips them. */
+  private pressTitles(): void {
+    const run = this.titlesRun;
+    if (!run) return;
+    run.press(performance.now());
+    this.ui.setLoading(false);
+    this.syncUi();
+  }
+
+  private endTitles(): void {
+    const run = this.titlesRun;
+    if (!run) return;
+    this.titlesRun = null;
+    this.ui.showTitles(false);
+    this.ui.setLoading(false);
+    this.idleAt = performance.now();
+    if (run.after === 'new') this.newGame();
+    else this.syncUi();
+  }
+
+  /** Runs the titles' clock and paints them, and brings them back when the bare title menu has been left alone. */
+  private tickTitles(dt: number, now: number): void {
+    const run = this.titlesRun;
+    if (!run) {
+      const bare = this.screen === 'title' && !this.sub && this.visible;
+      const idle = idleSeconds(MUSIC['title']?.bpm ?? 140) * 1000;
+      if (this.titlesWanted && bare && !this.peek.active && now - this.idleAt > idle) {
+        this.startTitles('menu', false);
+      }
+      return;
+    }
+    if (run.advance(dt)) {
+      this.endTitles();
+      return;
+    }
+    this.titlesView?.draw(run.atGate ? 0 : run.time, run.blackout, this.reducedMotion);
   }
 
   private quitToTitle(): void {
@@ -3674,6 +3772,7 @@ export class Game {
 
   private musicFor(): string | null {
     const s = this.screen;
+    if (this.titlesRun) return this.titlesRun.playing ? OPENING_TITLES_TRACK : null;
     if (s === 'title' || s === 'loading') return 'title';
     if (s === 'cine') return CINE_TRACK[this.story.scene] ?? 'cine';
     if (s === 'ending' || s === 'credits') return 'ending';
@@ -4376,6 +4475,14 @@ export class Game {
     return named ? `ui:${named}` : null;
   }
 
+  /** Test hook: shows the opening titles frozen at `t` seconds, so a check can look at any moment of them. */
+  debugTitlesAt(t: number): void {
+    this.titlesRun = null;
+    this.ui.setLoading(false);
+    this.ui.showTitles(true);
+    this.titlesView?.draw(t, 0, false);
+  }
+
   /** Test hook: opens a screen directly, so layout checks can visit each one. */
   debugShow(
     what:
@@ -4396,9 +4503,14 @@ export class Game {
       | 'cine'
       | 'ending'
       | 'dialogue'
-      | 'credits',
+      | 'credits'
+      | 'titles',
   ): void {
     if (what === 'credits') return this.debugStartCredits();
+    if (what === 'titles') {
+      this.quitToTitle();
+      return this.startTitles('menu', false);
+    }
     if (what === 'card') {
       // The level-cleared card, as it appears over Crater Fields.
       this.debugEnterLevel(0);
@@ -4556,6 +4668,9 @@ export class Game {
     return {
       screen: this.screen,
       sub: this.sub,
+      titles: this.titlesRun
+        ? { gate: this.titlesRun.atGate, time: this.titlesRun.time, after: this.titlesRun.after }
+        : null,
       menu: this.menuIdx,
       mode: this.sim.x.mode(),
       level: this.sim.get(State.LEVEL_ID),

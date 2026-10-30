@@ -1,0 +1,15 @@
+/* The opening titles: one canvas over the whole stage, letterboxed to the 16:9 the picture is laid out in. */
+#titles {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  pointer-events: auto;
+  /* Over the Engine panel, the Lab and fullscreen buttons (z-index 5) and the sound lab (6, 7). */
+  z-index: 8;
+}
+/* The gate's "Press any key" line sits on the titles. */
+#loading {
+  z-index: 9;
+}
