@@ -286,13 +286,16 @@ export class Cinematic {
     P(-1.22, G + 0.78, 'puff', { s: 0.9 + 0.15 * Math.sin(t * 4), alpha: 0.35, tint: 0xffff88 });
     let bx = -8;
     let by = G + 0.75;
-    let walk = false;
-    if (T < 2.2) by = 4 + (G + 0.75 - 4) * (T / 2.2);
-    else {
+    let pose = 'ben_stand';
+    if (T < 2.2) {
+      by = 4 + (G + 0.75 - 4) * (T / 2.2);
+      // Ben climbs down the ladder, hand over hand.
+      pose = Math.floor(T * 6.7) & 1 ? 'ben_climb1' : 'ben_climb2';
+    } else {
       const ww = Math.min(T - 2.2, 2.35);
       bx = -8 + ww * 2.3;
-      walk = ww < 2.35;
+      if (ww < 2.35) pose = Math.floor(t * 8) & 1 ? 'ben_run1' : 'ben_run2';
     }
-    P(bx, by, walk ? (Math.floor(t * 8) & 1 ? 'ben_run1' : 'ben_run2') : 'ben_stand');
+    P(bx, by, pose);
   }
 }

@@ -52,6 +52,34 @@ describe('Cinematic', () => {
     }
     expect([...missing]).toEqual([]);
   });
+  it('climbs down the ladder in the lab, then walks', () => {
+    const posesAt = (ticks: number): Set<string> => {
+      const used = new Set<string>();
+      const rects = new Proxy(atlas.rects, {
+        get(t, k: string) {
+          used.add(k);
+          return t[k];
+        },
+      });
+      const c = new Cinematic(() => 0.5);
+      c.start(1);
+      for (let i = 0; i < ticks; i++) c.tick(1 / 60);
+      c.draw(new InstanceWriter(new Float32Array(20 * 5000), rects));
+      return new Set([...used].filter((k) => k.startsWith('ben_')));
+    };
+    // Mid-descent (about 1 s in) Ben climbs; he never slides down in his standing pose.
+    for (const ticks of [30, 60, 90, 120]) {
+      const poses = posesAt(ticks);
+      expect(
+        [...poses].every((k) => k.startsWith('ben_climb')),
+        `tick ${ticks}`,
+      ).toBe(true);
+      expect(poses.size).toBe(1);
+    }
+    // Once he reaches the floor (about 2.2 s) he runs.
+    expect([...posesAt(200)].every((k) => k.startsWith('ben_run'))).toBe(true);
+  });
+
   it('holds the Liftoff scene until it is launched, and no other scene', () => {
     const c = new Cinematic(() => 0.5);
     for (let stage = 0; stage < 8; stage++) {
