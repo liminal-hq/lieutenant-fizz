@@ -11,6 +11,7 @@ import {
   BEN_W,
   CUES,
   GROUND,
+  GROUND_COLOURS,
   MUTED,
   ROSE,
   TITLES_H,
@@ -21,7 +22,7 @@ import {
   fizz,
   flash,
   groundLift,
-  groundScroll,
+  groundSpecks,
   presents,
   speedLineAlpha,
   speedLines,
@@ -116,15 +117,17 @@ function drawSpeedLines(g: Ctx, T: number, view: View, down: number): void {
 /** The ground, from the left edge of the view (`left`, at or below 0) to its right edge and on down past the bottom. */
 function drawGround(g: Ctx, T: number, left: number, right: number): void {
   const top = GROUND + groundLift(T);
-  g.fillStyle = ACCENT;
-  g.fillRect(left, top, right - left, 12);
-  g.fillStyle = '#aa5500';
-  g.fillRect(left, top + 12, right - left, 2000);
-  g.fillStyle = '#552a00';
-  const scroll = groundScroll(T) + Math.floor(left / 96) * 96;
-  for (let i = 0; i < Math.ceil((right - left) / 96) + 2; i++) {
-    g.fillRect(scroll + i * 96, top + 36 + (i % 2) * 36, 48, 12);
+  const c = GROUND_COLOURS;
+  g.fillStyle = c.field;
+  g.fillRect(left, top, right - left, 2000);
+  for (const sp of groundSpecks(T, right - left)) {
+    g.fillStyle = c.speck[sp.shade];
+    g.fillRect(left + sp.x, top + sp.y, 11, 5);
   }
+  g.fillStyle = c.edge;
+  g.fillRect(left, top, right - left, 11);
+  g.fillStyle = c.shade;
+  g.fillRect(left, top + 11, right - left, 5);
 }
 
 function drawChase(g: Ctx, T: number, assets: TitlesAssets, left: number): void {
