@@ -382,29 +382,50 @@ function hopperDown(t: number, hits: readonly Hit[]): ReturnType<typeof hopperSt
   return hs && t < hs.recover ? hs : null;
 }
 
+/** How far a hit at time `at` has pushed a Zarg back by time `t`, from 0 to 1: out, held while it is down, then eased back. */
+function knocked(t: number, at: number): number {
+  const d = t - at;
+  if (d < 0) return 0;
+  if (d < 0.25) return Math.sin((d / 0.25) * (Math.PI / 2));
+  if (d < STUN_SECONDS) return 1;
+  return 1 - slide(STUN_SECONDS, STUN_SECONDS + 0.3, 0, 1)(d);
+}
+
+/**
+ * How high a Zarg is off the ground at `t` when nothing has hit it: its hop or bounce. With the hopper down in front of
+ * it, the gloop rears up into the line of fire: the rear eases in once the hopper has gone down and eases out before
+ * the hopper is back, so the gloop never jumps from one height to another.
+ */
+function hopOf(i: number, t: number, hits: readonly Hit[]): number {
+  const e = ENEMIES[i]!;
+  const idle = e.hops
+    ? Math.abs(Math.sin(t * 4 + e.phase)) * 120
+    : Math.abs(Math.sin(t * (e.bounce ? 5 : 7) + e.phase)) * (e.bounce ?? 12);
+  if (!e.rears) return idle;
+  const hs = hopperDown(t, hits);
+  if (!hs) return idle;
+  const weight =
+    slide(hs.hit.at + 0.1, hs.hit.at + 0.4, 0, 1)(t) *
+    (1 - slide(hs.recover - 0.3, hs.recover, 0, 1)(t));
+  const rear = Math.abs(Math.sin((t - hs.hit.at) * 7)) * 132;
+  return idle + (rear - idle) * weight;
+}
+
 /**
  * Where a Zarg is at time `t`, given the hits so far. A hit grounds it for 0.9 s and knocks it back a little; the
  * hopper is knocked back furthest, so it drops out of the line of fire, and the gloop behind it rears up to be hit
- * next. This is the DOS port's choreography (its `mock.ts`), in this picture's pixels.
+ * next. This is the DOS port's choreography (its `mock.ts`), in this picture's pixels, with the falls and the
+ * recoveries eased so nothing jumps.
  */
 function pose(i: number, t: number, hits: readonly Hit[]): Pose {
   const e = ENEMIES[i]!;
   const arrive = CUES.chase + 0.6 + i * 0.12;
   let x = slide(arrive, arrive + 1.0, e.x - 1400, e.x)(t) + Math.sin(t * 2.1 + e.phase) * 50;
-  let hop = e.hops
-    ? Math.abs(Math.sin(t * 4 + e.phase)) * 120
-    : Math.abs(Math.sin(t * (e.bounce ? 5 : 7) + e.phase)) * (e.bounce ?? 12);
+  let hop = hopOf(i, t, hits);
   let stun: Hit | undefined;
-  for (const h of hits) if (h.enemy === i && t >= h.at && t < h.at + STUN_SECONDS) stun = h;
-  if (e.rears) {
-    // With the hopper down in front of it, the gloop rears up into the line of fire.
-    const hs = hopperDown(t, hits);
-    if (hs && t > hs.hit.at + 0.15) hop = Math.abs(Math.sin((t - hs.hit.at) * 7)) * 132;
-  }
   if (e.slides) {
     // Knocked down on the moving ground it slides back with it until the gloop behind it is stunned too, then
     // springs forward to its place in the pack.
-    stun = undefined;
     const hs = hopperState(t, hits);
     if (hs) {
       const back = (tt: number): number =>
@@ -421,11 +442,22 @@ function pose(i: number, t: number, hits: readonly Hit[]): Pose {
         hop = Math.sin(k * Math.PI) * 187;
       }
     }
-  } else if (stun) {
-    const k = Math.min(1, (t - stun.at) / 0.25);
-    x -= 33 * Math.sin((k * Math.PI) / 2);
-    // A hit Zarg drops to the ground (a flier stays where it hangs).
-    hop = 0;
+  } else {
+    let last: Hit | undefined;
+    for (const h of hits) if (h.enemy === i && t >= h.at) last = h;
+    if (last) {
+      const d = t - last.at;
+      x -= 33 * knocked(t, last.at);
+      if (d < STUN_SECONDS) {
+        // It falls to the ground from where the hit caught it, rather than dropping out of the air.
+        stun = last;
+        const k = Math.min(1, d / 0.3);
+        hop = hopOf(i, last.at, hits) * (1 - k * k);
+      } else {
+        // And rises into its bounce again.
+        hop *= slide(STUN_SECONDS, STUN_SECONDS + 0.3, 0, 1)(d);
+      }
+    }
   }
   const bob = e.fly ? Math.sin(t * 3 + e.phase) * 36 : 0;
   return { x, bottom: GROUND - e.fly - hop + bob, w: e.w * e.px, h: e.h * e.px, stun };
