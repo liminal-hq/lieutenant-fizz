@@ -124,7 +124,7 @@ export function slotRowOf(
     id: slot,
     name: slotName(slot),
     empty: false,
-    readOnly: slot === 'auto',
+    readOnly: slot === 'auto' || slot === 'quick',
     place: placeOf(ctx, progress.map),
     cleared: clearedCount(progress.doneMask, ctx.levels),
     total: ctx.levels,

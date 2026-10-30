@@ -29,7 +29,7 @@ import { MUSIC, SFX } from '../episodes/episode-1/src/audio/patterns';
 import { buildSongs } from '../episodes/episode-1/src/audio/songs';
 import { FIZZ_HAPTICS } from '../episodes/episode-1/src/haptics/fizz-haptics';
 import { EPISODE_ID, EPISODE_KEYS, OPTIONS_KEY } from '../episodes/episode-1/src/options';
-import { SAVE_KEY, SLOT_COUNT, slotKey } from '../episodes/episode-1/src/save';
+import { QUICK_KEY, SAVE_KEY, SLOT_COUNT, slotKey } from '../episodes/episode-1/src/save';
 import {
   GROUND_FROM_BOTTOM,
   SCENE_H,
@@ -298,6 +298,7 @@ export async function build(): Promise<Built[]> {
       areas: [...AREA_NAMES],
       auto: SAVE_KEY,
       slots: Array.from({ length: SLOT_COUNT }, (_, i) => slotKey((i + 1) as 1 | 2 | 3 | 4)),
+      quick: QUICK_KEY,
     },
   };
   const out: Built[] = [

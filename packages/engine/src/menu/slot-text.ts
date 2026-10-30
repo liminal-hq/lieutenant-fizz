@@ -10,7 +10,7 @@ export interface SlotSummary {
   id: LaunchSlot;
   name: string;
   empty: boolean;
-  /** The autosave can be loaded but never saved over. */
+  /** The autosave and the quick-save can be loaded but never chosen as a place to save to. */
   readOnly: boolean;
   place: string;
   cleared: number;
@@ -23,8 +23,9 @@ export interface SlotSummary {
   date: string;
 }
 
-/** The name of a slot: Autosave, or Slot 1 to 4. */
-export const slotName = (id: LaunchSlot): string => (id === 'auto' ? 'Autosave' : `Slot ${id}`);
+/** The name of a slot: Autosave, Slot 1 to 4, or Quick save. */
+export const slotName = (id: LaunchSlot): string =>
+  id === 'auto' ? 'Autosave' : id === 'quick' ? 'Quick save' : `Slot ${id}`;
 
 /** Number of levels cleared in a `doneMask` out of the first `total`, ignoring the secret flag above them. */
 export function clearedCount(doneMask: number, total: number): number {

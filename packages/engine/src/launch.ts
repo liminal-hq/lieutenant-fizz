@@ -3,8 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-/** A save slot an episode can load: its autosave, or a numbered manual slot. */
-export type LaunchSlot = 'auto' | 1 | 2 | 3 | 4;
+/** A save slot an episode can load: its autosave, a numbered manual slot, or its quick-save. */
+export type LaunchSlot = 'auto' | 1 | 2 | 3 | 4 | 'quick';
 
 /** Where to start: the newest save, a new game, a particular slot, or the episode's own Options screen. */
 export type Launch =
@@ -16,11 +16,11 @@ export type Launch =
 /** The query parameter the launcher sets. */
 export const LAUNCH_PARAM = 'launch';
 
-const SLOTS: readonly LaunchSlot[] = ['auto', 1, 2, 3, 4];
+const SLOTS: readonly LaunchSlot[] = ['auto', 1, 2, 3, 4, 'quick'];
 
 /**
  * Reads the contract from a URL's query: `?launch=continue`, `?launch=new`, `?launch=load:auto`,
- * `?launch=load:2` or `?launch=options`. Anything else, or no parameter, is no launch (the episode opens on its own title screen,
+ * `?launch=load:2`, `?launch=load:quick` or `?launch=options`. Anything else, or no parameter, is no launch (the episode opens on its own title screen,
  * as it does from the website).
  */
 export function parseLaunch(search: string): Launch | undefined {
@@ -28,9 +28,10 @@ export function parseLaunch(search: string): Launch | undefined {
   if (value === 'continue') return { kind: 'continue' };
   if (value === 'new') return { kind: 'new' };
   if (value === 'options') return { kind: 'options' };
-  const load = /^load:(auto|[1-4])$/.exec(value ?? '');
+  const load = /^load:(auto|quick|[1-4])$/.exec(value ?? '');
   if (load) {
-    const slot = load[1] === 'auto' ? 'auto' : (Number(load[1]) as LaunchSlot);
+    const slot =
+      load[1] === 'auto' || load[1] === 'quick' ? load[1] : (Number(load[1]) as LaunchSlot);
     if (SLOTS.includes(slot)) return { kind: 'load', slot };
   }
   return undefined;

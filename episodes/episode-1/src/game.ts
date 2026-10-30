@@ -1982,9 +1982,10 @@ export class Game {
     });
   }
 
-  /** One row per save slot, then Back. In save mode the autosave cannot be chosen. */
+  /** One row per save slot, then Back. Save mode leaves out the quick-save and cannot choose the autosave. */
   private slotItems(): MenuItem[] {
-    const rows = SLOT_IDS.map((id): MenuItem => {
+    const ids = this.saveMode === 'save' ? SLOT_IDS.filter((id) => id !== 'quick') : SLOT_IDS;
+    const rows = ids.map((id): MenuItem => {
       const entry = this.slotRows.get(id);
       const summary = entry?.summary ?? summarise(id, null, '');
       const slot: SlotRow = {
@@ -2204,7 +2205,7 @@ export class Game {
     this.saveMode = mode;
     this.refreshSlots();
     const newest = newestSlot(this.store);
-    // Save mode starts on Slot 1 (the autosave is read-only); load mode on the newest save.
+    // Save mode starts on Slot 1 (the autosave is read-only and the quick-save is not listed); load mode on the newest save.
     const idx = mode === 'save' ? 1 : Math.max(0, SLOT_IDS.indexOf(newest ?? 'auto'));
     this.openSub('saves', idx);
   }
@@ -2820,7 +2821,7 @@ export class Game {
       if (id === 'back') this.closeSub();
       else if (id.startsWith('slot:')) {
         const raw = id.slice(5);
-        this.pickSlot(raw === 'auto' ? 'auto' : (Number(raw) as SlotId));
+        this.pickSlot(raw === 'auto' || raw === 'quick' ? raw : (Number(raw) as SlotId));
       }
       return;
     }
@@ -3395,45 +3396,39 @@ export class Game {
     this.syncUi();
   }
 
-  /** The slot F5 saves to: the newest manual slot, or Slot 1 when none has been used. */
-  private quickSlot(): SlotId {
-    let best: { id: SlotId; at: number } | null = null;
-    for (const { id, save } of readSlots(this.store)) {
-      if (id !== 'auto' && save && (!best || save.at >= best.at)) best = { id, at: save.at };
-    }
-    return best?.id ?? 1;
-  }
-
-  /** Writes the current progress to a manual slot and says where it went. */
+  /** Writes the current progress to a slot and says where it went. */
   private saveToSlot(id: SlotId): boolean {
     const ok = writeSlot(this.store, id, captureProgress(this.sim, Math.floor(this.played)));
     this.hasSave ||= ok;
     const failed = "Couldn't save: storage is full or blocked";
+    const done = id === 'quick' ? 'Quick-saved' : `Saved to ${slotName(id)}`;
     // Where the write finishes later (the app's store file), say "Saved" only once it has.
     const settled = ok ? confirmWrite(this.store) : null;
     if (settled) {
-      void settled.then((done) => this.ui.toast(done ? `Saved to ${slotName(id)}` : failed));
+      void settled.then((good) => this.ui.toast(good ? done : failed));
     } else {
-      this.ui.toast(ok ? `Saved to ${slotName(id)}` : failed);
+      this.ui.toast(ok ? done : failed);
     }
     return ok;
   }
 
+  /** F5: writes the quick-save, a slot of its own, so the manual slots are never touched. */
   private quickSave(): void {
     if (this.screen !== 'play' && this.screen !== 'pause') return;
-    this.saveToSlot(this.quickSlot());
+    this.saveToSlot('quick');
   }
 
+  /** F9: loads the quick-save. */
   private quickLoad(): void {
     if (this.screen !== 'play' && this.screen !== 'pause') return;
-    if (newestSlot(this.store) === null) this.ui.toast('No save yet. Press F5 to make one.');
-    else this.continueGame();
+    if (readSlot(this.store, 'quick') === null) this.ui.toast('No quick-save yet: F5 makes one');
+    else this.loadSlot('quick');
   }
 
   /** A slot chosen on the saves screen: save into it, or load it. */
   private pickSlot(id: SlotId): void {
     if (this.saveMode === 'save') {
-      if (id === 'auto') return;
+      if (id === 'auto' || id === 'quick') return;
       if (this.saveToSlot(id)) {
         this.refreshSlots();
         this.closeSub();
