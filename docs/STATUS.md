@@ -54,6 +54,10 @@ A set of phone-width Playwright specs is switched off while it is reviewed. They
 - `e2e/touch-desktop-host.spec.ts` (where the file exists): the pause menu's Quit game and Quit to launcher arming checks, and `Quit game stays unarmed after Resume and a reopened pause menu`.
 - `e2e/touch-esc-fullscreen.spec.ts`, `e2e/touch.spec.ts` and `e2e/touch-fullscreen-button.spec.ts`: `entering fullscreen on a phone does not ask for the keyboard lock`, `turns on from a first touch, with no flag` and `the button works with the Fullscreen setting Off and with ?fullscreen=off`. Each failed once on CI under load, so they are off with the rest.
 
+- `e2e/touch-lift.spec.ts`, `e2e/touch-map-panel.spec.ts`, `e2e/touch-menus.spec.ts` and `e2e/touch-sound.spec.ts`, and two more in `e2e/touch-menu-scroll.spec.ts`: the default controls rising in real fullscreen, the map panel flipping sides, mirroring, clearing Ben at 640×320 and clearing the controls in an installed app, a sign showing all its text, a tap on Back closing Saves on the pause menu, Options > Sound on touch and the Sound lab row without `?debug`, `Comfy rows are 48 dp…` and `Row spacing on Display resizes the open screen at once and is saved`. Each failed on the last CI runs of main and of pull requests that do not touch them, and passed on a re-run.
+
+- `e2e/controller-options.spec.ts` (`several buttons can be collected for one action, one toggled off, and Enter finishes at once` and `Escape discards what was collected and keeps the old buttons`) and `e2e/haptics-map.spec.ts` (`coming back from a level with the pogo on, and walking, raise no cue`): desktop specs that time out waiting on the page in CI's shard 1 and pass locally and on a re-run.
+
 They stay disabled pending review. To switch one back on, remove its pattern from `FLAKY_TITLES`; to add one, add a title pattern there. CI shards by test after the filter, and the timing report only lists tests that ran, so nothing else needs to change.
 
 ## Tauri spike

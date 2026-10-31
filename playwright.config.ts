@@ -26,6 +26,29 @@ const FLAKY_TITLES: RegExp[] = [
   /turns on from a first touch, with no flag/,
   // e2e/touch-fullscreen-button.spec.ts
   /the button works with the Fullscreen setting Off and with \?fullscreen=off/,
+  // Each failed on the last CI runs of main and of unrelated pull requests, and passed on a re-run: the touch-844 project's shards 3 and 4.
+  // e2e/touch-lift.spec.ts
+  /the default controls rise in real fullscreen and fall back on leaving it/,
+  // e2e/touch-map-panel.spec.ts
+  /flips sides as Ben crosses the middle of the screen/,
+  /mirrors for the left hand and still clears the controls/,
+  /still clear of Ben at 640x320/,
+  /clears the controls where they rise in an installed app and where they fall back/,
+  /a sign shows all its text and stays clear of Ben/,
+  // e2e/touch-menu-scroll.spec.ts
+  /Comfy rows are 48 dp, scroll on whole rows and keep the selected row in view/,
+  /Row spacing on Display resizes the open screen at once and is saved/,
+  // e2e/touch-menus.spec.ts
+  /a tap on Back closes saves on the pause menu/,
+  // Desktop specs that time out waiting on the page on CI's software GL (shard 1) and pass locally and on a re-run.
+  // e2e/controller-options.spec.ts
+  /several buttons can be collected for one action, one toggled off, and Enter finishes at once/,
+  /Escape discards what was collected and keeps the old buttons/,
+  // e2e/haptics-map.spec.ts
+  /coming back from a level with the pogo on, and walking, raise no cue/,
+  // e2e/touch-sound.spec.ts
+  /Options > Sound on touch: full-height rows, the Style stepper switches the mode, and Back returns to Sound/,
+  /the Sound lab row shows the Lab button without \?debug, and it is still there after a reload/,
 ];
 
 export default defineConfig({
