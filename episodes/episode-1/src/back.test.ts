@@ -22,6 +22,13 @@ describe('backAction', () => {
       expect(backAction('title', sub)).toBe('close');
   });
 
+  it('skips the opening titles over the title, where it would otherwise leave to the browser', () => {
+    expect(backAction('title', null, true)).toBe('skip');
+    expect(backAction('title', null, false)).toBeNull();
+    // A screen over the title is closed first, as before.
+    expect(backAction('title', 'options', true)).toBe('close');
+  });
+
   it('resumes from the pause menu, and closes a screen over it', () => {
     expect(backAction('pause', null)).toBe('resume');
     for (const sub of [

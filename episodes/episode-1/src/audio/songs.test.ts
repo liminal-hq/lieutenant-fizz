@@ -26,8 +26,13 @@ const seconds = (id: string): number =>
 
 describe('the Enhanced songs', () => {
   it('has a song for the title and every level, overworld and boss cue, and none for the rest', () => {
-    expect(Object.keys(songs).sort()).toEqual([...CUES].sort());
-    for (const id of CUES) expect(MUSIC[id]).toBeDefined();
+    expect(Object.keys(songs).sort()).toEqual([...CUES, 'openingTitles'].sort());
+    for (const id of [...CUES, 'openingTitles']) expect(MUSIC[id]).toBeDefined();
+  });
+
+  it('keeps the opening titles’ song to the sequence: eight bars at 150 beats a minute, 12.8 seconds', () => {
+    expect(songs['openingTitles']!.bpm).toBe(150);
+    expect(seconds('openingTitles')).toBeCloseTo(12.8, 5);
   });
 
   it('plays at its cue’s tempo, for between half a minute and a minute and a half', () => {

@@ -41,15 +41,18 @@ describe('audio patterns', () => {
     for (const [name, track] of Object.entries(MUSIC)) {
       expect(track.bpm).toBeGreaterThan(40);
       for (const part of track.parts) {
+        // A part may rest for a bar or two (the opening titles' lead is silent under the logo), but never for the whole loop.
+        let heard = 0;
         for (let cyc = 0; cyc < 8; cyc++) {
           const ev: MiniEvent[] = [];
           evalMini(parseMini(part.notes), 0, 1, cyc, ev);
-          expect(ev.length, `${name}: ${part.notes.slice(0, 20)}`).toBeGreaterThan(0);
+          heard += ev.length;
           for (const e of ev) {
             expect(e.t0).toBeGreaterThanOrEqual(0);
             expect(e.t1).toBeLessThanOrEqual(1.0000001);
           }
         }
+        expect(heard, `${name}: ${part.notes.slice(0, 20)}`).toBeGreaterThan(0);
       }
     }
   });

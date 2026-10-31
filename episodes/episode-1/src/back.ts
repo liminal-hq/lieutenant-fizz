@@ -12,11 +12,14 @@ import type { ShellScreen, SubScreen } from './touch-menus';
  */
 export type BackAction = 'close' | 'pause' | 'resume' | 'skip' | 'none' | null;
 
-/** The action for Back on a screen. Title with no screen over it, and loading, are left to the browser. */
-export function backAction(screen: ShellScreen, sub: SubScreen): BackAction {
+/**
+ * The action for Back on a screen. Title with no screen over it, and loading, are left to the browser, unless the
+ * opening titles are on show (`titles`), which Back skips.
+ */
+export function backAction(screen: ShellScreen, sub: SubScreen, titles = false): BackAction {
   switch (screen) {
     case 'title':
-      return sub ? 'close' : null;
+      return sub ? 'close' : titles ? 'skip' : null;
     case 'pause':
       return sub ? 'close' : 'resume';
     case 'play':

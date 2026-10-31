@@ -214,6 +214,7 @@ export class Ui {
   private creditsOffset = Number.NaN;
   private readonly err: HTMLElement;
   private readonly loading: HTMLElement;
+  private readonly titlesEl: HTMLCanvasElement;
   private toastTimer = 0;
   private bullet: BulletImage | undefined;
   private hoverRow = -1;
@@ -371,6 +372,7 @@ export class Ui {
     this.buildPanel();
 
     this.loading = el('div', { id: 'loading', class: 'lf' }, 'Loading Zargoth…');
+    this.titlesEl = el('canvas', { id: 'titles', class: 'lf', hidden: '', 'aria-hidden': 'true' });
     this.err = el('div', { id: 'err', class: 'lf', hidden: '' });
 
     this.backBtn = el('button', { id: 'backBtn', class: 'lf btn ghost', hidden: '' }, '← Back');
@@ -406,6 +408,7 @@ export class Ui {
       this.backBtn,
       this.panelBtn,
       this.panel,
+      this.titlesEl,
       this.loading,
       this.err,
       this.rotate,
@@ -946,8 +949,20 @@ export class Ui {
     this.sky.hidden = !on;
   }
 
-  setLoading(on: boolean): void {
+  /** Shows or hides the loading line. `text` replaces its words (the opening titles' gate asks for a key with it). */
+  setLoading(on: boolean, text = 'Loading Zargoth…'): void {
     this.loading.hidden = !on;
+    if (this.loading.textContent !== text) this.loading.textContent = text;
+  }
+
+  /** The canvas the opening titles are painted on. */
+  get titlesCanvas(): HTMLCanvasElement {
+    return this.titlesEl;
+  }
+
+  /** Shows the opening titles over everything else, or takes them away. */
+  showTitles(on: boolean): void {
+    this.titlesEl.hidden = !on;
   }
 
   showError(msg: string): void {

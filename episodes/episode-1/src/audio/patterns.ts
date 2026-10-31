@@ -5,6 +5,7 @@
 
 import type { AudioPatterns, MusicPart, MusicTrack, SfxVoice } from '@lieutenant-fizz/engine/audio';
 import { enhanceSfx } from './enhanced-sfx';
+import { OPENING_TITLES_LOOP, OPENING_TITLES_SONG, OPENING_TITLES_TRACK } from './opening-titles';
 import { buildSongs } from './songs';
 
 // Sound effects and music for Episode 1, written as Undertone-style voice data and
@@ -237,6 +238,8 @@ const bell = (notes: string, o: Partial<MusicPart> = {}): MusicPart =>
     ...o,
   });
 export const MUSIC: Record<string, MusicTrack> = {
+  // The opening titles (Liminal HQ presents, the wordmark, the chase): eight bars that loop with the sequence.
+  [OPENING_TITLES_TRACK]: OPENING_TITLES_LOOP,
   // Title: bright C-major theme, eight bars, call-and-answer between lead and bass.
   title: {
     bpm: 140,
@@ -633,6 +636,6 @@ export const PATTERNS: AudioPatterns = {
   sfx: SFX,
   sfxEnhanced: enhanceSfx(SFX),
   music: MUSIC,
-  songs: buildSongs(MUSIC),
+  songs: { ...buildSongs(MUSIC), [OPENING_TITLES_TRACK]: OPENING_TITLES_SONG },
   captionSfx: CAPTION_SFX,
 };
