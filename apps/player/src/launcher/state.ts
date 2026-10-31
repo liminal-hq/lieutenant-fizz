@@ -296,7 +296,7 @@ const countLabel = (n: number): string =>
 function slotOf(row: RowId): LaunchSlot | undefined {
   if (!row.startsWith('slot:')) return undefined;
   const slot = row.slice(5);
-  return slot === 'auto' ? 'auto' : (Number(slot) as LaunchSlot);
+  return slot === 'auto' || slot === 'quick' ? slot : (Number(slot) as LaunchSlot);
 }
 
 /**

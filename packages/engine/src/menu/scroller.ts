@@ -176,8 +176,13 @@ export class MenuScroller {
     const cues = this.cues.get(screen);
     if (!cues) return;
     const scrolls = !!menu && 'scroll' in menu.dataset;
+    // Rows are what there can be more of: the padding under the last one is not, however many rows there are.
+    const last = scrolls ? this.rowBoxes(menu).at(-1) : undefined;
+    const content = last
+      ? Math.min(menu!.scrollHeight, last.top + last.height)
+      : (menu?.scrollHeight ?? 0);
     const c = scrolls
-      ? scrollCues(menu.scrollTop, menu.clientHeight, menu.scrollHeight)
+      ? scrollCues(menu.scrollTop, menu.clientHeight, content)
       : { above: false, below: false };
     cues.up.hidden = !c.above;
     cues.down.hidden = !c.below;

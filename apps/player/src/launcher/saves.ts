@@ -17,13 +17,21 @@ import {
 import type { KeyValueStorage } from '@lieutenant-fizz/engine/storage';
 import type { EpisodeInfo } from './catalog';
 
-/** The store key of every save each installed episode has (the autosave, then the slots). */
+/** The store key of every save each installed episode has (the autosave, the slots, then the quick-save). */
 export function saveKeysOf(
   infos: Iterable<readonly [string, EpisodeInfo | undefined]>,
 ): EpisodeSaveKeys[] {
   const out: EpisodeSaveKeys[] = [];
   for (const [id, info] of infos) {
-    if (info) out.push({ id, keys: [info.saves.auto, ...info.saves.slots] });
+    if (info)
+      out.push({
+        id,
+        keys: [
+          info.saves.auto,
+          ...info.saves.slots,
+          ...(info.saves.quick ? [info.saves.quick] : []),
+        ],
+      });
   }
   return out;
 }

@@ -17,14 +17,21 @@ export const SAVE_KEY = 'lf-ep1-save-v1';
 /** How many manual save slots there are, besides the autosave. */
 export const SLOT_COUNT = 4;
 
-/** A save location: the read-only autosave, or a manual slot from 1 to {@link SLOT_COUNT}. */
-export type SlotId = 'auto' | 1 | 2 | 3 | 4;
+/**
+ * A save location: the read-only autosave, a manual slot from 1 to {@link SLOT_COUNT}, or the quick-save, which
+ * only F5 writes and F9 loads, so the manual slots are never overwritten by it.
+ */
+export type SlotId = 'auto' | 1 | 2 | 3 | 4 | 'quick';
 
-/** Every slot, autosave first. */
-export const SLOT_IDS: readonly SlotId[] = ['auto', 1, 2, 3, 4];
+/** Every slot: the autosave, the manual slots, then the quick-save. */
+export const SLOT_IDS: readonly SlotId[] = ['auto', 1, 2, 3, 4, 'quick'];
+
+/** The storage key of the quick-save. */
+export const QUICK_KEY = 'lf-ep1-quick';
 
 /** The storage key of a slot. The autosave keeps the original key, so older saves still load. */
-export const slotKey = (id: SlotId): string => (id === 'auto' ? SAVE_KEY : `lf-ep1-slot-${id}`);
+export const slotKey = (id: SlotId): string =>
+  id === 'auto' ? SAVE_KEY : id === 'quick' ? QUICK_KEY : `lf-ep1-slot-${id}`;
 
 /**
  * Version 3 adds the time played. Version 2 is the overworld with four areas, and a version 1 save
@@ -157,7 +164,7 @@ export function confirmWrite(store: KeyValueStorage | null): Promise<boolean> | 
   return flushable(store)?.flush() ?? null;
 }
 
-/** Every slot with its save, or null for an empty one, autosave first. */
+/** Every slot with its save, or null for an empty one, in {@link SLOT_IDS} order. */
 export function readSlots(store: Reader | null): { id: SlotId; save: Stored | null }[] {
   return SLOT_IDS.map((id) => ({ id, save: readSlot(store, id) }));
 }

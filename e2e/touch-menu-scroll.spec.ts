@@ -374,7 +374,8 @@ async function bootSaves(page: Page, layout: string, density = 1): Promise<void>
     lf.debugShow('title');
     lf.debugShow('saves');
   });
-  await expect(page.locator('#overlay .menu button')).toHaveCount(6);
+  // Load game lists the autosave, the four slots and the quick-save, then Back.
+  await expect(page.locator('#overlay .menu button')).toHaveCount(7);
   await settle(page);
 }
 
@@ -424,7 +425,15 @@ for (const [label, width, height] of SIZES) {
         }
         expect(v.sel).toBe('Back');
         // At the bottom, nothing is hidden below.
-        if (v.scrolls) expect({ up: v.up, down: v.down }).toEqual({ up: true, down: false });
+        // (The list takes a moment to settle on the last row, which is further on now that Load game has a row more.)
+        if (v.scrolls) {
+          await expect
+            .poll(async () => {
+              const w = await view(page);
+              return { up: w.up, down: w.down };
+            })
+            .toEqual({ up: true, down: false });
+        }
       });
     }
   }

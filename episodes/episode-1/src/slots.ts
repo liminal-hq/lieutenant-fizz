@@ -33,7 +33,7 @@ export const clearedCount = (doneMask: number): number => clearedOf(doneMask, LE
 
 /** Builds the row for one slot. `place` is the overworld area name where the save was made. */
 export function summarise(id: SlotId, save: Stored | null, place: string): SlotSummary {
-  const base = { id, name: slotName(id), readOnly: id === 'auto' };
+  const base = { id, name: slotName(id), readOnly: id === 'auto' || id === 'quick' };
   if (!save) {
     return {
       ...base,

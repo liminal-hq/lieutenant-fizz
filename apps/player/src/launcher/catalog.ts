@@ -98,6 +98,8 @@ export interface EpisodeInfo {
   saves: {
     auto: string;
     slots: readonly string[];
+    /** The key of the episode's quick-save, if it has one. */
+    quick?: string;
     /** The overworld the slots' thumbnails and places come from, relative to the episode's folder. */
     overworld?: string;
     /** How many levels the episode has, for the cleared pips. */
@@ -123,9 +125,9 @@ export interface SaveSummary {
 
 export const NO_SAVES: SaveSummary = { entries: [], newest: undefined };
 
-/** `Autosave`, or `Slot 2`. */
+/** `Autosave`, `Slot 2` or `Quick save`. */
 export const slotLabel = (slot: LaunchSlot): string =>
-  slot === 'auto' ? 'Autosave' : `Slot ${slot}`;
+  slot === 'auto' ? 'Autosave' : slot === 'quick' ? 'Quick save' : `Slot ${slot}`;
 
 /**
  * The saves an episode has. Only what the Load game screen shows is read: the game itself checks a save in full when
@@ -140,6 +142,7 @@ export function readSaves(
   const keys: [LaunchSlot, string][] = [
     ['auto', info.saves.auto],
     ...info.saves.slots.map((key, i): [LaunchSlot, string] => [(i + 1) as LaunchSlot, key]),
+    ...(info.saves.quick ? [['quick', info.saves.quick] as [LaunchSlot, string]] : []),
   ];
   const entries: SaveEntry[] = [];
   const ctx = {

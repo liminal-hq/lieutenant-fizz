@@ -13,6 +13,7 @@ describe('reading the launch contract', () => {
     expect(parseLaunch('?launch=options')).toEqual({ kind: 'options' });
     expect(parseLaunch('?launch=load:auto')).toEqual({ kind: 'load', slot: 'auto' });
     expect(parseLaunch('?launch=load:3')).toEqual({ kind: 'load', slot: 3 });
+    expect(parseLaunch('?launch=load:quick')).toEqual({ kind: 'load', slot: 'quick' });
     expect(parseLaunch('?debug&launch=new')).toEqual({ kind: 'new' });
   });
 

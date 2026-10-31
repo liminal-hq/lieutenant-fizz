@@ -141,7 +141,19 @@ describe('save slots', () => {
     expect(slotKey('auto')).toBe(SAVE_KEY);
     expect(slotKey(1)).toBe('lf-ep1-slot-1');
     expect(slotKey(4)).toBe('lf-ep1-slot-4');
-    expect(new Set(SLOT_IDS.map(slotKey)).size).toBe(5);
+    expect(slotKey('quick')).toBe('lf-ep1-quick');
+    expect(new Set(SLOT_IDS.map(slotKey)).size).toBe(6);
+  });
+
+  it('keeps the quick-save in a slot of its own, away from the manual slots', () => {
+    const { store, mem } = memory();
+    writeSlot(store, 1, progress, 10);
+    expect(writeSlot(store, 'quick', { ...progress, lives: 1 }, 20)).toBe(true);
+    expect(mem.has('lf-ep1-quick')).toBe(true);
+    expect(readSlot(store, 'quick')?.progress.lives).toBe(1);
+    // The manual slot is untouched, and the quick-save counts towards the newest save.
+    expect(readSlot(store, 1)?.progress).toEqual(progress);
+    expect(newestSlot(store)).toBe('quick');
   });
 
   it('writes and reads a slot without touching the others', () => {
@@ -153,13 +165,13 @@ describe('save slots', () => {
     expect(readProgress(store)).toBeNull();
   });
 
-  it('lists every slot, autosave first, with null for the empty ones', () => {
+  it('lists every slot, autosave first and quick-save last, with null for the empty ones', () => {
     const { store } = memory();
     writeProgress(store, progress);
     writeSlot(store, 3, { ...progress, lives: 1 });
     const slots = readSlots(store);
-    expect(slots.map((s) => s.id)).toEqual(['auto', 1, 2, 3, 4]);
-    expect(slots.map((s) => s.save !== null)).toEqual([true, false, false, true, false]);
+    expect(slots.map((s) => s.id)).toEqual(['auto', 1, 2, 3, 4, 'quick']);
+    expect(slots.map((s) => s.save !== null)).toEqual([true, false, false, true, false, false]);
   });
 
   it('finds the slot written most recently, and none when there are no saves', () => {
