@@ -1,6 +1,6 @@
 # Google Play release notes
 
-Per-locale “What’s new” text for Google Play. When Play deployment is added to the release workflow, these files are uploaded verbatim with the release build.
+Per-locale “What’s new” text for Google Play. The release workflow uploads these files verbatim with each tagged Android release as an internal-track draft.
 
 These files are user-facing Play Store copy, not the longer GitHub release notes in `docs/releases/`. Keep each locale below Google Play’s 500-character limit and update it for every Play release.
 
