@@ -33,6 +33,7 @@ import {
   samplingLines,
   snapPad,
   eventDevice,
+  gameSeen,
   type DescribeContext,
   type PadSnap,
   type RawEvent,
@@ -209,6 +210,9 @@ export class InputTestPage {
   /** The window or the view changed: size the pictures again once the panel shows. */
   private relayout = false;
   private ghostKey = '';
+  /** What the game's tick path (`InputManager.poll`) returned on the last frame. */
+  private tickWord = 0;
+  private readonly fastBtn = el('button', 'it-ctl');
   private lastPlaced: { hit: TouchLayout; face: Record<ControlId, Circle> } | null = null;
 
   constructor(private readonly h: InputTestHost) {
@@ -505,9 +509,14 @@ export class InputTestPage {
     for (const p of this.h.input.pads()) if (p) snaps[p.index] = snapPad(p);
     this.snaps = snaps;
     for (const e of this.padTracker.update(snaps)) this.record(e, now);
+    // The game's own tick read (the page holds the game, so nobody else polls): its pad share says which presses
+    // the tick path gave, which the sampling counters compare with the raw read.
+    this.tickWord = this.h.input.poll();
+    const padBits = this.h.input.padTickBits;
+    const bindings = this.h.input.bindings;
     this.sampling.tick(
       now,
-      snaps.flatMap((s) => (s ? [sampleOf(s)] : [])),
+      snaps.flatMap((s) => (s ? [{ ...sampleOf(s), game: gameSeen(s, padBits, bindings) }] : [])),
     );
     const pad = this.selectedPad();
     if (pad) {
@@ -538,7 +547,7 @@ export class InputTestPage {
 
   /** The bits the game receives right now: its own merged read, plus the touch the page runs itself (the game's touch controls are hidden here). */
   private word(now: number): { bits: number; pause: boolean } {
-    let bits = this.h.input.peek() | this.touch.bits(now);
+    let bits = this.tickWord | this.touch.bits(now);
     if (this.keysLit.held.has('Enter')) bits |= Input.CONFIRM;
     const b = this.h.input.bindings;
     const pause =
@@ -675,7 +684,9 @@ export class InputTestPage {
     const actions = el('div', 'it-row');
     actions.append(this.copyBtn);
     const sampActions = el('div', 'it-row');
-    sampActions.append(this.resetBtn);
+    // Fast polling on or off for this session only, to compare the game's read with and without it.
+    this.fastBtn.addEventListener('click', () => this.h.input.setLatch(!this.h.input.latching));
+    sampActions.append(this.fastBtn, this.resetBtn);
     p.append(
       views,
       this.padPick,
@@ -784,6 +795,9 @@ export class InputTestPage {
     this.padInfo.hidden = none || this.view !== 'pad';
     this.padSampling.hidden = none || this.view !== 'sampling';
     this.resetBtn.parentElement!.hidden = this.padSampling.hidden;
+    const fast = this.h.input.latching;
+    setText(this.fastBtn, fast ? 'Fast polling: on' : 'Fast polling: off');
+    this.fastBtn.setAttribute('aria-pressed', String(fast));
     this.padMapping.hidden = none || this.view !== 'mapping';
     this.copyBtn.parentElement!.hidden = this.padMapping.hidden;
     this.copyBox.hidden = this.copyBox.hidden || this.padMapping.hidden;
