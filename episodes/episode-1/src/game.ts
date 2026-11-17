@@ -97,6 +97,7 @@ import {
 import {
   Input as Bits,
   InputManager,
+  isFieldTarget,
   type Command,
   type InputDevice,
 } from '@lieutenant-fizz/engine/input';
@@ -133,6 +134,15 @@ import {
   type OptionScope,
 } from './option-scope';
 import { gestureFor, isLive } from './lifecycle-rules';
+import {
+  DEBUG_SEQUENCE,
+  DEBUG_SEQUENCE_MS,
+  createSequenceMatcher,
+  debugActionOf,
+  debugItems,
+  warpItems,
+  warpLevelOf,
+} from './debug-menu';
 import { isPortrait } from '@lieutenant-fizz/engine/portrait';
 import { Cinematic, CINE_TALL } from './cine';
 import { TitlesRun, classicLoopSeconds, idleSeconds, type TitlesAfter } from './titles-run';
@@ -648,6 +658,20 @@ export class Game {
   }
   /** The screens underneath `sub`, each with the row to put the selection back on, innermost last. */
   private subStack: { sub: SubScreen; idx: number }[] = [];
+  /** Watches the title screen's keys for the secret Debug menu sequence (see `debug-menu.ts`). */
+  private readonly debugKeys = createSequenceMatcher(DEBUG_SEQUENCE, DEBUG_SEQUENCE_MS);
+  /**
+   * Set while the Debug menu holds a screen that is not a menu: the game is on the pause screen with the Debug menu
+   * over it, and closing the menu puts `screen` and the selection back as they were (a level, the map, a card or
+   * a line of dialogue).
+   */
+  private debugResume: { screen: Screen; idx: number } | null = null;
+  /**
+   * The level now playing was reached by a World warp. Nothing it does reaches a save: the autosave, the
+   * slots and the quick-save are not written, and leaving the level goes to the title. Cleared on the title
+   * screen, a new game or a load.
+   */
+  private warped = false;
   private saveMode: 'save' | 'load' = 'load';
   private slotRows = new Map<SlotId, { summary: SlotSummary; thumb: string }>();
   private bossHp: number | null = null;
@@ -849,6 +873,8 @@ export class Game {
     for (const t of ['keydown', 'pointerdown', 'touchstart'] as const) {
       window.addEventListener(t, this.onInputEvent, { capture: true, passive: true });
     }
+    // Capture, so the sequence is seen before the input manager turns its Enter into a `confirm`.
+    window.addEventListener('keydown', this.onDebugKey, { capture: true });
     this.unwatchBack = this.watchBack();
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('pagehide', this.onVisibility);
@@ -940,6 +966,7 @@ export class Game {
     window.removeEventListener('pagehide', this.onVisibility);
     window.removeEventListener('blur', this.onBlur);
     window.removeEventListener('keydown', this.onNativeKey);
+    window.removeEventListener('keydown', this.onDebugKey, { capture: true });
     for (const t of ['keydown', 'pointerdown', 'touchstart'] as const) {
       window.removeEventListener(t, this.onInputEvent, { capture: true });
     }
@@ -1805,6 +1832,71 @@ export class Game {
     if (this.titlesRun && !(e instanceof KeyboardEvent && e.repeat)) this.pressTitles();
   };
 
+  /**
+   * Feeds every key press to the Debug sequence, whatever screen the game is on. The Enter that completes it is
+   * swallowed here (this listener is on the capture phase of the window, ahead of the input manager's), so it
+   * confirms, skips or pauses nothing. A lone 2 does nothing anywhere (it is bound to no action) and a lone
+   * Enter reaches the game as it always did. Where keys are not the game's, the progress is dropped: the opening
+   * titles, a replay, a Back gesture, a button waiting to be bound, the title's wave, and a text field.
+   */
+  private readonly onDebugKey = (e: KeyboardEvent): void => {
+    if (isFieldTarget(e.target as HTMLElement | null)) return;
+    if (/^(Shift|Control|Alt|Meta)/.test(e.code)) return;
+    if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || !this.debugReachable()) {
+      this.debugKeys.reset();
+      return;
+    }
+    if (!this.debugKeys.press(e.code, performance.now())) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    this.openDebug();
+  };
+
+  /** Whether the Debug menu can open now (and its sequence be watched for). */
+  private debugReachable(): boolean {
+    return (
+      !this.disposed &&
+      this.screen !== 'loading' &&
+      this.sub !== 'debug' &&
+      this.sub !== 'debugWarp' &&
+      !this.titlesRun &&
+      !this.replay &&
+      !this.peek.active &&
+      !this.titleAction &&
+      this.remap.kind !== 'listening'
+    );
+  }
+
+  /**
+   * Opens the Debug menu from wherever the game is. A level, the map, a card and dialogue are held (the game
+   * shows the pause screen under the menu, so nothing ticks) and come back exactly as they were when it closes.
+   * A menu keeps its place: the Debug menu opens over it like any screen. The cinematic, the ending, the credits
+   * and the stinger cannot be paused safely, so they go to the title and the menu opens over it.
+   */
+  private openDebug(): void {
+    const s = this.screen;
+    this.debugKeys.reset();
+    if (s === 'play' || s === 'card' || s === 'dialogue') {
+      this.debugResume = { screen: s, idx: this.menuIdx };
+      this.screen = 'pause';
+      this.menuIdx = 0;
+    } else if (s !== 'title' && s !== 'pause') {
+      this.quitToTitle();
+    }
+    this.menuSound.cue('select');
+    this.openSub('debug');
+  }
+
+  /** Puts a screen the Debug menu held back as it was, once the menu is closed. */
+  private endDebugHold(): void {
+    const r = this.debugResume;
+    if (!r) return;
+    this.debugResume = null;
+    this.screen = r.screen;
+    this.menuIdx = r.idx;
+    this.syncUi();
+  }
+
   private noteInput(now: number): void {
     this.idleAt = now;
     if (this.idle) this.syncLifecycle();
@@ -2101,6 +2193,8 @@ export class Game {
         stored: this.sampleList?.length ?? null,
         leftOpen: this.leftOpen,
       });
+    if (this.sub === 'debug') return debugItems();
+    if (this.sub === 'debugWarp') return warpItems(LEVELS);
     if (this.sub === 'sampleInfo') return consentItems(this.consentPage);
     if (this.sub === 'samples')
       return sessionItems(
@@ -2222,6 +2316,7 @@ export class Game {
     this.sub = under?.sub ?? null;
     this.menuIdx = under?.idx ?? 0;
     this.syncUi();
+    if (this.sub === null) this.endDebugHold();
     this.leaveIfOptionsClosed();
   }
 
@@ -2248,6 +2343,7 @@ export class Game {
     this.subStack = [];
     this.menuIdx = first?.idx ?? 0;
     this.syncUi();
+    this.endDebugHold();
     this.leaveIfOptionsClosed();
   }
 
@@ -2822,6 +2918,17 @@ export class Game {
       else if (row === 'list') this.openSub('samples');
       return;
     }
+    if (this.sub === 'debug') {
+      if (id === 'back') this.closeSub();
+      else if (debugActionOf(id) === 'warp') this.openSub('debugWarp');
+      return;
+    }
+    if (this.sub === 'debugWarp') {
+      const level = warpLevelOf(id);
+      if (id === 'back') this.closeSub();
+      else if (level !== null) this.warpToLevel(level);
+      return;
+    }
     if (this.sub === 'sampleInfo') {
       if (id === 'consent:back') this.closeSub();
       else if (id === 'consent:next') {
@@ -3244,6 +3351,7 @@ export class Game {
   // ---------- Flow ----------
 
   newGame(): void {
+    this.warped = false;
     this.sim.x.game_new();
     this.sim.x.enter_none();
     this.played = 0;
@@ -3260,6 +3368,11 @@ export class Game {
 
   /** Starts (or returns to) the overworld and autosaves progress. */
   enterMap(): void {
+    // A warped level never reaches the map or the autosave: it ends at the title with the saves as they were.
+    if (this.warped) {
+      this.quitToTitle();
+      return;
+    }
     window.clearTimeout(this.completeTimer);
     this.sim.x.enter_map();
     // The map's prompt waits in the sim's queue for the next frame; a sample writes it at this tick, not the next.
@@ -3295,6 +3408,7 @@ export class Game {
       this.ui.toast('That slot is empty');
       return false;
     }
+    this.warped = false;
     this.sim.x.game_new();
     applyProgress(this.sim, save.progress);
     this.played = save.progress.played;
@@ -3452,6 +3566,10 @@ export class Game {
 
   /** Writes the current progress to a slot and says where it went. */
   private saveToSlot(id: SlotId): boolean {
+    if (this.warped) {
+      this.ui.toast('Saving is off in a warped level');
+      return false;
+    }
     const ok = writeSlot(this.store, id, captureProgress(this.sim, Math.floor(this.played)));
     this.hasSave ||= ok;
     const failed = "Couldn't save: storage is full or blocked";
@@ -3588,6 +3706,8 @@ export class Game {
   }
 
   private quitToTitle(): void {
+    this.warped = false;
+    this.debugResume = null;
     window.clearTimeout(this.completeTimer);
     window.clearTimeout(this.titleAction);
     this.titleAction = 0;
@@ -3731,6 +3851,8 @@ export class Game {
       this.sub === 'display' ||
       this.sub === 'sample' ||
       this.sub === 'sampleInfo' ||
+      this.sub === 'debug' ||
+      this.sub === 'debugWarp' ||
       this.sub === 'samples' ||
       this.sub === 'sampleReview' ||
       this.sub === 'touch';
@@ -3749,25 +3871,29 @@ export class Game {
           ? this.saveMode === 'save'
             ? 'Save game'
             : 'Load game'
-          : this.sub === 'sample'
-            ? 'Play sample'
-            : this.sub === 'sampleInfo'
-              ? (CONSENT_PAGES[this.consentPage]?.title ?? 'Play sample')
-              : this.sub === 'samples'
-                ? 'Saved samples'
-                : this.sub === 'sampleReview'
-                  ? 'Saved sample'
-                  : this.sub === 'touch'
-                    ? 'Touch controls'
-                    : this.sub === 'sound'
-                      ? 'Sound'
-                      : this.sub === 'haptics'
-                        ? 'Haptics'
-                        : this.sub === 'controller'
-                          ? 'Controller'
-                          : this.sub === 'display'
-                            ? 'Display'
-                            : 'Options',
+          : this.sub === 'debug'
+            ? 'Debug'
+            : this.sub === 'debugWarp'
+              ? 'Warp to level'
+              : this.sub === 'sample'
+                ? 'Play sample'
+                : this.sub === 'sampleInfo'
+                  ? (CONSENT_PAGES[this.consentPage]?.title ?? 'Play sample')
+                  : this.sub === 'samples'
+                    ? 'Saved samples'
+                    : this.sub === 'sampleReview'
+                      ? 'Saved sample'
+                      : this.sub === 'touch'
+                        ? 'Touch controls'
+                        : this.sub === 'sound'
+                          ? 'Sound'
+                          : this.sub === 'haptics'
+                            ? 'Haptics'
+                            : this.sub === 'controller'
+                              ? 'Controller'
+                              : this.sub === 'display'
+                                ? 'Display'
+                                : 'Options',
         text: this.sampleText(),
         items,
         sel,
@@ -3847,6 +3973,24 @@ export class Game {
     this.sim.x.game_new();
     this.sim.x.enter_none();
     this.startCredits();
+  }
+
+  /**
+   * The Debug menu's World warp: starts level `id` on a fresh game, as `debugEnterLevel` does, and keeps the
+   * run away from every save until it is back on the title screen. The screens over the title are closed first.
+   */
+  private warpToLevel(id: number): void {
+    if (!LEVELS[id]) return;
+    this.sub = null;
+    this.subStack = [];
+    this.menuIdx = 0;
+    this.debugResume = null;
+    this.warped = true;
+    window.clearTimeout(this.completeTimer);
+    this.card = null;
+    this.dlg = null;
+    this.dlgId = null;
+    this.debugEnterLevel(id);
   }
 
   /** Test hook: jumps straight into a level. */

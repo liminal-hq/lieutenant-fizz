@@ -34,6 +34,8 @@ export type SubScreen =
   | 'sampleInfo'
   | 'samples'
   | 'sampleReview'
+  | 'debug'
+  | 'debugWarp'
   | null;
 
 export interface TouchFaces {
