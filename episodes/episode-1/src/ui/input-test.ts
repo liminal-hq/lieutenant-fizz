@@ -112,6 +112,15 @@ function boxOf(s: Shape): { x: number; y: number; w: number; h: number; round: b
     : { x: s.x, y: s.y, w: s.w, h: s.h, round: false };
 }
 
+/** What a control's ghost says when its name does not fit in the box; the full name stays in its label and title. */
+const SHORT_NAMES: Record<ControlId, string> = {
+  dpad: 'D',
+  jump: 'J',
+  pogo: 'Po',
+  fire: 'F',
+  pause: 'Pa',
+};
+
 const CONTROL_NAMES: Record<ControlId, string> = {
   dpad: 'D-pad',
   jump: 'Jump',
@@ -199,6 +208,7 @@ export class InputTestPage {
   private sizeKey = '';
   /** The window or the view changed: size the pictures again once the panel shows. */
   private relayout = false;
+  private ghostKey = '';
   private lastPlaced: { hit: TouchLayout; face: Record<ControlId, Circle> } | null = null;
 
   constructor(private readonly h: InputTestHost) {
@@ -255,7 +265,10 @@ export class InputTestPage {
     r.append(head, this.leaveNote, this.holdBar, main, this.strip, this.ghost, this.fingerLayer);
     this.ghost.hidden = true;
     for (const id of ['dpad', 'jump', 'pogo', 'fire', 'pause'] as const) {
-      const g = el('div', 'it-ghost-c', CONTROL_NAMES[id]);
+      const g = el('div', 'it-ghost-c');
+      g.append(el('span', '', CONTROL_NAMES[id]));
+      g.setAttribute('aria-label', CONTROL_NAMES[id]);
+      g.title = CONTROL_NAMES[id];
       this.ghostEls.set(id, g);
       this.ghost.append(g);
     }
@@ -541,6 +554,9 @@ export class InputTestPage {
     this.shown = d;
     for (const [id, p] of this.panels) p.hidden = id !== d;
     this.ghost.hidden = d !== 'touch';
+    this.root.dataset['dev'] = d;
+    // The ghost labels are measured once the layer shows.
+    this.ghostKey = '';
     this.fingerLayer.hidden = d !== 'touch';
     this.syncTabs();
     this.sizeKey = '';
@@ -1000,7 +1016,10 @@ export class InputTestPage {
 
   private drawTouch(): void {
     const placed = this.lastPlaced;
-    if (placed) {
+    // The ghosts are placed, and their labels fitted, only when the placement or the text size changes.
+    const key = placed ? `${JSON.stringify(placed.hit)}@${innerHeight}` : '';
+    if (placed && key !== this.ghostKey) {
+      this.ghostKey = key;
       for (const [id, g] of this.ghostEls) {
         const b = boxOf(placed.hit[id]);
         Object.assign(g.style, {
@@ -1010,6 +1029,11 @@ export class InputTestPage {
           height: px(b.h),
           borderRadius: b.round ? '50%' : '8px',
         });
+        // The full name when it fits inside the box (a circle has less room than its width), else a short form.
+        const label = g.firstElementChild as HTMLElement;
+        label.textContent = CONTROL_NAMES[id];
+        const room = (b.round ? b.w * 0.75 : b.w) - 8;
+        if (label.getBoundingClientRect().width > room) label.textContent = SHORT_NAMES[id];
       }
     }
     const fingers = this.touch.down;

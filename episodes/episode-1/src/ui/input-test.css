@@ -170,8 +170,9 @@
 #inputTest .it-chip {
   --n: var(--lf-n-hint);
   padding: calc(var(--n) * 1px) calc(var(--n) * 4px);
-  border: 2px dashed var(--lf-dim);
+  border: 2px solid rgba(255, 255, 255, 0.16);
   border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
   color: var(--lf-dim);
 }
 #inputTest .it-chip[data-on='1'] {
@@ -357,6 +358,38 @@
 }
 #inputTest .it-fingers {
   z-index: 4;
+}
+/* On the Touch panel the game's controls sit at the bottom corners and the right edge, so the page's own text
+   (the strip, the log, the finger lines) goes to the top, where nothing is under a ghost. A dashed outline
+   means only "a game control goes here". */
+#inputTest[data-dev='touch'] .it-strip {
+  order: 3;
+}
+#inputTest[data-dev='touch'] .it-main {
+  order: 4;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--n) * 2px);
+}
+#inputTest[data-dev='touch'] .it-side {
+  order: 1;
+}
+#inputTest[data-dev='touch'] .it-stage {
+  order: 2;
+}
+#inputTest[data-dev='touch'] .it-log {
+  height: auto;
+  max-height: calc(var(--lf-line) * var(--n) * 6);
+  border-left: 0;
+  padding-left: 0;
+  border-top: 2px solid var(--lf-border);
+}
+#inputTest[data-dev='touch'] .it-panel {
+  height: auto;
+}
+#inputTest .it-ghost-c span {
+  white-space: nowrap;
 }
 #inputTest .it-ghost-c {
   position: absolute;
