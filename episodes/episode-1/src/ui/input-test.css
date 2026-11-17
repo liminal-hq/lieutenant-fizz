@@ -1,0 +1,434 @@
+/* Input test page. Type follows --n like the rest of #ui; every control is at least 48 px tall. Lit parts are filled
+   (never colour alone): held is a solid fill with a heavy edge, fading is a lighter fill, off is an empty outline. */
+#inputTest {
+  --n: var(--lf-n-small);
+  inset: 0;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--n) * 2px);
+  box-sizing: border-box;
+  padding: calc(var(--lf-safe-top) + 8px) calc(var(--lf-safe-right) + 12px)
+    calc(var(--lf-safe-bottom) + 8px) calc(var(--lf-safe-left) + 12px);
+  background: #08080c;
+  pointer-events: auto;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#inputTest[hidden] {
+  display: none;
+}
+#inputTest > :not(.it-ghost, .it-fingers) {
+  position: relative;
+  z-index: 1;
+}
+#inputTest .it-head,
+#inputTest .it-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--n) * 2px);
+}
+#inputTest .it-head {
+  padding-right: var(--it-pr, 0px);
+}
+#inputTest .it-head b {
+  color: #fff;
+  margin-right: auto;
+}
+#inputTest .it-ctl {
+  min-height: 48px;
+  padding: 0 calc(var(--n) * 4px);
+  border: 1px solid var(--lf-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lf-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+#inputTest .it-ctl:hover,
+#inputTest .it-ctl:focus-visible {
+  color: #fff;
+  border-color: var(--lf-accent);
+  outline: none;
+}
+#inputTest .it-ctl[aria-selected='true'],
+#inputTest .it-ctl[aria-pressed='true'] {
+  background: rgba(255, 170, 64, 0.2);
+  border-color: var(--lf-accent);
+  color: #fff;
+}
+#inputTest .it-back {
+  border-color: var(--lf-accent);
+  color: #fff;
+}
+#inputTest .it-leave {
+  --n: var(--lf-n-hint);
+  color: var(--lf-muted);
+}
+#inputTest .it-hold {
+  height: calc(var(--n) * 2px);
+  border: 1px solid var(--lf-border);
+  opacity: 0;
+}
+#inputTest .it-hold[data-on='1'] {
+  opacity: 1;
+}
+#inputTest .it-hold i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--lf-accent);
+}
+
+/* The body: the device panel, and the log beside it (below it on a narrow window). */
+#inputTest .it-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: calc(var(--n) * 4px);
+}
+#inputTest .it-stage,
+#inputTest .it-side {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+#inputTest .it-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--n) * 2px);
+  min-height: 0;
+}
+#inputTest .it-panel[hidden],
+#inputTest [hidden] {
+  display: none !important;
+}
+#inputTest .it-picwrap {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+#inputTest .it-lines {
+  --n: var(--lf-n-hint);
+  color: var(--lf-muted);
+}
+#inputTest .it-text {
+  color: var(--lf-muted);
+}
+#inputTest .it-line {
+  overflow-wrap: anywhere;
+}
+#inputTest .it-dim {
+  color: var(--lf-dim);
+}
+#inputTest .it-log {
+  --n: var(--lf-n-hint);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  padding-left: calc(var(--n) * 3px);
+  border-left: 2px solid var(--lf-border);
+  color: var(--lf-text);
+}
+#inputTest .it-log .it-line:last-child {
+  color: #fff;
+}
+#inputTest .it-report {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 0;
+  touch-action: pan-y;
+}
+#inputTest .it-copy {
+  width: 100%;
+  height: calc(var(--n) * 13px * 6);
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border: 1px solid var(--lf-border);
+  font: inherit;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* The strip: every name of the input word, lit (filled, solid edge) or dim (dashed outline). */
+#inputTest .it-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--n) * 2px);
+}
+#inputTest .it-chip {
+  --n: var(--lf-n-hint);
+  padding: calc(var(--n) * 1px) calc(var(--n) * 4px);
+  border: 2px dashed var(--lf-dim);
+  border-radius: 6px;
+  color: var(--lf-dim);
+}
+#inputTest .it-chip[data-on='1'] {
+  border-style: solid;
+  border-color: var(--lf-accent);
+  background: var(--lf-accent);
+  color: var(--lf-ink);
+}
+
+/* Parts of the pictures. */
+#inputTest .it-pad,
+#inputTest .it-keys,
+#inputTest .it-mouse {
+  position: relative;
+  flex: none;
+}
+#inputTest .it-pad::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: calc(var(--u, 3px) * 16);
+  border: 2px solid var(--lf-border);
+  border-radius: calc(var(--u, 3px) * 14);
+  pointer-events: none;
+}
+#inputTest .it-part,
+#inputTest .it-stick,
+#inputTest .it-knob,
+#inputTest .it-key,
+#inputTest .it-mpart,
+#inputTest .it-mwheel {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--lf-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--lf-muted);
+  line-height: 1;
+}
+#inputTest .it-part::after,
+#inputTest .it-key::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--lf-accent);
+  opacity: var(--lit, 0);
+  z-index: -1;
+}
+#inputTest .it-part,
+#inputTest .it-key {
+  isolation: isolate;
+}
+#inputTest .it-part[data-s='on'],
+#inputTest .it-key[data-s='on'],
+#inputTest .it-mpart[data-s='on'],
+#inputTest .it-mwheel[data-s='on'] {
+  border-color: #fff;
+  border-width: 3px;
+  color: var(--lf-ink);
+}
+#inputTest .it-mpart[data-s='on'],
+#inputTest .it-mwheel[data-s='on'] {
+  background: var(--lf-accent);
+}
+#inputTest .it-part[data-s='fade'],
+#inputTest .it-key[data-s='fade'] {
+  border-color: var(--lf-accent);
+}
+#inputTest .it-face,
+#inputTest .it-click,
+#inputTest .it-stick,
+#inputTest .it-knob {
+  border-radius: 50%;
+}
+#inputTest .it-pill {
+  border-radius: 999px;
+}
+#inputTest .it-shoulder,
+#inputTest .it-trigger {
+  border-radius: 6px;
+}
+#inputTest .it-trigger {
+  align-items: flex-start;
+}
+#inputTest .it-trigger i {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: -1;
+  display: block;
+  width: 100%;
+  height: 0;
+  background: var(--lf-accent);
+  opacity: 0.85;
+}
+#inputTest .it-knob {
+  border-width: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  position: absolute;
+}
+#inputTest .it-knob[data-s='on'] {
+  background: var(--lf-accent);
+  border-color: #fff;
+  border-width: 3px;
+}
+#inputTest .it-key {
+  border-width: 1px;
+  border-radius: 4px;
+  color: var(--lf-muted);
+}
+#inputTest .it-mpart {
+  border-radius: 6px;
+}
+#inputTest .it-mwheel {
+  left: 45%;
+  top: 8%;
+  width: 10%;
+  height: 20%;
+  border-radius: 4px;
+}
+
+/* The generic pad panel: every raw button and axis by number. */
+#inputTest .it-generic {
+  --n: var(--lf-n-hint);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--n) * 6px * 7), 1fr));
+  gap: calc(var(--n) * 2px);
+  align-content: start;
+  width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+#inputTest .it-cell,
+#inputTest .it-axis {
+  position: relative;
+  height: calc(var(--n) * 13px + 6px);
+  border: 2px solid var(--lf-dim);
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+}
+#inputTest .it-cell i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--lf-accent);
+  opacity: 0.5;
+  z-index: -1;
+}
+#inputTest .it-cell[data-s='on'] {
+  border-color: #fff;
+  border-width: 3px;
+}
+#inputTest .it-axis {
+  grid-column: span 2;
+  justify-content: space-between;
+  padding: 0 calc(var(--n) * 2px);
+}
+#inputTest .it-axis i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--lf-accent);
+  opacity: 0.5;
+  z-index: -1;
+}
+
+/* Touch: the controls' hit areas as the game places them, and a marker for each finger. */
+#inputTest .it-ghost,
+#inputTest .it-fingers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+#inputTest .it-fingers {
+  z-index: 4;
+}
+#inputTest .it-ghost-c {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed var(--lf-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lf-dim);
+  text-align: center;
+}
+#inputTest .it-finger {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+/* A landed touch is a solid disc, a miss a hollow dashed diamond. */
+#inputTest .it-finger i {
+  position: absolute;
+  left: -16px;
+  top: -16px;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+}
+#inputTest .it-finger[data-hit='1'] i {
+  border-radius: 50%;
+  background: var(--lf-accent);
+  border: 4px solid #fff;
+}
+#inputTest .it-finger[data-hit='0'] i {
+  transform: rotate(45deg);
+  border: 4px dashed var(--lf-rose);
+  background: transparent;
+}
+#inputTest .it-finger span {
+  --n: var(--lf-n-hint);
+  position: absolute;
+  top: -30px;
+  white-space: nowrap;
+  color: #fff;
+  text-shadow: 0 2px 0 #000;
+}
+#inputTest .it-finger[data-side='r'] span {
+  left: 24px;
+}
+#inputTest .it-finger[data-side='l'] span {
+  right: 24px;
+}
+
+/* Narrow windows: the log goes under the panel, a few lines tall, and the optional lines and the title give way. */
+@media (max-width: 899px) {
+  #inputTest .it-main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  #inputTest .it-log {
+    height: auto;
+    max-height: calc(var(--lf-line) * var(--n) * 4);
+    border-left: 0;
+    padding-left: 0;
+    border-top: 2px solid var(--lf-border);
+  }
+  #inputTest .it-head b {
+    display: none;
+  }
+  #inputTest .it-head .it-back {
+    margin-right: auto;
+  }
+}
+@media (max-width: 899px), (max-height: 640px) {
+  #inputTest .it-opt {
+    display: none;
+  }
+}

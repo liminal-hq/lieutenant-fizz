@@ -78,10 +78,11 @@ describe('the debug key sequence', () => {
 });
 
 describe('the debug menu rows', () => {
-  it('lists Warp to level, then Back', () => {
+  it('lists Warp to level and Input test, then Back', () => {
     const items = debugItems();
-    expect(items.map((i) => i.label)).toEqual(['Warp to level', 'Back']);
+    expect(items.map((i) => i.label)).toEqual(['Warp to level', 'Input test', 'Back']);
     expect(debugActionOf(items[0]?.id)).toBe('warp');
+    expect(debugActionOf(items[1]?.id)).toBe('inputTest');
     expect(debugActionOf('back')).toBeNull();
   });
 

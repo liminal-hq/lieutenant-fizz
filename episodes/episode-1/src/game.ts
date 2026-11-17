@@ -257,6 +257,8 @@ import { thumbDataUrl } from './thumb';
 import type { HapticsLab } from './ui/haptics-lab';
 import type { LabId, LabShell } from './ui/lab-shell';
 import type { SoundLab } from './ui/sound-lab';
+import { InputTestPage } from './ui/input-test';
+import { placeControls } from '@lieutenant-fizz/engine/touch-layout';
 import { drawSimFrame, renderSim } from './sim/draw';
 import { Ev, Mode, Out, State, STEP, Table } from './sim/protocol';
 import { Sim, type SimEvent } from './sim/sim';
@@ -550,6 +552,8 @@ export class Game {
   private labMusic = false;
   /** The Lab button and the switch between the labs; null while neither lab is wanted. */
   private labShell: LabShell | null = null;
+  /** The Input test page, built the first time it opens and in the page only while `sub` is `inputTest`. */
+  private inputTestPage: InputTestPage | null = null;
   private soundLab: SoundLab | null = null;
   private hapticsLab: HapticsLab | null = null;
   /** `?debug` was given, so both labs are there whatever the Sound lab and Haptics lab options say. */
@@ -1070,7 +1074,9 @@ export class Game {
     this.watchPadModel();
     this.tickRemap(performance.now());
     const bits = this.input.peek();
-    this.menuInput(bits);
+    // The Input test reads the devices itself: nothing here acts on them while it is open.
+    if (this.inputTestPage?.isOpen) this.inputTestPage.frame(performance.now());
+    else this.menuInput(bits);
     this.lastBits = bits;
     // Input from a pad or a held key keeps the idle clock fresh; the screen is let go when it crosses five minutes.
     if (bits !== 0) this.noteInput(t);
@@ -1529,6 +1535,9 @@ export class Game {
 
   private onCommand(c: Command): void {
     if (this.peek.active) return;
+    // The Input test shows what a key or button would do and does none of it: Pause, Confirm, saves, zoom and
+    // fullscreen are all held while it is open. Leaving is its own hold (Esc or the Back button for a second).
+    if (this.sub === 'inputTest') return;
     // While a replay is up, Esc or Pause takes it down and nothing else reaches the game under it.
     if (this.replay) {
       if (c.type === 'pause') this.replay.close();
@@ -1859,6 +1868,7 @@ export class Game {
       this.screen !== 'loading' &&
       this.sub !== 'debug' &&
       this.sub !== 'debugWarp' &&
+      this.sub !== 'inputTest' &&
       !this.titlesRun &&
       !this.replay &&
       !this.peek.active &&
@@ -2084,6 +2094,7 @@ export class Game {
       ...(this.hapticsShown() ? [{ id: 'haptics', label: 'Haptics' }] : []),
       ...(this.anyPadSeen ? [{ id: 'controller', label: 'Controller' }] : []),
       ...(displayShown(this.displayCaps()) ? [{ id: 'display', label: 'Display' }] : []),
+      { id: 'inputTest', label: 'Input test' },
       { id: 'sample', label: 'Play sample' },
       row('Captions', 'captions'),
       row('Controls', 'layout'),
@@ -2838,6 +2849,8 @@ export class Game {
       this.closeSub();
       return;
     }
+    // The Input test has no rows: it leaves by its own Back button or a held key.
+    if (this.sub === 'inputTest') return;
     // The editor has no rows; Enter, jump or fire on it is Done.
     if (this.sub === 'touchEdit') {
       this.closeSub();
@@ -2921,6 +2934,7 @@ export class Game {
     if (this.sub === 'debug') {
       if (id === 'back') this.closeSub();
       else if (debugActionOf(id) === 'warp') this.openSub('debugWarp');
+      else if (debugActionOf(id) === 'inputTest') this.openSub('inputTest');
       return;
     }
     if (this.sub === 'debugWarp') {
@@ -2966,6 +2980,7 @@ export class Game {
       else if (id === 'haptics') this.openHaptics();
       else if (id === 'controller') this.openController();
       else if (id === 'display') this.openDisplay();
+      else if (id === 'inputTest') this.openSub('inputTest');
       else if (id === 'touch') this.openSub('touch');
       else if (id === 'scope') this.toggleScope();
       else if (id.startsWith('opt:')) {
@@ -3726,6 +3741,42 @@ export class Game {
 
   // ---------- Overlay + music sync ----------
 
+  /**
+   * Puts the Input test page in the document while its sub-screen is up, and takes it out (and forgets its log)
+   * when anything else is. It is built the first time it opens.
+   */
+  private syncInputTest(): void {
+    const want = this.sub === 'inputTest';
+    if (!want) {
+      this.inputTestPage?.close();
+      return;
+    }
+    if (!this.inputTestPage) {
+      let placed: { key: string; value: ReturnType<typeof placeControls> } | null = null;
+      this.inputTestPage = new InputTestPage({
+        input: this.input,
+        mount: (node) => this.ui.mount(node),
+        leave: () => this.closeSub(),
+        layout: () => this.settings.layout,
+        family: () => this.padFamily(),
+        placed: () => {
+          const key = `${window.innerWidth}x${window.innerHeight}`;
+          if (placed?.key !== key) {
+            const info = this.touchUi.layoutInfo();
+            placed = {
+              key,
+              value: placeControls(window.innerWidth, window.innerHeight, info.insets, info.spec),
+            };
+          }
+          return placed.value;
+        },
+        reduced: () => this.reducedMotion,
+        hostName: () => this.caps.host,
+      });
+    }
+    this.inputTestPage.open();
+  }
+
   private syncUi(): void {
     // Any change of screen or sub-screen (resuming, reopening the pause menu, a card, the title) cancels a
     // Reset or Quit game that was waiting for its second tap, so it cannot be completed from somewhere else.
@@ -3749,6 +3800,7 @@ export class Game {
     // Before the menus are drawn, so they are laid out around the controls this screen shows.
     this.syncTouch();
     this.drawMenus();
+    this.syncInputTest();
 
     const text = this.curText();
     const typed = Math.min(text.length, Math.floor(this.typed));
@@ -3857,12 +3909,16 @@ export class Game {
       this.sub === 'sampleReview' ||
       this.sub === 'touch';
     ui.showTitle(onTitle && !this.sub ? items : null, sel, onTitle && this.sub === 'controls');
+    // The editor and the Input test draw their own screens over everything.
     const editing = this.sub === 'touchEdit' && (onTitle || s === 'pause');
+    const testing = this.sub === 'inputTest' && (onTitle || s === 'pause');
     // Back shows over every screen opened over a menu and on the pause menu itself (where it resumes).
-    ui.setBack(this.touchMode && !editing && (s === 'pause' || (onTitle && !!this.sub)));
+    ui.setBack(
+      this.touchMode && !editing && !testing && (s === 'pause' || (onTitle && !!this.sub)),
+    );
     ui.showTouchEditor(editing ? { armed: resetArmed(this.resetAt, performance.now()) } : null);
     if (onTitle && this.sub === 'controls') ui.showTitle(null, 0, true);
-    if (editing) {
+    if (editing || testing) {
       ui.showOverlay(null);
     } else if (over && (onTitle || s === 'pause')) {
       const saves = this.sub === 'saves';
@@ -4683,6 +4739,7 @@ export class Game {
       | 'haptics'
       | 'controller'
       | 'display'
+      | 'inputTest'
       | 'touch'
       | 'touchEdit'
       | 'saves'
@@ -4795,6 +4852,15 @@ export class Game {
         this.optionRows().findIndex((r) => r.id === 'display'),
       );
       return this.openDisplay();
+    }
+    if (what === 'inputTest') {
+      // Title, then Options on its Input test row, then the page, as a player gets there.
+      this.openSub('options');
+      this.menuIdx = Math.max(
+        0,
+        this.optionRows().findIndex((r) => r.id === 'inputTest'),
+      );
+      return this.openSub('inputTest');
     }
     if (what === 'saves') return this.openSaves('load');
     this.sub = what === 'title' ? null : what;

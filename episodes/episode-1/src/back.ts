@@ -117,7 +117,7 @@ export interface PeekPlan {
 export function peekPlan(screen: ShellScreen, sub: SubScreen, under: SubScreen): PeekPlan | null {
   if (screen !== 'title' && screen !== 'pause') return null;
   if (!sub) return screen === 'pause' ? { layer: 'overlay', parent: { game: true } } : null;
-  if (sub === 'touchEdit') return null;
+  if (sub === 'touchEdit' || sub === 'inputTest') return null;
   return {
     layer: screen === 'title' && sub === 'controls' ? 'title' : 'overlay',
     parent: { game: false, sub: under },

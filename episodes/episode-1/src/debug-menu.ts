@@ -60,7 +60,7 @@ export function createSequenceMatcher(
 }
 
 /** What a Debug menu row does. The game maps each to its own code. */
-export type DebugAction = 'warp';
+export type DebugAction = 'warp' | 'inputTest';
 
 /** One row of the Debug menu. Add a row here to add a debug tool. */
 export interface DebugEntry {
@@ -72,6 +72,7 @@ export interface DebugEntry {
 /** The rows of the Debug menu, above Back. */
 export const DEBUG_ENTRIES: readonly DebugEntry[] = [
   { id: 'debug:warp', label: 'Warp to level', action: 'warp' },
+  { id: 'debug:inputTest', label: 'Input test', action: 'inputTest' },
 ];
 
 /** The id of Back on both Debug screens. */
