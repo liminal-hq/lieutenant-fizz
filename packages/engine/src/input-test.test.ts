@@ -123,13 +123,21 @@ describe('log lines', () => {
     expect(
       logLine(
         0,
-        { kind: 'touch', id: 2, phase: 'down', x: 214.4, y: 520, control: 'jump', actions: ['Jump'] },
+        {
+          kind: 'touch',
+          id: 2,
+          phase: 'down',
+          x: 214.4,
+          y: 520,
+          control: 'jump',
+          actions: ['Jump'],
+        },
         ctx,
       ),
     ).toBe('+  0:00.0  Touch 2  down  at 214,520  on jump  -> Jump');
-    expect(
-      logLine(0, { kind: 'mouse', button: 2, down: true, x: 4, y: 5 }, ctx),
-    ).toBe('+  0:00.0  Mouse  button 2 (Right)  down  at 4,5  -> no action');
+    expect(logLine(0, { kind: 'mouse', button: 2, down: true, x: 4, y: 5 }, ctx)).toBe(
+      '+  0:00.0  Mouse  button 2 (Right)  down  at 4,5  -> no action',
+    );
     expect(logLine(0, { kind: 'wheel', dir: 'up' }, ctx)).toContain('-> Zoom in');
   });
 
@@ -299,7 +307,8 @@ describe('SamplingProbe', () => {
 
   it('reads the timestamp rate, and says when it stays at 0 or never moves', () => {
     const moving = new SamplingProbe();
-    for (let t = 0; t <= 1000; t += 4) moving.fast(t, [pad(t, [false], 1000 + Math.floor(t / 8) * 8)]);
+    for (let t = 0; t <= 1000; t += 4)
+      moving.fast(t, [pad(t, [false], 1000 + Math.floor(t / 8) * 8)]);
     const r = moving.report(0, 1000);
     expect(r.timestamp).toBe('changing');
     expect(r.updateHz).toBeGreaterThan(100);
