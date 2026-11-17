@@ -28,10 +28,11 @@ async function stubPad(page: Page): Promise<void> {
     };
     (window as unknown as { __pad: typeof pad; __padOn: boolean }).__pad = pad;
     (window as unknown as { __padOn: boolean }).__padOn = false;
-    navigator.getGamepads = () =>
+    // A plain object stands in for a Gamepad, which has no public constructor.
+    navigator.getGamepads = (() =>
       (window as unknown as { __padOn: boolean }).__padOn
         ? [pad, null, null, null]
-        : [null, null, null, null];
+        : [null, null, null, null]) as unknown as typeof navigator.getGamepads;
   });
 }
 
