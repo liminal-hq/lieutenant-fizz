@@ -6,9 +6,10 @@
 # Pushing a `vX.Y.Z` tag builds `.deb`, `.rpm` and `.AppImage` packages for x86_64 and aarch64 (unsigned),
 # and a signed Android APK and AAB (with the R8 mapping and the native debug symbols), writes SHA256SUMS over all of it, and attaches
 # everything to the release for the tag. The release is created as a draft so it is never public half-filled
-# (generated notes, or the existing draft reused), then published once every file is on it. Nothing goes to Google Play.
+# (generated notes, or the existing draft reused), then published once every file is on it. The Android bundle also
+# goes to Google Play's internal track as a draft when the selected-repository `PLAY_SERVICE_ACCOUNT_JSON` secret exists.
 # A universal macOS .dmg (Apple silicon and Intel, ad-hoc signed, not notarised) and Windows installers (an .msi and an
-# NSIS .exe for x64 and arm64, unsigned) are built too. The Play upload comes later.
+# NSIS .exe for x64 and arm64, unsigned) are built too. Play drafts still need a person to review and publish them.
 #
 # Started by hand (Actions > Release > Run workflow), it builds and uploads everything as workflow
 # artefacts and publishes nothing, unless `release_tag` names an existing tag: then it builds that tag
@@ -647,6 +648,67 @@ jobs:
         run: |
           rm -rf .ci/signing
           rm -f apps/player/src-tauri/gen/android/keystore.properties
+
+  # Keep Play separate from the build: a Play Console problem cannot prevent the GitHub release and its artefacts
+  # from being published. The upload is a draft on the internal track, never a public Play release.
+  deploy-android-play:
+    name: Deploy the Android bundle to Google Play
+    needs:
+      - prepare
+      - build-android
+    if: needs.prepare.outputs.tag_name != ''
+    runs-on: ubuntu-24.04
+    # Secrets cannot be read in a step `if`, so the upload step gates on this job environment value instead.
+    env:
+      PLAY_DEPLOY_READY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+    steps:
+      # `whatsNewDirectory` comes from the tagged checkout, not the workflow-dispatch branch.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+
+      - name: Download the Android files
+        uses: actions/download-artifact@v8
+        with:
+          name: android-release-assets
+          path: release-assets/android
+
+      # `releaseFiles` accepts a glob, but `mappingFile` and `debugSymbols` need exact paths.
+      - name: Resolve Play deploy asset paths
+        id: play_asset_paths
+        run: |
+          mapping_file="$(find release-assets/android -type f -name 'lieutenant-fizz-mapping-v*.txt' | sort | head -n 1 || true)"
+          debug_symbols="$(find release-assets/android -type f -name 'lieutenant-fizz-native-debug-symbols-v*.zip' | sort | head -n 1 || true)"
+          echo "mapping_file=${mapping_file}" >> "${GITHUB_OUTPUT}"
+          echo "debug_symbols=${debug_symbols}" >> "${GITHUB_OUTPUT}"
+
+      - name: Deploy the Android bundle to Google Play (draft)
+        id: deploy_android_play
+        if: ${{ env.PLAY_DEPLOY_READY == 'true' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ca.liminalhq.lieutenantfizz
+          releaseFiles: release-assets/android/lieutenant-fizz-v*.aab
+          tracks: internal
+          status: draft
+          whatsNewDirectory: distribution/whatsnew
+          mappingFile: ${{ steps.play_asset_paths.outputs.mapping_file }}
+          debugSymbols: ${{ steps.play_asset_paths.outputs.debug_symbols }}
+
+      - name: Summarise the Google Play deployment
+        if: always()
+        env:
+          DEPLOY_RESULT: ${{ steps.deploy_android_play.outcome }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag_name }}
+        run: |
+          {
+            echo "## Google Play deployment"
+            echo
+            echo "- Deployment configured: \`${PLAY_DEPLOY_READY}\`"
+            echo "- Deployment result: \`${DEPLOY_RESULT:-skipped}\`"
+            echo "- Release tag: \`${RELEASE_TAG}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
   package-appimage:
     name: Package the AppImage (${{ matrix.arch }})
