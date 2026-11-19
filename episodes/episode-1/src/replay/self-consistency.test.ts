@@ -144,6 +144,24 @@ describe.skipIf(!built)('a recorded run replays exactly', () => {
     expect(replayer.checked).toBeGreaterThan(5);
   });
 
+  it('records the mode a level was entered in and restores it before the level is built', async () => {
+    recorder.x.game_new();
+    recorder.set(State.NORMAL, 1);
+    const { session } = await record(recorder, Level.CRATER, 200, false);
+    const replayer = new Replayer(player, session);
+    const entry = replayer.attempts[0]!.entry!;
+    expect(entry.mode).toBe('normal');
+    expect(entry.levelHash).toBe(recorder.levelHash(Level.CRATER));
+    // The Expert build of the level is a different one, so a replay that dropped the mode would not match.
+    player.x.game_new();
+    expect(player.levelHash(Level.CRATER)).not.toBe(entry.levelHash);
+    replayer.load(0);
+    expect(player.get(State.NORMAL)).toBe(1);
+    replayer.run();
+    expect(replayer.drift).toBeNull();
+    expect(replayer.checked).toBeGreaterThan(5);
+  });
+
   it('ends in the same place the recorded run ended', async () => {
     const { session, x, y } = await record(recorder, Level.CRATER, 450);
     const replayer = new Replayer(player, session);

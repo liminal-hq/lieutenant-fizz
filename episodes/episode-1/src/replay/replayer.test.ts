@@ -61,8 +61,34 @@ describe('entry state from a log', () => {
       next: 600,
       done: 0,
       inferred: true,
+      mode: 'expert',
     });
     expect(entry?.held).toBeGreaterThanOrEqual(0);
+  });
+
+  it('reads the mode of a written-down entry, and takes a missing one as Expert', () => {
+    const at = (extra: Record<string, unknown>) => {
+      const log = [
+        { t: 1, e: 'level', id: 7 },
+        {
+          t: 1,
+          e: 'enter',
+          id: 7,
+          lives: 3,
+          ammo: 5,
+          score: 0,
+          next: 100,
+          done: 0,
+          held: 0,
+          ...extra,
+        },
+      ] as unknown as typeof events;
+      return entryAt(log, 0);
+    };
+    expect(at({ mode: 'normal' })?.mode).toBe('normal');
+    expect(at({ mode: 'expert' })?.mode).toBe('expert');
+    expect(at({})?.mode).toBe('expert');
+    expect(at({ mode: 'bogus' })?.mode).toBe('expert');
   });
 
   it('gives nothing for an event that is not a level', () => {

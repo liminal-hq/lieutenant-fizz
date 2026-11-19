@@ -26,20 +26,27 @@ See `STORY.md` for the full opening cinematic and ending text.
 | | Zarg Lookout | building | A nine-floor watchtower in cutaway: ladders, two flights of stairs and a slow lift link floors that alternate between full-width halls and small landings. The red key is on the roof and its cookie door guards the exit at the bottom, so Ben climbs up and comes back down |
 | **Marshmallow Meadows** (north-west) | Marshmallow Meadows | open sky | Soft hills, marshmallows bouncing in fenced corrals to pogo off, the blue key at the top of a stack of cloud ledges |
 | | Bonbon Playhouse | theatre | A candy theatre whose backstage rooms are hidden behind painted flats; the red and blue keys are each in a hidden room |
-| | Fudge Bog (optional) | crater | A harder crater: wide fudge pools on stepping stones, spike runs, three spore pods |
+| | Fudge Bog (optional) | crater | A harder crater: wide fudge pools on stepping stones, spike runs (a run of 3 or 4 spikes in Expert; one tile narrower in Normal), three spore pods |
 | **Rock Candy Reach** (north-east) | Crystal Caves | cave | Darker tunnels lit by crystals and Ben's lantern; hover platforms, a bridge switch, bats, blue gumdrop door |
 | | Mirror Shafts | vertical cave | A tall crystal shaft sealed by three gates; fizz bounces off mirrors to reach crystal switches that sit in rock, open only to the mirror's bubble |
 | | Whisper Hollow (optional) | cave | A cave for climbers: a vine rope over a fudge pool, a three-tile chimney climbed by kicking between its walls (and a vine to finish on), hanging vines across a chasm, tall shelves to pull up onto, and a cracked-wall closet of cookies in the chimney |
 | | Sugar Glass Gallery (optional) | theatre | A long theatre of stacked hidden rooms; one of them is the secret |
 | **Frosting Frontier** (south-east) | Frosting Flats (optional) | open sky | The hardest open-sky level: spike runs, hover chains over long gaps, drones overhead |
 | | Frosting Spire | building | Twelve floors, ladders alternating sides, three lifts and a key in every colour; the green key is on the roof and its door guards the exit at the bottom |
-| | Cocoa Foundry | foundry | Conveyor belts, crushing presses and molten metal |
+| | Cocoa Foundry | foundry | Conveyor belts, crushing presses and molten metal (Normal removes six enemies from its three busiest stretches) |
 | | Mildred's Citadel | citadel | Boulder ramp, sentries, phantoms, then the boss arena, the terminal and Billy's cage |
 | **Gumdrop Isle** (central island, secret) | Gumdrop Isle | open sky | A short, snack-dense bonus course with two caches of cookies that each earn an extra life |
 
 3c. **The Saucer** (Crater Fields, walk-through): Ben's own flying saucer, parked at the map's starting point. Press Confirm at it to step inside: a short walk to the hatch, then a galley, bunks, a star chart, a souvenir shelf and a bridge up a ladder, with a painting at each that says something about the crew. No enemies, no snacks and no cleared bit; the exit at the far left goes straight back to the map. It has the id after the last cleared-level id, so it is in the level table but never in the progress mask.
 4. **The secret.** The island in the lake, its teleporter pad and its level are visible from the start but cannot be walked to. One hidden room in the Sugar Glass Gallery holds a mural of the crystal forest with a ring of trees glowing in the far north-east. Stepping into it sets the secret-found flag, which makes a hidden teleporter pad appear inside a ring of trees in that corner of the map (the ring has one gap). It pairs with the island pad.
 5. Ending (4 scenes), then the credits (skippable), then a score card. Episode 1 has no post-credits stinger; it belongs to Episode 3.
+
+## Modes
+The game has two difficulty modes, chosen at New Game (a Normal or Expert screen after the title's New Game row, with Normal highlighted and Back returning to the title) and kept in every save. Expert is the game as first designed and the default for any save or recording made before the modes existed. Normal is gentler in two ways, and changes nothing else:
+- **Spikes.** Expert's spike runs are close to a full jump long: a 3-wide run leaves about 3.7 of the 4.4 tiles a full-speed jump clears, and a 4-wide run about 4.7. In Normal every run of 4 spikes is 3 wide and every run of 3 is 2 wide (ten runs in all). The run keeps its column span: the last spike becomes plain ground, so items, platforms and the rest of the level stay where they are.
+- **Cocoa Foundry.** Normal removes the enemies that stack over the same few jumps: the Phantoms at x 98 and x 142, the Sentry at x 108, the Drone at x 140.5 and the presses at x 108 and x 164. The enemy kinds, the blue key and the door route are unchanged.
+
+The mode is a simulation setting (`State.NORMAL`, 0 for Expert and 1 for Normal) applied when a level is built, so the same level data gives both modes. The hidden Debug menu has a Mode row that flips it for testing.
 
 ## Mechanics
 - **Run & jump:** variable-height jump (release early to cut it short), 7 tiles/s top speed, momentum on the ground and in the air.
@@ -127,6 +134,6 @@ See `STORY.md` for the full opening cinematic and ending text.
 - **Implementation:** written for Undertone; see `ENGINE_SPEC.md` §6.
 
 ## Open questions
-- Difficulty tuning and secret areas for each level.
+- Further difficulty tuning (Normal so far softens spikes and the Cocoa Foundry only; the rest of the levels have not been tuned in either mode, and no human has measured them) and secret areas for each level.
 - Whether death should keep collected snacks.
 - Mortimer's role in Episode 2.
