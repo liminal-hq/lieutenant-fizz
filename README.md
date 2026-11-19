@@ -113,7 +113,7 @@ The `package.json` scripts are the source of truth for exact commands. The origi
 - **Done:** the Rust port of the simulation (`f64` state, 60 Hz fixed step), the orthographic camera, the palette-indexed atlas, single-draw-call instancing, the zero-copy render bridge, slopes, one-way and moving platforms, culling, autosave, normal-mapped lighting with day and night profiles, the DOM overlay, Undertone audio and the Pages deploy. The WASM is about 119 kB, far under the 2 MB target.
 - **Planned:** a sparse grid or quadtree for entity–entity tests, pooled allocation for shots and effects, full mid-level quick-save snapshots, cast shadows, the Tauri shell (including capturing Ctrl and Alt so they don't trigger browser shortcuts), and touch controls.
 
-Open design questions for Episode 1 — difficulty tuning, secret areas, whether death keeps collected snacks, and Mortimer's role in Episode 2 — are listed at the end of [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md).
+Episode 1 has two modes, Normal and Expert, chosen at New Game and kept in the save (see the Modes section of [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md)). Open design questions for Episode 1 — further difficulty tuning, secret areas, whether death keeps collected snacks, and Mortimer's role in Episode 2 — are listed at the end of [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md).
 
 ## Part of Liminal HQ
 
