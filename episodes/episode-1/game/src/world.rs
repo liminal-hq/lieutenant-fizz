@@ -135,6 +135,9 @@ pub struct Game {
     /// Cleared levels (`levels::level_bit`) plus flags such as `SECRET_FOUND`.
     pub done: u32,
     pub map_pos: Option<(f64, f64)>,
+    /// Normal mode (`true`) or Expert (`false`, the default): chosen at New game and kept in the save. It is
+    /// applied when a level is built (see `levels::soften`).
+    pub normal: bool,
 }
 
 /// Bit in `Game::done` set once the secret teleporter has been discovered.
@@ -168,6 +171,7 @@ impl Game {
             ammo: 5,
             done: 0,
             map_pos: None,
+            normal: false,
         }
     }
 }
@@ -692,7 +696,7 @@ impl World {
     pub fn load_level(&mut self, id: u8) {
         // An id the table does not know builds the first level, so it is also that level's id.
         let id = if id < levels::TABLE_LEN { id } else { 0 };
-        let d = levels::build_level(id);
+        let d = levels::build_level_for(id, self.game.normal);
         self.level_id = id;
         self.theme = d.theme;
         self.map = d.map;

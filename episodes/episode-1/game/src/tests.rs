@@ -4250,3 +4250,189 @@ fn the_maps_lights_follow_what_has_been_cleared_while_ben_is_on_it() {
     assert!(lit(&w) > before, "a pad that has just opened is lit");
     assert_eq!(w.map_lights_done, w.game.done);
 }
+
+// ---------- Normal and Expert modes ----------
+
+/// Every horizontal run of spike tiles in a level, as (row, first column, width).
+fn spike_runs(map: &lf_sim::TileMap) -> Vec<(i32, i32, i32)> {
+    let mut runs = Vec::new();
+    for y in 0..map.h {
+        let mut x = 0;
+        while x < map.w {
+            if map.get(x, y) != SPIKE {
+                x += 1;
+                continue;
+            }
+            let start = x;
+            while x < map.w && map.get(x, y) == SPIKE {
+                x += 1;
+            }
+            runs.push((y, start, x - start));
+        }
+    }
+    runs
+}
+
+#[test]
+fn expert_is_the_default_and_builds_levels_as_they_always_were() {
+    use crate::levels::{build_level, build_level_for, LEVEL_COUNT};
+    assert!(!crate::world::Game::fresh().normal);
+    for id in 0..LEVEL_COUNT {
+        assert_eq!(
+            build_level(id).fingerprint(),
+            build_level_for(id, false).fingerprint(),
+            "level {id}"
+        );
+    }
+    // Pinned so a change to Expert has to be made on purpose (the DOS port's parity check reads these).
+    let prints: Vec<u32> = (0..LEVEL_COUNT)
+        .map(|id| build_level(id).fingerprint())
+        .collect();
+    assert_eq!(
+        prints.as_slice(),
+        &EXPERT_FINGERPRINTS[..],
+        "Expert fingerprints: {prints:08x?}"
+    );
+}
+
+#[test]
+fn normal_narrows_spike_runs_and_changes_nothing_else_in_the_map() {
+    use crate::levels::{build_level, build_level_for, LEVEL_COUNT};
+    let mut narrowed = 0;
+    for id in 0..LEVEL_COUNT {
+        let expert = build_level(id);
+        let normal = build_level_for(id, true);
+        assert_eq!((expert.map.w, expert.map.h), (normal.map.w, normal.map.h));
+        let mut expected = expert.map.data.clone();
+        for (y, x, w) in spike_runs(&expert.map) {
+            if w == 3 || w == 4 {
+                expected[(y * expert.map.w + x + w - 1) as usize] = EMPTY;
+                narrowed += 1;
+            }
+        }
+        assert_eq!(normal.map.data, expected, "level {id} tiles");
+        // Runs of 4 are 3 and runs of 3 are 2 after the change.
+        let widths =
+            |m: &lf_sim::TileMap| spike_runs(m).into_iter().map(|r| r.2).collect::<Vec<_>>();
+        let want: Vec<i32> = widths(&expert.map)
+            .into_iter()
+            .map(|w| if w == 3 || w == 4 { w - 1 } else { w })
+            .collect();
+        assert_eq!(widths(&normal.map), want, "level {id} run widths");
+        assert_eq!(expert.items.len(), normal.items.len(), "level {id} items");
+        assert_eq!(expert.start, normal.start);
+        if id != crate::levels::COCOA_FOUNDRY {
+            assert_eq!(
+                expert.spawns.len(),
+                normal.spawns.len(),
+                "level {id} spawns"
+            );
+        }
+    }
+    assert!(narrowed == 10, "narrowed {narrowed} runs");
+}
+
+#[test]
+fn normal_removes_only_the_named_cocoa_foundry_enemies() {
+    use crate::levels::{build_level, build_level_for, COCOA_FOUNDRY};
+    let expert = build_level(COCOA_FOUNDRY);
+    let normal = build_level_for(COCOA_FOUNDRY, true);
+    let cut = |k: Kind, x: f64| {
+        matches!(
+            (k, x),
+            (Kind::Phantom, 98.0)
+                | (Kind::Phantom, 142.0)
+                | (Kind::Sentry, 108.0)
+                | (Kind::Drone, 140.5)
+                | (Kind::Press, 108.0)
+                | (Kind::Press, 164.0)
+        )
+    };
+    let removed = expert.spawns.iter().filter(|s| cut(s.kind, s.x)).count();
+    assert_eq!(removed, 6, "each named spawn exists exactly once");
+    assert_eq!(normal.spawns.len(), expert.spawns.len() - 6);
+    assert!(normal.spawns.iter().all(|s| !cut(s.kind, s.x)));
+    let kept: Vec<_> = expert.spawns.iter().filter(|s| !cut(s.kind, s.x)).collect();
+    for (a, b) in kept.iter().zip(&normal.spawns) {
+        assert_eq!((a.kind, a.x, a.y), (b.kind, b.x, b.y));
+    }
+    assert_eq!(expert.items.len(), normal.items.len());
+}
+
+#[test]
+fn the_normal_state_slot_reads_back_and_is_applied_when_a_level_is_built() {
+    use crate::state::NORMAL;
+    let mut w = World::new();
+    assert_eq!(crate::state_get(NORMAL), 0.0);
+    crate::state_set(NORMAL, 1.0);
+    assert_eq!(crate::state_get(NORMAL), 1.0);
+    crate::state_set(NORMAL, 5.0);
+    assert_eq!(
+        crate::state_get(NORMAL),
+        1.0,
+        "any non-zero value is Normal"
+    );
+    crate::state_set(NORMAL, 0.0);
+    assert_eq!(crate::state_get(NORMAL), 0.0);
+
+    w.game_new();
+    w.game.normal = true;
+    w.enter_level(crate::levels::COCOA_FOUNDRY);
+    assert!(!w
+        .ents
+        .iter()
+        .any(|e| e.kind == Kind::Phantom && e.b.x < 100.0 && e.b.x > 95.0));
+    // A new game goes back to Expert.
+    w.game_new();
+    assert!(!w.game.normal);
+}
+
+#[test]
+fn a_plain_full_speed_jump_clears_a_normal_two_wide_spike_run() {
+    use crate::levels::build_level_for;
+    let l = build_level_for(CRATER, true);
+    let (row, x0, width) = spike_runs(&l.map)
+        .into_iter()
+        .find(|r| r.2 == 2)
+        .expect("Crater Fields has a 2-wide run in Normal");
+    assert_eq!(width, 2);
+    let mut w = World::new();
+    w.game_new();
+    w.game.normal = true;
+    w.enter_level(CRATER);
+    w.ents.clear();
+    w.events.clear();
+    // Run up at full speed on the flat ground before the run, then jump a tile short of it.
+    let ground = f64::from(row);
+    w.p.b.x = f64::from(x0) - 8.0;
+    w.p.b.y = ground;
+    run(&mut w, 40, RIGHT);
+    let mut jumped = false;
+    for _ in 0..240 {
+        let at_edge = w.p.b.x >= f64::from(x0) - 1.0;
+        let held = if at_edge || jumped {
+            RIGHT | JUMP
+        } else {
+            RIGHT
+        };
+        if at_edge && !jumped && w.p.b.on_ground {
+            jumped = true;
+        }
+        w.step(held);
+        assert!(
+            w.p.dead <= 0.0,
+            "died at x={:.2} y={:.2} (run at {x0})",
+            w.p.b.x,
+            w.p.b.y
+        );
+        if w.p.b.x > f64::from(x0) + 3.5 {
+            break;
+        }
+    }
+    assert!(jumped && w.p.b.x > f64::from(x0) + 2.0, "x={:.2}", w.p.b.x);
+}
+
+const EXPERT_FINGERPRINTS: [u32; 15] = [
+    0x6e9fac40, 0xf987a12b, 0x745ad35d, 0x7b060540, 0x0b121da9, 0xa76e561a, 0xe697af7d, 0x975ce0f7,
+    0x996e49e8, 0xd7e01e1e, 0x7a829e5e, 0x420905a2, 0xfe685abf, 0xf6ebc912, 0x144080be,
+];
