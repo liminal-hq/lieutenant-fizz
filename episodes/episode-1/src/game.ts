@@ -144,6 +144,7 @@ import {
   warpItems,
   warpLevelOf,
 } from './debug-menu';
+import { MODE_BACK_ID, modeItems, modeName, modePicked } from './difficulty';
 import { isPortrait } from '@lieutenant-fizz/engine/portrait';
 import { Cinematic, CINE_TALL } from './cine';
 import { TitlesRun, classicLoopSeconds, idleSeconds, type TitlesAfter } from './titles-run';
@@ -1905,6 +1906,7 @@ export class Game {
   private openDebug(): void {
     const s = this.screen;
     this.debugKeys.reset();
+    this.debugNormal = this.sim.get(State.NORMAL) === 1;
     if (s === 'play' || s === 'card' || s === 'dialogue') {
       this.debugResume = { screen: s, idx: this.menuIdx };
       this.screen = 'pause';
@@ -2223,7 +2225,8 @@ export class Game {
         stored: this.sampleList?.length ?? null,
         leftOpen: this.leftOpen,
       });
-    if (this.sub === 'debug') return debugItems();
+    if (this.sub === 'mode') return modeItems();
+    if (this.sub === 'debug') return debugItems(this.debugNormal);
     if (this.sub === 'debugWarp') return warpItems(LEVELS);
     if (this.sub === 'sampleInfo') return consentItems(this.consentPage);
     if (this.sub === 'samples')
@@ -2950,10 +2953,19 @@ export class Game {
       else if (row === 'list') this.openSub('samples');
       return;
     }
+    if (this.sub === 'mode') {
+      const normal = modePicked(id);
+      if (id === MODE_BACK_ID) {
+        this.modeThen = null;
+        this.closeSub();
+      } else if (normal !== null) this.pickMode(normal);
+      return;
+    }
     if (this.sub === 'debug') {
       if (id === 'back') this.closeSub();
       else if (debugActionOf(id) === 'warp') this.openSub('debugWarp');
       else if (debugActionOf(id) === 'inputTest') this.openSub('inputTest');
+      else if (debugActionOf(id) === 'mode') this.toggleDebugMode();
       return;
     }
     if (this.sub === 'debugWarp') {
@@ -3017,12 +3029,16 @@ export class Game {
       return;
     }
     if (this.screen === 'title') {
+      // A new game asks for its mode first; the wave and the story follow the answer.
+      if (id === 'new') {
+        if (!this.titleAction) this.askMode(() => this.startNewFromTitle());
+        return;
+      }
       // Ben waves for a moment before the choice takes effect, unless motion is reduced.
       const run = (): void => {
         this.titleAction = 0;
         if (this.screen !== 'title') return;
-        if (id === 'new') this.newGame();
-        else if (id === 'continue') this.continueGame();
+        if (id === 'continue') this.continueGame();
         else if (id === 'load') this.openSaves('load');
         else if (id === 'options') this.openSub('options');
         else if (id === 'controls') this.openSub('controls');
@@ -3384,9 +3400,55 @@ export class Game {
 
   // ---------- Flow ----------
 
+  /** The mode the next new game starts in. Normal is what the choice highlights first. */
+  private newNormal = true;
+
+  /** What to do once the mode choice is answered; null when it is not open. */
+  private modeThen: (() => void) | null = null;
+
+  /** The mode the Debug menu's Mode row shows and its warps start in; Expert until the row is used. */
+  private debugNormal = false;
+
+  /** Opens the Normal or Expert choice; `then` runs once one is picked, and Back drops it. */
+  private askMode(then: () => void): void {
+    this.modeThen = then;
+    this.openSub('mode');
+  }
+
+  private pickMode(normal: boolean): void {
+    this.newNormal = normal;
+    const then = this.modeThen;
+    this.modeThen = null;
+    this.closeSub();
+    then?.();
+  }
+
+  /** Ben waves for a moment before a new game starts, unless motion is reduced. */
+  private startNewFromTitle(): void {
+    if (this.titleAction) return;
+    const run = (): void => {
+      this.titleAction = 0;
+      if (this.screen === 'title') this.newGame();
+    };
+    if (this.reducedMotion) run();
+    else {
+      this.benWaveUntil = performance.now() / 1000 + BEN_WAVE;
+      this.titleAction = window.setTimeout(run, 650);
+    }
+  }
+
+  /** The Debug menu's Mode row: flips the mode the sim is in, and the one the warps start in. */
+  private toggleDebugMode(): void {
+    this.debugNormal = !this.debugNormal;
+    this.sim.set(State.NORMAL, this.debugNormal ? 1 : 0);
+    this.ui.toast(`Mode: ${modeName(this.debugNormal)}`);
+    this.syncUi();
+  }
+
   newGame(): void {
     this.warped = false;
     this.sim.x.game_new();
+    this.sim.set(State.NORMAL, this.newNormal ? 1 : 0);
     this.sim.x.enter_none();
     this.played = 0;
     this.screen = 'cine';
@@ -3656,8 +3718,10 @@ export class Game {
     if (!l) return;
     if (l.kind === 'new') {
       // A new game from the launcher plays the opening titles first; its tap has already let the sound play.
-      if (this.titlesWanted) this.startTitles('new', false);
-      else this.newGame();
+      this.askMode(() => {
+        if (this.titlesWanted) this.startTitles('new', false);
+        else this.newGame();
+      });
     } else if (l.kind === 'options') {
       this.leaveWhenOptionsClose = true;
       this.openSub('options');
@@ -3924,6 +3988,7 @@ export class Game {
       this.sub === 'sampleInfo' ||
       this.sub === 'debug' ||
       this.sub === 'debugWarp' ||
+      this.sub === 'mode' ||
       this.sub === 'samples' ||
       this.sub === 'sampleReview' ||
       this.sub === 'touch';
@@ -3946,29 +4011,31 @@ export class Game {
           ? this.saveMode === 'save'
             ? 'Save game'
             : 'Load game'
-          : this.sub === 'debug'
-            ? 'Debug'
-            : this.sub === 'debugWarp'
-              ? 'Warp to level'
-              : this.sub === 'sample'
-                ? 'Play sample'
-                : this.sub === 'sampleInfo'
-                  ? (CONSENT_PAGES[this.consentPage]?.title ?? 'Play sample')
-                  : this.sub === 'samples'
-                    ? 'Saved samples'
-                    : this.sub === 'sampleReview'
-                      ? 'Saved sample'
-                      : this.sub === 'touch'
-                        ? 'Touch controls'
-                        : this.sub === 'sound'
-                          ? 'Sound'
-                          : this.sub === 'haptics'
-                            ? 'Haptics'
-                            : this.sub === 'controller'
-                              ? 'Controller'
-                              : this.sub === 'display'
-                                ? 'Display'
-                                : 'Options',
+          : this.sub === 'mode'
+            ? 'Game mode'
+            : this.sub === 'debug'
+              ? 'Debug'
+              : this.sub === 'debugWarp'
+                ? 'Warp to level'
+                : this.sub === 'sample'
+                  ? 'Play sample'
+                  : this.sub === 'sampleInfo'
+                    ? (CONSENT_PAGES[this.consentPage]?.title ?? 'Play sample')
+                    : this.sub === 'samples'
+                      ? 'Saved samples'
+                      : this.sub === 'sampleReview'
+                        ? 'Saved sample'
+                        : this.sub === 'touch'
+                          ? 'Touch controls'
+                          : this.sub === 'sound'
+                            ? 'Sound'
+                            : this.sub === 'haptics'
+                              ? 'Haptics'
+                              : this.sub === 'controller'
+                                ? 'Controller'
+                                : this.sub === 'display'
+                                  ? 'Display'
+                                  : 'Options',
         text: this.sampleText(),
         items,
         sel,
@@ -4072,6 +4139,8 @@ export class Game {
   debugEnterLevel(id: number): void {
     if (!LEVELS[id]) return;
     this.sim.x.game_new();
+    // A new game is Expert, so the mode the Debug menu holds is set again before the level is built.
+    this.sim.set(State.NORMAL, this.debugNormal ? 1 : 0);
     this.sim.x.enter_level(id);
     this.handleEvents();
   }
@@ -4955,6 +5024,7 @@ export class Game {
         : null,
       menu: this.menuIdx,
       mode: this.sim.x.mode(),
+      normal: this.sim.get(State.NORMAL) === 1,
       level: this.sim.get(State.LEVEL_ID),
       score: this.sim.get(State.SCORE),
       lives: this.sim.get(State.LIVES),

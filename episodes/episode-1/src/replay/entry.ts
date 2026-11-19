@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { num, type SessionEvent } from '@lieutenant-fizz/engine/session/log';
+import type { Mode } from '../difficulty';
 
 /** What the sim needs to be in before `enter_level` so the level starts as it did for the player. */
 export interface Entry {
@@ -22,6 +23,8 @@ export interface Entry {
   held: number;
   /** The sim's pogo height at entry, when the log has it. */
   pogoH: number | null;
+  /** The difficulty mode the level was entered in. A log with none (made before Normal mode) is Expert. */
+  mode: Mode;
   /** The level's fingerprint when it was entered, when the log has it. */
   levelHash: number | null;
   /** True when the values were worked out from other events, not written down at the time. */
@@ -104,6 +107,7 @@ export function entryAt(events: readonly SessionEvent[], levelIndex: number): En
       done: num(enter, 'done'),
       held: num(enter, 'held'),
       pogoH: typeof enter['pogoH'] === 'number' ? enter['pogoH'] : null,
+      mode: enter['mode'] === 'normal' ? 'normal' : 'expert',
       levelHash: typeof enter['lvh'] === 'number' ? enter['lvh'] : null,
       inferred: false,
     };
@@ -125,6 +129,7 @@ export function entryAt(events: readonly SessionEvent[], levelIndex: number): En
     done: 0,
     held,
     pogoH: null,
+    mode: 'expert',
     levelHash: null,
     inferred: true,
   };

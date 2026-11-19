@@ -181,9 +181,18 @@ describe('PlaySample events', () => {
       next: 600,
       done: 5,
       pogoH: 6.6,
+      mode: 'expert',
       held: 18,
       lvh: 0x9000_0007,
     });
+  });
+
+  it('writes Normal mode into the enter event', async () => {
+    const { sample, values, events } = await setup({ [State.NORMAL]: 1 });
+    values[State.LIVES] = 3;
+    sample.simEvent({ kind: Ev.LEVEL_START, a: 0, b: 0, c: 0 });
+    const got = await events();
+    expect(got.find((e) => e.e === 'enter')).toMatchObject({ mode: 'normal' });
   });
 });
 
