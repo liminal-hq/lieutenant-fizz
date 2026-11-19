@@ -8,6 +8,7 @@ import {
   localStorageAdapter,
   type KeyValueStorage,
 } from '@lieutenant-fizz/engine/storage';
+import { modeOf, type Mode } from './difficulty';
 import { State } from './sim/protocol';
 import type { Sim } from './sim/sim';
 
@@ -34,12 +35,13 @@ export const slotKey = (id: SlotId): string =>
   id === 'auto' ? SAVE_KEY : id === 'quick' ? QUICK_KEY : `lf-ep1-slot-${id}`;
 
 /**
- * Version 3 adds the time played. Version 2 is the overworld with four areas, and a version 1 save
+ * Version 4 adds the difficulty mode; saves before it load as Expert, the only mode there was. Version 3 adds
+ * the time played. Version 2 is the overworld with four areas, and a version 1 save
  * still loads (its progress is just as valid) but its map position belongs to the old layout and is
  * dropped, so the player starts on the map at the saucer rather than stranded in a region the old
  * position now falls in. Versions 1 and 2 load with no time played.
  */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 /** Highest `doneMask` the sim understands: level bits 0 to 14 and the secret flag in bit 15. */
 export const MAX_DONE_MASK = 0xffff;
@@ -54,6 +56,8 @@ export interface Progress {
   doneMask: number;
   /** Seconds spent playing, in levels and on the map. Saves from before version 3 have none. */
   played: number;
+  /** Normal or Expert, chosen at New Game. Saves from before version 4 are Expert. */
+  mode: Mode;
   /** Where Ben stands on the overworld, if known. */
   map?: { x: number; y: number };
 }
@@ -81,7 +85,12 @@ export function parseSave(json: string | null): Stored | null {
   try {
     const raw = JSON.parse(json) as { v?: number; at?: number; progress?: unknown } | null;
     const p = raw?.progress as Partial<Progress> | undefined;
-    if (!raw || (raw.v !== 1 && raw.v !== 2 && raw.v !== SAVE_VERSION) || !p || !finite(raw.at)) {
+    if (
+      !raw ||
+      (raw.v !== 1 && raw.v !== 2 && raw.v !== 3 && raw.v !== SAVE_VERSION) ||
+      !p ||
+      !finite(raw.at)
+    ) {
       return null;
     }
     // A timestamp a Date cannot hold would break the slot screen's date, so the save is ignored.
@@ -109,9 +118,15 @@ export function parseSave(json: string | null): Stored | null {
     }
     // Saves before version 3 did not count time; a version 3 save must.
     let played = 0;
-    if (raw.v === SAVE_VERSION) {
+    if (raw.v === 3 || raw.v === SAVE_VERSION) {
       if (!finite(p.played) || p.played < 0) return null;
       played = p.played;
+    }
+    // Saves before version 4 are Expert. A version 4 save names its mode, and one that names something else is damaged.
+    let mode: Mode = 'expert';
+    if (raw.v === SAVE_VERSION) {
+      if (p.mode !== 'normal' && p.mode !== 'expert') return null;
+      mode = p.mode;
     }
     // A version 1 position was recorded on the old map, so it is not trusted.
     const map =
@@ -121,7 +136,7 @@ export function parseSave(json: string | null): Stored | null {
     return {
       v: SAVE_VERSION,
       at: raw.at,
-      progress: { lives, score, nextLife, ammo, doneMask, played, ...(map ? { map } : {}) },
+      progress: { lives, score, nextLife, ammo, doneMask, played, mode, ...(map ? { map } : {}) },
     };
   } catch {
     return null;
@@ -197,11 +212,14 @@ export function captureProgress(sim: Sim, played = 0): Progress {
     ammo: sim.get(State.AMMO),
     doneMask: sim.get(State.DONE_MASK),
     played,
+    mode: modeOf(sim.get(State.NORMAL) === 1),
     ...(has ? { map: { x: sim.get(State.MAP_X), y: sim.get(State.MAP_Y) } } : {}),
   };
 }
 
+/** Restores progress into the sim. The mode goes first, since it decides how the next level is built. */
 export function applyProgress(sim: Sim, p: Progress): void {
+  sim.set(State.NORMAL, p.mode === 'normal' ? 1 : 0);
   sim.set(State.LIVES, p.lives);
   sim.set(State.SCORE, p.score);
   sim.set(State.NEXT_LIFE, p.nextLife);

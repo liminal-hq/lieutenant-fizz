@@ -5,6 +5,7 @@
 
 import { pollPads, type PadLike, type PadMemory } from '@lieutenant-fizz/engine/session/listeners';
 import type { SessionRecorder } from '@lieutenant-fizz/engine/session/recorder';
+import { modeOf } from '../difficulty';
 import { Ev, State } from '../sim/protocol';
 
 /** Ben's position is written this often while he is in a level, in ticks (15 times a second). */
@@ -199,6 +200,7 @@ export class PlaySample {
         next: this.view.get(State.NEXT_LIFE),
         done: this.view.get(State.DONE_MASK),
         pogoH: round2(this.view.get(State.POGO_HEIGHT)),
+        mode: modeOf(this.view.get(State.NORMAL) === 1),
         held: this.bits,
         lvh: this.view.levelHash(e.a) >>> 0,
       });

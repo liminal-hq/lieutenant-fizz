@@ -9,7 +9,7 @@ import { slotBrief, slotDetail, slotTitle } from '@lieutenant-fizz/engine/menu/s
 import { AREA_NAMES, LEVEL_TOTAL, areaName, clearedCount, summarise } from './slots';
 
 const stored = (over: Partial<Stored['progress']> = {}, at = Date.UTC(2026, 9, 7, 16)): Stored => ({
-  v: 3,
+  v: 4,
   at,
   progress: {
     lives: 3,
@@ -18,6 +18,7 @@ const stored = (over: Partial<Stored['progress']> = {}, at = Date.UTC(2026, 9, 7
     ammo: 5,
     doneMask: 0b101,
     played: 2520,
+    mode: 'expert',
     ...over,
   },
 });
