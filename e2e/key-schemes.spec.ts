@@ -1,9 +1,9 @@
 // Browser checks of the keyboard schemes: Modern is the Controls table's default, a saved scheme shows its own keys, and keys are named for the player's keyboard.
 //
-// The table draws keys as pixel-font glyphs, so these compare rows with the default's; the unit tests of `hints.ts` check the exact keys.
-//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
+
+// The table draws keys as pixel-font glyphs, so these compare rows with the default's; the unit tests of `hints.ts` check the exact keys.
 
 import { expect, test, type Page } from '@playwright/test';
 import { settle } from './keys';
