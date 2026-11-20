@@ -13,6 +13,8 @@ import {
   PadTracker,
   Ring,
   SamplingProbe,
+  gameSeen,
+  padButtonBits,
   TouchProbe,
   axisZone,
   backHeld,
@@ -363,5 +365,57 @@ describe('report', () => {
     expect(out).toContain('line 29');
     expect(out).toContain('line 10');
     expect(out).not.toContain('line 9');
+  });
+});
+
+describe('sampling against the game tick path', () => {
+  const sample = (pressed: boolean[], game?: boolean[]): PadSample[] => [
+    { index: 0, timestamp: 1, pressed, ...(game ? { game } : {}) },
+  ];
+
+  it('counts a short press the latch delivered as seen by the game and missed by the raw read', () => {
+    const p = new SamplingProbe();
+    p.tick(0, sample([false], [false]));
+    p.fast(4, sample([true]));
+    p.fast(9, sample([false]));
+    // The next tick: the raw read is up, the game's path reports the press.
+    p.tick(16, sample([false], [true]));
+    const r = p.report(0, 20);
+    expect(r).toMatchObject({ fastPresses: 1, tickSeen: 1, missed: 0, missedRaw: 1 });
+    expect(r.shortestMissedRawMs).toBe(5);
+    expect(r.shortestMissedMs).toBeNull();
+  });
+
+  it('counts a press the game path also lost as missed by both', () => {
+    const p = new SamplingProbe();
+    p.fast(4, sample([true]));
+    p.fast(9, sample([false]));
+    p.tick(16, sample([false], [false]));
+    expect(p.report(0, 20)).toMatchObject({ missed: 1, missedRaw: 1 });
+  });
+
+  it('judges a press only at the tick after it ends', () => {
+    const p = new SamplingProbe();
+    p.fast(4, sample([true]));
+    p.fast(9, sample([false]));
+    expect(p.report(0, 10)).toMatchObject({ missed: 0, missedRaw: 0 });
+  });
+
+  it('says which buttons the tick path reported', () => {
+    const snap = {
+      buttons: [
+        { pressed: false, value: 0 },
+        { pressed: true, value: 1 },
+      ],
+    };
+    expect(padButtonBits(0, DEFAULT_PAD_BINDINGS)).toBe(16);
+    expect(gameSeen(snap, 16, DEFAULT_PAD_BINDINGS)).toEqual([true, false]);
+    expect(gameSeen(snap, 0, DEFAULT_PAD_BINDINGS)).toEqual([false, false]);
+  });
+
+  it('lists both counters in the page lines', () => {
+    const lines = samplingLines(new SamplingProbe().report(0, 0)).join('\n');
+    expect(lines).toContain('presses the game never saw');
+    expect(lines).toContain('old per-tick read alone would have missed');
   });
 });

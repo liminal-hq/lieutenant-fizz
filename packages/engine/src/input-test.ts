@@ -193,6 +193,28 @@ export function padButtonActions(index: number, bindings: PadBindings): string[]
   return [...bitNames(r.bits), ...(r.start ? [PAUSE_NAME] : [])];
 }
 
+/** The action bits one button gives on its own (0 for a button with no bit, such as Pause or an unbound one). */
+export function padButtonBits(index: number, bindings: PadBindings): number {
+  const pad: PadLike = { buttons: pressedButtons(index + 1, [index]), axes: [] };
+  return padToBits(pad, bindings).bits;
+}
+
+/**
+ * Which of a pad's buttons the game's tick path reported, given the pad's share of the bits the tick returned.
+ * A button that gives an action bit counts when that bit is in the word; a button with no bit (Pause, an
+ * unbound one) is only ever seen by the raw read.
+ */
+export function gameSeen(
+  p: Pick<PadSnap, 'buttons'>,
+  tickPadBits: number,
+  b: PadBindings,
+): boolean[] {
+  return p.buttons.map((btn, i) => {
+    const m = padButtonBits(i, b);
+    return m ? (tickPadBits & m) !== 0 : btn.pressed;
+  });
+}
+
 /** The actions when this axis alone is at `value`. */
 export function padAxisActions(index: number, value: number): string[] {
   const axes = Array.from({ length: index + 1 }, (_, i) => (i === index ? value : 0));
@@ -585,7 +607,13 @@ export class TouchProbe {
 export interface PadSample {
   index: number;
   timestamp: number;
+  /** What the raw read shows: which buttons are down at this moment. */
   pressed: readonly boolean[];
+  /**
+   * For a tick read: which buttons the game's tick path reports (with fast polling, a press let go before the
+   * tick still counts). Without it the tick path is the raw read.
+   */
+  game?: readonly boolean[];
 }
 
 /** A pad as a sample. */
@@ -618,19 +646,28 @@ export interface SamplingReport {
   tick: IntervalStats | null;
   /** Presses the fast timer saw. */
   fastPresses: number;
-  /** Presses the per-tick read saw. */
+  /** Presses the game's tick path saw. */
   tickSeen: number;
-  /** Presses the fast timer saw that were gone again before the per-tick read looked. */
+  /** Presses the fast timer saw that the game's tick path never reported. With fast polling on this should be about 0. */
   missed: number;
-  /** The shortest of those missed presses, in milliseconds, or null. */
+  /** The shortest of those, in milliseconds, or null. */
   shortestMissedMs: number | null;
+  /** Presses the old per-tick read alone (what is down at the moment of the tick) would have missed. */
+  missedRaw: number;
+  /** The shortest of those, in milliseconds, or null. */
+  shortestMissedRawMs: number | null;
   /** The shortest press the fast timer saw end, missed or not, or null. */
   shortestMs: number | null;
 }
 
 interface Press {
   at: number;
+  /** When the timer saw it let go, or null while it is held. */
+  end: number | null;
+  /** The game's tick path reported it (with fast polling, a press let go before the tick counts). */
   seen: boolean;
+  /** The old per-tick read alone, which sees only what is down at the moment of the tick, would have seen it. */
+  seenRaw: boolean;
 }
 
 interface PadSampling {
@@ -639,10 +676,14 @@ interface PadSampling {
   lastTimestamp: number | null;
   everNonZero: boolean;
   open: Map<number, Press>;
+  /** Presses the timer saw end, waiting for the next tick to say whether it saw them. */
+  ended: { button: number; press: Press }[];
   fastPresses: number;
   tickSeen: number;
   missed: number;
   shortestMissed: number | null;
+  missedRaw: number;
+  shortestMissedRaw: number | null;
   shortest: number | null;
 }
 
@@ -652,10 +693,13 @@ const fresh = (): PadSampling => ({
   lastTimestamp: null,
   everNonZero: false,
   open: new Map(),
+  ended: [],
   fastPresses: 0,
   tickSeen: 0,
   missed: 0,
   shortestMissed: null,
+  missedRaw: 0,
+  shortestMissedRaw: null,
   shortest: null,
 });
 
@@ -663,8 +707,10 @@ const minOf = (a: number | null, b: number): number => (a === null ? b : Math.mi
 
 /**
  * Measures whether the game's per-tick read of the pad loses short presses. A fast timer reads the pad
- * (`fast`) and the game's own read each tick is reported (`tick`); a press the fast timer saw come and go
- * between two ticks was never visible to the game. It measures only: nothing here changes how the pad is read.
+ * (`fast`) and each tick is reported (`tick`) with what the game's tick path gave. A press the timer saw come
+ * and go is judged at the next tick twice: against the game's path (which latches short presses, so it should
+ * be seen) and against the raw per-tick read alone, which is what the game did before fast polling. It measures
+ * only: nothing here changes how the pad is read.
  */
 export class SamplingProbe {
   private pads = new Map<number, PadSampling>();
@@ -688,40 +734,70 @@ export class SamplingProbe {
       s.pressed.forEach((on, n) => {
         const open = p.open.get(n);
         if (on && !open) {
-          p.open.set(n, { at: now, seen: false });
+          p.open.set(n, { at: now, end: null, seen: false, seenRaw: false });
           p.fastPresses++;
         } else if (!on && open) {
           p.open.delete(n);
-          const ms = now - open.at;
-          p.shortest = minOf(p.shortest, ms);
-          if (!open.seen) {
-            p.missed++;
-            p.shortestMissed = minOf(p.shortestMissed, ms);
-          }
+          open.end = now;
+          p.shortest = minOf(p.shortest, now - open.at);
+          p.ended.push({ button: n, press: open });
         }
       });
     }
   }
 
-  /** The game's per-tick read at `now`. */
+  /**
+   * A tick read at `now`: `pressed` is the raw read, and `game` (where given) what the game's tick path
+   * reported for each button.
+   */
   tick(now: number, pads: readonly PadSample[]): void {
     this.tickTimes.push(now);
     while (this.tickTimes.length && now - (this.tickTimes[0] as number) > SAMPLE_WINDOW_MS)
       this.tickTimes.shift();
     for (const s of pads) {
       const p = this.of(s.index);
+      const game = (n: number): boolean => s.game?.[n] ?? s.pressed[n] ?? false;
+      const down = new Set<number>();
       s.pressed.forEach((on, n) => {
+        if (on || game(n)) down.add(n);
+      });
+      for (const n of down) {
         const open = p.open.get(n);
-        if (on && !open) {
+        const raw = s.pressed[n] === true;
+        const g = game(n);
+        if (!open) {
+          // A press the timer already saw end is judged below, not counted again.
+          if (p.ended.some((e) => e.button === n)) continue;
           // The tick saw a press the timer has not: the timer is behind, so the press is the tick's.
-          p.open.set(n, { at: now, seen: true });
-          p.tickSeen++;
+          p.open.set(n, { at: now, end: null, seen: g, seenRaw: raw });
+          if (g) p.tickSeen++;
           p.fastPresses++;
-        } else if (on && open && !open.seen) {
+          continue;
+        }
+        if (raw) open.seenRaw = true;
+        if (g && !open.seen) {
           open.seen = true;
           p.tickSeen++;
         }
-      });
+      }
+      // A press that ended since the last tick is judged now: did the game's path give it a tick?
+      const waiting = p.ended;
+      p.ended = [];
+      for (const { button, press } of waiting) {
+        if (!press.seen && game(button)) {
+          press.seen = true;
+          p.tickSeen++;
+        }
+        const ms = (press.end ?? now) - press.at;
+        if (!press.seen) {
+          p.missed++;
+          p.shortestMissed = minOf(p.shortestMissed, ms);
+        }
+        if (!press.seenRaw) {
+          p.missedRaw++;
+          p.shortestMissedRaw = minOf(p.shortestMissedRaw, ms);
+        }
+      }
     }
   }
 
@@ -732,8 +808,11 @@ export class SamplingProbe {
       p.tickSeen = 0;
       p.missed = 0;
       p.shortestMissed = null;
+      p.missedRaw = 0;
+      p.shortestMissedRaw = null;
       p.shortest = null;
       p.open.clear();
+      p.ended = [];
     }
   }
 
@@ -774,6 +853,8 @@ export class SamplingProbe {
       tickSeen: p.tickSeen,
       missed: p.missed,
       shortestMissedMs: p.shortestMissed,
+      missedRaw: p.missedRaw,
+      shortestMissedRawMs: p.shortestMissedRaw,
       shortestMs: p.shortest,
     };
   }
@@ -794,8 +875,9 @@ export function samplingLines(r: SamplingReport): string[] {
     r.tick
       ? `game read interval: min ${ms1(r.tick.min)}, median ${ms1(r.tick.median)}, max ${ms1(r.tick.max)} (${r.tick.n} reads)`
       : 'game read interval: waiting for reads',
-    `presses seen by the timer ${r.fastPresses}, by the game ${r.tickSeen}`,
+    `presses seen by the timer ${r.fastPresses}, by the game's tick path ${r.tickSeen}`,
     `presses the game never saw ${r.missed}${r.shortestMissedMs === null ? '' : `, shortest ${ms1(r.shortestMissedMs)}`}`,
+    `presses the old per-tick read alone would have missed ${r.missedRaw}${r.shortestMissedRawMs === null ? '' : `, shortest ${ms1(r.shortestMissedRawMs)}`}`,
     `shortest press seen ${r.shortestMs === null ? 'none yet' : ms1(r.shortestMs)}`,
   ];
 }

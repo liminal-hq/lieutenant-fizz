@@ -554,6 +554,8 @@ export class Game {
   private labShell: LabShell | null = null;
   /** The Input test page, built the first time it opens and in the page only while `sub` is `inputTest`. */
   private inputTestPage: InputTestPage | null = null;
+  /** The input word of each fixed tick, kept only while a browser check asks (`debugPollLog`). */
+  private pollLog: number[] | null = null;
   private soundLab: SoundLab | null = null;
   private hapticsLab: HapticsLab | null = null;
   /** `?debug` was given, so both labs are there whatever the Sound lab and Haptics lab options say. */
@@ -711,6 +713,9 @@ export class Game {
     this.ui = ui;
     this.renderer = renderer;
     this.input = new InputManager(ui.stage);
+    // `?debug&latch=off` turns the fast pad polling and the press latches off, to compare with the old read.
+    const query = new URLSearchParams(window.location.search);
+    if (query.has('debug') && query.get('latch') === 'off') this.input.setLatch(false);
     this.forcedTouch = options.touch ?? false;
     this.forcedBack = options.back ?? false;
     this.fullscreenUrl = options.fullscreen;
@@ -1083,6 +1088,8 @@ export class Game {
     else if (isIdle(t - this.idleAt) !== this.idle) this.syncLifecycle();
     // The sim samples touch presses in play; a menu has no step, so it marks them seen itself.
     if (screen !== 'play') this.input.markTouchSeen();
+    // Presses latched for the next fixed tick are only for play: a menu reads per frame, so none carries into a level.
+    if (screen !== 'play' && !this.inputTestPage?.isOpen) this.input.dropLatch();
 
     // Gameplay haptics follow the level only; the title's attract loop raises captions too and gets its own rule below.
     this.haptics.setGameplay(screen === 'play');
@@ -1096,6 +1103,7 @@ export class Game {
     } else if (screen === 'play' || screen === 'title') {
       this.alpha = this.stepper.advance(dt, () => {
         const bits = screen === 'play' ? this.input.poll() : 0;
+        this.pollLog?.push(bits);
         sim.step(bits);
         this.sample?.sample.tick(bits);
       });
@@ -4727,6 +4735,13 @@ export class Game {
     this.ui.setLoading(false);
     this.ui.showTitles(true);
     this.titlesView?.draw(t, 0, false);
+  }
+
+  /** Test hook: the input word of every fixed tick the sim stepped with since `true`; `false` stops and returns it. */
+  debugPollLog(on: boolean): number[] {
+    const log = this.pollLog ?? [];
+    this.pollLog = on ? [] : null;
+    return on ? [] : log;
   }
 
   /** Test hook: opens a screen directly, so layout checks can visit each one. */

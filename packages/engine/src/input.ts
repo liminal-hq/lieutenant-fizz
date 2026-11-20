@@ -34,6 +34,9 @@ export type Command =
   | { type: 'zoomReset' }
   | { type: 'fullscreen' };
 
+/** How often connected pads are sampled between fixed ticks, in milliseconds, so a press shorter than a tick is not lost. */
+export const PAD_POLL_MS = 4;
+
 /** Which kind of input the player last used, so hints can show the matching labels. */
 export type InputDevice = 'keyboard' | 'gamepad' | 'touch';
 
@@ -274,6 +277,23 @@ export class InputManager {
    * bound a button cannot also act as it.
    */
   private padGate: 'open' | 'listening' | 'holdoff' = 'open';
+  // Fast pad polling (see `setLatch`).
+  private latchOn = true;
+  private disposed = false;
+  private padTimer: ReturnType<typeof setInterval> | null = null;
+  /** The pad's action bits at the last fast sample. */
+  private padSampled = 0;
+  /** Pad bits that went from low to high since the last tick: delivered on the next one even if let go again. */
+  private padLatch = 0;
+  /** Pad bits that went low since the last tick. */
+  private padFell = 0;
+  /** The pad bits the last tick reported. */
+  private padHighAtPoll = 0;
+  private padTick = 0;
+  /** The bits of keys pressed since the last tick. */
+  private keyLatch = 0;
+  private lastPadBits = 0;
+  private lastOtherBits = 0;
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (isFieldTarget(e.target as HTMLElement | null)) return;
@@ -283,6 +303,8 @@ export class InputManager {
     if (cancel && !e.ctrlKey && !e.metaKey) e.preventDefault();
     if (e.repeat) return;
     this.keys.add(e.code);
+    // A key let go before the next tick still gives that tick one frame of its bits.
+    if (this.latchOn) this.keyLatch |= keysToBits(new Set([e.code]));
     // Emitted inside the keydown handler, so a handler can ask for fullscreen while the press counts as a gesture.
     if (isFullscreenKey(e)) this.emit({ type: 'fullscreen' });
     const pause = pauseKeyKind(e);
@@ -309,11 +331,15 @@ export class InputManager {
     this.emit({ type: 'zoom', factor: Math.exp(-e.deltaY * 0.0015) });
   };
 
-  private readonly onPadConnected = (): void => this.setDevice('pad-connected');
+  private readonly onPadConnected = (): void => {
+    this.setDevice('pad-connected');
+    this.syncTimer();
+  };
   private readonly onPadDisconnected = (e: Event): void => {
     const index = (e as GamepadEvent).gamepad?.index ?? -1;
     const inUse = padLostInUse(this.device, this.lastPad, index);
     this.setDevice('pad-disconnected', this.padCount());
+    this.syncTimer(index);
     if (inUse) for (const h of this.padLostHandlers) h();
   };
 
@@ -327,11 +353,18 @@ export class InputManager {
     window.addEventListener('pagehide', this.onBlur);
     document.addEventListener('visibilitychange', this.onHidden);
     host.addEventListener('wheel', this.onWheel, { passive: false });
+    this.syncTimer();
   }
 
-  private padCount(): number {
-    const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
-    return Array.from(pads).filter(Boolean).length;
+  /** How many pads are connected, not counting the one at `excludeIndex` (a pad that is going away). */
+  private padCount(excludeIndex = -1): number {
+    try {
+      const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+      return Array.from(pads).filter((p) => !!p && p.index !== excludeIndex).length;
+    } catch {
+      // A browser that refuses the read (an insecure page, a blocking policy) has no pads to poll.
+      return 0;
+    }
   }
 
   private setDevice(event: DeviceEvent, padsLeft = 0): void {
@@ -435,6 +468,7 @@ export class InputManager {
   setPadBindings(bindings: PadBindings): void {
     this.padBindings = bindings;
     this.prevStart = false;
+    this.dropLatch();
     if (this.padGate === 'open') this.padGate = 'holdoff';
   }
 
@@ -446,6 +480,7 @@ export class InputManager {
   setPadListening(on: boolean): void {
     this.padGate = on ? 'listening' : 'holdoff';
     this.prevStart = false;
+    this.dropLatch();
   }
 
   /** The standard-mapping buttons held on any connected pad right now (all 0 to 15; the stick axes are not buttons). */
@@ -490,30 +525,115 @@ export class InputManager {
     this.padConnected = pad;
     if (start && !this.prevStart) this.emit({ type: 'pause' });
     this.prevStart = start;
-    return inputBits(
-      {
-        keys: keysToBits(this.keys),
-        pad: padBits,
-        touch: touchToBits(
-          !this.touchEnabled
-            ? NO_TOUCH
-            : consume
-              ? this.touch.sample(performance.now())
-              : this.touch.held(performance.now()),
-        ),
-      },
-      { touchEnabled: this.touchEnabled, blocked: this.blocked },
-    );
+    const src = {
+      keys: keysToBits(this.keys),
+      pad: padBits,
+      touch: touchToBits(
+        !this.touchEnabled
+          ? NO_TOUCH
+          : consume
+            ? this.touch.sample(performance.now())
+            : this.touch.held(performance.now()),
+      ),
+    };
+    const gate = { touchEnabled: this.touchEnabled, blocked: this.blocked };
+    // The sources apart from the pad, so a pad bit can be withheld for a tick without hiding a key or finger.
+    this.lastPadBits = padBits;
+    this.lastOtherBits = inputBits({ ...src, pad: 0 }, gate);
+    return inputBits(src, gate);
   }
 
-  /** Held bits for one fixed tick; CONFIRM (from Enter) is a one-shot latch consumed here. */
+  /**
+   * Held bits for one fixed tick; CONFIRM (from Enter) is a one-shot latch consumed here. With latching on, a
+   * pad button or key pressed and let go since the last tick still reads as held for this one, and a pad
+   * action held at the last tick, let go and pressed again since reads low now and high on the next tick (so
+   * the sim's edge detection sees two presses).
+   */
   poll(): number {
     let bits = this.read(true);
+    if (this.latchOn && !this.blocked) {
+      this.samplePads();
+      const split = this.padLatch & this.padFell & this.padHighAtPoll;
+      const padOut = (this.lastPadBits | this.padLatch) & ~split;
+      bits = this.lastOtherBits | this.keyLatch | padOut;
+      // The deferred press is delivered on the next tick.
+      this.padLatch = split;
+      this.padFell = 0;
+      this.keyLatch = 0;
+      this.padHighAtPoll = padOut;
+      this.padTick = padOut;
+    } else {
+      this.padTick = this.lastPadBits;
+    }
     if (this.confirmPending) {
       if (!this.blocked) bits |= Input.CONFIRM;
       this.confirmPending = false;
     }
     return bits;
+  }
+
+  /** The pad's share of the bits the last `poll()` returned (what the game's tick path got from the pad). */
+  get padTickBits(): number {
+    return this.padTick;
+  }
+
+  /** Whether short presses are latched between ticks. On unless turned off with {@link setLatch}. */
+  get latching(): boolean {
+    return this.latchOn;
+  }
+
+  /**
+   * Turns the fast pad timer and the latches on or off (`?debug&latch=off`, and the Input test's Fast polling
+   * switch). Off is the old behaviour exactly: no timer, nothing latched. Not saved.
+   */
+  setLatch(on: boolean): void {
+    if (on === this.latchOn) return;
+    this.latchOn = on;
+    this.dropLatch();
+    this.syncTimer();
+  }
+
+  /** Forgets every press waiting for the next tick (a screen with no fixed ticks, a rebind, a pad gone). */
+  dropLatch(): void {
+    this.padLatch = 0;
+    this.padFell = 0;
+    this.padHighAtPoll = 0;
+    this.keyLatch = 0;
+    this.padSampled = 0;
+  }
+
+  /** The pad's action bits right now, as `read` makes them, but touching nothing: no gate change, no device change, no Pause. */
+  private padBitsNow(): number {
+    if (this.padGate !== 'open') return 0;
+    const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+    let bits = 0;
+    for (const gp of pads) if (gp) bits |= padToBits(gp, this.padBindings).bits;
+    return bits;
+  }
+
+  /** One fast sample: a bit that has gone from low to high is latched, one that has gone low is marked. Never throws. */
+  private samplePads(): void {
+    if (!this.latchOn || (typeof document !== 'undefined' && document.hidden)) return;
+    try {
+      const bits = this.padBitsNow();
+      this.padLatch |= bits & ~this.padSampled;
+      this.padFell |= this.padSampled & ~bits;
+      this.padSampled = bits;
+    } catch {
+      // A pad that cannot be read this moment is read again at the next sample.
+    }
+  }
+
+  /** Runs the fast timer exactly while latching is on, the manager is alive and a pad is connected. */
+  private syncTimer(excludeIndex = -1): void {
+    const want = this.latchOn && !this.disposed && this.padCount(excludeIndex) > 0;
+    if (want && this.padTimer === null) {
+      this.padTimer = setInterval(() => this.samplePads(), PAD_POLL_MS);
+    } else if (!want && this.padTimer !== null) {
+      clearInterval(this.padTimer);
+      this.padTimer = null;
+      this.dropLatch();
+    }
   }
 
   /** Drops a pending Enter press (it was consumed by a menu, not the game). */
@@ -522,6 +642,8 @@ export class InputManager {
   }
 
   dispose(): void {
+    this.disposed = true;
+    this.syncTimer();
     window.removeEventListener('gamepadconnected', this.onPadConnected);
     window.removeEventListener('gamepaddisconnected', this.onPadDisconnected);
     window.removeEventListener('keydown', this.onKeyDown);
