@@ -10,6 +10,7 @@ import {
   isFieldTarget,
   isFullscreenKey,
   keysToBits,
+  mouseToBits,
   nextDevice,
   padLostInUse,
   padToBits,
@@ -17,6 +18,7 @@ import {
   pickPad,
   touchToBits,
 } from './input';
+import { KEY_SCHEMES } from './key-schemes';
 import { NO_TOUCH } from './touch';
 
 describe('padLostInUse', () => {
@@ -73,14 +75,51 @@ describe('nextDevice', () => {
 });
 
 describe('input mappings', () => {
-  it('maps both keyboard layouts to the same bits', () => {
-    expect(keysToBits(new Set(['ControlLeft']))).toBe(Input.JUMP);
+  it('maps the Modern scheme, which is the default, and the movement keys of every scheme', () => {
     expect(keysToBits(new Set(['KeyZ']))).toBe(Input.JUMP);
-    expect(keysToBits(new Set(['AltLeft']))).toBe(Input.POGO);
     expect(keysToBits(new Set(['KeyX']))).toBe(Input.POGO);
-    expect(keysToBits(new Set(['Space']))).toBe(Input.FIRE);
     expect(keysToBits(new Set(['KeyC']))).toBe(Input.FIRE);
     expect(keysToBits(new Set(['ArrowLeft', 'KeyW']))).toBe(Input.LEFT | Input.UP);
+    // The keys of the other schemes do nothing in it, so a browser shortcut is never half a game key.
+    for (const code of [
+      'ControlLeft',
+      'AltLeft',
+      'Space',
+      'KeyJ',
+      'KeyK',
+      'KeyQ',
+      'KeyE',
+      'Comma',
+    ]) {
+      expect(keysToBits(new Set([code]))).toBe(0);
+    }
+  });
+
+  it('gives each scheme its own three keys', () => {
+    const [keen, , wasd, , left, right] = KEY_SCHEMES;
+    expect(keysToBits(new Set(['ControlRight']), keen)).toBe(Input.JUMP);
+    expect(keysToBits(new Set(['AltRight']), keen)).toBe(Input.POGO);
+    expect(keysToBits(new Set(['Space']), keen)).toBe(Input.FIRE);
+    expect(keysToBits(new Set(['Space']), wasd)).toBe(Input.JUMP);
+    expect(keysToBits(new Set(['KeyK']), wasd)).toBe(Input.POGO);
+    expect(keysToBits(new Set(['KeyJ']), wasd)).toBe(Input.FIRE);
+    expect(keysToBits(new Set(['Space']), left)).toBe(Input.JUMP);
+    expect(keysToBits(new Set(['KeyQ']), left)).toBe(Input.POGO);
+    expect(keysToBits(new Set(['KeyE']), left)).toBe(Input.FIRE);
+    expect(keysToBits(new Set(['Comma']), right)).toBe(Input.JUMP);
+    expect(keysToBits(new Set(['Period']), right)).toBe(Input.POGO);
+    expect(keysToBits(new Set(['Slash']), right)).toBe(Input.FIRE);
+  });
+
+  it('gives the mouse scheme its buttons: left for Fizz, right for the pogo', () => {
+    const mouse = KEY_SCHEMES[3]!;
+    expect(mouseToBits(new Set([0]), mouse)).toBe(Input.FIRE);
+    expect(mouseToBits(new Set([2]), mouse)).toBe(Input.POGO);
+    expect(mouseToBits(new Set([0, 2]), mouse)).toBe(Input.FIRE | Input.POGO);
+    expect(mouseToBits(new Set([1]), mouse)).toBe(0);
+    expect(keysToBits(new Set(['Space']), mouse)).toBe(Input.JUMP);
+    // The other schemes take no mouse.
+    expect(mouseToBits(new Set([0, 2]), KEY_SCHEMES[1]!)).toBe(0);
   });
 
   it('maps the standard gamepad buttons and reports Start', () => {
