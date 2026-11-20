@@ -36,6 +36,7 @@ export type SubScreen =
   | 'sampleReview'
   | 'debug'
   | 'debugWarp'
+  | 'inputTest'
   | null;
 
 export interface TouchFaces {
@@ -86,6 +87,8 @@ export function touchFaces(screen: ShellScreen, sub: SubScreen): TouchFaces {
           edit: true,
         };
       }
+      // The Input test reads fingers itself and draws where the controls would be, so none show.
+      if (sub === 'inputTest') return menu([]);
       if (sub) return menu(['dpad', 'jump', 'pogo', 'pause']);
       return menu(screen === 'pause' ? ['dpad', 'jump', 'pause'] : ['dpad', 'jump']);
     case 'card':

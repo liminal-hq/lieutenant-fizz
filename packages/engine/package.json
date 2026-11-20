@@ -57,6 +57,7 @@
     "./haptic-strength": "./src/haptic-strength.ts",
     "./haptics": "./src/haptics.ts",
     "./input": "./src/input.ts",
+    "./input-test": "./src/input-test.ts",
     "./instances": "./src/instances.ts",
     "./keyboard-lock": "./src/keyboard-lock.ts",
     "./lifecycle": "./src/lifecycle.ts",

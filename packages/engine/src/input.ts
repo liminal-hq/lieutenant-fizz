@@ -99,6 +99,44 @@ export function pauseKeyKind(e: {
   return null;
 }
 
+/**
+ * The command a key raises on its own, apart from Pause and fullscreen (see {@link pauseKeyKind} and
+ * {@link isFullscreenKey}): Enter confirms, F5 and F9 save and load, the backquote toggles the debug
+ * panel, and Minus, Equal and 0 zoom. Null for any other key. The input manager emits exactly these, and the
+ * Input test page names them, so the two cannot disagree.
+ */
+export function keyCommand(code: string): Command | null {
+  switch (code) {
+    case 'Enter':
+      return { type: 'confirm' };
+    case 'F5':
+      return { type: 'quickSave' };
+    case 'F9':
+      return { type: 'quickLoad' };
+    case 'Backquote':
+      return { type: 'togglePanel' };
+    case 'Minus':
+      return { type: 'zoom', factor: 1 / 1.25 };
+    case 'Equal':
+      return { type: 'zoom', factor: 1.25 };
+    case 'Digit0':
+      return { type: 'zoomReset' };
+    default:
+      return null;
+  }
+}
+
+/** A key event as the raw key tap reports it ({@link InputManager.onRawKey}). `blur` means every key was let go at once. */
+export interface RawKeyEvent {
+  type: 'down' | 'up' | 'blur';
+  /** The physical key (`KeyboardEvent.code`); empty for `blur`. */
+  code: string;
+  /** The key's value, which the Pause key is sometimes matched by. */
+  key: string;
+  /** A held key repeating. The input manager ignores repeats; the tap still sees them. */
+  repeat: boolean;
+}
+
 /** Whether a key press lands in a text field, where typing is the field's. */
 export function isFieldTarget(target: { tagName?: string } | null): boolean {
   return !!target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName ?? '');
@@ -220,6 +258,7 @@ export class InputManager {
   /** The device the player last used. Starts on the gamepad if one is already connected. */
   device: InputDevice = 'keyboard';
   private readonly deviceHandlers = new Set<(d: InputDevice) => void>();
+  private readonly keyTaps = new Set<(e: RawKeyEvent) => boolean | void>();
   private readonly padLostHandlers = new Set<() => void>();
   private readonly padChangeHandlers = new Set<() => void>();
   /** When true, held bits are suppressed (menus, dialogue) but commands still fire. */
@@ -240,43 +279,26 @@ export class InputManager {
     if (isFieldTarget(e.target as HTMLElement | null)) return;
     if (MAPPED.has(e.code) || e.key === 'Pause') e.preventDefault();
     this.setDevice('key');
+    const cancel = this.tapKey({ type: 'down', code: e.code, key: e.key, repeat: e.repeat });
+    if (cancel && !e.ctrlKey && !e.metaKey) e.preventDefault();
     if (e.repeat) return;
     this.keys.add(e.code);
     // Emitted inside the keydown handler, so a handler can ask for fullscreen while the press counts as a gesture.
     if (isFullscreenKey(e)) this.emit({ type: 'fullscreen' });
     const pause = pauseKeyKind(e);
     if (pause) this.emit(pause === 'esc' ? { type: 'pause', esc: true } : { type: 'pause' });
-    switch (e.code) {
-      case 'Enter':
-        this.confirmPending = true;
-        this.emit({ type: 'confirm' });
-        break;
-      case 'F5':
-        this.emit({ type: 'quickSave' });
-        break;
-      case 'F9':
-        this.emit({ type: 'quickLoad' });
-        break;
-      case 'Backquote':
-        this.emit({ type: 'togglePanel' });
-        break;
-      case 'Minus':
-        this.emit({ type: 'zoom', factor: 1 / 1.25 });
-        break;
-      case 'Equal':
-        this.emit({ type: 'zoom', factor: 1.25 });
-        break;
-      case 'Digit0':
-        this.emit({ type: 'zoomReset' });
-        break;
-    }
+    if (e.code === 'Enter') this.confirmPending = true;
+    const command = keyCommand(e.code);
+    if (command) this.emit(command);
   };
   private readonly onKeyUp = (e: KeyboardEvent): void => {
     this.keys.delete(e.code);
+    this.tapKey({ type: 'up', code: e.code, key: e.key, repeat: false });
     if (e.code.startsWith('Alt')) e.preventDefault();
   };
   private readonly onBlur = (): void => {
     this.keys.clear();
+    this.tapKey({ type: 'blur', code: '', key: '', repeat: false });
     this.releaseTouch();
   };
   private readonly onHidden = (): void => {
@@ -323,6 +345,33 @@ export class InputManager {
   onDevice(fn: (d: InputDevice) => void): () => void {
     this.deviceHandlers.add(fn);
     return () => this.deviceHandlers.delete(fn);
+  }
+
+  /**
+   * Calls `fn` with every key event the manager sees: a key down (repeats too), a key up, and a blur that lets
+   * every key go. The Input test page reads keys here, so it shows what the game receives. A tap that returns
+   * true has the key's default action cancelled (not while Ctrl or Meta is held, so the browser's own shortcuts
+   * keep working). Returns an unsubscribe function.
+   */
+  onRawKey(fn: (e: RawKeyEvent) => boolean | void): () => void {
+    this.keyTaps.add(fn);
+    return () => this.keyTaps.delete(fn);
+  }
+
+  private tapKey(e: RawKeyEvent): boolean {
+    let cancel = false;
+    for (const t of this.keyTaps) cancel = t(e) === true || cancel;
+    return cancel;
+  }
+
+  /** The pad bindings in use, which {@link padToBits} reads. */
+  get bindings(): PadBindings {
+    return this.padBindings;
+  }
+
+  /** Every pad as `navigator.getGamepads()` lists it, empty slots as null (empty where the browser has no gamepad support). */
+  pads(): (Gamepad | null)[] {
+    return typeof navigator.getGamepads === 'function' ? Array.from(navigator.getGamepads()) : [];
   }
 
   /** Calls `fn` when a different pad becomes the one in use (the device can stay the gamepad, so `onDevice` does not fire). Returns an unsubscribe function. */
