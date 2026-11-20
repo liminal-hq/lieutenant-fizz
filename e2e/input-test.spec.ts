@@ -83,9 +83,10 @@ test('a short Esc lights up and stays, a held Esc leaves, and so does Back', asy
   await expect(page.locator('#inputTest .it-log')).toContainText('Key  Escape  down  -> Pause');
   expect(await sub(page)).toBe('inputTest');
   await page.keyboard.down('Escape');
-  await page.waitForTimeout(1300);
+  // The hold is a second long and the key stays down until the page has left, so the wait is for the leave, not a fixed time.
+  await expect.poll(() => sub(page), { timeout: 5000 }).toBe('options');
   await page.keyboard.up('Escape');
-  await expect.poll(() => sub(page)).toBe('options');
+  expect(await sub(page)).toBe('options');
   await open(page);
   await page.getByRole('button', { name: 'Back' }).click();
   await expect.poll(() => sub(page)).toBe('options');
