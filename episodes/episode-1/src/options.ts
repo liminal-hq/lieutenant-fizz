@@ -20,6 +20,7 @@ import {
   writeOptionsFile,
   type Scope,
 } from '@lieutenant-fizz/engine/options-file';
+import { DEFAULT_KEY_SCHEME, KEY_SCHEMES } from '@lieutenant-fizz/engine/key-schemes';
 import type { AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import type { KeyValueStorage } from '@lieutenant-fizz/engine/storage';
 
@@ -34,7 +35,8 @@ export const OPTIONS_KEY = 'lf-ep1-options-v1';
 /** This episode's name in the shared options file. */
 export const EPISODE_ID = 'episode-1';
 
-export const LAYOUTS = ['Keen-style', 'Modern'] as const;
+/** The names of the keyboard schemes Options › Controls steps through, in the engine's order. */
+export const LAYOUTS: readonly string[] = KEY_SCHEMES.map((s) => s.name);
 
 /** The options only this episode has: they are saved in its own section, never as an app-wide value. */
 export const EPISODE_KEYS = ['captions', 'layout', 'lab', 'hapticsLab'] as const;
@@ -43,7 +45,7 @@ export const EPISODE_KEYS = ['captions', 'layout', 'lab', 'hapticsLab'] as const
 export interface EpisodeOptions {
   /** Floating sound captions on or off. */
   captions: boolean;
-  /** Which keyboard layout the hints and Controls table show: 0 Keen-style, 1 Modern. */
+  /** Which keyboard scheme plays the game and the hints and Controls table show: an index into `KEY_SCHEMES` (1, Modern, until changed). */
   layout: number;
   /** Whether the sound lab is available without `?debug`. Off by default. */
   lab: boolean;
@@ -61,7 +63,7 @@ export type SettingKey = Exclude<keyof Options, 'rumblePads'>;
 export const DEFAULT_OPTIONS: Readonly<Options> = {
   ...DEFAULT_GLOBAL_OPTIONS,
   captions: true,
-  layout: 0,
+  layout: DEFAULT_KEY_SCHEME,
   lab: false,
   hapticsLab: false,
 };

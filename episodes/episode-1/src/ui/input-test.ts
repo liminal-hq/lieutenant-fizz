@@ -6,6 +6,7 @@
 import { padActionToken, type PadFamily } from '@lieutenant-fizz/engine/gamepad-labels';
 import { hintText } from '@lieutenant-fizz/engine/font/tokens';
 import { Input, type InputDevice, type InputManager } from '@lieutenant-fizz/engine/input';
+import { keyScheme } from '@lieutenant-fizz/engine/key-schemes';
 import {
   HoldToLeave,
   LitTracker,
@@ -551,7 +552,7 @@ export class InputTestPage {
     if (this.keysLit.held.has('Enter')) bits |= Input.CONFIRM;
     const b = this.h.input.bindings;
     const pause =
-      [...this.keysLit.held].some((c) => keyActions(c).includes(PAUSE_NAME)) ||
+      [...this.keysLit.held].some((c) => keyActions(c, '', this.h.layout()).includes(PAUSE_NAME)) ||
       this.snaps.some((s) => !!s && b.pause.some((i) => !!s.buttons[i]?.pressed)) ||
       this.touch.pauseHeld;
     return { bits, pause };
@@ -1003,18 +1004,16 @@ export class InputTestPage {
     if (!code) {
       lines.push('Press any key. Keys the game does not use light up too.');
     } else {
-      const actions = keyActions(code);
+      const actions = keyActions(code, '', this.h.layout());
       const note = layoutNote(code, this.h.layout());
       lines.push(
         `${held.length ? 'Held' : 'Last'}  ${keyName(code)}  code ${code}`,
-        `-> ${actionText(actions)}${note && actions.length ? ` (${note})` : ''}`,
+        `-> ${actionText(actions)}${note ? ` (${note})` : ''}`,
       );
     }
     if (held.length > 1) lines.push(`Held now ${held.map(keyName).join(', ')}`);
     const essential = Math.min(2, lines.length);
-    lines.push(
-      `Controls layout ${this.h.layout() === 1 ? 'Modern' : 'Keen-style'} (both layouts work)`,
-    );
+    lines.push(`Controls layout ${keyScheme(this.h.layout()).name}`);
     this.setLines(this.keyInfo, lines, essential);
   }
 

@@ -11,11 +11,14 @@ import {
   type PadLabels,
 } from '@lieutenant-fizz/engine/gamepad-labels';
 import type { InputDevice } from '@lieutenant-fizz/engine/input';
+import { codeLabel, keyScheme } from '@lieutenant-fizz/engine/key-schemes';
 
-/** What the hints need to know: the device in use, and Options › Controls (0 Keen-style, 1 Modern). */
+/** What the hints need to know: the device in use, and Options › Controls (an index into `KEY_SCHEMES`). */
 export interface HintContext {
   device: InputDevice;
   layout: number;
+  /** The player's keyboard layout (key code to the character it types), so a key is named by what is printed on it. */
+  keyMap?: ReadonlyMap<string, string> | null;
   /** The game can go fullscreen on request, so the `F` shortcut exists. */
   fullscreen?: boolean;
   /** The on-screen Fullscreen button exists: a browser page can offer it, the desktop app's native window does not. */
@@ -66,15 +69,29 @@ export const TOUCH_LABELS = {
 /** An on-screen control's name as a hint token (drawn as a keycap, like a key's name). */
 const touchCap = (name: string): string => `{[${name}]}`;
 
-/** The jump control: Ctrl in the Keen-style layout, Z in the modern one, the Jump button (A by default) on a gamepad, Select on touch. */
+/** The mouse buttons a scheme names, as the keycaps the hints draw. */
+const MOUSE_CAPS: Readonly<Record<number, string>> = { 0: '{[Left click]}', 2: '{[Right click]}' };
+
+/** A key as a hint token. Space, Ctrl and Alt have glyphs of their own; any other key is a keycap named for the player's keyboard. */
+export function keyToken(code: string, map?: ReadonlyMap<string, string> | null): string {
+  if (code === 'Space') return '{Space}';
+  if (code.startsWith('Control')) return '{Ctrl}';
+  if (code.startsWith('Alt')) return '{Alt}';
+  return `{[${codeLabel(code, map)}]}`;
+}
+
+/** The tokens for the keys of one action in a scheme (a left and a right Ctrl are one token), or its mouse button. */
+function actionTokens(c: HintContext, action: 'jump' | 'pogo' | 'fire'): string {
+  const s = keyScheme(c.layout);
+  const keys = [...new Set(s[action].map((code) => keyToken(code, c.keyMap)))];
+  const button = s.mouse?.[action];
+  if (button !== undefined) keys.push(MOUSE_CAPS[button] ?? '');
+  return keys.join(' ');
+}
+
+/** The jump control: the scheme's key (Z in Modern), the Jump button (A by default) on a gamepad, Select on touch. */
 export const jumpHint = (c: HintContext): string =>
-  touch(c)
-    ? touchCap(TOUCH_LABELS.select)
-    : pad(c)
-      ? padToken(c, 'jump')
-      : c.layout === 1
-        ? '{[Z]}'
-        : '{Ctrl}';
+  touch(c) ? touchCap(TOUCH_LABELS.select) : pad(c) ? padToken(c, 'jump') : actionTokens(c, 'jump');
 
 /** The confirm control. On a gamepad it is the Jump button, since menus read Jump as Select. */
 export const selectHint = (c: HintContext): string =>
@@ -163,10 +180,10 @@ export function stingerHints(c: HintContext): string[] {
 }
 
 /**
- * The Controls table column to highlight: 1 Keen-style, 2 Modern, 3 Gamepad. The gamepad column
+ * The Controls table column to highlight: 1 the chosen keyboard scheme, 2 Gamepad. The gamepad column
  * wins while a pad is the device in use.
  */
-export const controlsColumn = (c: HintContext): number => (pad(c) ? 3 : c.layout === 1 ? 2 : 1);
+export const controlsColumn = (c: HintContext): number => (pad(c) ? 2 : 1);
 
 /** The Controls screen as data: a header, the rows, the column to pick out, and the note beneath. */
 export interface ControlsTable {
@@ -181,8 +198,8 @@ export interface ControlsTable {
 }
 
 /**
- * The Controls table. The desktop table has a column per scheme (Keen-style, Modern, Gamepad) with the
- * device in use picked out. The touch table has one column, the on-screen controls' own names, and
+ * The Controls table. The desktop table has a column for the chosen keyboard scheme and one for the Gamepad,
+ * with the device in use picked out, and names each key as it is printed on the player's keyboard. The touch table has one column, the on-screen controls' own names, and
  * uses only `TOUCH_LABELS`: no key or gamepad glyph. Where the page can go fullscreen both tables gain a
  * Fullscreen row (`F` on a keyboard, the button on touch).
  */
@@ -205,18 +222,27 @@ export function controlsTable(c: HintContext, onTouch: boolean): ControlsTable {
       note: `Hold Jump while pogoing for a high bounce. Aim Fizz up or down with the ${dpad}.`,
     };
   }
+  const s = keyScheme(c.layout);
+  const key = (code: string): string => keyToken(code, c.keyMap);
+  // The arrow keys and WASD both move in every scheme; the table shows the ones the scheme tells the player about.
+  const [left, right] = s.move.includes('ArrowLeft')
+    ? [key('ArrowLeft'), key('ArrowRight')]
+    : [key('KeyA'), key('KeyD')];
+  const [up, down] = s.move.includes('ArrowUp')
+    ? [key('ArrowUp'), key('ArrowDown')]
+    : [key('KeyW'), key('KeyS')];
   return {
-    head: ['Action', 'Keen-style', 'Modern', 'Gamepad'],
+    head: ['Action', s.name, 'Gamepad'],
     rows: [
-      ['Move', '{[←]} {[→]}', '{[←]} {[→]} {[A]} {[D]}', 'D-pad / stick'],
-      ['Jump', '{Ctrl}', '{[Z]}', padTokens(c, 'jump')],
-      ['Pogo (toggle)', '{Alt}', '{[X]}', padTokens(c, 'pogo')],
-      ['Fizz', '{Space}', '{[C]}', padTokens(c, 'fire')],
-      ['Menu', '{Esc} {[Pause]}', '{Esc} {[P]} {[Pause]}', padTokens(c, 'pause')],
-      ['Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu'],
-      ...(c.fullscreen ? [['Fullscreen', '{[F]}', '{[F]}', '—']] : []),
+      ['Move', `${left} ${right}`, 'D-pad / stick'],
+      ['Jump', actionTokens(c, 'jump'), padTokens(c, 'jump')],
+      ['Pogo (toggle)', actionTokens(c, 'pogo'), padTokens(c, 'pogo')],
+      ['Fizz', actionTokens(c, 'fire'), padTokens(c, 'fire')],
+      ['Menu', `{Esc} ${key('KeyP')} {[Pause]}`, padTokens(c, 'pause')],
+      ['Save / Load', '{F5} {F9}', 'Pause menu'],
+      ...(c.fullscreen ? [['Fullscreen', '{[F]}', '—']] : []),
     ],
     on: controlsColumn(c),
-    note: 'Hold jump while pogoing for a high bounce. Aim fizz up with {[↑]}, or down with {[↓]} in the air.',
+    note: `Hold jump while pogoing for a high bounce. Aim fizz up with ${up}, or down with ${down} in the air.`,
   };
 }

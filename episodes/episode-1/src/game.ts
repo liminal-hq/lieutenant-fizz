@@ -102,6 +102,7 @@ import {
   type InputDevice,
 } from '@lieutenant-fizz/engine/input';
 import { FixedStepper, InstanceWriter } from '@lieutenant-fizz/engine/instances';
+import { watchLayoutMap } from '@lieutenant-fizz/engine/key-labels';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
 import { frameView, type FrameView, type PixelMode } from '@lieutenant-fizz/engine/view-scale';
@@ -483,6 +484,9 @@ export class Game {
   private anyPadSeen = false;
   /** The gamepad's button bindings, saved on this device. */
   private padBindings: PadBindings;
+  /** The player's keyboard layout where the browser gives one, so the hints name keys as they are printed. */
+  private keyMap: ReadonlyMap<string, string> | null = null;
+  private unwatchKeyMap: () => void = () => {};
   /** The Controller screen's listening state. */
   private remap: RemapState = IDLE;
   /** When Reset had its first tap (in `performance.now()` milliseconds), or null. */
@@ -860,6 +864,10 @@ export class Game {
     this.input.onDevice(() => this.syncHints());
     // A second pad of another family can take over while the device stays the gamepad.
     this.input.onPadChange(() => this.syncHints());
+    this.unwatchKeyMap = watchLayoutMap((map) => {
+      this.keyMap = map;
+      this.syncHints();
+    });
     // Touch mode follows the device in use: a touch turns it on, a key or a gamepad turns it off.
     this.input.onDevice((d) => this.setTouchMode(this.forcedTouch || d === 'touch'));
     window.addEventListener('pointerdown', this.onTouchPointer, { capture: true, passive: true });
@@ -981,6 +989,7 @@ export class Game {
     }
     this.keepAwake.dispose();
     this.fsControl.dispose();
+    this.unwatchKeyMap();
     window.removeEventListener('pointerdown', this.onTouchPointer, { capture: true });
     this.ui.stage.removeEventListener('contextmenu', this.onContextMenu);
     window.removeEventListener('pointermove', this.onMouseMove);
@@ -1651,6 +1660,7 @@ export class Game {
     this.audio.setSfx(o.sfx > 0);
     this.audio.setSfxStyle(sfxVersionOf(o));
     this.opts.captions = o.captions;
+    this.input.setKeyScheme(o.layout);
     const before = this.reducedMotion;
     this.reducedMotion =
       this.reducedForced ??
@@ -1802,6 +1812,7 @@ export class Game {
     this.ui.setHintContext({
       device,
       layout: this.settings.layout,
+      keyMap: this.keyMap,
       fullscreen: this.fullscreenOffered(),
       fullscreenButton: this.fullscreenButtonOffered(),
       escExitsFullscreen:
