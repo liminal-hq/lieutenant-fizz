@@ -43,7 +43,7 @@ See `STORY.md` for the full opening cinematic and ending text.
 
 ## Mechanics
 - **Run & jump:** variable-height jump (release early to cut it short), 7 tiles/s top speed, momentum on the ground and in the air.
-- **Pogo:** toggled on and off. Bounces automatically; hold jump for a high bounce (~6.6 tiles, adjustable via the pogoHeight setting). Stomping enemies while pogoing bounces higher.
+- **Pogo:** toggled on and off. Bounces automatically; hold jump for a high bounce (~6.6 tiles, adjustable via the pogoHeight setting). A Jump press counts if it comes up to 0.12 s before a landing (`JUMP_BUFFER`) or up to 0.08 s after a low bounce (`POGO_GRACE`, which carries on to the same apex), so Jump does not have to be down on the exact tick Ben touches the ground. Stomping enemies while pogoing bounces higher.
 - **Fizz Blaster:** cream soda bubbles. Stuns enemies for 6 s, never kills. Shots pass through enemies that are already stunned, so they reach the next one (a pass does not refresh the stun, shows a tiny cyan spark where the shot enters, and a shot that starts inside a stunned enemy just passes); bosses and invulnerable enemies still stop a shot. Aim up with ↑, or down with ↓ while in the air. Uses ammo; cream soda cans give +5.
 - **Stomp:** landing on most enemies stuns them for 3 s.
 - **Lives:** start with 3, extra life every 100 snack points. Death returns Ben to the map; game over offers your last save.

@@ -77,6 +77,12 @@ pub const WALL_KICK_UP: f64 = 19.0;
 pub const WALL_KICK_AWAY: f64 = 6.0;
 pub const WALL_KICK_COOLDOWN: f64 = 0.25;
 
+/// How long a Jump press is remembered for the pogo: pressed this long before Ben lands, it still gives the high bounce.
+pub const JUMP_BUFFER: f64 = 0.12;
+
+/// How long after a low pogo bounce a Jump press still turns it into the high one.
+pub const POGO_GRACE: f64 = 0.08;
+
 /// How fast Ben must be rising (tiles per second) when his head meets a ceiling for it to clunk.
 pub const HEAD_BUMP_MIN_SPEED: f64 = 1.0;
 
@@ -254,6 +260,12 @@ pub struct Player {
     pub wall: bool,
     /// Seconds before Ben can kick off a wall again.
     pub wall_t: f64,
+    /// Seconds left that a Jump press made on the pogo still counts at the next landing.
+    pub jump_buf: f64,
+    /// Seconds left after a low pogo bounce in which Jump upgrades it to the high one (0 when there is no low bounce to upgrade).
+    pub pogo_grace: f64,
+    /// Where the last low pogo bounce left the ground, so the upgrade can aim at the high bounce's apex from where Ben is.
+    pub pogo_base_y: f64,
     /// Which wall he last kicked off (-1 left, 1 right, 0 none yet). He cannot kick the same side
     /// twice running, so a single wall cannot be climbed; only two walls facing each other can.
     pub kick_side: f64,
@@ -287,6 +299,9 @@ impl Player {
             no_grab: false,
             wall: false,
             wall_t: 0.0,
+            jump_buf: 0.0,
+            pogo_grace: 0.0,
+            pogo_base_y: 0.0,
             kick_side: 0.0,
             rot: 0.0,
             hidden: false,
@@ -1174,6 +1189,20 @@ impl World {
         }
         let ax = f64::from(u8::from(h & RIGHT != 0)) - f64::from(u8::from(h & LEFT != 0));
         let jump_held = h & JUMP != 0;
+        {
+            let p = &mut self.p;
+            if !p.pogo {
+                p.jump_buf = 0.0;
+                p.pogo_grace = 0.0;
+            } else {
+                p.jump_buf = if e & JUMP != 0 {
+                    JUMP_BUFFER
+                } else {
+                    (p.jump_buf - dt).max(0.0)
+                };
+                p.pogo_grace = (p.pogo_grace - dt).max(0.0);
+            }
+        }
         let was_climbing = self.p.climb;
         self.tick_climb(h, e, ax);
         {
@@ -1215,7 +1244,12 @@ impl World {
         if self.p.b.on_ground {
             if self.p.pogo {
                 let hgt = self.pogo_height;
-                self.p.b.vy = if jump_held {
+                // Jump held at the landing, or pressed just before it, gives the high bounce.
+                let high = jump_held || self.p.jump_buf > 0.0;
+                self.p.jump_buf = 0.0;
+                self.p.pogo_grace = if high { 0.0 } else { POGO_GRACE };
+                self.p.pogo_base_y = self.p.b.y;
+                self.p.b.vy = if high {
                     (2.0 * GRAVITY * hgt).sqrt()
                 } else {
                     14.0
@@ -1235,6 +1269,12 @@ impl World {
                 self.p.cut = true;
                 self.p.b.on_ground = false;
             }
+        } else if e & JUMP != 0 && self.p.pogo && self.p.pogo_grace > 0.0 {
+            // Jump just after a low bounce: rise from here to the height the high bounce reaches.
+            let left = (self.pogo_height - (self.p.b.y - self.p.pogo_base_y)).max(0.0);
+            self.p.b.vy = (2.0 * GRAVITY * left).sqrt();
+            self.p.pogo_grace = 0.0;
+            self.p.jump_buf = 0.0;
         } else if e & JUMP != 0
             && !was_climbing
             && !self.p.climb
