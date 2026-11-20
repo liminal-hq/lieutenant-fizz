@@ -11,6 +11,7 @@ import {
   controlsTable,
   creditsHints,
   jumpHint,
+  keyToken,
   menuHint,
   menuHints,
   selectHint,
@@ -31,8 +32,18 @@ describe('hint labels', () => {
   it('shows the jump key for the layout, and A on a gamepad', () => {
     expect(jumpHint(keen)).toBe('{Ctrl}');
     expect(jumpHint(modern)).toBe('{[Z]}');
+    expect(jumpHint({ device: 'keyboard', layout: 2 })).toBe('{Space}');
+    expect(jumpHint({ device: 'keyboard', layout: 5 })).toBe('{[,]}');
     expect(jumpHint(pad)).toBe('{A}');
     expect(jumpHint({ device: 'gamepad', layout: 1 })).toBe('{A}');
+  });
+
+  it('names a key as it is printed on the player’s keyboard', () => {
+    // On AZERTY the key in the Z position types W.
+    const azerty = new Map([['KeyZ', 'w']]);
+    expect(jumpHint({ ...modern, keyMap: azerty })).toBe('{[W]}');
+    expect(keyToken('ControlLeft', azerty)).toBe('{Ctrl}');
+    expect(keyToken('Space', azerty)).toBe('{Space}');
   });
 
   it('switches select, back and menu labels with the device', () => {
@@ -189,30 +200,83 @@ describe('touch hints as drawn', () => {
 });
 
 describe('controlsColumn', () => {
-  it('highlights the layout column, or the gamepad column while a pad is in use', () => {
+  it('highlights the keyboard column, or the gamepad column while a pad is in use', () => {
     expect(controlsColumn(keen)).toBe(1);
-    expect(controlsColumn(modern)).toBe(2);
-    expect(controlsColumn(pad)).toBe(3);
-    expect(controlsColumn({ device: 'gamepad', layout: 1 })).toBe(3);
+    expect(controlsColumn(modern)).toBe(1);
+    expect(controlsColumn(pad)).toBe(2);
+    expect(controlsColumn({ device: 'gamepad', layout: 1 })).toBe(2);
   });
 });
 
 describe('controlsTable on a keyboard or gamepad', () => {
-  it('is the three-scheme table, unchanged, with the device column picked out', () => {
-    const t = controlsTable(keen, false);
-    expect(t.head).toEqual(['Action', 'Keen-style', 'Modern', 'Gamepad']);
+  it('has a column for the chosen scheme and one for the gamepad, with the device in use picked out', () => {
+    const t = controlsTable(modern, false);
+    expect(t.head).toEqual(['Action', 'Modern', 'Gamepad']);
     expect(t.rows).toEqual([
-      ['Move', '{[←]} {[→]}', '{[←]} {[→]} {[A]} {[D]}', 'D-pad / stick'],
-      ['Jump', '{Ctrl}', '{[Z]}', '{A}'],
-      ['Pogo (toggle)', '{Alt}', '{[X]}', '{B} {Y}'],
-      ['Fizz', '{Space}', '{[C]}', '{X} {RT}'],
-      ['Menu', '{Esc} {[Pause]}', '{Esc} {[P]} {[Pause]}', '{Start}'],
-      ['Save / Load', '{F5} {F9}', '{F5} {F9}', 'Pause menu'],
+      ['Move', '{[←]} {[→]}', 'D-pad / stick'],
+      ['Jump', '{[Z]}', '{A}'],
+      ['Pogo (toggle)', '{[X]}', '{B} {Y}'],
+      ['Fizz', '{[C]}', '{X} {RT}'],
+      ['Menu', '{Esc} {[P]} {[Pause]}', '{Start}'],
+      ['Save / Load', '{F5} {F9}', 'Pause menu'],
     ]);
     expect(t.note).toBe(
       'Hold jump while pogoing for a high bounce. Aim fizz up with {[↑]}, or down with {[↓]} in the air.',
     );
-    expect([keen, modern, pad].map((c) => controlsTable(c, false).on)).toEqual([1, 2, 3]);
+    expect([modern, pad].map((c) => controlsTable(c, false).on)).toEqual([1, 2]);
+  });
+
+  it('lists each scheme’s own keys', () => {
+    const row = (layout: number, action: string): string | undefined =>
+      controlsTable({ device: 'keyboard', layout }, false).rows.find((r) => r[0] === action)?.[1];
+    expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(0, a))).toEqual([
+      '{Ctrl}',
+      '{Alt}',
+      '{Space}',
+    ]);
+    expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(2, a))).toEqual([
+      '{Space}',
+      '{[K]}',
+      '{[J]}',
+    ]);
+    expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(3, a))).toEqual([
+      '{Space}',
+      '{[Right click]}',
+      '{[Left click]}',
+    ]);
+    expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(4, a))).toEqual([
+      '{Space}',
+      '{[Q]}',
+      '{[E]}',
+    ]);
+    expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(5, a))).toEqual([
+      '{[,]}',
+      '{[.]}',
+      '{[/]}',
+    ]);
+  });
+
+  it('shows WASD where the scheme moves with it, and the arrows where it does not', () => {
+    const move = (layout: number): string | undefined =>
+      controlsTable({ device: 'keyboard', layout }, false).rows[0]?.[1];
+    expect(move(1)).toBe('{[←]} {[→]}');
+    expect(move(2)).toBe('{[A]} {[D]}');
+    expect(move(4)).toBe('{[A]} {[D]}');
+    expect(move(5)).toBe('{[←]} {[→]}');
+    expect(controlsTable({ device: 'keyboard', layout: 4 }, false).note).toContain('{[W]}');
+  });
+
+  it('names the keys as the player’s keyboard prints them', () => {
+    // AZERTY: the keys in the W, A, Z positions type Z, Q, W.
+    const keyMap = new Map([
+      ['KeyW', 'z'],
+      ['KeyA', 'q'],
+      ['KeyZ', 'w'],
+    ]);
+    const wasd = controlsTable({ device: 'keyboard', layout: 2, keyMap }, false);
+    expect(wasd.rows[0]?.[1]).toBe('{[Q]} {[D]}');
+    expect(wasd.note).toContain('{[Z]}');
+    expect(controlsTable({ ...modern, keyMap }, false).rows[1]?.[1]).toBe('{[W]}');
   });
 });
 
@@ -272,12 +336,7 @@ describe('the fullscreen shortcut in the hints', () => {
   });
 
   it('adds a Fullscreen row to the keyboard Controls table only where it applies', () => {
-    expect(controlsTable(can(keen), false).rows.at(-1)).toEqual([
-      'Fullscreen',
-      '{[F]}',
-      '{[F]}',
-      '—',
-    ]);
+    expect(controlsTable(can(keen), false).rows.at(-1)).toEqual(['Fullscreen', '{[F]}', '—']);
     expect(controlsTable(can(keen), false).rows.slice(0, -1)).toEqual(
       controlsTable(keen, false).rows,
     );

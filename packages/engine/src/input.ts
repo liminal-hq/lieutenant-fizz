@@ -4,6 +4,15 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { buttonsToBits, DEFAULT_PAD_BINDINGS, type PadBindings } from './gamepad-bindings';
+import {
+  DEFAULT_KEY_SCHEME,
+  keyScheme,
+  MOVE_KEYS,
+  mouseButton,
+  schemeCodes,
+  usesMouse,
+  type KeyScheme,
+} from './key-schemes';
 import { NO_TOUCH, TouchState, type TouchHeld } from './touch';
 
 /** Input bits handed to the sim each fixed tick (mirrors `world::input` in the Rust sim). */
@@ -89,7 +98,7 @@ export function isFullscreenKey(e: {
 /**
  * Whether a key press is a pause key, and which: Esc (`esc`), or `P` and the Pause/Break key (`key`).
  * Null for anything else, and for a held key that repeats. The Pause key is matched by `code` or `key`,
- * since layouts differ in which one carries it; it is free in both layouts, so it needs no rebinding.
+ * since layouts differ in which one carries it; it is free in every layout, so it needs no rebinding.
  */
 export function pauseKeyKind(e: {
   code: string;
@@ -145,19 +154,12 @@ export function isFieldTarget(target: { tagName?: string } | null): boolean {
   return !!target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName ?? '');
 }
 
+/** The keys the page keeps from the browser whichever scheme is chosen; a scheme adds its own (see `schemeCodes`). */
 const MAPPED = new Set([
   'ArrowLeft',
   'ArrowRight',
   'ArrowUp',
   'ArrowDown',
-  'Space',
-  'ControlLeft',
-  'ControlRight',
-  'AltLeft',
-  'AltRight',
-  'KeyZ',
-  'KeyX',
-  'KeyC',
   'Enter',
   'Escape',
   'Pause',
@@ -166,17 +168,29 @@ const MAPPED = new Set([
   'Tab',
 ]);
 
-/** Turns a set of pressed key codes into held bits (Keen-style and modern layouts). */
-export function keysToBits(keys: ReadonlySet<string>): number {
-  const k = (c: string): boolean => keys.has(c);
+/** Turns a set of pressed key codes into held bits for a key scheme (the Modern one until another is chosen). */
+export function keysToBits(
+  keys: ReadonlySet<string>,
+  scheme: KeyScheme = keyScheme(DEFAULT_KEY_SCHEME),
+): number {
+  const any = (codes: readonly string[]): boolean => codes.some((c) => keys.has(c));
   let b = 0;
-  if (k('ArrowLeft') || k('KeyA')) b |= Input.LEFT;
-  if (k('ArrowRight') || k('KeyD')) b |= Input.RIGHT;
-  if (k('ArrowUp') || k('KeyW')) b |= Input.UP;
-  if (k('ArrowDown') || k('KeyS')) b |= Input.DOWN;
-  if (k('ControlLeft') || k('ControlRight') || k('KeyZ')) b |= Input.JUMP;
-  if (k('AltLeft') || k('AltRight') || k('KeyX')) b |= Input.POGO;
-  if (k('Space') || k('KeyC')) b |= Input.FIRE;
+  if (any(MOVE_KEYS.left)) b |= Input.LEFT;
+  if (any(MOVE_KEYS.right)) b |= Input.RIGHT;
+  if (any(MOVE_KEYS.up)) b |= Input.UP;
+  if (any(MOVE_KEYS.down)) b |= Input.DOWN;
+  if (any(scheme.jump)) b |= Input.JUMP;
+  if (any(scheme.pogo)) b |= Input.POGO;
+  if (any(scheme.fire)) b |= Input.FIRE;
+  return b;
+}
+
+/** The held bits the mouse gives in a scheme: `buttons` are the buttons down, as `MouseEvent.buttons` counts them. */
+export function mouseToBits(buttons: ReadonlySet<number>, scheme: KeyScheme): number {
+  let b = 0;
+  if (buttons.has(mouseButton(scheme, 'jump') ?? -1)) b |= Input.JUMP;
+  if (buttons.has(mouseButton(scheme, 'pogo') ?? -1)) b |= Input.POGO;
+  if (buttons.has(mouseButton(scheme, 'fire') ?? -1)) b |= Input.FIRE;
   return b;
 }
 
@@ -292,19 +306,23 @@ export class InputManager {
   private padTick = 0;
   /** The bits of keys pressed since the last tick. */
   private keyLatch = 0;
+  /** The key scheme in use (an index into `KEY_SCHEMES`), the codes it keeps from the browser, and the mouse buttons down. */
+  private scheme = keyScheme(DEFAULT_KEY_SCHEME);
+  private schemeKeys = new Set<string>(schemeCodes(this.scheme));
+  private readonly mouseDown = new Set<number>();
   private lastPadBits = 0;
   private lastOtherBits = 0;
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (isFieldTarget(e.target as HTMLElement | null)) return;
-    if (MAPPED.has(e.code) || e.key === 'Pause') e.preventDefault();
+    if (MAPPED.has(e.code) || this.schemeKeys.has(e.code) || e.key === 'Pause') e.preventDefault();
     this.setDevice('key');
     const cancel = this.tapKey({ type: 'down', code: e.code, key: e.key, repeat: e.repeat });
     if (cancel && !e.ctrlKey && !e.metaKey) e.preventDefault();
     if (e.repeat) return;
     this.keys.add(e.code);
     // A key let go before the next tick still gives that tick one frame of its bits.
-    if (this.latchOn) this.keyLatch |= keysToBits(new Set([e.code]));
+    if (this.latchOn) this.keyLatch |= keysToBits(new Set([e.code]), this.scheme);
     // Emitted inside the keydown handler, so a handler can ask for fullscreen while the press counts as a gesture.
     if (isFullscreenKey(e)) this.emit({ type: 'fullscreen' });
     const pause = pauseKeyKind(e);
@@ -316,15 +334,37 @@ export class InputManager {
   private readonly onKeyUp = (e: KeyboardEvent): void => {
     this.keys.delete(e.code);
     this.tapKey({ type: 'up', code: e.code, key: e.key, repeat: false });
-    if (e.code.startsWith('Alt')) e.preventDefault();
+    // Alt on its own focuses the browser's menu bar on release; only a scheme that plays with Alt keeps it from that.
+    if (e.code.startsWith('Alt') && this.schemeKeys.has(e.code)) e.preventDefault();
   };
   private readonly onBlur = (): void => {
     this.keys.clear();
+    this.mouseDown.clear();
     this.tapKey({ type: 'blur', code: '', key: '', repeat: false });
     this.releaseTouch();
   };
   private readonly onHidden = (): void => {
     if (document.hidden) this.releaseTouch();
+  };
+  /** Whether a pointer event is the mouse on the game itself, which is where a scheme's mouse buttons act (menus take clicks as clicks). */
+  private onGame(e: PointerEvent): boolean {
+    return (
+      usesMouse(this.scheme) && e.pointerType === 'mouse' && e.target instanceof HTMLCanvasElement
+    );
+  }
+  private readonly onPointerDown = (e: PointerEvent): void => {
+    if (!this.onGame(e)) return;
+    this.setDevice('key');
+    this.mouseDown.add(e.button);
+    // A click let go before the next tick still gives that tick one frame of its bits.
+    if (this.latchOn) this.keyLatch |= mouseToBits(new Set([e.button]), this.scheme);
+  };
+  private readonly onPointerUp = (e: PointerEvent): void => {
+    this.mouseDown.delete(e.button);
+  };
+  /** The right button's menu would open over the game in the mouse scheme. */
+  private readonly onContextMenu = (e: MouseEvent): void => {
+    if (usesMouse(this.scheme) && e.target instanceof HTMLCanvasElement) e.preventDefault();
   };
   private readonly onWheel = (e: WheelEvent): void => {
     e.preventDefault();
@@ -351,6 +391,10 @@ export class InputManager {
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onBlur);
     window.addEventListener('pagehide', this.onBlur);
+    host.addEventListener('pointerdown', this.onPointerDown);
+    window.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('pointercancel', this.onPointerUp);
+    host.addEventListener('contextmenu', this.onContextMenu);
     document.addEventListener('visibilitychange', this.onHidden);
     host.addEventListener('wheel', this.onWheel, { passive: false });
     this.syncTimer();
@@ -526,7 +570,7 @@ export class InputManager {
     if (start && !this.prevStart) this.emit({ type: 'pause' });
     this.prevStart = start;
     const src = {
-      keys: keysToBits(this.keys),
+      keys: keysToBits(this.keys, this.scheme) | mouseToBits(this.mouseDown, this.scheme),
       pad: padBits,
       touch: touchToBits(
         !this.touchEnabled
@@ -652,5 +696,25 @@ export class InputManager {
     window.removeEventListener('pagehide', this.onBlur);
     document.removeEventListener('visibilitychange', this.onHidden);
     this.host.removeEventListener('wheel', this.onWheel);
+    this.host.removeEventListener('pointerdown', this.onPointerDown);
+    window.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('pointercancel', this.onPointerUp);
+    this.host.removeEventListener('contextmenu', this.onContextMenu);
+  }
+
+  /** Picks the key scheme (an index into `KEY_SCHEMES`). Keys already down are let go, so a key from the old scheme cannot stick. */
+  setKeyScheme(index: number): void {
+    const next = keyScheme(index);
+    if (next === this.scheme) return;
+    this.scheme = next;
+    this.schemeKeys = new Set(schemeCodes(next));
+    this.keys.clear();
+    this.mouseDown.clear();
+    this.keyLatch = 0;
+  }
+
+  /** The key scheme in use. */
+  get keySchemeInUse(): KeyScheme {
+    return this.scheme;
   }
 }

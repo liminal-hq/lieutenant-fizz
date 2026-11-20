@@ -23,12 +23,12 @@ const remapped = bindButton(
 ).bindings;
 const xbox: HintContext = {
   device: 'gamepad',
-  layout: 0,
+  layout: 1,
   pad: { bindings: remapped, family: 'xbox' },
 };
 const ps: HintContext = {
   device: 'gamepad',
-  layout: 0,
+  layout: 1,
   pad: { bindings: DEFAULT_PAD_BINDINGS, family: 'playstation' },
 };
 
@@ -53,32 +53,32 @@ describe('hints with remapped buttons', () => {
     const key: HintContext = { ...xbox, device: 'keyboard' };
     expect(selectHint(key)).toBe('{Enter}');
     expect(backHint(key)).toBe('{Esc}');
-    expect(jumpHint(key)).toBe('{Ctrl}');
+    expect(jumpHint(key)).toBe('{[Z]}');
     expect(selectHint({ ...xbox, device: 'touch' })).toBe('{[Select]}');
   });
 
   it('show the Start button as the way to cancel a listen on a pad, whatever Pause is bound to', () => {
     expect(menuHints('listen', xbox)).toEqual(['Hold {Start} Cancel']);
     expect(menuHints('listen', ps)).toEqual(['Hold {[Options]} Cancel']);
-    expect(menuHints('listen', { device: 'keyboard', layout: 0 })).toEqual(['{Esc} Cancel']);
-    expect(menuHints('listen', { device: 'touch', layout: 0 })).toEqual(['{[Back]} Cancel']);
+    expect(menuHints('listen', { device: 'keyboard', layout: 1 })).toEqual(['{Esc} Cancel']);
+    expect(menuHints('listen', { device: 'touch', layout: 1 })).toEqual(['{[Back]} Cancel']);
   });
 });
 
 describe('the Controls table with remapped buttons', () => {
   it('shows each action’s buttons in the Gamepad column', () => {
     const rows = controlsTable(xbox, false).rows;
-    expect(rows.find((r) => r[0] === 'Jump')?.[3]).toBe('{LB}');
-    expect(rows.find((r) => r[0] === 'Pogo (toggle)')?.[3]).toBe('{RB}');
-    expect(rows.find((r) => r[0] === 'Fizz')?.[3]).toBe('{X} {RT}');
-    expect(rows.find((r) => r[0] === 'Menu')?.[3]).toBe('{Start}');
-    expect(controlsTable(ps, false).rows.find((r) => r[0] === 'Pogo (toggle)')?.[3]).toBe(
+    expect(rows.find((r) => r[0] === 'Jump')?.[2]).toBe('{LB}');
+    expect(rows.find((r) => r[0] === 'Pogo (toggle)')?.[2]).toBe('{RB}');
+    expect(rows.find((r) => r[0] === 'Fizz')?.[2]).toBe('{X} {RT}');
+    expect(rows.find((r) => r[0] === 'Menu')?.[2]).toBe('{Start}');
+    expect(controlsTable(ps, false).rows.find((r) => r[0] === 'Pogo (toggle)')?.[2]).toBe(
       '{[Circle]} {[Triangle]}',
     );
   });
 
-  it('leaves the keyboard columns alone', () => {
+  it('leaves the keyboard column alone', () => {
     const row = controlsTable(xbox, false).rows.find((r) => r[0] === 'Jump');
-    expect(row?.slice(0, 3)).toEqual(['Jump', '{Ctrl}', '{[Z]}']);
+    expect(row?.slice(0, 2)).toEqual(['Jump', '{[Z]}']);
   });
 });

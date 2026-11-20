@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { FixedStepper, InstanceWriter } from './instances';
 import { keysToBits, padToBits, Input } from './input';
+import { KEY_SCHEMES } from './key-schemes';
 import { evalMini, noteHz, parseMini, type MiniEvent } from './audio';
 
 const rects = { a: { u: 0.25, v: 0.5, uw: 0.03, vh: 0.04, w: 16, h: 32 } };
@@ -64,14 +65,15 @@ describe('FixedStepper', () => {
 });
 
 describe('input mapping', () => {
-  it('maps Keen-style and modern layouts to the same bits', () => {
-    expect(keysToBits(new Set(['ArrowLeft', 'ControlLeft', 'Space']))).toBe(
+  it('maps the Keen-style and Modern schemes to the same bits', () => {
+    const [keen, modern] = KEY_SCHEMES;
+    expect(keysToBits(new Set(['ArrowLeft', 'ControlLeft', 'Space']), keen)).toBe(
       Input.LEFT | Input.JUMP | Input.FIRE,
     );
-    expect(keysToBits(new Set(['KeyD', 'KeyZ', 'KeyX', 'KeyC']))).toBe(
+    expect(keysToBits(new Set(['KeyD', 'KeyZ', 'KeyX', 'KeyC']), modern)).toBe(
       Input.RIGHT | Input.JUMP | Input.POGO | Input.FIRE,
     );
-    expect(keysToBits(new Set(['AltLeft', 'KeyW']))).toBe(Input.POGO | Input.UP);
+    expect(keysToBits(new Set(['AltLeft', 'KeyW']), keen)).toBe(Input.POGO | Input.UP);
   });
 
   it('maps a standard gamepad', () => {

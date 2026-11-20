@@ -18,6 +18,7 @@ import {
   pauseKeyKind,
   touchToBits,
 } from './input';
+import { DEFAULT_KEY_SCHEME, KEY_SCHEMES, keyScheme, type KeyScheme } from './key-schemes';
 import { dpadDirections, hitTest, TouchState, type ControlId, type TouchLayout } from './touch';
 
 /** The device a panel of the page is for. */
@@ -52,27 +53,13 @@ export const actionText = (actions: readonly string[]): string =>
 
 // ---------- Keyboard ----------
 
-/** Which Options › Controls layout a key belongs to; `both` serves either. The game reads both layouts at once. */
-export type KeyLayout = 'keen' | 'modern' | 'both';
-
-const KEEN_ONLY = new Set(['ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'Space']);
-const MODERN_ONLY = new Set(['KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyZ', 'KeyX', 'KeyC', 'KeyP']);
-const BOTH = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Escape', 'Pause']);
-
-/** The layout a key is shown for in the hints, or null when no layout uses it. */
-export function keyLayout(code: string): KeyLayout | null {
-  if (KEEN_ONLY.has(code)) return 'keen';
-  if (MODERN_ONLY.has(code)) return 'modern';
-  if (BOTH.has(code)) return 'both';
-  return null;
-}
-
 /**
- * What a key does, as the names the input word and the commands carry: the bits `keysToBits` sets, Confirm for
- * Enter, Pause for Esc, P and the Pause key, and the commands the input manager raises for the rest.
+ * What a key does, as the names the input word and the commands carry: the bits `keysToBits` sets in the key
+ * scheme chosen in Options › Controls, Confirm for Enter, Pause for Esc, P and the Pause key, and the commands the
+ * input manager raises for the rest.
  */
-export function keyActions(code: string, key = ''): string[] {
-  const out = bitNames(keysToBits(new Set([code])));
+export function keyActions(code: string, key = '', layout = DEFAULT_KEY_SCHEME): string[] {
+  const out = bitNames(keysToBits(new Set([code]), keyScheme(layout)));
   if (code === 'Enter') out.push('Confirm');
   if (pauseKeyKind({ code, key, repeat: false })) out.push(PAUSE_NAME);
   if (isFullscreenKey({ code, repeat: false, ctrlKey: false, altKey: false, metaKey: false }))
@@ -96,12 +83,12 @@ export function keyActions(code: string, key = ''): string[] {
   return out;
 }
 
-/** A note for a key that belongs only to the layout the player did not choose ("Modern key"), else empty. */
+/** A note for an action key of another scheme, which does nothing in the chosen one ("Not in Modern"), else empty. */
 export function layoutNote(code: string, layout: number): string {
-  const l = keyLayout(code);
-  if (l === null || l === 'both') return '';
-  const mine = layout === 1 ? 'modern' : 'keen';
-  return l === mine ? '' : l === 'modern' ? 'Modern key' : 'Keen-style key';
+  const mine = keyScheme(layout);
+  const actionKeys = (s: KeyScheme): readonly string[] => [...s.jump, ...s.pogo, ...s.fire];
+  if (actionKeys(mine).includes(code)) return '';
+  return KEY_SCHEMES.some((s) => actionKeys(s).includes(code)) ? `Not in ${mine.name}` : '';
 }
 
 /** A short name for a key on the picture and in readouts: "Space", "Ctrl L", "Z", "Up". The code is always shown too. */
@@ -288,7 +275,7 @@ export function eventDevice(e: RawEvent): TestDevice {
 export function eventActions(e: RawEvent, ctx: DescribeContext): string[] {
   switch (e.kind) {
     case 'key':
-      return keyActions(e.code, e.key);
+      return keyActions(e.code, e.key, ctx.layout);
     case 'padButton':
       return padButtonActions(e.index, ctx.bindings);
     case 'padAxis':
@@ -317,7 +304,7 @@ export function stamp(ms: number): string {
 export function logLine(ms: number, e: RawEvent, ctx: DescribeContext): string {
   const actions = eventActions(e, ctx);
   const note = e.kind === 'key' ? layoutNote(e.code, ctx.layout) : '';
-  const result = `-> ${actionText(actions)}${note && actions.length ? ` (${note})` : ''}`;
+  const result = `-> ${actionText(actions)}${note ? ` (${note})` : ''}`;
   const at = stamp(ms);
   switch (e.kind) {
     case 'key':

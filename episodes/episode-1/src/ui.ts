@@ -7,6 +7,7 @@ import type { PeekStyle } from '@lieutenant-fizz/engine/back-peek';
 import type { CreditsContent } from '@lieutenant-fizz/engine/credits';
 import { pixelScale, scaleSteps } from '@lieutenant-fizz/engine/font/scale';
 import { hintText } from '@lieutenant-fizz/engine/font/tokens';
+import { DEFAULT_KEY_SCHEME } from '@lieutenant-fizz/engine/key-schemes';
 import { gridsToUrl, paintGrid } from '@lieutenant-fizz/engine/menu/paint';
 import { renderRows, type BulletImage } from '@lieutenant-fizz/engine/menu/rows';
 import {
@@ -230,7 +231,7 @@ export class Ui {
   private readonly attractFade: HTMLElement;
   private readonly attractTag: HTMLElement;
   private unwatch: () => void = () => {};
-  private ctx: HintContext = { device: 'keyboard', layout: 0 };
+  private ctx: HintContext = { device: 'keyboard', layout: DEFAULT_KEY_SCHEME };
   private titleKind: HintScreen = 'list';
   private overlayKind: HintScreen = 'list';
   private readonly titleKeys: HTMLElement;
@@ -442,6 +443,7 @@ export class Ui {
     if (
       ctx.device === this.ctx.device &&
       ctx.layout === this.ctx.layout &&
+      ctx.keyMap === this.ctx.keyMap &&
       ctx.fullscreen === this.ctx.fullscreen &&
       ctx.escExitsFullscreen === this.ctx.escExitsFullscreen &&
       ctx.pad?.bindings === this.ctx.pad?.bindings &&

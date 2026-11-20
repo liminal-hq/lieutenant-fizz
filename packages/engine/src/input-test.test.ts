@@ -61,10 +61,15 @@ describe('action names', () => {
     expect(bitNames(1 | 16 | 64)).toEqual(['Left', 'Jump', 'Fizz']);
   });
 
-  it('maps keys through the game functions, in both layouts', () => {
-    expect(keyActions('ControlLeft')).toEqual(['Jump']);
+  it('maps keys through the game functions, in the chosen layout', () => {
+    // Modern is the default; the layout is an index into the key schemes.
     expect(keyActions('KeyZ')).toEqual(['Jump']);
-    expect(keyActions('Space')).toEqual(['Fizz']);
+    expect(keyActions('ControlLeft', '', 0)).toEqual(['Jump']);
+    expect(keyActions('Space', '', 0)).toEqual(['Fizz']);
+    expect(keyActions('Space', '', 2)).toEqual(['Jump']);
+    expect(keyActions('KeyJ', '', 2)).toEqual(['Fizz']);
+    expect(keyActions('Comma', '', 5)).toEqual(['Jump']);
+    expect(keyActions('Space')).toEqual([]);
     expect(keyActions('ArrowUp')).toEqual(['Up']);
     expect(keyActions('Escape')).toEqual(['Pause']);
     expect(keyActions('KeyP')).toEqual(['Pause']);
@@ -73,13 +78,17 @@ describe('action names', () => {
     expect(keyActions('F5')).toEqual(['Quick save']);
     expect(keyActions('Equal')).toEqual(['Zoom in']);
     expect(keyActions('KeyQ')).toEqual([]);
+    expect(keyActions('KeyQ', '', 4)).toEqual(['Pogo']);
   });
 
-  it('notes a key that belongs to the layout not chosen', () => {
-    expect(layoutNote('KeyZ', 0)).toBe('Modern key');
+  it('notes an action key of another layout, which does nothing in the chosen one', () => {
+    expect(layoutNote('KeyZ', 0)).toBe('Not in Keen-style');
     expect(layoutNote('KeyZ', 1)).toBe('');
-    expect(layoutNote('ControlLeft', 1)).toBe('Keen-style key');
+    expect(layoutNote('ControlLeft', 1)).toBe('Not in Modern');
+    expect(layoutNote('Comma', 4)).toBe('Not in Left hand');
+    expect(layoutNote('Comma', 5)).toBe('');
     expect(layoutNote('ArrowUp', 1)).toBe('');
+    expect(layoutNote('KeyF', 1)).toBe('');
   });
 
   it('maps pad buttons and axes through the current bindings', () => {
@@ -114,11 +123,14 @@ describe('log lines', () => {
       '+  0:03.2  Pad 0  button 0 (A)  down  -> Jump',
     );
     expect(logLine(0, { kind: 'key', code: 'KeyQ', key: 'q', down: false }, ctx)).toBe(
-      '+  0:00.0  Key  KeyQ  up  -> no action',
+      '+  0:00.0  Key  KeyQ  up  -> no action (Not in Keen-style)',
     );
     expect(logLine(0, { kind: 'key', code: 'KeyZ', key: 'z', down: true }, ctx)).toContain(
-      '-> Jump (Modern key)',
+      '-> no action (Not in Keen-style)',
     );
+    expect(
+      logLine(0, { kind: 'key', code: 'ControlLeft', key: 'Control', down: true }, ctx),
+    ).toContain('-> Jump');
     expect(logLine(0, { kind: 'padAxis', pad: 1, index: 0, value: -0.62 }, ctx)).toBe(
       '+  0:00.0  Pad 1  axis 0 (Left stick X)  -0.62  -> Left',
     );

@@ -94,15 +94,28 @@ See `STORY.md` for the full opening cinematic and ending text.
 | Boss | Cocoa Colossus | Hover → drop globs → slam → charge → overheats with dome open | 3 hits while the dome is open |
 
 ## Controls
-| Action | Keen-style | Modern | Gamepad |
-|---|---|---|---|
-| Move | ← → | ← → / A D | D-pad / stick |
-| Jump | Ctrl | Z | A (remappable) |
-| Pogo | Alt | X | B / Y |
-| Fizz | Space | C | X / RT |
-| Menu | Esc / Pause | Esc / P / Pause | Start |
-| Save / Load | F5 / F9 | F5 / F9 | Pause menu |
-| Fullscreen | F | F | — |
+The keyboard has six schemes, chosen under Options › Controls; Modern is the default. Every scheme moves with the arrow keys or WASD (W and S also look up and down, and aim Fizz). A scheme chooses the keys for Jump, Pogo and Fizz.
+
+| Scheme | Jump | Pogo | Fizz | Suits |
+|---|---|---|---|---|
+| Modern (default) | Z | X | C | Arrow keys and three keys under the left hand; no modifier keys |
+| Keen-style | Ctrl | Alt | Space | The original's keys; Ctrl and Alt are browser and desktop shortcuts, so it is not the default |
+| WASD | Space | K | J | Left hand moves, thumb jumps, right hand on J and K |
+| Mouse | Space | Right click | Left click | WASD and Space with the mouse buttons for Pogo and Fizz |
+| Left hand | Space | Q | E | Everything under the left hand: WASD, Space, Q and E |
+| Right hand | , | . | / | Everything under the right hand: the arrow keys and the three keys beside them |
+
+Keys are physical positions, so each scheme keeps its shape on AZERTY and other layouts, and the hints name each key as it is printed on the player's keyboard (the browser's Keyboard API `getLayoutMap`, where there is one; the US name elsewhere). The Controls screen shows the chosen scheme beside the gamepad:
+
+| Action | Chosen scheme | Gamepad |
+|---|---|---|
+| Move | ← → or A D | D-pad / stick |
+| Jump | per the table above | A (remappable) |
+| Pogo | per the table above | B / Y |
+| Fizz | per the table above | X / RT |
+| Menu | Esc / P / Pause | Start |
+| Save / Load | F5 / F9 | Pause menu |
+| Fullscreen | F | — |
 
 - **Fullscreen:** F (or the round button at the top right) enters and leaves fullscreen where the browser allows it; it is not shown in the app or on an iPhone. It works whatever Options > Display > Fullscreen says, which only decides whether starting or resuming a run goes fullscreen by itself (on for touch devices, never on a desktop). On a phone the button shows on the title and the pause menu, beside Pause, and not in play. See [MOBILE.md](MOBILE.md#fullscreen-button-built-in-slice-76).
 - **Esc in fullscreen:** where the browser offers the Keyboard Lock (Chromium), Esc still opens the pause menu from fullscreen, and on the top level of the pause menu or the title it leaves fullscreen (resume with the Resume row, P or Pause). Elsewhere the browser takes Esc to leave fullscreen and the level pauses. See [MOBILE.md](MOBILE.md#esc-and-the-pause-key-in-fullscreen).
