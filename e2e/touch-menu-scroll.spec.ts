@@ -18,7 +18,7 @@ const SIZES: [string, number, number][] = [
   ['640×320', 640, 320],
 ];
 
-/** Options with all ten rows (Sound, Haptics, Display, Play sample, Captions, Controls, Text size, Motion, Touch controls, Back). */
+/** Options with all its rows (Sound, Haptics, Controller, Display, Input test, Play sample, Captions, Controls, Text size, Motion, Touch controls, Back). */
 async function openOptions(page: Page, layout: string): Promise<void> {
   await page.goto(`/?debug&touch&haptics${layout}`);
   await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
@@ -29,7 +29,7 @@ async function openOptions(page: Page, layout: string): Promise<void> {
     lf.debugShow('title');
     lf.debugShow('options');
   });
-  await expect(page.locator('#overlay .menu button')).toHaveCount(11);
+  await expect(page.locator('#overlay .menu button')).toHaveCount(12);
   await settle(page);
 }
 
@@ -301,7 +301,7 @@ test('Row spacing holds after a reload', async ({ page }, testInfo) => {
     lf.debugShow('title');
     lf.debugShow('options');
   });
-  await expect(page.locator('#overlay .menu button')).toHaveCount(10);
+  await expect(page.locator('#overlay .menu button')).toHaveCount(11);
   await settle(page);
   expect((await heights()).every((h) => Math.abs(h - 48) < 0.5)).toBe(true);
   expect(await stored()).toBe(2);

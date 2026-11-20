@@ -184,6 +184,8 @@ test('Save zip downloads the log and the specs, and nothing leaves the page for 
   await expect.poll(() => lf(page, (g) => g.sampling)).toBe(true);
   await page.keyboard.press('ArrowDown');
   await page.mouse.click(310, 210);
+  // Park the pointer off the menus: left over an Options row it pulls the selection back from the arrow keys.
+  await page.mouse.move(0, 0);
   await lf(page, (g) => g.stopSample());
   await expect.poll(() => lf(page, (g) => g.sampling)).toBe(false);
 
