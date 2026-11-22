@@ -103,6 +103,71 @@ fn pogo_bounces_automatically_and_high_with_jump_held() {
     assert!(max_y - 4.0 < 2.5, "short bounce {}", max_y - 4.0);
 }
 
+/// The tick of a pogo's second landing on Crater's ground, with no Jump pressed.
+fn pogo_landing_tick() -> usize {
+    let mut w = level(CRATER);
+    run(&mut w, 30, 0);
+    let mut prev = 0.0;
+    for t in 0..120 {
+        w.step(POGO);
+        // Landing zeroes vy, so the bounce tick is the first one that rises after a tick at or below zero.
+        if t > 2 && prev <= 0.0 && w.p.b.vy > 0.0 {
+            return t;
+        }
+        prev = w.p.b.vy;
+    }
+    panic!("the pogo never landed again");
+}
+
+/// How high Ben rises above the ground after the second landing when Jump is tapped for one tick at `press` (never for none).
+fn pogo_apex_with_tap(press: Option<usize>, landing: usize) -> f64 {
+    let mut w = level(CRATER);
+    run(&mut w, 30, 0);
+    let ground = w.p.b.y;
+    let mut apex = 0.0f64;
+    for t in 0..landing + 100 {
+        w.step(POGO | if Some(t) == press { JUMP } else { 0 });
+        if t >= landing {
+            apex = apex.max(w.p.b.y - ground);
+        }
+    }
+    apex
+}
+
+#[test]
+fn a_jump_tapped_just_before_a_pogo_lands_gives_the_high_bounce() {
+    let landing = pogo_landing_tick();
+    assert!(
+        pogo_apex_with_tap(None, landing) < 2.5,
+        "no tap is the short bounce"
+    );
+    // 0.12 s is 7.2 ticks: a tap up to 6 ticks early counts, and so does one on the landing tick itself.
+    for early in 0..=6 {
+        let apex = pogo_apex_with_tap(Some(landing - early), landing);
+        assert!(
+            apex > 6.0 && apex < 7.2,
+            "tap {early} ticks early: apex {apex}"
+        );
+    }
+    // A tap well before the landing is forgotten.
+    assert!(pogo_apex_with_tap(Some(landing - 10), landing) < 2.5);
+}
+
+#[test]
+fn a_jump_tapped_just_after_a_low_pogo_bounce_upgrades_it() {
+    let landing = pogo_landing_tick();
+    // 0.08 s is 4.8 ticks: a tap on any of the first 4 ticks after the landing carries on as the high bounce.
+    for late in 1..=4 {
+        let apex = pogo_apex_with_tap(Some(landing + late), landing);
+        assert!(
+            apex > 6.0 && apex < 7.2,
+            "tap {late} ticks late: apex {apex}"
+        );
+    }
+    // Later than the grace, it does nothing: the bounce stays short.
+    assert!(pogo_apex_with_tap(Some(landing + 9), landing) < 2.5);
+}
+
 #[test]
 fn spikes_and_chocolate_kill_and_death_costs_a_life() {
     let mut w = level(CRATER);
