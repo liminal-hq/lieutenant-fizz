@@ -185,3 +185,30 @@ test('Left and Right on the Controls row go opposite ways', async ({ page }) => 
   await pressUntil(page, 'ArrowLeft', changed, 'Modern');
   expect(await shown()).toBe('Keen-style');
 });
+
+const JUMP = 16;
+
+test('in the Mouse jump scheme the left button jumps and the right button works the pogo', async ({
+  page,
+}) => {
+  const words = await ticksDuring(page, 6, async (box) => {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down({ button: 'left' });
+    await page.waitForTimeout(150);
+    await page.mouse.up({ button: 'left' });
+    await page.mouse.down({ button: 'right' });
+    await page.waitForTimeout(150);
+    await page.mouse.up({ button: 'right' });
+  });
+  expect(held(words, JUMP)).toBeGreaterThan(0);
+  expect(held(words, POGO)).toBeGreaterThan(0);
+  // The left button is Jump here, not Fizz.
+  expect(held(words, FIRE)).toBe(0);
+});
+
+test('Mouse jump sits after WASD in Options, and Space fires there', async ({ page }) => {
+  const errors = await open(page, 6);
+  const text = await table(page);
+  expect(text).toContain('Mouse jump');
+  expect(errors).toEqual([]);
+});

@@ -79,7 +79,8 @@ describe('options storage', () => {
     // A saved Mouse, which has become part of WASD, reads as WASD.
     expect(parseOptions('{"v":1,"layout":3}').layout).toBe(2);
     // One that is not a layout is the default, not the first.
-    expect(parseOptions('{"v":1,"layout":6}').layout).toBe(1);
+    expect(parseOptions('{"v":1,"layout":6}').layout).toBe(6);
+    expect(parseOptions('{"v":1,"layout":7}').layout).toBe(1);
     expect(parseOptions('{"v":1,"layout":-1}').layout).toBe(1);
   });
 
@@ -220,13 +221,15 @@ describe('stepOption', () => {
   it('wraps choices around in both directions', () => {
     expect(stepOption(DEFAULT_OPTIONS, 'motion', -1).motion).toBe(2);
     expect(stepOption({ ...DEFAULT_OPTIONS, motion: 2 }, 'motion', 1).motion).toBe(0);
-    // Right and Left go opposite ways through Keen-style, Modern, WASD, Left hand and Right hand.
+    // Right and Left go opposite ways through Keen-style, Modern, WASD, Mouse jump, Left hand and Right hand.
     expect(stepOption(DEFAULT_OPTIONS, 'layout', 1).layout).toBe(2);
     expect(stepOption(DEFAULT_OPTIONS, 'layout', -1).layout).toBe(0);
     expect(stepOption({ ...DEFAULT_OPTIONS, layout: 5 }, 'layout', 1).layout).toBe(0);
     expect(stepOption({ ...DEFAULT_OPTIONS, layout: 0 }, 'layout', -1).layout).toBe(5);
-    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 2 }, 'layout', 1).layout).toBe(4);
-    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 4 }, 'layout', -1).layout).toBe(2);
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 2 }, 'layout', 1).layout).toBe(6);
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 6 }, 'layout', 1).layout).toBe(4);
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 4 }, 'layout', -1).layout).toBe(6);
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 6 }, 'layout', -1).layout).toBe(2);
     expect(stepOption(DEFAULT_OPTIONS, 'text', 1).text).toBe(1);
   });
 

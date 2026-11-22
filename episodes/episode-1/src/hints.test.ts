@@ -244,6 +244,12 @@ describe('controlsTable on a keyboard or gamepad', () => {
     expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(3, a))).toEqual(
       ['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(2, a)),
     );
+    // Mouse jump swaps WASD's jump and Fizz: the left button jumps, Space fires.
+    expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(6, a))).toEqual([
+      '{[J]} {[Left click]}',
+      '{[K]} {[Right click]}',
+      '{Space}',
+    ]);
     expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(4, a))).toEqual([
       '{Space}',
       '{[Q]}',

@@ -101,13 +101,14 @@ The mode is a simulation setting (`State.NORMAL`, 0 for Expert and 1 for Normal)
 | Boss | Cocoa Colossus | Hover → drop globs → slam → charge → overheats with dome open | 3 hits while the dome is open |
 
 ## Controls
-The keyboard has five schemes, chosen under Options › Controls (Left and Right step opposite ways through them); Modern is the default. Every scheme moves with the arrow keys or WASD (W and S also look up and down, and aim Fizz). A scheme chooses the keys for Jump, Pogo and Fizz.
+The keyboard has six schemes, chosen under Options › Controls (Left and Right step opposite ways through them); Modern is the default. Every scheme moves with the arrow keys or WASD (W and S also look up and down, and aim Fizz). A scheme chooses the keys for Jump, Pogo and Fizz.
 
 | Scheme | Jump | Pogo | Fizz | Suits |
 |---|---|---|---|---|
 | Modern (default) | Z | X | C or Space | Arrow keys and three keys under the left hand, with Space as a second Fizz key so the thumb can fire; no modifier keys |
 | Keen-style | Ctrl | Alt | Space | The original's keys; Ctrl and Alt are browser and desktop shortcuts, so it is not the default |
 | WASD | Space | K or Right click | J or Left click | Left hand moves, thumb jumps, right hand on J and K, or on the mouse: the right button works the pogo and the left one fires |
+| Mouse jump | J or Left click | K or Right click | Space | WASD moves and the mouse jumps: the left button jumps (hold it for the high pogo bounce), the right one works the pogo and Space fires; J and K are keyboard backups. WASD with Jump and Fizz swapped, for players who reach for the mouse to jump while pogoing |
 | Left hand | Space | Q | E | Everything under the left hand: WASD, Space, Q and E |
 | Right hand | , | . | / | Everything under the right hand: the arrow keys and the three keys beside them |
 

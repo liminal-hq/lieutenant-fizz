@@ -37,7 +37,7 @@ const WASD = ['KeyW', 'KeyA', 'KeyS', 'KeyD'] as const;
 
 /**
  * The schemes, in the order Options steps through them. A saved choice is a scheme's `id`, not its place in this
- * list, so Keen-style (0) and Modern (1) keep the numbers the old layouts had.
+ * list, so Keen-style (0) and Modern (1) keep the numbers the old layouts had and Mouse jump (6) can sit after WASD.
  */
 export const KEY_SCHEMES: readonly KeyScheme[] = [
   {
@@ -66,6 +66,16 @@ export const KEY_SCHEMES: readonly KeyScheme[] = [
     pogo: ['KeyK'],
     fire: ['KeyJ'],
     mouse: { fire: 0, pogo: 2 },
+    move: WASD,
+  },
+  {
+    id: 6,
+    name: 'Mouse jump',
+    note: 'WASD moves, the left mouse button jumps (hold it for the high pogo bounce), the right one works the pogo and Space fires. J and K are keyboard backups for jump and the pogo.',
+    jump: ['KeyJ'],
+    pogo: ['KeyK'],
+    fire: ['Space'],
+    mouse: { jump: 0, pogo: 2 },
     move: WASD,
   },
   {
