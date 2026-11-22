@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { modeName } from './difficulty';
 import type { LevelInfo } from './story';
 import type { MenuItem } from './ui';
 
@@ -60,7 +61,7 @@ export function createSequenceMatcher(
 }
 
 /** What a Debug menu row does. The game maps each to its own code. */
-export type DebugAction = 'warp' | 'inputTest';
+export type DebugAction = 'warp' | 'inputTest' | 'mode';
 
 /** One row of the Debug menu. Add a row here to add a debug tool. */
 export interface DebugEntry {
@@ -73,15 +74,20 @@ export interface DebugEntry {
 export const DEBUG_ENTRIES: readonly DebugEntry[] = [
   { id: 'debug:warp', label: 'Warp to level', action: 'warp' },
   { id: 'debug:inputTest', label: 'Input test', action: 'inputTest' },
+  { id: 'debug:mode', label: 'Mode', action: 'mode' },
 ];
 
 /** The id of Back on both Debug screens. */
 export const DEBUG_BACK_ID = 'back';
 
-/** The Debug menu: its entries, then Back. */
-export function debugItems(): MenuItem[] {
+/** The Debug menu: its entries, then Back. The Mode row shows the mode in use (`normal`) and flips it. */
+export function debugItems(normal = false): MenuItem[] {
   return [
-    ...DEBUG_ENTRIES.map((e): MenuItem => ({ id: e.id, label: e.label })),
+    ...DEBUG_ENTRIES.map((e): MenuItem => ({
+      id: e.id,
+      label: e.label,
+      ...(e.action === 'mode' ? { value: modeName(normal) } : {}),
+    })),
     { id: DEBUG_BACK_ID, label: 'Back' },
   ];
 }

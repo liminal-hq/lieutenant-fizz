@@ -187,6 +187,8 @@ export class Replayer {
     sim.set(State.SCORE, entry.score);
     sim.set(State.NEXT_LIFE, entry.next);
     sim.set(State.DONE_MASK, entry.done);
+    // The mode decides how the level is built, so it is set before the level is entered.
+    sim.set(State.NORMAL, entry.mode === 'normal' ? 1 : 0);
     if (entry.pogoH !== null) sim.set(State.POGO_HEIGHT, entry.pogoH);
     // A step with no mode set only takes the input, so the sim's previous input is what the entering step held.
     sim.x.enter_none();

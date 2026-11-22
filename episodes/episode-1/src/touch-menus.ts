@@ -37,6 +37,7 @@ export type SubScreen =
   | 'debug'
   | 'debugWarp'
   | 'inputTest'
+  | 'mode'
   | null;
 
 export interface TouchFaces {

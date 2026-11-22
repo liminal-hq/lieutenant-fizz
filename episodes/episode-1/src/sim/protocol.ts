@@ -93,6 +93,8 @@ export const State = {
   DEATH_CAUSE: 24,
   /** What killed him (read-only): the tile id for spikes, chocolate and molten metal, the enemy kind for an enemy or a puff. */
   DEATH_DETAIL: 25,
+  /** The difficulty mode: 0 is Expert (the default), 1 is Normal. Set it after `game_new` and before a level is entered. */
+  NORMAL: 26,
 } as const;
 
 /** The values of `State.DEATH_CAUSE`: 0 while alive, or when the cause is not known. */

@@ -78,12 +78,18 @@ describe('the debug key sequence', () => {
 });
 
 describe('the debug menu rows', () => {
-  it('lists Warp to level and Input test, then Back', () => {
+  it('lists Warp to level, Input test and Mode, then Back', () => {
     const items = debugItems();
-    expect(items.map((i) => i.label)).toEqual(['Warp to level', 'Input test', 'Back']);
+    expect(items.map((i) => i.label)).toEqual(['Warp to level', 'Input test', 'Mode', 'Back']);
     expect(debugActionOf(items[0]?.id)).toBe('warp');
     expect(debugActionOf(items[1]?.id)).toBe('inputTest');
+    expect(debugActionOf(items[2]?.id)).toBe('mode');
     expect(debugActionOf('back')).toBeNull();
+  });
+
+  it('shows the mode in use on the Mode row', () => {
+    expect(debugItems(false)[2]?.value).toBe('Expert');
+    expect(debugItems(true)[2]?.value).toBe('Normal');
   });
 
   it('lists every level by name and number, in table order, then Back', () => {

@@ -29,13 +29,14 @@ const progress: Progress = {
   ammo: 7,
   doneMask: 3,
   played: 1520,
+  mode: 'normal',
   map: { x: 12.2, y: 29 },
 };
 
 describe('save', () => {
   it('round-trips progress', () => {
     const parsed = parseSave(serialise(progress, 123));
-    expect(parsed).toEqual({ v: 3, at: 123, progress });
+    expect(parsed).toEqual({ v: 4, at: 123, progress });
   });
 
   it('accepts the whole level range and the secret flag, and loads three-level saves', () => {
@@ -47,8 +48,9 @@ describe('save', () => {
   it('rejects malformed, tampered or out-of-range saves', () => {
     expect(parseSave(null)).toBeNull();
     expect(parseSave('not json')).toBeNull();
-    expect(parseSave('{"v":4,"at":1,"progress":{}}')).toBeNull();
+    expect(parseSave('{"v":5,"at":1,"progress":{}}')).toBeNull();
     expect(parseSave('{"v":3,"at":1,"progress":{}}')).toBeNull();
+    expect(parseSave('{"v":4,"at":1,"progress":{}}')).toBeNull();
     expect(parseSave(serialise({ ...progress, lives: -1 }))).toBeNull();
     expect(parseSave(serialise({ ...progress, lives: 1e9 }))).toBeNull();
     expect(parseSave(serialise({ ...progress, doneMask: 0x10000 }))).toBeNull();
@@ -71,9 +73,9 @@ describe('save', () => {
     expect(parsed?.progress.map).toBeUndefined();
   });
 
-  it('writes version 3 and keeps the map position and time played', () => {
+  it('writes version 4 and keeps the map position and time played', () => {
     const parsed = parseSave(serialise(progress, 5));
-    expect(parsed?.v).toBe(3);
+    expect(parsed?.v).toBe(4);
     expect(parsed?.progress.map).toEqual(progress.map);
     expect(parsed?.progress.played).toBe(1520);
   });
@@ -81,10 +83,32 @@ describe('save', () => {
   it('migrates a version 2 save: map kept, no time played', () => {
     const { played: _played, ...before } = progress;
     const parsed = parseSave(JSON.stringify({ v: 2, at: 4, progress: before }));
-    expect(parsed?.v).toBe(3);
+    expect(parsed?.v).toBe(SAVE_VERSION);
     expect(parsed?.at).toBe(4);
     expect(parsed?.progress.map).toEqual(progress.map);
     expect(parsed?.progress.played).toBe(0);
+  });
+
+  it('round-trips both modes and loads saves from before version 4 as Expert', () => {
+    for (const mode of ['normal', 'expert'] as const) {
+      expect(parseSave(serialise({ ...progress, mode }, 1))?.progress.mode).toBe(mode);
+    }
+    const { mode: _mode, ...before } = progress;
+    for (const v of [1, 2, 3]) {
+      const parsed = parseSave(JSON.stringify({ v, at: 1, progress: { ...before, played: 5 } }));
+      expect(parsed?.v).toBe(SAVE_VERSION);
+      expect(parsed?.progress.mode).toBe('expert');
+    }
+    // A version 4 save has to name a mode it knows.
+    expect(parseSave(JSON.stringify({ v: 4, at: 1, progress: before }))).toBeNull();
+    expect(
+      parseSave(JSON.stringify({ v: 4, at: 1, progress: { ...before, mode: 'hard' } })),
+    ).toBeNull();
+    // A mode on an older save is not trusted: it did not exist when that save was written.
+    expect(
+      parseSave(JSON.stringify({ v: 3, at: 1, progress: { ...progress, mode: 'normal' } }))
+        ?.progress.mode,
+    ).toBe('expert');
   });
 
   it('rejects a timestamp outside the range a Date can hold', () => {
