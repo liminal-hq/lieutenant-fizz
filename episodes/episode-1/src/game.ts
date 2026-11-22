@@ -103,6 +103,11 @@ import {
 } from '@lieutenant-fizz/engine/input';
 import { FixedStepper, InstanceWriter } from '@lieutenant-fizz/engine/instances';
 import { watchLayoutMap } from '@lieutenant-fizz/engine/key-labels';
+import {
+  effectiveScheme,
+  mouseAvailable,
+  watchMouseAvailable,
+} from '@lieutenant-fizz/engine/key-schemes';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
 import { frameView, type FrameView, type PixelMode } from '@lieutenant-fizz/engine/view-scale';
@@ -488,6 +493,9 @@ export class Game {
   /** The player's keyboard layout where the browser gives one, so the hints name keys as they are printed. */
   private keyMap: ReadonlyMap<string, string> | null = null;
   private unwatchKeyMap: () => void = () => {};
+  /** Whether the device has a mouse or trackpad. Without one the Mouse key scheme is not offered and a saved choice of it plays as Modern. */
+  private hasMouse = true;
+  private unwatchMouse: () => void = () => {};
   /** The Controller screen's listening state. */
   private remap: RemapState = IDLE;
   /** When Reset had its first tap (in `performance.now()` milliseconds), or null. */
@@ -721,6 +729,17 @@ export class Game {
     // `?debug&latch=off` turns the fast pad polling and the press latches off, to compare with the old read.
     const query = new URLSearchParams(window.location.search);
     if (query.has('debug') && query.get('latch') === 'off') this.input.setLatch(false);
+    // `?debug&mouse=on|off` stands in for the device's pointers in browser checks.
+    const mouseQuery = query.has('debug') ? query.get('mouse') : null;
+    this.hasMouse = mouseQuery === 'on' ? true : mouseQuery === 'off' ? false : mouseAvailable();
+    if (mouseQuery === null) {
+      this.unwatchMouse = watchMouseAvailable((has) => {
+        if (has === this.hasMouse) return;
+        this.hasMouse = has;
+        this.applySettings(false);
+        this.syncUi();
+      });
+    }
     this.forcedTouch = options.touch ?? false;
     this.forcedBack = options.back ?? false;
     this.fullscreenUrl = options.fullscreen;
@@ -991,6 +1010,7 @@ export class Game {
     this.keepAwake.dispose();
     this.fsControl.dispose();
     this.unwatchKeyMap();
+    this.unwatchMouse();
     window.removeEventListener('pointerdown', this.onTouchPointer, { capture: true });
     this.ui.stage.removeEventListener('contextmenu', this.onContextMenu);
     window.removeEventListener('pointermove', this.onMouseMove);
@@ -1661,7 +1681,7 @@ export class Game {
     this.audio.setSfx(o.sfx > 0);
     this.audio.setSfxStyle(sfxVersionOf(o));
     this.opts.captions = o.captions;
-    this.input.setKeyScheme(o.layout);
+    this.input.setKeyScheme(effectiveScheme(o.layout, this.hasMouse));
     const before = this.reducedMotion;
     this.reducedMotion =
       this.reducedForced ??
@@ -1812,7 +1832,7 @@ export class Game {
     const device: InputDevice = this.input.device;
     this.ui.setHintContext({
       device,
-      layout: this.settings.layout,
+      layout: effectiveScheme(this.settings.layout, this.hasMouse),
       keyMap: this.keyMap,
       fullscreen: this.fullscreenOffered(),
       fullscreenButton: this.fullscreenButtonOffered(),
@@ -2135,7 +2155,7 @@ export class Game {
           ? 'On'
           : 'Off'
         : key === 'layout'
-          ? (LAYOUTS[o.layout] ?? '')
+          ? (LAYOUTS[effectiveScheme(o.layout, this.hasMouse)] ?? '')
           : key === 'text'
             ? (TEXT_SIZES[o.text] ?? '')
             : (MOTIONS[o.motion] ?? '');
@@ -2436,7 +2456,7 @@ export class Game {
   }
 
   private step(key: SettingKey, d: number, wrapMeter: boolean): void {
-    const next = stepOption(this.settings, key, d, wrapMeter);
+    const next = stepOption(this.settings, key, d, wrapMeter, this.hasMouse);
     if (next[key] === this.settings[key]) return;
     this.settings = next;
     this.menuSound.cue('change');
@@ -3840,7 +3860,7 @@ export class Game {
         input: this.input,
         mount: (node) => this.ui.mount(node),
         leave: () => this.closeSub(),
-        layout: () => this.settings.layout,
+        layout: () => effectiveScheme(this.settings.layout, this.hasMouse),
         family: () => this.padFamily(),
         placed: () => {
           const key = `${window.innerWidth}x${window.innerHeight}`;

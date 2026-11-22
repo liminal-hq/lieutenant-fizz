@@ -108,7 +108,7 @@ The keyboard has six schemes, chosen under Options › Controls; Modern is the d
 | Modern (default) | Z | X | C or Space | Arrow keys and three keys under the left hand, with Space as a second Fizz key so the thumb can fire; no modifier keys |
 | Keen-style | Ctrl | Alt | Space | The original's keys; Ctrl and Alt are browser and desktop shortcuts, so it is not the default |
 | WASD | Space | K | J | Left hand moves, thumb jumps, right hand on J and K |
-| Mouse | Space | Right click | Left click | WASD and Space with the mouse buttons for Pogo and Fizz |
+| Mouse | Space | Right click | Left click | WASD and Space with the mouse buttons for Pogo and Fizz; offered only where the device has a mouse or trackpad |
 | Left hand | Space | Q | E | Everything under the left hand: WASD, Space, Q and E |
 | Right hand | , | . | / | Everything under the right hand: the arrow keys and the three keys beside them |
 

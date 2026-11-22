@@ -20,7 +20,7 @@ import {
   writeOptionsFile,
   type Scope,
 } from '@lieutenant-fizz/engine/options-file';
-import { DEFAULT_KEY_SCHEME, KEY_SCHEMES } from '@lieutenant-fizz/engine/key-schemes';
+import { DEFAULT_KEY_SCHEME, KEY_SCHEMES, stepScheme } from '@lieutenant-fizz/engine/key-schemes';
 import type { AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import type { KeyValueStorage } from '@lieutenant-fizz/engine/storage';
 
@@ -213,8 +213,6 @@ export function reducedMotion(o: Pick<Options, 'motion'>, system: boolean): bool
   return o.motion === 1 || (o.motion === 0 && system);
 }
 
-const mod = (v: number, n: number): number => ((v % n) + n) % n;
-
 const GLOBAL_STEP_KEYS: readonly GlobalKey[] = [
   'music',
   'sfx',
@@ -231,13 +229,20 @@ const GLOBAL_STEP_KEYS: readonly GlobalKey[] = [
 
 /**
  * Changes one option by a step: meters clamp between 0 and 8, and choices wrap around. `wrapMeter`
- * lets Enter on a meter go from full back to silent, as in the design.
+ * lets Enter on a meter go from full back to silent, as in the design. `hasMouse` is whether the device has a mouse
+ * or trackpad; without one the layout choice skips the Mouse scheme.
  */
-export function stepOption(o: Options, key: SettingKey, delta: number, wrapMeter = false): Options {
+export function stepOption(
+  o: Options,
+  key: SettingKey,
+  delta: number,
+  wrapMeter = false,
+  hasMouse = true,
+): Options {
   if (key === 'captions') return { ...o, captions: !o.captions };
   if (key === 'lab') return { ...o, lab: !o.lab };
   if (key === 'hapticsLab') return { ...o, hapticsLab: !o.hapticsLab };
-  if (key === 'layout') return { ...o, layout: mod(o.layout + delta, LAYOUTS.length) };
+  if (key === 'layout') return { ...o, layout: stepScheme(o.layout, delta, hasMouse) };
   if (GLOBAL_STEP_KEYS.includes(key)) {
     return {
       ...o,

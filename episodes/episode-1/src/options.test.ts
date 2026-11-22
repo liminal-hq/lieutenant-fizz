@@ -215,6 +215,19 @@ describe('stepOption', () => {
     expect(stepOption({ ...DEFAULT_OPTIONS, music: 0 }, 'music', -1, true).music).toBe(8);
   });
 
+  it('skips the Mouse layout when the device has no mouse', () => {
+    const mouse = LAYOUTS.indexOf('Mouse');
+    const at = (layout: number, delta: number): number =>
+      stepOption({ ...DEFAULT_OPTIONS, layout }, 'layout', delta, false, false).layout;
+    expect(at(mouse - 1, 1)).toBe(mouse + 1);
+    expect(at(mouse + 1, -1)).toBe(mouse - 1);
+    // A saved Mouse choice steps on to a layout that is shown.
+    expect(at(mouse, 1)).toBe(mouse + 1);
+    expect(at(mouse, -1)).toBe(mouse - 1);
+    // With a mouse it is one of the stops.
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: mouse - 1 }, 'layout', 1).layout).toBe(mouse);
+  });
+
   it('wraps choices around in both directions', () => {
     expect(stepOption(DEFAULT_OPTIONS, 'motion', -1).motion).toBe(2);
     expect(stepOption({ ...DEFAULT_OPTIONS, motion: 2 }, 'motion', 1).motion).toBe(0);
