@@ -69,7 +69,8 @@ describe('action names', () => {
     expect(keyActions('Space', '', 2)).toEqual(['Jump']);
     expect(keyActions('KeyJ', '', 2)).toEqual(['Fizz']);
     expect(keyActions('Comma', '', 5)).toEqual(['Jump']);
-    expect(keyActions('Space')).toEqual([]);
+    expect(keyActions('Space')).toEqual(['Fizz']);
+    expect(keyActions('Space', '', 5)).toEqual([]);
     expect(keyActions('ArrowUp')).toEqual(['Up']);
     expect(keyActions('Escape')).toEqual(['Pause']);
     expect(keyActions('KeyP')).toEqual(['Pause']);

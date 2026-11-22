@@ -20,7 +20,11 @@ import {
   writeOptionsFile,
   type Scope,
 } from '@lieutenant-fizz/engine/options-file';
-import { DEFAULT_KEY_SCHEME, KEY_SCHEMES } from '@lieutenant-fizz/engine/key-schemes';
+import {
+  DEFAULT_KEY_SCHEME,
+  normaliseScheme,
+  stepScheme,
+} from '@lieutenant-fizz/engine/key-schemes';
 import type { AudioMode } from '@lieutenant-fizz/engine/sound-field';
 import type { KeyValueStorage } from '@lieutenant-fizz/engine/storage';
 
@@ -34,9 +38,6 @@ export const OPTIONS_KEY = 'lf-ep1-options-v1';
 
 /** This episode's name in the shared options file. */
 export const EPISODE_ID = 'episode-1';
-
-/** The names of the keyboard schemes Options › Controls steps through, in the engine's order. */
-export const LAYOUTS: readonly string[] = KEY_SCHEMES.map((s) => s.name);
 
 /** The options only this episode has: they are saved in its own section, never as an app-wide value. */
 export const EPISODE_KEYS = ['captions', 'layout', 'lab', 'hapticsLab'] as const;
@@ -68,16 +69,13 @@ export const DEFAULT_OPTIONS: Readonly<Options> = {
   hapticsLab: false,
 };
 
-const int = (v: unknown, lo: number, hi: number, fallback: number): number =>
-  typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : fallback;
-
 /** The options in a stored record; any missing or invalid field falls back to its default. */
 export function parseOptionsRaw(raw: Readonly<Record<string, unknown>> | null): Options {
   const d = DEFAULT_OPTIONS;
   return {
     ...parseGlobalOptions(raw),
     captions: typeof raw?.['captions'] === 'boolean' ? raw['captions'] : d.captions,
-    layout: int(raw?.['layout'], 0, LAYOUTS.length - 1, d.layout),
+    layout: normaliseScheme(raw?.['layout']),
     lab: typeof raw?.['lab'] === 'boolean' ? raw['lab'] : d.lab,
     hapticsLab: typeof raw?.['hapticsLab'] === 'boolean' ? raw['hapticsLab'] : d.hapticsLab,
   };
@@ -213,8 +211,6 @@ export function reducedMotion(o: Pick<Options, 'motion'>, system: boolean): bool
   return o.motion === 1 || (o.motion === 0 && system);
 }
 
-const mod = (v: number, n: number): number => ((v % n) + n) % n;
-
 const GLOBAL_STEP_KEYS: readonly GlobalKey[] = [
   'music',
   'sfx',
@@ -237,7 +233,7 @@ export function stepOption(o: Options, key: SettingKey, delta: number, wrapMeter
   if (key === 'captions') return { ...o, captions: !o.captions };
   if (key === 'lab') return { ...o, lab: !o.lab };
   if (key === 'hapticsLab') return { ...o, hapticsLab: !o.hapticsLab };
-  if (key === 'layout') return { ...o, layout: mod(o.layout + delta, LAYOUTS.length) };
+  if (key === 'layout') return { ...o, layout: stepScheme(o.layout, delta) };
   if (GLOBAL_STEP_KEYS.includes(key)) {
     return {
       ...o,

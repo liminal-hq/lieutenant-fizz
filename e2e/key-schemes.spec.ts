@@ -6,7 +6,7 @@
 // The table draws keys as pixel-font glyphs, so these compare rows with the default's; the unit tests of `hints.ts` check the exact keys.
 
 import { expect, test, type Page } from '@playwright/test';
-import { settle } from './keys';
+import { pressUntil, settle } from './keys';
 
 type Lf = { debugShow(s: string): void };
 
@@ -85,5 +85,130 @@ test('a key is named as it is printed on the player’s keyboard', async ({ page
   // On AZERTY the key in the Z position types W.
   const errors = await open(page, undefined, [['KeyZ', 'w']]);
   expect(await jumpRow(page)).not.toBe(base);
+  expect(errors).toEqual([]);
+});
+
+/** The input word of each fixed tick while `act` runs in a level, with the scheme's index saved first. */
+async function ticksDuring(
+  page: Page,
+  layout: number,
+  act: (box: { x: number; y: number; width: number; height: number }) => Promise<void>,
+): Promise<number[]> {
+  await page.addInitScript(
+    ([key, saved]) =>
+      localStorage.setItem(
+        key as string,
+        JSON.stringify({ v: 1, global: {}, episodes: { 'episode-1': { layout: saved } } }),
+      ),
+    [OPTIONS_FILE, layout] as const,
+  );
+  await page.goto('/?debug');
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+    timeout: 20_000,
+  });
+  type Log = { debugShow(s: string): void; debugPollLog(on: boolean): number[] };
+  await page.evaluate(() => (window as unknown as { __lf: Log }).__lf.debugShow('play'));
+  await settle(page, 10);
+  const box = (await page.locator('canvas').first().boundingBox())!;
+  await page.evaluate(() => (window as unknown as { __lf: Log }).__lf.debugPollLog(true));
+  await act(box);
+  await page.waitForTimeout(100);
+  return page.evaluate(() => (window as unknown as { __lf: Log }).__lf.debugPollLog(false));
+}
+
+const FIRE = 64;
+const POGO = 32;
+const held = (words: number[], bit: number): number => words.filter((w) => (w & bit) !== 0).length;
+
+test('in the WASD scheme the left button fires and the right button works the pogo, on the game only', async ({
+  page,
+}) => {
+  const words = await ticksDuring(page, 2, async (box) => {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down({ button: 'left' });
+    await page.waitForTimeout(150);
+    await page.mouse.up({ button: 'left' });
+    await page.mouse.down({ button: 'right' });
+    await page.waitForTimeout(150);
+    await page.mouse.up({ button: 'right' });
+  });
+  expect(held(words, FIRE)).toBeGreaterThan(0);
+  expect(held(words, POGO)).toBeGreaterThan(0);
+});
+
+test('in the Modern scheme the mouse does nothing', async ({ page }) => {
+  const words = await ticksDuring(page, 1, async (box) => {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down({ button: 'left' });
+    await page.waitForTimeout(150);
+    await page.mouse.up({ button: 'left' });
+    await page.mouse.down({ button: 'right' });
+    await page.waitForTimeout(150);
+    await page.mouse.up({ button: 'right' });
+  });
+  expect(held(words, FIRE)).toBe(0);
+  expect(held(words, POGO)).toBe(0);
+});
+
+test('a saved Mouse choice from before the mouse joined WASD shows as WASD', async ({ page }) => {
+  const errors = await open(page, 3);
+  const text = await table(page);
+  expect(text).toContain('WASD');
+  expect(text).not.toContain('Mouse');
+  expect(errors).toEqual([]);
+});
+
+test('Left and Right on the Controls row go opposite ways', async ({ page }) => {
+  await page.goto('/?debug');
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+    timeout: 20_000,
+  });
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('options'));
+  await settle(page, 4);
+  await pressUntil(
+    page,
+    'ArrowDown',
+    () => document.querySelector('#overlay .menu button.sel .lbl')?.textContent === 'Controls',
+  );
+  const value = page.locator('#overlay .menu button', { hasText: 'Controls' }).locator('.val');
+  const shown = async (): Promise<string> => (await value.innerText()).replace(/[◄►]/g, '').trim();
+  const changed = (before: string): boolean =>
+    document
+      .querySelector('#overlay .menu button.sel .val')
+      ?.textContent?.replace(/[◄►]/g, '')
+      .trim() !== before;
+  expect(await shown()).toBe('Modern');
+  await pressUntil(page, 'ArrowRight', changed, 'Modern');
+  expect(await shown()).toBe('WASD');
+  await pressUntil(page, 'ArrowLeft', changed, 'WASD');
+  expect(await shown()).toBe('Modern');
+  await pressUntil(page, 'ArrowLeft', changed, 'Modern');
+  expect(await shown()).toBe('Keen-style');
+});
+
+const JUMP = 16;
+
+test('in the Mouse jump scheme the left button jumps and the right button works the pogo', async ({
+  page,
+}) => {
+  const words = await ticksDuring(page, 6, async (box) => {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down({ button: 'left' });
+    await page.waitForTimeout(150);
+    await page.mouse.up({ button: 'left' });
+    await page.mouse.down({ button: 'right' });
+    await page.waitForTimeout(150);
+    await page.mouse.up({ button: 'right' });
+  });
+  expect(held(words, JUMP)).toBeGreaterThan(0);
+  expect(held(words, POGO)).toBeGreaterThan(0);
+  // The left button is Jump here, not Fizz.
+  expect(held(words, FIRE)).toBe(0);
+});
+
+test('Mouse jump sits after WASD in Options, and Space fires there', async ({ page }) => {
+  const errors = await open(page, 6);
+  const text = await table(page);
+  expect(text).toContain('Mouse jump');
   expect(errors).toEqual([]);
 });

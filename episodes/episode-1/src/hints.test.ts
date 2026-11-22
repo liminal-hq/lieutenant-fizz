@@ -216,7 +216,7 @@ describe('controlsTable on a keyboard or gamepad', () => {
       ['Move', '{[←]} {[→]}', 'D-pad / stick'],
       ['Jump', '{[Z]}', '{A}'],
       ['Pogo (toggle)', '{[X]}', '{B} {Y}'],
-      ['Fizz', '{[C]}', '{X} {RT}'],
+      ['Fizz', '{[C]} {Space}', '{X} {RT}'],
       ['Menu', '{Esc} {[P]} {[Pause]}', '{Start}'],
       ['Save / Load', '{F5} {F9}', 'Pause menu'],
     ]);
@@ -234,15 +234,21 @@ describe('controlsTable on a keyboard or gamepad', () => {
       '{Alt}',
       '{Space}',
     ]);
+    // WASD also takes the mouse buttons.
     expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(2, a))).toEqual([
       '{Space}',
-      '{[K]}',
-      '{[J]}',
+      '{[K]} {[Right click]}',
+      '{[J]} {[Left click]}',
     ]);
-    expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(3, a))).toEqual([
+    // A saved Mouse choice from before the mouse joined WASD reads as WASD.
+    expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(3, a))).toEqual(
+      ['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(2, a)),
+    );
+    // Mouse jump swaps WASD's jump and Fizz: the left button jumps, Space fires.
+    expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(6, a))).toEqual([
+      '{[J]} {[Left click]}',
+      '{[K]} {[Right click]}',
       '{Space}',
-      '{[Right click]}',
-      '{[Left click]}',
     ]);
     expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(4, a))).toEqual([
       '{Space}',

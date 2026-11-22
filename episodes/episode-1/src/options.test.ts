@@ -3,11 +3,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { KEY_SCHEMES, keyScheme } from '@lieutenant-fizz/engine/key-schemes';
 import { describe, expect, it } from 'vitest';
 import {
   audioChoice,
   DEFAULT_OPTIONS,
-  LAYOUTS,
   OPTIONS_KEY,
   parseOptions,
   readOptions,
@@ -69,15 +69,18 @@ describe('options storage', () => {
 
   it('plays with the Modern keys until another layout is chosen, and keeps a saved choice', () => {
     expect(DEFAULT_OPTIONS.layout).toBe(1);
-    expect(LAYOUTS[DEFAULT_OPTIONS.layout]).toBe('Modern');
+    expect(keyScheme(DEFAULT_OPTIONS.layout).name).toBe('Modern');
     expect(parseOptions('{"v":1}').layout).toBe(1);
     // Every layout, including the ones added after Keen-style and Modern, survives a round trip.
-    for (let layout = 0; layout < LAYOUTS.length; layout += 1) {
-      const saved = serialiseOptions({ ...DEFAULT_OPTIONS, layout });
-      expect(parseOptions(saved).layout).toBe(layout);
+    for (const { id } of KEY_SCHEMES) {
+      const saved = serialiseOptions({ ...DEFAULT_OPTIONS, layout: id });
+      expect(parseOptions(saved).layout).toBe(id);
     }
+    // A saved Mouse, which has become part of WASD, reads as WASD.
+    expect(parseOptions('{"v":1,"layout":3}').layout).toBe(2);
     // One that is not a layout is the default, not the first.
-    expect(parseOptions(`{"v":1,"layout":${LAYOUTS.length}}`).layout).toBe(1);
+    expect(parseOptions('{"v":1,"layout":6}').layout).toBe(6);
+    expect(parseOptions('{"v":1,"layout":7}').layout).toBe(1);
     expect(parseOptions('{"v":1,"layout":-1}').layout).toBe(1);
   });
 
@@ -218,13 +221,15 @@ describe('stepOption', () => {
   it('wraps choices around in both directions', () => {
     expect(stepOption(DEFAULT_OPTIONS, 'motion', -1).motion).toBe(2);
     expect(stepOption({ ...DEFAULT_OPTIONS, motion: 2 }, 'motion', 1).motion).toBe(0);
+    // Right and Left go opposite ways through Keen-style, Modern, WASD, Mouse jump, Left hand and Right hand.
     expect(stepOption(DEFAULT_OPTIONS, 'layout', 1).layout).toBe(2);
-    expect(stepOption({ ...DEFAULT_OPTIONS, layout: LAYOUTS.length - 1 }, 'layout', 1).layout).toBe(
-      0,
-    );
-    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 0 }, 'layout', -1).layout).toBe(
-      LAYOUTS.length - 1,
-    );
+    expect(stepOption(DEFAULT_OPTIONS, 'layout', -1).layout).toBe(0);
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 5 }, 'layout', 1).layout).toBe(0);
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 0 }, 'layout', -1).layout).toBe(5);
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 2 }, 'layout', 1).layout).toBe(6);
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 6 }, 'layout', 1).layout).toBe(4);
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 4 }, 'layout', -1).layout).toBe(6);
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 6 }, 'layout', -1).layout).toBe(2);
     expect(stepOption(DEFAULT_OPTIONS, 'text', 1).text).toBe(1);
   });
 

@@ -86,7 +86,7 @@ A newer APK installs over an older one from the same release line. Once the game
 
 ## Controls
 
-- **Keyboard:** Modern by default (Z jump, X pogo, C fizz), with the arrow keys or WASD to move. Options > Controls also has Keen-style (Ctrl, Alt, Space), WASD (Space, K, J), Mouse (Space, with right and left click), Left hand (Space, Q, E) and Right hand (comma, period, slash). Esc or P pauses.
+- **Keyboard:** Modern by default (Z jump, X pogo, C or Space fizz), with the arrow keys or WASD to move. Options > Controls also has Keen-style (Ctrl, Alt, Space), WASD (Space, K, J, with right click for the pogo and left click for fizz), Mouse jump (the same with jump and fizz swapped: left click jumps, Space fires), Left hand (Space, Q, E) and Right hand (comma, period, slash). Esc or P pauses.
 - **Gamepad:** plug in or pair a controller and press a button. Remap any button under **Options > Controller**; several buttons can share one action.
 - **Touch:** on a phone or tablet the on-screen D-pad, Jump, Pogo and Fizz buttons appear. Resize and move them under **Options > Touch controls**. On Android the system Back gesture goes back a screen or opens the pause menu.
 - **Haptics:** on Android, vibration strength is under **Options > Haptics**; with a PlayStation controller on Linux, the same screen sets the controller's Rumble strength.
