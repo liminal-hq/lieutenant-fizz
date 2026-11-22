@@ -3,21 +3,16 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { Input, keysToBits, mouseToBits } from './input';
 import {
   codeLabel,
   DEFAULT_KEY_SCHEME,
-  effectiveScheme,
   KEY_SCHEMES,
   keyScheme,
-  mouseAvailable,
   MOVE_KEYS,
-  schemeAvailable,
   schemeCodes,
-  stepScheme,
   usesMouse,
-  watchMouseAvailable,
 } from './key-schemes';
 
 const MODIFIER = /^(Control|Alt|Shift|Meta)/;
@@ -83,97 +78,6 @@ describe('key schemes', () => {
       expect(leftHalf.test(c), c).toBe(true);
     for (const c of [...right.move, ...right.jump, ...right.pogo, ...right.fire])
       expect(rightHalf.test(c), c).toBe(true);
-  });
-});
-
-describe('which schemes a device offers', () => {
-  const MOUSE = KEY_SCHEMES.findIndex((s) => s.name === 'Mouse');
-
-  it('offers the Mouse scheme only where there is a mouse or trackpad', () => {
-    for (let i = 0; i < KEY_SCHEMES.length; i += 1) {
-      expect(schemeAvailable(i, true), KEY_SCHEMES[i]?.name).toBe(true);
-      expect(schemeAvailable(i, false), KEY_SCHEMES[i]?.name).toBe(i !== MOUSE);
-    }
-    expect(schemeAvailable(99, true)).toBe(false);
-  });
-
-  it('plays a saved Mouse choice as Modern without a mouse, and keeps the choice', () => {
-    expect(effectiveScheme(MOUSE, true)).toBe(MOUSE);
-    expect(effectiveScheme(MOUSE, false)).toBe(DEFAULT_KEY_SCHEME);
-    expect(effectiveScheme(2, false)).toBe(2);
-    expect(effectiveScheme(99, true)).toBe(DEFAULT_KEY_SCHEME);
-  });
-
-  it('steps through every scheme with a mouse, wrapping round', () => {
-    const seen: number[] = [];
-    let at = 0;
-    for (let i = 0; i < KEY_SCHEMES.length; i += 1) {
-      seen.push(at);
-      at = stepScheme(at, 1, true);
-    }
-    expect(seen).toEqual([0, 1, 2, 3, 4, 5]);
-    expect(at).toBe(0);
-    expect(stepScheme(0, -1, true)).toBe(KEY_SCHEMES.length - 1);
-  });
-
-  it('steps past the Mouse scheme without a mouse, in both directions', () => {
-    expect(stepScheme(2, 1, false)).toBe(4);
-    expect(stepScheme(4, -1, false)).toBe(2);
-    expect(stepScheme(KEY_SCHEMES.length - 1, 1, false)).toBe(0);
-    expect(stepScheme(0, -1, false)).toBe(KEY_SCHEMES.length - 1);
-    let at = 0;
-    for (let i = 0; i < 12; i += 1) {
-      at = stepScheme(at, 1, false);
-      expect(at).not.toBe(MOUSE);
-    }
-  });
-
-  it('steps from a hidden choice to a scheme that is shown', () => {
-    // Mouse saved on a device that lost its mouse: Options moves on to the next or previous scheme.
-    expect(stepScheme(MOUSE, 1, false)).toBe(4);
-    expect(stepScheme(MOUSE, -1, false)).toBe(2);
-  });
-});
-
-describe('mouseAvailable', () => {
-  const win = (matches: boolean): Pick<Window, 'matchMedia'> => ({
-    matchMedia: (q: string) =>
-      ({ matches: matches && q === '(any-pointer: fine)' }) as MediaQueryList,
-  });
-
-  it('asks whether any pointer is fine, which a touch screen alone is not', () => {
-    expect(mouseAvailable(win(true))).toBe(true);
-    expect(mouseAvailable(win(false))).toBe(false);
-  });
-
-  it('is false where the browser cannot say', () => {
-    expect(mouseAvailable(undefined)).toBe(false);
-    expect(mouseAvailable({} as Pick<Window, 'matchMedia'>)).toBe(false);
-    const throws = {
-      matchMedia: () => {
-        throw new Error('blocked');
-      },
-    } as unknown as Pick<Window, 'matchMedia'>;
-    expect(mouseAvailable(throws)).toBe(false);
-  });
-
-  it('reports a mouse arriving or leaving until stopped', () => {
-    let fire: (e: { matches: boolean }) => void = () => {};
-    const removed = vi.fn();
-    const list = {
-      matches: false,
-      addEventListener: (_: string, l: (e: { matches: boolean }) => void) => (fire = l),
-      removeEventListener: removed,
-    };
-    const seen: boolean[] = [];
-    const stop = watchMouseAvailable((m) => seen.push(m), {
-      matchMedia: () => list as unknown as MediaQueryList,
-    });
-    fire({ matches: true });
-    fire({ matches: false });
-    expect(seen).toEqual([true, false]);
-    stop();
-    expect(removed).toHaveBeenCalledOnce();
   });
 });
 

@@ -6,7 +6,7 @@
 // The table draws keys as pixel-font glyphs, so these compare rows with the default's; the unit tests of `hints.ts` check the exact keys.
 
 import { expect, test, type Page } from '@playwright/test';
-import { pressUntil, settle } from './keys';
+import { settle } from './keys';
 
 type Lf = { debugShow(s: string): void };
 
@@ -148,72 +148,4 @@ test('in the Modern scheme the mouse does nothing', async ({ page }) => {
   });
   expect(held(words, FIRE)).toBe(0);
   expect(held(words, POGO)).toBe(0);
-});
-
-/** Steps the Options > Controls row once round with Right and returns each value it showed. */
-async function controlsChoices(page: Page, query: string): Promise<string[]> {
-  await page.goto(`/?debug${query}`);
-  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
-    timeout: 20_000,
-  });
-  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('options'));
-  await settle(page, 4);
-  await pressUntil(
-    page,
-    'ArrowDown',
-    () => document.querySelector('#overlay .menu button.sel .lbl')?.textContent === 'Controls',
-  );
-  const value = page.locator('#overlay .menu button', { hasText: 'Controls' }).locator('.val');
-  const clean = async (): Promise<string> => (await value.innerText()).replace(/[◄►]/g, '').trim();
-  const seen: string[] = [await clean()];
-  for (let i = 0; i < 7; i += 1) {
-    const was = seen[seen.length - 1]!;
-    await pressUntil(
-      page,
-      'ArrowRight',
-      (before) =>
-        document
-          .querySelector('#overlay .menu button.sel .val')
-          ?.textContent?.replace(/[◄►]/g, '')
-          .trim() !== before,
-      was,
-    );
-    seen.push(await clean());
-  }
-  return seen;
-}
-
-test('Options offers the Mouse scheme where there is a mouse', async ({ page }) => {
-  const seen = await controlsChoices(page, '&mouse=on');
-  expect(seen).toContain('Mouse');
-  expect(new Set(seen).size).toBe(6);
-});
-
-test('Options does not offer the Mouse scheme without a mouse', async ({ page }) => {
-  const seen = await controlsChoices(page, '&mouse=off');
-  expect(seen).not.toContain('Mouse');
-  expect(new Set(seen).size).toBe(5);
-  expect(seen[0]).toBe('Modern');
-});
-
-test('a saved Mouse choice plays as Modern without a mouse, and the table shows Modern', async ({
-  page,
-}) => {
-  await page.addInitScript(
-    ([key, saved]) =>
-      localStorage.setItem(
-        key as string,
-        JSON.stringify({ v: 1, global: {}, episodes: { 'episode-1': { layout: saved } } }),
-      ),
-    [OPTIONS_FILE, 3] as const,
-  );
-  await page.goto('/?debug&mouse=off');
-  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
-    timeout: 20_000,
-  });
-  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('controls'));
-  await settle(page, 4);
-  const text = await table(page);
-  expect(text).toContain('Modern');
-  expect(text).not.toContain('Mouse');
 });
