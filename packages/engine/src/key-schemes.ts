@@ -48,10 +48,10 @@ export const KEY_SCHEMES: readonly KeyScheme[] = [
   },
   {
     name: 'Modern',
-    note: 'Arrow keys and three keys under the left hand. No modifier keys.',
+    note: 'Arrow keys and three keys under the left hand, with Space as a second Fizz key. No modifier keys.',
     jump: ['KeyZ'],
     pogo: ['KeyX'],
-    fire: ['KeyC'],
+    fire: ['KeyC', 'Space'],
     move: ARROWS,
   },
   {

@@ -138,7 +138,7 @@ A cross-platform pipeline for vibrant, high-fidelity EGA-style pixel art at nati
 
 ## 7. Input
 - Keyboard: six key schemes in `key-schemes.ts` (`KEY_SCHEMES`; an index is what Options saves, so Keen-style (0) and Modern (1) kept their places and new ones go on the end). Arrows and WASD move in every scheme; a scheme gives Jump, Pogo and Fizz their keys or mouse buttons:
-  - Keen-style: Ctrl, Alt, Space. Modern (the default): Z, X, C. WASD: Space, K, J. Left hand: Space, Q, E. Right hand: Comma, Period, Slash. Mouse: Space, right button, left button.
+  - Keen-style: Ctrl, Alt, Space. Modern (the default): Z, X, C, with Space as a second Fizz key. WASD: Space, K, J. Left hand: Space, Q, E. Right hand: Comma, Period, Slash. Mouse: Space, right button, left button.
   - Only the chosen scheme's keys act (`keysToBits(keys, scheme)`; `mouseToBits` for the mouse scheme, whose buttons count only on the game canvas, so clicks on menus stay clicks and the right button's context menu is suppressed there). The keys a scheme acts on are kept from the browser (`schemeCodes`), so Slash does not open quick find; Alt's release does not focus the menu bar outside Keen-style. `InputManager.setKeyScheme` picks the scheme and lets go of held keys.
   - No scheme but Keen-style uses a modifier key; the schemes are tested for that, for no key doing two things and for each one-handed scheme staying in its hand.
   - Labels: `codeLabel(code, layoutMap)` names a key for the player's keyboard from the browser's layout map; `key-labels.ts` (`readLayoutMap`, `watchLayoutMap`) reads it and follows `layoutchange`. Where the browser has no Keyboard API the labels are the US ones.

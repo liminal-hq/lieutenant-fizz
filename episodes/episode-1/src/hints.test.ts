@@ -216,7 +216,7 @@ describe('controlsTable on a keyboard or gamepad', () => {
       ['Move', '{[←]} {[→]}', 'D-pad / stick'],
       ['Jump', '{[Z]}', '{A}'],
       ['Pogo (toggle)', '{[X]}', '{B} {Y}'],
-      ['Fizz', '{[C]}', '{X} {RT}'],
+      ['Fizz', '{[C]} {Space}', '{X} {RT}'],
       ['Menu', '{Esc} {[P]} {[Pause]}', '{Start}'],
       ['Save / Load', '{F5} {F9}', 'Pause menu'],
     ]);

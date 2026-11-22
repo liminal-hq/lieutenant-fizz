@@ -79,18 +79,12 @@ describe('input mappings', () => {
     expect(keysToBits(new Set(['KeyZ']))).toBe(Input.JUMP);
     expect(keysToBits(new Set(['KeyX']))).toBe(Input.POGO);
     expect(keysToBits(new Set(['KeyC']))).toBe(Input.FIRE);
+    // Space is a second Fizz key, so the thumb can fire.
+    expect(keysToBits(new Set(['Space']))).toBe(Input.FIRE);
+    expect(keysToBits(new Set(['KeyC', 'Space']))).toBe(Input.FIRE);
     expect(keysToBits(new Set(['ArrowLeft', 'KeyW']))).toBe(Input.LEFT | Input.UP);
     // The keys of the other schemes do nothing in it, so a browser shortcut is never half a game key.
-    for (const code of [
-      'ControlLeft',
-      'AltLeft',
-      'Space',
-      'KeyJ',
-      'KeyK',
-      'KeyQ',
-      'KeyE',
-      'Comma',
-    ]) {
+    for (const code of ['ControlLeft', 'AltLeft', 'KeyJ', 'KeyK', 'KeyQ', 'KeyE', 'Comma']) {
       expect(keysToBits(new Set([code]))).toBe(0);
     }
   });
