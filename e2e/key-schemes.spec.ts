@@ -87,3 +87,65 @@ test('a key is named as it is printed on the player’s keyboard', async ({ page
   expect(await jumpRow(page)).not.toBe(base);
   expect(errors).toEqual([]);
 });
+
+/** The input word of each fixed tick while `act` runs in a level, with the scheme's index saved first. */
+async function ticksDuring(
+  page: Page,
+  layout: number,
+  act: (box: { x: number; y: number; width: number; height: number }) => Promise<void>,
+): Promise<number[]> {
+  await page.addInitScript(
+    ([key, saved]) =>
+      localStorage.setItem(
+        key as string,
+        JSON.stringify({ v: 1, global: {}, episodes: { 'episode-1': { layout: saved } } }),
+      ),
+    [OPTIONS_FILE, layout] as const,
+  );
+  await page.goto('/?debug');
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+    timeout: 20_000,
+  });
+  type Log = { debugShow(s: string): void; debugPollLog(on: boolean): number[] };
+  await page.evaluate(() => (window as unknown as { __lf: Log }).__lf.debugShow('play'));
+  await settle(page, 10);
+  const box = (await page.locator('canvas').first().boundingBox())!;
+  await page.evaluate(() => (window as unknown as { __lf: Log }).__lf.debugPollLog(true));
+  await act(box);
+  await page.waitForTimeout(100);
+  return page.evaluate(() => (window as unknown as { __lf: Log }).__lf.debugPollLog(false));
+}
+
+const FIRE = 64;
+const POGO = 32;
+const held = (words: number[], bit: number): number => words.filter((w) => (w & bit) !== 0).length;
+
+test('in the Mouse scheme the left button fires and the right button works the pogo, on the game only', async ({
+  page,
+}) => {
+  const words = await ticksDuring(page, 3, async (box) => {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down({ button: 'left' });
+    await page.waitForTimeout(150);
+    await page.mouse.up({ button: 'left' });
+    await page.mouse.down({ button: 'right' });
+    await page.waitForTimeout(150);
+    await page.mouse.up({ button: 'right' });
+  });
+  expect(held(words, FIRE)).toBeGreaterThan(0);
+  expect(held(words, POGO)).toBeGreaterThan(0);
+});
+
+test('in the Modern scheme the mouse does nothing', async ({ page }) => {
+  const words = await ticksDuring(page, 1, async (box) => {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down({ button: 'left' });
+    await page.waitForTimeout(150);
+    await page.mouse.up({ button: 'left' });
+    await page.mouse.down({ button: 'right' });
+    await page.waitForTimeout(150);
+    await page.mouse.up({ button: 'right' });
+  });
+  expect(held(words, FIRE)).toBe(0);
+  expect(held(words, POGO)).toBe(0);
+});
