@@ -88,8 +88,8 @@ describe('the debug menu rows', () => {
   });
 
   it('shows the mode in use on the Mode row', () => {
-    expect(debugItems(false)[1]?.value).toBe('Expert');
-    expect(debugItems(true)[1]?.value).toBe('Normal');
+    expect(debugItems(false)[2]?.value).toBe('Expert');
+    expect(debugItems(true)[2]?.value).toBe('Normal');
   });
 
   it('lists every level by name and number, in table order, then Back', () => {
