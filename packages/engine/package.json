@@ -59,6 +59,8 @@
     "./input": "./src/input.ts",
     "./input-test": "./src/input-test.ts",
     "./instances": "./src/instances.ts",
+    "./key-labels": "./src/key-labels.ts",
+    "./key-schemes": "./src/key-schemes.ts",
     "./keyboard-lock": "./src/keyboard-lock.ts",
     "./lifecycle": "./src/lifecycle.ts",
     "./lifecycle-policy": "./src/lifecycle-policy.ts",

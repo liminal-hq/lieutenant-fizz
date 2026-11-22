@@ -211,11 +211,11 @@ test('the keys play, pause and change the speed, and Esc takes the replay down',
     () => !(window as unknown as { __lf: Lf }).__lf.debugReplay?.playing,
   );
 
-  // Space is Fizz, which cycles the speed.
+  // C is Fizz in the Modern scheme, which cycles the speed.
   await expect(page.locator('#replay .replay-speed')).toHaveText('1x');
   await pressUntil(
     page,
-    'Space',
+    'KeyC',
     () => document.querySelector('#replay .replay-speed')?.textContent !== '1x',
   );
   await expect(page.locator('#replay .replay-speed')).toHaveText('2x');

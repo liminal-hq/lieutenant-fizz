@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   audioChoice,
   DEFAULT_OPTIONS,
+  LAYOUTS,
   OPTIONS_KEY,
   parseOptions,
   readOptions,
@@ -61,9 +62,23 @@ describe('options storage', () => {
 
   it('replaces only the invalid fields', () => {
     const got = parseOptions(
-      '{"v":1,"music":99,"sfx":2,"captions":"yes","layout":1,"text":-1,"motion":1}',
+      '{"v":1,"music":99,"sfx":2,"captions":"yes","layout":2,"text":-1,"motion":1}',
     );
-    expect(got).toEqual({ ...DEFAULT_OPTIONS, sfx: 2, layout: 1, motion: 1 });
+    expect(got).toEqual({ ...DEFAULT_OPTIONS, sfx: 2, layout: 2, motion: 1 });
+  });
+
+  it('plays with the Modern keys until another layout is chosen, and keeps a saved choice', () => {
+    expect(DEFAULT_OPTIONS.layout).toBe(1);
+    expect(LAYOUTS[DEFAULT_OPTIONS.layout]).toBe('Modern');
+    expect(parseOptions('{"v":1}').layout).toBe(1);
+    // Every layout, including the ones added after Keen-style and Modern, survives a round trip.
+    for (let layout = 0; layout < LAYOUTS.length; layout += 1) {
+      const saved = serialiseOptions({ ...DEFAULT_OPTIONS, layout });
+      expect(parseOptions(saved).layout).toBe(layout);
+    }
+    // One that is not a layout is the default, not the first.
+    expect(parseOptions(`{"v":1,"layout":${LAYOUTS.length}}`).layout).toBe(1);
+    expect(parseOptions('{"v":1,"layout":-1}').layout).toBe(1);
   });
 
   it('loads a save from before the Style setting with Auto', () => {
@@ -203,8 +218,13 @@ describe('stepOption', () => {
   it('wraps choices around in both directions', () => {
     expect(stepOption(DEFAULT_OPTIONS, 'motion', -1).motion).toBe(2);
     expect(stepOption({ ...DEFAULT_OPTIONS, motion: 2 }, 'motion', 1).motion).toBe(0);
-    expect(stepOption(DEFAULT_OPTIONS, 'layout', 1).layout).toBe(1);
-    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 1 }, 'layout', 1).layout).toBe(0);
+    expect(stepOption(DEFAULT_OPTIONS, 'layout', 1).layout).toBe(2);
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: LAYOUTS.length - 1 }, 'layout', 1).layout).toBe(
+      0,
+    );
+    expect(stepOption({ ...DEFAULT_OPTIONS, layout: 0 }, 'layout', -1).layout).toBe(
+      LAYOUTS.length - 1,
+    );
     expect(stepOption(DEFAULT_OPTIONS, 'text', 1).text).toBe(1);
   });
 

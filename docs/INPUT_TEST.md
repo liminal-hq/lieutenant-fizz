@@ -40,7 +40,7 @@ The last 12 lines (20 are kept for the copied report), most recent last, one lin
 +  0:09.2  Mouse  wheel up  -> Zoom in
 ```
 
-An input with no action says `-> no action`. A pad axis is logged when it crosses the threshold the game acts at (0.4 on axis 0, 0.5 on the others), not on every wiggle. A key that belongs only to the Controls layout the player did not choose carries a note (`Modern key`, `Keen-style key`); the game reads both layouts at once, so the action is the same.
+An input with no action says `-> no action`. A pad axis is logged when it crosses the threshold the game acts at (0.4 on axis 0, 0.5 on the others), not on every wiggle. A key that is an action key of another Controls layout carries a note (`Not in Modern`) and does nothing, since only the chosen layout's keys act; the footer line names the layout in use.
 
 ### Gamepad panel
 
