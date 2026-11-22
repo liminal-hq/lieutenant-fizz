@@ -6,7 +6,7 @@
 // The table draws keys as pixel-font glyphs, so these compare rows with the default's; the unit tests of `hints.ts` check the exact keys.
 
 import { expect, test, type Page } from '@playwright/test';
-import { settle } from './keys';
+import { pressUntil, settle } from './keys';
 
 type Lf = { debugShow(s: string): void };
 
@@ -120,10 +120,10 @@ const FIRE = 64;
 const POGO = 32;
 const held = (words: number[], bit: number): number => words.filter((w) => (w & bit) !== 0).length;
 
-test('in the Mouse scheme the left button fires and the right button works the pogo, on the game only', async ({
+test('in the WASD scheme the left button fires and the right button works the pogo, on the game only', async ({
   page,
 }) => {
-  const words = await ticksDuring(page, 3, async (box) => {
+  const words = await ticksDuring(page, 2, async (box) => {
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down({ button: 'left' });
     await page.waitForTimeout(150);
@@ -148,4 +148,40 @@ test('in the Modern scheme the mouse does nothing', async ({ page }) => {
   });
   expect(held(words, FIRE)).toBe(0);
   expect(held(words, POGO)).toBe(0);
+});
+
+test('a saved Mouse choice from before the mouse joined WASD shows as WASD', async ({ page }) => {
+  const errors = await open(page, 3);
+  const text = await table(page);
+  expect(text).toContain('WASD');
+  expect(text).not.toContain('Mouse');
+  expect(errors).toEqual([]);
+});
+
+test('Left and Right on the Controls row go opposite ways', async ({ page }) => {
+  await page.goto('/?debug');
+  await page.waitForFunction(() => (window as unknown as { __lf?: unknown }).__lf, null, {
+    timeout: 20_000,
+  });
+  await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('options'));
+  await settle(page, 4);
+  await pressUntil(
+    page,
+    'ArrowDown',
+    () => document.querySelector('#overlay .menu button.sel .lbl')?.textContent === 'Controls',
+  );
+  const value = page.locator('#overlay .menu button', { hasText: 'Controls' }).locator('.val');
+  const shown = async (): Promise<string> => (await value.innerText()).replace(/[◄►]/g, '').trim();
+  const changed = (before: string): boolean =>
+    document
+      .querySelector('#overlay .menu button.sel .val')
+      ?.textContent?.replace(/[◄►]/g, '')
+      .trim() !== before;
+  expect(await shown()).toBe('Modern');
+  await pressUntil(page, 'ArrowRight', changed, 'Modern');
+  expect(await shown()).toBe('WASD');
+  await pressUntil(page, 'ArrowLeft', changed, 'WASD');
+  expect(await shown()).toBe('Modern');
+  await pressUntil(page, 'ArrowLeft', changed, 'Modern');
+  expect(await shown()).toBe('Keen-style');
 });

@@ -103,6 +103,7 @@ import {
 } from '@lieutenant-fizz/engine/input';
 import { FixedStepper, InstanceWriter } from '@lieutenant-fizz/engine/instances';
 import { watchLayoutMap } from '@lieutenant-fizz/engine/key-labels';
+import { keyScheme } from '@lieutenant-fizz/engine/key-schemes';
 import type { Grid } from '@lieutenant-fizz/engine/pen';
 import { InstancedRenderer } from '@lieutenant-fizz/engine/renderer';
 import { frameView, type FrameView, type PixelMode } from '@lieutenant-fizz/engine/view-scale';
@@ -158,7 +159,6 @@ import { EPISODE } from './episode';
 import {
   clearOptionOverrides,
   DEFAULT_OPTIONS,
-  LAYOUTS,
   overriddenOptions,
   readOptions,
   musicVersionOf,
@@ -2135,7 +2135,7 @@ export class Game {
           ? 'On'
           : 'Off'
         : key === 'layout'
-          ? (LAYOUTS[o.layout] ?? '')
+          ? keyScheme(o.layout).name
           : key === 'text'
             ? (TEXT_SIZES[o.text] ?? '')
             : (MOTIONS[o.motion] ?? '');

@@ -90,7 +90,7 @@ describe('input mappings', () => {
   });
 
   it('gives each scheme its own three keys', () => {
-    const [keen, , wasd, , left, right] = KEY_SCHEMES;
+    const [keen, , wasd, left, right] = KEY_SCHEMES;
     expect(keysToBits(new Set(['ControlRight']), keen)).toBe(Input.JUMP);
     expect(keysToBits(new Set(['AltRight']), keen)).toBe(Input.POGO);
     expect(keysToBits(new Set(['Space']), keen)).toBe(Input.FIRE);
@@ -105,15 +105,16 @@ describe('input mappings', () => {
     expect(keysToBits(new Set(['Slash']), right)).toBe(Input.FIRE);
   });
 
-  it('gives the mouse scheme its buttons: left for Fizz, right for the pogo', () => {
-    const mouse = KEY_SCHEMES[3]!;
-    expect(mouseToBits(new Set([0]), mouse)).toBe(Input.FIRE);
-    expect(mouseToBits(new Set([2]), mouse)).toBe(Input.POGO);
-    expect(mouseToBits(new Set([0, 2]), mouse)).toBe(Input.FIRE | Input.POGO);
-    expect(mouseToBits(new Set([1]), mouse)).toBe(0);
-    expect(keysToBits(new Set(['Space']), mouse)).toBe(Input.JUMP);
+  it('gives WASD the mouse buttons as well as its keys: left for Fizz, right for the pogo', () => {
+    const wasd = KEY_SCHEMES[2]!;
+    expect(mouseToBits(new Set([0]), wasd)).toBe(Input.FIRE);
+    expect(mouseToBits(new Set([2]), wasd)).toBe(Input.POGO);
+    expect(mouseToBits(new Set([0, 2]), wasd)).toBe(Input.FIRE | Input.POGO);
+    expect(mouseToBits(new Set([1]), wasd)).toBe(0);
+    expect(keysToBits(new Set(['KeyJ']), wasd)).toBe(Input.FIRE);
     // The other schemes take no mouse.
-    expect(mouseToBits(new Set([0, 2]), KEY_SCHEMES[1]!)).toBe(0);
+    for (const s of KEY_SCHEMES.filter((k) => k !== wasd))
+      expect(mouseToBits(new Set([0, 2]), s), s.name).toBe(0);
   });
 
   it('maps the standard gamepad buttons and reports Start', () => {

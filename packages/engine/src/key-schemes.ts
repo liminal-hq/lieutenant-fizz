@@ -1,4 +1,4 @@
-// The keyboard (and mouse) schemes a player can pick in Options › Controls.
+// The keyboard schemes a player can pick in Options › Controls. The WASD scheme also takes the mouse.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -9,6 +9,8 @@
  * keeps its shape on AZERTY and other layouts; {@link codeLabel} names a key for the layout the player has.
  */
 export interface KeyScheme {
+  /** The number saved for this scheme. It never changes, so a saved choice keeps its meaning; see {@link RETIRED_SCHEMES}. */
+  readonly id: number;
   /** The name shown in Options. */
   readonly name: string;
   /** One line on who it suits, for the Controls screen. */
@@ -16,7 +18,7 @@ export interface KeyScheme {
   readonly jump: readonly string[];
   readonly pogo: readonly string[];
   readonly fire: readonly string[];
-  /** Mouse buttons that stand in for an action (0 is the left button, 2 the right). */
+  /** Mouse buttons that work an action as well as its keys (0 is the left button, 2 the right). */
   readonly mouse?: { readonly jump?: number; readonly pogo?: number; readonly fire?: number };
   /** The movement keys this scheme tells the player about. All of {@link MOVE_KEYS} work whichever it is. */
   readonly move: readonly string[];
@@ -34,11 +36,12 @@ const ARROWS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'] as const;
 const WASD = ['KeyW', 'KeyA', 'KeyS', 'KeyD'] as const;
 
 /**
- * The schemes, in the order Options steps through them. A saved choice is an index, so the first two keep the
- * places the old Keen-style and Modern layouts had and new ones go on the end.
+ * The schemes, in the order Options steps through them. A saved choice is a scheme's `id`, not its place in this
+ * list, so Keen-style (0) and Modern (1) keep the numbers the old layouts had.
  */
 export const KEY_SCHEMES: readonly KeyScheme[] = [
   {
+    id: 0,
     name: 'Keen-style',
     note: 'As in Commander Keen. Ctrl and Alt are shortcuts in some browsers and desktops, so Modern is safer.',
     jump: ['ControlLeft', 'ControlRight'],
@@ -47,6 +50,7 @@ export const KEY_SCHEMES: readonly KeyScheme[] = [
     move: ARROWS,
   },
   {
+    id: 1,
     name: 'Modern',
     note: 'Arrow keys and three keys under the left hand, with Space as a second Fizz key. No modifier keys.',
     jump: ['KeyZ'],
@@ -55,23 +59,17 @@ export const KEY_SCHEMES: readonly KeyScheme[] = [
     move: ARROWS,
   },
   {
+    id: 2,
     name: 'WASD',
-    note: 'Left hand moves, Space jumps with the thumb, and J and K are under the right hand.',
+    note: 'Left hand moves, Space jumps with the thumb, and J and K are under the right hand. The left mouse button also fires and the right one works the pogo.',
     jump: ['Space'],
     pogo: ['KeyK'],
     fire: ['KeyJ'],
-    move: WASD,
-  },
-  {
-    name: 'Mouse',
-    note: 'WASD and Space, with the left mouse button for Fizz and the right for the pogo.',
-    jump: ['Space'],
-    pogo: [],
-    fire: [],
     mouse: { fire: 0, pogo: 2 },
     move: WASD,
   },
   {
+    id: 4,
     name: 'Left hand',
     note: 'Everything under the left hand: WASD, Space with the thumb, Q and E.',
     jump: ['Space'],
@@ -80,6 +78,7 @@ export const KEY_SCHEMES: readonly KeyScheme[] = [
     move: WASD,
   },
   {
+    id: 5,
     name: 'Right hand',
     note: 'Everything under the right hand: the arrow keys and the three keys beside them, comma, period and slash.',
     jump: ['Comma'],
@@ -89,12 +88,35 @@ export const KEY_SCHEMES: readonly KeyScheme[] = [
   },
 ];
 
-/** The scheme a player gets until they pick another. */
+/** The scheme a player gets until they pick another (an `id`). */
 export const DEFAULT_KEY_SCHEME = 1;
 
-/** The scheme at an index, or the default for an index that is not one. */
-export function keyScheme(index: number): KeyScheme {
-  return KEY_SCHEMES[index] ?? KEY_SCHEMES[DEFAULT_KEY_SCHEME]!;
+/**
+ * Schemes that no longer exist, and the one each plays as. Number 3 was a separate Mouse scheme; the mouse belongs
+ * to WASD now, so a saved 3 is WASD.
+ */
+export const RETIRED_SCHEMES: Readonly<Record<number, number>> = { 3: 2 };
+
+/** The scheme saved as `id` (a retired one as what replaced it), or the default for a number that is not one. */
+export function keyScheme(id: number): KeyScheme {
+  const now = RETIRED_SCHEMES[id] ?? id;
+  return (
+    KEY_SCHEMES.find((s) => s.id === now) ?? KEY_SCHEMES.find((s) => s.id === DEFAULT_KEY_SCHEME)!
+  );
+}
+
+/** What a saved value means as a scheme `id`: a whole number that names a scheme, or one that did and is retired, else the default. */
+export function normaliseScheme(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return DEFAULT_KEY_SCHEME;
+  const now = RETIRED_SCHEMES[value] ?? value;
+  return KEY_SCHEMES.some((s) => s.id === now) ? now : DEFAULT_KEY_SCHEME;
+}
+
+/** The scheme `delta` places from `id` in the order Options shows, wrapping round. */
+export function stepScheme(id: number, delta: number): number {
+  const n = KEY_SCHEMES.length;
+  const at = KEY_SCHEMES.findIndex((s) => s.id === keyScheme(id).id);
+  return KEY_SCHEMES[(((at + delta) % n) + n) % n]!.id;
 }
 
 /** Every key code a scheme acts on, for the ones the page should keep from the browser (Space scrolls, Slash opens quick find). */

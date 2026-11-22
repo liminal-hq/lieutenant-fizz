@@ -234,16 +234,16 @@ describe('controlsTable on a keyboard or gamepad', () => {
       '{Alt}',
       '{Space}',
     ]);
+    // WASD also takes the mouse buttons.
     expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(2, a))).toEqual([
       '{Space}',
-      '{[K]}',
-      '{[J]}',
+      '{[K]} {[Right click]}',
+      '{[J]} {[Left click]}',
     ]);
-    expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(3, a))).toEqual([
-      '{Space}',
-      '{[Right click]}',
-      '{[Left click]}',
-    ]);
+    // A saved Mouse choice from before the mouse joined WASD reads as WASD.
+    expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(3, a))).toEqual(
+      ['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(2, a)),
+    );
     expect(['Jump', 'Pogo (toggle)', 'Fizz'].map((a) => row(4, a))).toEqual([
       '{Space}',
       '{[Q]}',

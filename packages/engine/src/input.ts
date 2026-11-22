@@ -362,7 +362,7 @@ export class InputManager {
   private readonly onPointerUp = (e: PointerEvent): void => {
     this.mouseDown.delete(e.button);
   };
-  /** The right button's menu would open over the game in the mouse scheme. */
+  /** The right button's menu would open over the game while a scheme uses the mouse (WASD). */
   private readonly onContextMenu = (e: MouseEvent): void => {
     if (usesMouse(this.scheme) && e.target instanceof HTMLCanvasElement) e.preventDefault();
   };

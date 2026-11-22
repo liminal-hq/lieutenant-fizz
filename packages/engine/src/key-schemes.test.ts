@@ -10,6 +10,8 @@ import {
   DEFAULT_KEY_SCHEME,
   KEY_SCHEMES,
   keyScheme,
+  normaliseScheme,
+  stepScheme,
   MOVE_KEYS,
   schemeCodes,
   usesMouse,
@@ -65,8 +67,9 @@ describe('key schemes', () => {
       for (const code of reserved) expect(schemeCodes(s), `${s.name} ${code}`).not.toContain(code);
   });
 
-  it('use the mouse in one scheme only', () => {
-    expect(KEY_SCHEMES.filter(usesMouse).map((s) => s.name)).toEqual(['Mouse']);
+  it('use the mouse in WASD only, as well as its keys', () => {
+    expect(KEY_SCHEMES.filter(usesMouse).map((s) => s.name)).toEqual(['WASD']);
+    expect(KEY_SCHEMES.some((s) => s.name === 'Mouse')).toBe(false);
   });
 
   it('keep each one-handed scheme within its hand', () => {
@@ -78,6 +81,55 @@ describe('key schemes', () => {
       expect(leftHalf.test(c), c).toBe(true);
     for (const c of [...right.move, ...right.jump, ...right.pogo, ...right.fire])
       expect(rightHalf.test(c), c).toBe(true);
+  });
+});
+
+describe('scheme numbers', () => {
+  it('are saved ids that keep the meaning the first layouts had', () => {
+    expect(KEY_SCHEMES.map((s) => s.id)).toEqual([0, 1, 2, 4, 5]);
+    expect(KEY_SCHEMES.map((s) => s.name)).toEqual([
+      'Keen-style',
+      'Modern',
+      'WASD',
+      'Left hand',
+      'Right hand',
+    ]);
+    expect(new Set(KEY_SCHEMES.map((s) => s.id)).size).toBe(KEY_SCHEMES.length);
+  });
+
+  it('read a saved Mouse as WASD, and anything unknown as the default', () => {
+    expect(keyScheme(3).name).toBe('WASD');
+    expect(normaliseScheme(3)).toBe(2);
+    for (const s of KEY_SCHEMES) expect(normaliseScheme(s.id)).toBe(s.id);
+    for (const bad of [-1, 6, 99, 1.5, '1', null, undefined, NaN])
+      expect(normaliseScheme(bad), String(bad)).toBe(DEFAULT_KEY_SCHEME);
+    expect(keyScheme(99).id).toBe(DEFAULT_KEY_SCHEME);
+  });
+
+  it('step through the order Options shows, in both directions and wrapping', () => {
+    const forwards: number[] = [];
+    let at = 0;
+    for (let i = 0; i < KEY_SCHEMES.length; i += 1) {
+      forwards.push(at);
+      at = stepScheme(at, 1);
+    }
+    expect(forwards).toEqual([0, 1, 2, 4, 5]);
+    expect(at).toBe(0);
+    const backwards: number[] = [];
+    at = 5;
+    for (let i = 0; i < KEY_SCHEMES.length; i += 1) {
+      backwards.push(at);
+      at = stepScheme(at, -1);
+    }
+    expect(backwards).toEqual([5, 4, 2, 1, 0]);
+    expect(at).toBe(5);
+    // Right and Left undo each other from every scheme.
+    for (const s of KEY_SCHEMES) expect(stepScheme(stepScheme(s.id, 1), -1)).toBe(s.id);
+  });
+
+  it('step on from a retired Mouse choice as from WASD', () => {
+    expect(stepScheme(3, 1)).toBe(4);
+    expect(stepScheme(3, -1)).toBe(1);
   });
 });
 
