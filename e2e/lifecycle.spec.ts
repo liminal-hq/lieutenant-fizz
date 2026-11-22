@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { expect, test, type Page } from '@playwright/test';
+import { pickMode } from './keys';
 
 test('exposes the lifecycle state and boots without errors', async ({ page }) => {
   const errors: string[] = [];
@@ -45,6 +46,7 @@ test('wants the screen on while playing, lets go on pause, and a blur pauses', a
   });
   expect((await state(page)).lifecycle.awake).toBe(false);
   await page.locator('#title > .menu button', { hasText: 'New game' }).click();
+  await pickMode(page);
   await expect.poll(async () => (await state(page)).screen).toBe('cine');
   await expect.poll(async () => (await state(page)).lifecycle.awake).toBe(true);
   await hold(page, 'Escape');

@@ -49,3 +49,20 @@ export async function pressUntil(
     await page.keyboard.up(key);
   }
 }
+
+/**
+ * Answers the Normal or Expert choice that a new game asks for. The specs were written for the game as first made, so
+ * Expert is the default; they wait for the choice to open, since the launcher's opens a moment after the page does.
+ */
+export async function pickMode(page: Page, mode: 'normal' | 'expert' = 'expert'): Promise<void> {
+  await page.waitForFunction(
+    () =>
+      (window as unknown as { __lf: { debugState: { sub: string | null } } }).__lf.debugState
+        .sub === 'mode',
+    null,
+    { timeout: 10_000 },
+  );
+  await page
+    .locator('#overlay .menu button', { hasText: mode === 'normal' ? 'Normal' : 'Expert' })
+    .click();
+}

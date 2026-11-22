@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { expect, test, type Page } from '@playwright/test';
+import { pickMode } from './keys';
 
 interface Lf {
   debugShow(s: string): void;
@@ -55,6 +56,8 @@ test.describe('the opening titles', () => {
 
   test('a launcher New game plays them, then the story', async ({ page }) => {
     const errors = await open(page, '&titles=on&host=fake-desktop&launch=new');
+    // A new game asks for its mode first; the titles play once it is answered.
+    await pickMode(page);
     // No gate: the launcher's tap has already let the sound play.
     await expect.poll(async () => (await state(page)).titles?.after).toBe('new');
     expect((await state(page)).titles?.gate).toBe(false);

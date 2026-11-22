@@ -57,7 +57,8 @@ test('a lone Enter on the title still starts the highlighted row, and a lone 2 d
   // An Enter that comes after the sequence's time is just an Enter.
   await page.waitForTimeout(1700);
   await page.keyboard.press('Enter');
-  await expect.poll(async () => (await state(page)).screen, { timeout: 5000 }).not.toBe('title');
+  // The highlighted row is New game, which asks for its mode.
+  await expect.poll(async () => (await state(page)).sub, { timeout: 5000 }).toBe('mode');
 });
 
 test('Warp to level starts the chosen level', async ({ page }) => {

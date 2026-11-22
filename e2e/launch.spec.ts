@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { expect, test, type Page } from '@playwright/test';
+import { pickMode } from './keys';
 
 interface Lf {
   debugShow(s: string): void;
@@ -26,6 +27,7 @@ const screen = (page: Page): Promise<string> =>
 test.describe('the launch contract', () => {
   test('a new game from the launcher skips the title screen', async ({ page }) => {
     const errors = await open(page, '&host=fake-desktop&launch=new');
+    await pickMode(page);
     await expect.poll(() => screen(page)).not.toBe('title');
     expect(errors).toEqual([]);
   });
@@ -34,6 +36,7 @@ test.describe('the launch contract', () => {
     page,
   }) => {
     const errors = await open(page, '&host=fake-desktop&launch=new');
+    await pickMode(page);
     await expect.poll(() => screen(page)).not.toBe('title');
     expect(new URL(page.url()).searchParams.has('launch')).toBe(false);
     expect(new URL(page.url()).searchParams.has('debug')).toBe(true);
@@ -74,6 +77,7 @@ test.describe('the launch contract', () => {
     page,
   }) => {
     const errors = await open(page, '&host=fake-desktop&launch=new');
+    await pickMode(page);
     await page.evaluate(() => (window as unknown as { __lf: Lf }).__lf.debugShow('pause'));
     await expect(page.locator('#overlay .menu button').first()).toBeVisible();
     const rows = (await page.locator('#overlay .menu button').allInnerTexts()).map((t) => t.trim());

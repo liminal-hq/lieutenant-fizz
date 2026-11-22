@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { expect, test, type Page } from '@playwright/test';
+import { pickMode } from './keys';
 
 type BackState = { enabled: boolean; armed: boolean };
 type State = { screen: string; sub: string | null; back: BackState };
@@ -37,6 +38,7 @@ const row = (page: Page, label: string) =>
 /** Starts a new game from the title and skips the opening, ending on the map (the play screen). */
 async function startPlaying(page: Page): Promise<void> {
   await row(page, 'New game').click();
+  await pickMode(page);
   await expect.poll(() => screen(page)).toBe('cine');
   await page.keyboard.press('Escape');
   await expect.poll(() => screen(page)).toBe('play');

@@ -63,7 +63,7 @@ test.describe('quick-save', () => {
     await expect(page.locator('#toast')).toContainText('Quick-saved');
     expect(await read(page, 'lf-ep1-slot-1')).toBe(before);
     const quick = JSON.parse((await read(page, 'lf-ep1-quick')) ?? 'null') as { v: number } | null;
-    expect(quick?.v).toBe(3);
+    expect(quick?.v).toBe(4);
     expect(errors).toEqual([]);
   });
 
