@@ -9,5 +9,6 @@
 - [MOBILE.md](MOBILE.md): planned touch controls, phone layout and haptics
 - [MOBILE_PLAN.md](MOBILE_PLAN.md): the web-first implementation plan for MOBILE.md, in slices
 - [AUDIO_PLAN.md](AUDIO_PLAN.md): Enhanced audio (the stereo field, mastering, rooms) and the sound-design ideas that are parked
+- [CDROM.md](CDROM.md): the offline CD-ROM image (ISO 9660, Joliet and Rock Ridge): layout, labels, the preview build script and what a first build showed
 
 Play the original prototype: [`Melting Adventures.dc.html`](../design/Melting%20Adventures.dc.html). Engine reference scene: [`Last Light.dc.html`](../design/Last%20Light.dc.html).
