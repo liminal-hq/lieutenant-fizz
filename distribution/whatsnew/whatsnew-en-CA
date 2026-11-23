@@ -1,6 +1,7 @@
-✨ Initial public release
+✨ New in 0.5.0
 
-• Play Lieutenant Fizz — Episode 1: The Cocoa Caper
-• Explore Planet Zargoth, rescue the cocoa supply, and stop the Zargs
-• Run, jump, pogo and fire fizz bubbles through a colourful retro platform adventure
-• Play with touch controls, a controller or a keyboard, with optional haptics
+• Choose Normal or Expert when you start a new game
+• The pogo forgives a Jump press made a moment too early or late
+• Six keyboard control schemes, with mouse support
+• Down now grabs vines and ladders
+• Short controller taps are no longer missed
