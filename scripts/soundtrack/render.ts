@@ -3,11 +3,12 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-// Usage: bun scripts/soundtrack/render.ts <output folder> [track id ...]
+// Usage: bun scripts/soundtrack/render.ts [--ring-out] <output folder> [track id ...]
 //
 // Each song plays in headless Chromium through the game's own Enhanced audio chain (stereo field, master chain and
 // the room of the level it belongs to), silent to the speakers, and is tapped from the end of the chain in real time.
 // A song plays whole as many times as it takes to pass `MIN_SECONDS`, then its next pass fades out over `FADE_SECONDS`.
+// With `--ring-out` the song stops after its last whole pass instead, and the notes and reverb ring out for up to `RING_SECONDS`, with the silence after the tail cut.
 
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync, appendFileSync } from 'node:fs';
@@ -19,6 +20,12 @@ import { PATTERNS } from '../../episodes/episode-1/src/audio/patterns';
 const SAMPLE_RATE = 44100;
 const MIN_SECONDS = 50;
 const FADE_SECONDS = 6;
+const RING_SECONDS = 5;
+/** A ring out ends where its tail falls below this level, and keeps this much quiet after it. */
+const RING_FLOOR_DB = -80;
+const RING_KEEP_SECONDS = 0.3;
+/** The scheduler looks this far ahead of the audio clock, so a song stopped this long before its end keeps every note. */
+const LOOKAHEAD_SECONDS = 0.3;
 const WORKERS = 3;
 
 const ALBUM = 'Lieutenant Fizz — Episode 1: The Cocoa Caper';
@@ -39,7 +46,9 @@ const TRACKS = [
   { id: 'boss', title: 'Cocoa Colossus', room: 'foundry' },
 ] as const;
 
-const [outDir, ...only] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const ringOut = args.includes('--ring-out');
+const [outDir, ...only] = args.filter((a) => a !== '--ring-out');
 if (!outDir)
   throw new Error('Usage: bun scripts/soundtrack/render.ts <output folder> [track id ...]');
 mkdirSync(outDir, { recursive: true });
@@ -70,7 +79,7 @@ async function render(index: number): Promise<void> {
   const pass = passSeconds(track.id);
   const passes = Math.max(1, Math.ceil(MIN_SECONDS / pass));
   const length = pass * passes;
-  const seconds = length + FADE_SECONDS;
+  const seconds = length + (ringOut ? RING_SECONDS : FADE_SECONDS);
   const raw = join(outDir, `.${track.id}.f32`);
   rmSync(raw, { force: true });
   const page = await browser.newPage();
@@ -89,13 +98,18 @@ async function render(index: number): Promise<void> {
   });
   await page.goto(`${base}scripts/soundtrack/index.html`);
   const { startFrame } = await page.evaluate(
-    ([id, room, secs]) => window.captureSong(id as string, room as never, secs as number),
-    [track.id, track.room, seconds] as const,
+    ([id, room, secs, stop]) =>
+      window.captureSong(id as string, room as never, secs as number, stop as number | undefined),
+    [track.id, track.room, seconds, ringOut ? length - LOOKAHEAD_SECONDS : undefined] as const,
   );
   await page.close();
   const skip = (startFrame - first) / SAMPLE_RATE;
   const n = String(index + 1).padStart(2, '0');
   const file = join(outDir, `${n} - ${track.title.replace(/[\\/:*?"<>|]/g, '')}.flac`);
+  // A fade for the looped ending; for a ring out, the silence after the tail is cut.
+  const ending = ringOut
+    ? `areverse,silenceremove=start_periods=1:start_threshold=${RING_FLOOR_DB}dB:start_silence=${RING_KEEP_SECONDS},areverse`
+    : `afade=t=out:st=${length.toFixed(4)}:d=${FADE_SECONDS}`;
   const args = [
     '-y',
     '-loglevel',
@@ -109,7 +123,7 @@ async function render(index: number): Promise<void> {
     '-i',
     raw,
     '-af',
-    `atrim=start=${skip.toFixed(4)}:duration=${seconds.toFixed(4)},asetpts=PTS-STARTPTS,afade=t=out:st=${length.toFixed(4)}:d=${FADE_SECONDS},aresample=${SAMPLE_RATE}:dither_method=triangular`,
+    `atrim=start=${skip.toFixed(4)}:duration=${seconds.toFixed(4)},asetpts=PTS-STARTPTS,${ending},aresample=${SAMPLE_RATE}:dither_method=triangular`,
     '-sample_fmt',
     's16',
     '-compression_level',

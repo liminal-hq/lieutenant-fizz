@@ -19,6 +19,7 @@ declare global {
       track: string,
       room: RoomName,
       seconds: number,
+      stopAfter?: number,
     ) => Promise<{ startFrame: number }>;
   }
 }
@@ -85,7 +86,7 @@ class CapturingContext extends RealAudioContext {
 }
 window.AudioContext = CapturingContext as unknown as typeof AudioContext;
 
-window.captureSong = async (track, room, seconds) => {
+window.captureSong = async (track, room, seconds, stopAfter) => {
   const audio = new GameAudio({ ...PATTERNS, mix: MIX }, undefined, { unlockAtBoot: true });
   audio.setMode('enhanced');
   audio.setMusicStyle('enhanced');
@@ -100,7 +101,15 @@ window.captureSong = async (track, room, seconds) => {
   // The loop's first beat falls 0.1 s after the call, on the audio clock.
   startFrame = Math.round((ctx.currentTime + 0.1) * SAMPLE_RATE);
   audio.playMusic(track, true);
+  // The scheduler looks 0.3 s ahead, so a song stopped 0.3 s before a boundary has every note up to it and none after.
+  const stopAt = startFrame / SAMPLE_RATE + (stopAfter ?? Infinity);
+  const stopper = setInterval(() => {
+    if (ctx.currentTime < stopAt) return;
+    clearInterval(stopper);
+    audio.setMusic(false);
+  }, 4);
   await new Promise((r) => setTimeout(r, (seconds + 2) * 1000));
+  clearInterval(stopper);
   audio.setMusic(false);
   await new Promise((r) => setTimeout(r, 1500));
   return { startFrame };
