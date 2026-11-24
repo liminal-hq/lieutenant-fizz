@@ -50,6 +50,7 @@
     "typecheck": "tsc -p packages/engine --noEmit && tsc -p episodes/episode-1 --noEmit && tsc -p apps/player --noEmit && tsc -p scripts --noEmit && tsc -p tools/sample-viewer --noEmit && tsc -p e2e --noEmit",
     "test:e2e": "playwright test",
     "check:headers": "bash scripts/check-headers.sh",
+    "export:soundtrack": "bun scripts/soundtrack/render.ts",
     "validate": "bun run check:headers && bun run check:font && bun run check:hero && bun run check:play-graphics && bun run check:sprites && bun run check:launcher-art && bun run check:social && bun run check:icons && bun run format:check && bun run lint && bun run typecheck && bun run test && bun run lint:rust && bun run test:rust && bun run build"
   },
   "devDependencies": {
