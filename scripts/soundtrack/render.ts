@@ -8,6 +8,8 @@
 // Each song plays in headless Chromium through the game's own Enhanced audio chain (stereo field, master chain and
 // the room of the level it belongs to), silent to the speakers, and is tapped from the end of the chain in real time.
 // A song plays whole as many times as it takes to pass `MIN_SECONDS`, then its next pass fades out over `FADE_SECONDS`.
+// The opening titles play once and end on the bar that resolves into the title song, so they are cut at the end of their
+// pass with no fade, and the room's tail goes under the start of the title track, as the game's crossfade would carry it.
 // With `--ring-out` the song stops after its last whole pass instead, and the notes and reverb ring out for up to `RING_SECONDS`, with the silence after the tail cut.
 
 import { spawnSync } from 'node:child_process';
@@ -26,6 +28,12 @@ const RING_FLOOR_DB = -80;
 const RING_KEEP_SECONDS = 0.3;
 /** The scheduler looks this far ahead of the audio clock, so a song stopped this long before its end keeps every note. */
 const LOOKAHEAD_SECONDS = 0.3;
+
+/** The song that plays once and leads straight into the next track, and the track it leads into. */
+const LEAD_IN = 'openingTitles';
+const LEAD_OUT = 'title';
+/** How much of the lead-in's tail goes under the start of the track after it. */
+const LEAD_TAIL_SECONDS = 2.5;
 const WORKERS = 3;
 
 const ALBUM = 'Lieutenant Fizz — Episode 1: The Cocoa Caper';
@@ -74,12 +82,17 @@ const browser = await chromium.launch({
   args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio'],
 });
 
+/** The lead-in's tail as raw floats, once it has been captured. */
+let leadTail: (value: string) => void = () => {};
+const leadTailFile = new Promise<string>((resolve) => (leadTail = resolve));
+
 async function render(index: number): Promise<void> {
   const track = TRACKS[index]!;
   const pass = passSeconds(track.id);
-  const passes = Math.max(1, Math.ceil(MIN_SECONDS / pass));
+  const leadsIn = track.id === LEAD_IN;
+  const passes = leadsIn ? 1 : Math.max(1, Math.ceil(MIN_SECONDS / pass));
   const length = pass * passes;
-  const seconds = length + (ringOut ? RING_SECONDS : FADE_SECONDS);
+  const seconds = length + (leadsIn ? LEAD_TAIL_SECONDS : ringOut ? RING_SECONDS : FADE_SECONDS);
   const raw = join(outDir, `.${track.id}.f32`);
   rmSync(raw, { force: true });
   const page = await browser.newPage();
@@ -100,16 +113,53 @@ async function render(index: number): Promise<void> {
   const { startFrame } = await page.evaluate(
     ([id, room, secs, stop]) =>
       window.captureSong(id as string, room as never, secs as number, stop as number | undefined),
-    [track.id, track.room, seconds, ringOut ? length - LOOKAHEAD_SECONDS : undefined] as const,
+    [
+      track.id,
+      track.room,
+      seconds,
+      ringOut || leadsIn ? length - LOOKAHEAD_SECONDS : undefined,
+    ] as const,
   );
   await page.close();
   const skip = (startFrame - first) / SAMPLE_RATE;
   const n = String(index + 1).padStart(2, '0');
   const file = join(outDir, `${n} - ${track.title.replace(/[\\/:*?"<>|]/g, '')}.flac`);
   // A fade for the looped ending; for a ring out, the silence after the tail is cut.
-  const ending = ringOut
-    ? `areverse,silenceremove=start_periods=1:start_threshold=${RING_FLOOR_DB}dB:start_silence=${RING_KEEP_SECONDS},areverse`
-    : `afade=t=out:st=${length.toFixed(4)}:d=${FADE_SECONDS}`;
+  const ending = leadsIn
+    ? `atrim=duration=${length.toFixed(4)}`
+    : ringOut
+      ? `areverse,silenceremove=start_periods=1:start_threshold=${RING_FLOOR_DB}dB:start_silence=${RING_KEEP_SECONDS},areverse`
+      : `afade=t=out:st=${length.toFixed(4)}:d=${FADE_SECONDS}`;
+  if (leadsIn) {
+    const tail = join(outDir, '.lead-tail.f32');
+    const cut = spawnSync(
+      'ffmpeg',
+      [
+        '-y',
+        '-loglevel',
+        'error',
+        '-f',
+        'f32le',
+        '-ar',
+        String(SAMPLE_RATE),
+        '-ac',
+        '2',
+        '-i',
+        raw,
+        '-af',
+        `atrim=start=${(skip + length).toFixed(4)}:duration=${LEAD_TAIL_SECONDS},asetpts=PTS-STARTPTS`,
+        '-f',
+        'f32le',
+        tail,
+      ],
+      { stdio: 'inherit' },
+    );
+    if (cut.status !== 0) throw new Error('ffmpeg failed to cut the lead-in tail');
+    leadTail(tail);
+  }
+  // The title track carries the lead-in's tail under its first notes.
+  const underlay = track.id === LEAD_OUT ? await leadTailFile : null;
+  const filter = `atrim=start=${skip.toFixed(4)}:duration=${seconds.toFixed(4)},asetpts=PTS-STARTPTS,${ending}`;
   const args = [
     '-y',
     '-loglevel',
@@ -122,8 +172,13 @@ async function render(index: number): Promise<void> {
     '2',
     '-i',
     raw,
-    '-af',
-    `atrim=start=${skip.toFixed(4)}:duration=${seconds.toFixed(4)},asetpts=PTS-STARTPTS,${ending},aresample=${SAMPLE_RATE}:dither_method=triangular`,
+    ...(underlay ? ['-f', 'f32le', '-ar', String(SAMPLE_RATE), '-ac', '2', '-i', underlay] : []),
+    ...(underlay
+      ? [
+          '-filter_complex',
+          `[0:a]${filter}[song];[song][1:a]amix=inputs=2:duration=first:normalize=0,aresample=${SAMPLE_RATE}:dither_method=triangular`,
+        ]
+      : ['-af', `${filter},aresample=${SAMPLE_RATE}:dither_method=triangular`]),
     '-sample_fmt',
     's16',
     '-compression_level',
@@ -152,7 +207,9 @@ async function render(index: number): Promise<void> {
   );
 }
 
-const todo = TRACKS.flatMap((t, i) => (only.length === 0 || only.includes(t.id) ? [i] : []));
+// The title track needs the opening titles' tail, so asking for one renders the other.
+const wanted = only.includes(LEAD_OUT) ? [...only, LEAD_IN] : only;
+const todo = TRACKS.flatMap((t, i) => (wanted.length === 0 || wanted.includes(t.id) ? [i] : []));
 const queue = [...todo];
 await Promise.all(
   Array.from({ length: WORKERS }, async () => {
@@ -160,6 +217,7 @@ await Promise.all(
   }),
 );
 await browser.close();
+rmSync(join(outDir, '.lead-tail.f32'), { force: true });
 await server.close();
 writeFileSync(join(outDir, '.done'), '');
 rmSync(join(outDir, '.done'));
