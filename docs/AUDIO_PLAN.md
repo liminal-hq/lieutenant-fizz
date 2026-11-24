@@ -37,6 +37,9 @@ A Music version row (Classic or Enhanced) chooses which arrangement of the music
 - **Auto is Enhanced**, as for the effects (`MUSIC_VERSION_DEFAULT`).
 - **Not included:** five original songs written in the lab (a funk, a groove and three on the ideas of Keen cues) have no cue to replace, so they are not in the game yet.
 
+## Exporting the soundtrack
+`bun run export:soundtrack <folder> [track id ...]` writes the twelve Enhanced songs (the opening titles, the title, the overworld, the eight level cues and the boss) as FLAC files laid out for an audio CD: 16-bit, 44.1 kHz, stereo, named `NN - Title.flac` in disc order with title, album, track and copyright tags (the titles are in `scripts/soundtrack/render.ts`). Undertone has no offline renderer, so each song plays in headless Chromium through the game's own Enhanced chain, in the room of the level it belongs to, into a context at 44.1 kHz whose destination is an audio worklet tap, silent to the speakers, in real time (three songs at once; the whole disc takes about five minutes). A song plays whole until it passes 50 seconds (the opening titles, at 12.8 seconds, play four times), and the next pass fades out over six seconds, so a track ends and does not loop. Floats become 16-bit with triangular dither. Needs `ffmpeg` and a Chromium for Playwright.
+
 ## Parked
 These are designed but not started. Starting values are first guesses to tune by ear.
 
