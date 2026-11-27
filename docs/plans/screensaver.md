@@ -1,6 +1,6 @@
 # Plan: the Lieutenant Fizz screensaver
 
-**Status: planned, nothing built.** The build-ordered plan for issue #275: a Lieutenant Fizz screensaver for Windows, Linux and macOS, drawn by one small Rust core in a native host per OS (`FIZZ.SCR`, a Linux program, a `.saver` bundle) and chosen, previewed and tried in the desktop app, which also runs it as WASM. Section 7 compares this with making a tiny Tauri app the saver. Decisions are `FZS-1` to `FZS-30` (reserved here; packages that refine one say so in the same change). Concept art is in [`screensaver/`](screensaver/) (SVG masters, PNGs from `screensaver/render.sh`).
+**Status: planned, nothing built.** The build-ordered plan for issue #275: a Lieutenant Fizz screensaver for Windows, Linux and macOS, drawn by one small Rust core in a native host per OS (`FIZZ.SCR`, a Linux program, a `.saver` bundle) and chosen, previewed and tried in the desktop app, which also runs it as WASM. Section 7 records why a tiny Tauri app is not the saver. Decisions are `FZS-1` to `FZS-30` (reserved here; packages that refine one say so in the same change). Concept art is in [`screensaver/`](screensaver/) (SVG masters, PNGs from `screensaver/render.sh`).
 
 ![A concept frame: Crater Fields in EGA colours, Ben on the pogo stick over the Roller, soda cans, and a small title card in the corner](screensaver/scene-concept.png)
 
@@ -12,7 +12,7 @@
 - [4. Sound](#4-sound)
 - [5. Settings](#5-settings)
 - [6. Per OS](#6-per-os)
-- [7. Option: a tiny Tauri app as the saver](#7-option-a-tiny-tauri-app-as-the-saver)
+- [7. Why not a tiny Tauri app as the saver](#7-why-not-a-tiny-tauri-app-as-the-saver)
 - [8. Installing it](#8-installing-it)
 - [9. Cost, accessibility and safety](#9-cost-accessibility-and-safety)
 - [10. Budgets](#10-budgets)
@@ -129,7 +129,7 @@ One table in the core (`lf_saver::settings`: key, range, default), read by every
 
 ## 6. Per OS
 
-The picture comes from a native host on every OS: each system's own screensaver interface needs a native program or bundle anyway (a preview pane to draw into, a window xscreensaver hands over, a `.saver` bundle), and the saver need not look like the game, so it does not need the app's rendering pipeline (FZS-23). The app is where people choose and try the saver, and on macOS it is the fallback when the `.saver` cannot run. Section 7 compares this with making a tiny Tauri app the saver everywhere.
+The picture comes from a native host on every OS: each system's own screensaver interface needs a native program or bundle anyway (a preview pane to draw into, a window xscreensaver hands over, a `.saver` bundle), and the saver need not look like the game, so it does not need the app's rendering pipeline (FZS-23). The app is where people choose and try the saver, and on macOS it is the fallback when the `.saver` cannot run. Section 7 records why a tiny Tauri app was not chosen instead.
 
 ### What the app does (all three)
 
@@ -168,11 +168,11 @@ GNOME and KDE have no interface for a third-party screensaver; their lock screen
 - **The only real route is a ScreenSaver-framework bundle** (`LieutenantFizz.saver`, WP-FZS-9). Since macOS 10.15 third-party savers run inside Apple's sandboxed `legacyScreenSaver` host, which brings known constraints that the bundle must work around: an instance may not be torn down when the saver ends (on 14 and later `stopAnimation` may never arrive), so the view stops and the process exits on the `com.apple.screensaver.willstop` distributed notification; each screen gets its own view, so sound plays from the main screen's only; the bundle must carry both `arm64` and `x86_64`; and the sandbox cannot read the app's data, so settings are `ScreenSaverDefaults`, set from the bundle's own Options sheet.
 - **Native, not a web view (FZS-18).** The bundle links `lf-saver` as a static library and draws its frames as a `CGImage`; it does not host a `WKWebView` (a web content process inside `legacyScreenSaver` is heavy and has been unreliable) and does not launch an app (an app cannot draw above the screensaver window). Sound is the chip synth through `AVAudioEngine`.
 - **Signing.** The release's `.dmg` is ad-hoc signed and not notarised, and the `.saver` would be the same: on a first install macOS refuses it until it is allowed in System Settings › Privacy & Security. That works, but it is not a good first experience; notarising needs an Apple Developer ID (owner decision 9). The `.saver` ships as a zip beside the `.dmg` and inside the app's Resources, with an **Install the screensaver** row in App settings that opens it (System Settings then installs it for the user).
-- **Fallback (FZS-26):** when the `.saver` is not allowed, or a macOS release breaks the legacy host, the app's own saver: **Start when idle** inside the app, and `lieutenant-fizz --screensaver-idle` as an opt-in login item that watches `CGEventSourceSecondsSinceLastEventType` and starts `--screensaver`. It cannot replace the system screensaver or lock screen, so the system saver should be set longer than its delay. Section 7 weighs a tiny separate Tauri app for this role instead.
+- **Fallback (FZS-26):** when the `.saver` is not allowed, or a macOS release breaks the legacy host, the app's own saver: **Start when idle** inside the app, and `lieutenant-fizz --screensaver-idle` as an opt-in login item that watches `CGEventSourceSecondsSinceLastEventType` and starts `--screensaver`. It cannot replace the system screensaver or lock screen, so the system saver should be set longer than its delay.
 
-## 8. Option: a tiny Tauri app as the saver
+## 7. Why not a tiny Tauri app as the saver
 
-The owner asked whether the saver should instead be a **tiny Tauri app**: a minimal shell (no game, no launcher, few plugins) that runs the same WASM core full screen on every OS. Measured sizes are from the v0.5.0 release; times and costs marked *estimate* are to be measured before anyone relies on them.
+The recorded reasoning behind FZS-27. The owner asked whether the saver should instead be a **tiny Tauri app**: a minimal shell (no game, no launcher, few plugins) that runs the same WASM core full screen on every OS. Measured sizes are from the v0.5.0 release; times and costs marked *estimate* are to be measured before anyone relies on them.
 
 | | Native hosts on the core (this plan) | A tiny Tauri saver app |
 | --- | --- | --- |
@@ -188,11 +188,7 @@ The owner asked whether the saver should instead be a **tiny Tauri app**: a mini
 | **Signing** | Windows: the `.scr` arrives inside the game's installer (unsigned today; SmartScreen warns on the installer, not on the `.scr`). macOS: the `.saver` needs ad-hoc signing now and a Developer ID to notarise. Linux: unsigned packages | Windows: one more unsigned download for SmartScreen to warn about. macOS: one more app to sign and notarise, on top of the `.saver` it cannot replace. Linux: the same |
 | **Settings UI** | The game app's settings screen, plus small native dialogs where the app is absent (`FIZZ.SCR` alone, the `.saver`'s sheet, xscreensaver's XML) | Its own web settings screen everywhere (the one design, without the game installed) |
 
-**Recommendation: staged (FZS-27).**
-
-1. **Native core and native hosts first** (WP-FZS-1 to WP-FZS-9): every OS's real screensaver interface needs them, they start instantly, idle cheapest and add a few hundred KB to a few MB to packages people already install.
-2. **The game app as the chooser and the macOS fallback** (WP-FZS-4): settings, preview, Try it, and the idle mode, on the WASM core, with no new bundle.
-3. **A tiny Tauri saver app only if the saver must ship without the game** (WP-FZS-13, not scheduled): a separate download with its own settings screen, reusing `saver.html` and the WASM core, as the idle-mode host on macOS and Linux. It does not replace `FIZZ.SCR`, the Linux hack or the `.saver`, which it cannot be.
+**Decision (FZS-27, decided by the owner, 2026-11-27): native core and native hosts only, no Tauri saver app.** It is a simple screensaver: every OS's real screensaver interface needs the native hosts anyway, they start at once, idle cheapest and add a few hundred KB to a few MB to packages people already install. The game app stays where the player chooses, previews and tries the saver, and its idle mode is the macOS fallback when the `.saver` cannot be used; no separate Tauri build is made for the saver. The table above is kept as the reasoning.
 
 ## 8. Installing it
 
@@ -271,10 +267,10 @@ The repository's plans keep a Decisions list; these use the `FZS-` prefix so par
 - **FZS-21 — Reduced motion shows postcards.** *Assumed.*
 - **FZS-22 — Decision prefix `FZS-`.** *Assumed.* Swap: renumber in this file.
 - **FZS-23 — The saver may differ from the game.** It need not use the app's rendering pipeline; native hosts draw it on every OS and the app chooses, previews and tries it. *Decided by the owner (2026-11-27).*
-- **FZS-24 — `FIZZ.SCR` draws every mode itself.** It does not launch the app for `/s` (first planned as a launcher role, dropped: a web-view start-up, a job object and two processes bought nothing the native picture lacks); `/c` opens the app's settings when the app is there. *Assumed.* Swap: `hosts/win32-scr/src/main.rs`.
+- **FZS-24 — `FIZZ.SCR` draws every mode itself; one native Windows program.** It does not launch the app for `/s` (first planned as a launcher role, dropped: a web-view start-up, a job object and two processes bought nothing the native picture lacks); `/c` opens the app's settings when the app is there. *Decided by the owner (2026-11-27).*
 - **FZS-25 — One Linux program for every desktop.** `lieutenant-fizz-saver` is the hack, the full-screen saver and the idle helper; the app is not started for any of them. *Assumed.* Swap: the idle helper could start `lieutenant-fizz --screensaver` instead.
-- **FZS-26 — macOS fallback: the game app's idle mode.** *Assumed.* Swap: WP-FZS-13's tiny app, or the Linux program built for macOS.
-- **FZS-27 — Staged, not a tiny Tauri saver app.** Native core and hosts first, the game app as chooser and macOS fallback, a tiny Tauri app only if the saver must ship without the game (section 7). *Assumed.* Swap: schedule WP-FZS-13.
+- **FZS-26 — macOS fallback: the game app's idle mode.** *Decided by the owner (2026-11-27)*, with FZS-27.
+- **FZS-27 — Native core and native hosts only; no Tauri saver app.** The game app chooses, previews and tries the saver and is the macOS fallback; no separate Tauri build is made for the saver (section 7 keeps the comparison). *Decided by the owner (2026-11-27).*
 
 ## 13. Owner decisions
 
@@ -286,7 +282,7 @@ Each as question, default taken, and where to swap it.
 4. **Settings look:** the game's menu style with the Afterglow layout, or the Afterglow dialog itself? | Game style (FZS-14) | section 5
 5. **Sound default:** on at 25 (as Afterglow), effects off | On, 25 | `crates/saver/src/settings.rs`
 6. **The parade's order and length** | Title, Crater, Caves, Mesa, Citadel, 40 s each | `scenes.ts`
-7. **One native `FIZZ.SCR` for every Windows (no C runtime, i586 and x86-64) that draws every mode itself, or a stub that launches the app or a tiny Tauri saver for `/s` on Windows 10 and 11?** | One native program, no launching (FZS-16, FZS-24) | `hosts/win32-scr`
+7. **Answered (2026-11-27):** one native `FIZZ.SCR` for every Windows, drawing every mode itself (FZS-16, FZS-24).
 8. **Windows install:** NSIS per user plus **Use as my screensaver**, MSI per machine into `System32` | As stated (FZS-19) | `apps/player/src-tauri/tauri.conf.json` `bundle.windows`
 9. **macOS signing:** ship the `.saver` ad-hoc signed (users allow it in Privacy & Security) or wait for a Developer ID and notarise? | Ad-hoc, with the in-app idle fallback | `release.yml` macOS job
 10. **Linux:** one native program (hack, full screen, idle helper) in the deb and rpm with its system files, the program alone in the AppImage, no Flatpak yet | As stated (FZS-17, FZS-25) | `tauri.conf.json` `bundle.linux`
@@ -294,8 +290,8 @@ Each as question, default taken, and where to swap it.
 12. **Monitors default** | Different | settings table
 13. **The Liminal Installer's Windows 3.1 target** keeps the text stand-in until the Win16 edition, or drops the component for that target | Keep the stand-in | liminal-installer `examples/lt-fizz/installer/components.toml`
 14. **In-app idle start** default | Off | `apps/player/src/saver/settings.ts`
-15. **A tiny Tauri saver app:** build one, so the saver can be installed without the game? | Not now: native hosts first, the game app as chooser and macOS fallback (FZS-27) | schedule WP-FZS-13
-16. **The macOS fallback host** when the `.saver` cannot run | The game app's idle mode (FZS-26) | WP-FZS-13's tiny app, or the Linux program built for macOS
+
+Answered by the owner on 2026-11-27 and recorded above: the saver may differ from the game (FZS-23); one native Windows program (FZS-24); native core and native hosts only, with no Tauri saver app, and the game app's idle mode as the macOS fallback (FZS-26, FZS-27).
 
 ## 14. Work packages
 
@@ -308,7 +304,7 @@ Build order, in waves. At most three builders at once. Packages in the same wave
 | 3 | WP-FZS-3, WP-FZS-4 |
 | 4 | WP-FZS-6, WP-FZS-8, WP-FZS-9 |
 | 5 | WP-FZS-7, WP-FZS-10 |
-| Later | WP-FZS-11, WP-FZS-12; WP-FZS-13 only on the owner's go |
+| Later | WP-FZS-11, WP-FZS-12 |
 
 ### WP-FZS-1 — The specification and the core
 
@@ -382,7 +378,6 @@ Build order, in waves. At most three builders at once. Packages in the same wave
 
 - **WP-FZS-11 — Windows 3.x edition:** a 16-bit `FIZZ.SCR` built with the vendored rust-win16 packer, title card and Crater Fields in 16 VGA colours, settings in `CONTROL.INI`.
 - **WP-FZS-12 — Live attract:** the episode's own attract mode as a scene in the app only, through the real engine at Fast pixels, behind a measured cost.
-- **WP-FZS-13 — A tiny Tauri saver app (only on the owner's go):** `apps/saver`, a minimal Tauri shell over `saver.html` and the WASM core with its own settings screen, bundled for Windows, Linux and macOS as the idle-mode host where the game is not installed; it reuses `FIZZ.SCR`'s preview and the Linux program's hack, and the `.saver` stays the macOS screensaver. Finish line: section 7's table measured on all three systems (sizes, start-up, idle cost, memory per monitor).
 
 ## 15. Sonnet briefs
 
