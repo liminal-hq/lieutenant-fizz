@@ -9,5 +9,6 @@
 - [MOBILE.md](MOBILE.md): planned touch controls, phone layout and haptics
 - [MOBILE_PLAN.md](MOBILE_PLAN.md): the web-first implementation plan for MOBILE.md, in slices
 - [AUDIO_PLAN.md](AUDIO_PLAN.md): Enhanced audio (the stereo field, mastering, rooms) and the sound-design ideas that are parked
+- [plans/screensaver.md](plans/screensaver.md): the planned Lieutenant Fizz screensaver for Windows, Linux and macOS, in work packages
 
 Play the original prototype: [`Melting Adventures.dc.html`](../design/Melting%20Adventures.dc.html). Engine reference scene: [`Last Light.dc.html`](../design/Last%20Light.dc.html).

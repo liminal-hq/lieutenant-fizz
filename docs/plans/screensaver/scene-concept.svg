@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Concept frame for the Lieutenant Fizz screensaver: Crater Fields at 320 x 200 logical pixels, EGA colours only.
+
+(c) Copyright 2026 Liminal HQ, Scott Morris
+SPDX-License-Identifier: Apache-2.0 OR MIT
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 320 200" shape-rendering="crispEdges">
+	<title>Lieutenant Fizz screensaver concept: Crater Fields parallax with Ben pogoing over the Roller</title>
+	<defs>
+		<!-- A crater ground tile: green top, magenta fill with blue checks and bright magenta flecks (BIOMES.crater). -->
+		<pattern id="ground" width="16" height="16" patternUnits="userSpaceOnUse">
+			<rect width="16" height="16" fill="#aa00aa"/>
+			<rect x="0" y="0" width="8" height="8" fill="#0000aa" opacity="0.35"/>
+			<rect x="8" y="8" width="8" height="8" fill="#0000aa" opacity="0.35"/>
+			<rect x="3" y="5" width="1" height="1" fill="#ff55ff"/>
+			<rect x="11" y="12" width="1" height="1" fill="#ff55ff"/>
+			<rect x="13" y="3" width="1" height="1" fill="#ff55ff"/>
+		</pattern>
+		<pattern id="grass" width="16" height="4" patternUnits="userSpaceOnUse">
+			<rect width="16" height="4" fill="#00aa00"/>
+			<rect width="16" height="2" fill="#55ff55"/>
+			<rect x="2" y="2" width="1" height="1" fill="#55ff55"/>
+			<rect x="9" y="2" width="2" height="1" fill="#55ff55"/>
+		</pattern>
+		<pattern id="platform" width="16" height="6" patternUnits="userSpaceOnUse">
+			<rect width="16" height="6" fill="#00aaaa"/>
+			<rect width="16" height="2" fill="#55ffff"/>
+			<rect y="5" width="16" height="1" fill="#5555ff"/>
+			<rect x="15" width="1" height="6" fill="#5555ff"/>
+		</pattern>
+		<g id="soda">
+			<rect x="5" y="3" width="6" height="11" fill="#ff5555"/>
+			<rect x="5" y="2" width="6" height="1" fill="#aaaaaa"/>
+			<rect x="5" y="14" width="6" height="1" fill="#aaaaaa"/>
+			<rect x="5" y="7" width="6" height="2" fill="#ffffff"/>
+			<rect x="6" y="4" width="1" height="1" fill="#ffffff"/>
+			<rect x="9" y="11" width="1" height="1" fill="#55ffff"/>
+		</g>
+	</defs>
+
+	<!-- Sky, in stepped bands (no gradients: the palette has 16 colours). -->
+	<rect width="320" height="200" fill="#000000"/>
+	<rect y="40" width="320" height="30" fill="#0000aa"/>
+	<rect y="70" width="320" height="40" fill="#5555ff"/>
+	<!-- Stars, layer speed 0.02. -->
+	<g fill="#ffffff">
+		<rect x="22" y="12" width="1" height="1"/><rect x="71" y="27" width="1" height="1"/><rect x="118" y="8" width="1" height="1"/>
+		<rect x="160" y="31" width="1" height="1"/><rect x="203" y="15" width="1" height="1"/><rect x="251" y="24" width="1" height="1"/>
+		<rect x="296" y="9" width="1" height="1"/><rect x="40" y="44" width="1" height="1"/><rect x="232" y="48" width="1" height="1"/>
+	</g>
+	<g fill="#55ffff"><rect x="140" y="18" width="1" height="1"/><rect x="274" y="38" width="1" height="1"/></g>
+	<!-- The planet Zargoth's moon. -->
+	<g>
+		<rect x="252" y="18" width="16" height="16" fill="#aaaaaa"/>
+		<rect x="250" y="20" width="20" height="12" fill="#aaaaaa"/>
+		<rect x="255" y="22" width="4" height="3" fill="#555555"/>
+		<rect x="262" y="27" width="3" height="3" fill="#555555"/>
+	</g>
+
+	<!-- Far mesas, layer speed 0.2 (Layer::Hills, brown). -->
+	<path d="M0 118 H20 V104 H44 V96 H68 V110 H96 V100 H124 V92 H150 V108 H182 V98 H214 V90 H238 V104 H270 V96 H300 V108 H320 V140 H0 Z" fill="#aa5500"/>
+	<path d="M44 96 H68 V98 H44 Z M124 92 H150 V94 H124 Z M214 90 H238 V92 H214 Z" fill="#ffff55"/>
+	<!-- Near hills, layer speed 0.45 (Layer::Hills, green). -->
+	<path d="M0 132 H16 V126 H40 V120 H72 V126 H104 V130 H136 V122 H168 V116 H200 V124 H232 V128 H264 V120 H296 V126 H320 V160 H0 Z" fill="#00aa00"/>
+	<path d="M40 120 H72 V121 H40 Z M168 116 H200 V117 H168 Z M264 120 H296 V121 H264 Z" fill="#55ff55"/>
+
+	<!-- The level's own tiles, speed 1: ground with a gap, a floating platform. -->
+	<rect x="0" y="160" width="176" height="40" fill="url(#ground)"/>
+	<rect x="0" y="160" width="176" height="4" fill="url(#grass)"/>
+	<rect x="208" y="160" width="112" height="40" fill="url(#ground)"/>
+	<rect x="208" y="160" width="112" height="4" fill="url(#grass)"/>
+	<rect x="232" y="118" width="48" height="6" fill="url(#platform)"/>
+
+	<!-- Cream soda cans to grab (items.soda), one on the platform, one in the air. -->
+	<use href="#soda" x="248" y="102"/>
+	<use href="#soda" x="120" y="112"/>
+
+	<!-- The Roller (enemies.roller), rolling left along the ground. -->
+	<g transform="translate(134 128)">
+		<rect x="4" y="2" width="24" height="28" fill="#000000"/>
+		<rect x="2" y="4" width="28" height="24" fill="#000000"/>
+		<rect x="5" y="3" width="22" height="26" fill="#555555"/>
+		<rect x="3" y="5" width="26" height="22" fill="#555555"/>
+		<rect x="6" y="6" width="12" height="10" fill="#aaaaaa"/>
+		<rect x="9" y="20" width="2" height="1" fill="#55ffff"/><rect x="20" y="8" width="2" height="1" fill="#55ffff"/>
+		<rect x="22" y="21" width="2" height="1" fill="#55ffff"/>
+		<rect x="14" y="18" width="3" height="1" fill="#000000"/><rect x="21" y="13" width="3" height="1" fill="#000000"/>
+	</g>
+
+	<!-- Ben on the pogo stick, 16 x 32 (characters.ben 'pogo'), at the top of a bounce over the Roller. -->
+	<g transform="translate(142 82)">
+		<rect x="7" y="12" width="2" height="19" fill="#aaaaaa"/>
+		<rect x="6" y="24" width="4" height="1" fill="#555555"/><rect x="6" y="26" width="4" height="1" fill="#555555"/>
+		<rect x="6" y="28" width="4" height="1" fill="#555555"/>
+		<rect x="4" y="21" width="8" height="1" fill="#555555"/>
+		<rect x="7" y="31" width="2" height="1" fill="#555555"/>
+		<rect x="4" y="1" width="9" height="5" fill="#55ff55"/><rect x="3" y="5" width="12" height="1" fill="#00aa00"/>
+		<rect x="6" y="2" width="4" height="1" fill="#ffffff"/>
+		<rect x="5" y="6" width="7" height="4" fill="#ffffff"/>
+		<rect x="9" y="7" width="1" height="1" fill="#000000"/><rect x="11" y="7" width="1" height="1" fill="#000000"/>
+		<rect x="10" y="9" width="1" height="1" fill="#ff5555"/>
+		<rect x="4" y="10" width="8" height="6" fill="#ff5555"/><rect x="4" y="15" width="8" height="1" fill="#aa0000"/>
+		<rect x="7" y="12" width="2" height="2" fill="#ffff55"/>
+		<rect x="3" y="11" width="2" height="4" fill="#aa0000"/><rect x="11" y="11" width="2" height="4" fill="#ff5555"/>
+		<rect x="5" y="16" width="6" height="4" fill="#0000aa"/>
+	</g>
+	<!-- The motion arc, a guide in the concept only. -->
+	<path d="M96 156 Q150 40 204 156" fill="none" stroke="#ffffff" stroke-width="0.5" stroke-dasharray="2 3" opacity="0.6"/>
+
+	<!-- Title card moment, bottom right: drifts a pixel at a time so it never burns in. -->
+	<g font-family="'DejaVu Sans Mono', 'Liberation Mono', monospace" font-weight="bold">
+		<rect x="198" y="170" width="116" height="24" fill="#000000" opacity="0.75"/>
+		<text x="204" y="179" font-size="6" fill="#55ffff">BEN BLAZE IN</text>
+		<text x="204" y="190" font-size="10" fill="#ffff55">LT. FIZZ</text>
+		<text x="262" y="190" font-size="5" fill="#ffffff">EP 1</text>
+	</g>
+</svg>
