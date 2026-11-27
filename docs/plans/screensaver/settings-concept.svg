@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Concept of the screensaver's settings screen in the app: the Afterglow layout (banner, swatches, live preview) in the game's menu look.
+
+(c) Copyright 2026 Liminal HQ, Scott Morris
+SPDX-License-Identifier: Apache-2.0 OR MIT
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="960" viewBox="0 0 720 480">
+	<title>Lieutenant Fizz screensaver settings concept, in a neutral GNOME-style window</title>
+	<defs>
+		<filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+			<feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.35"/>
+		</filter>
+		<clipPath id="win"><rect x="20" y="16" width="680" height="448" rx="12"/></clipPath>
+	</defs>
+	<rect width="720" height="480" fill="#d8d8de"/>
+
+	<!-- The window: a flat header bar, rounded top corners, controls on the right. -->
+	<g filter="url(#shadow)">
+		<rect x="20" y="16" width="680" height="448" rx="12" fill="#14141c"/>
+	</g>
+	<g clip-path="url(#win)">
+		<rect x="20" y="16" width="680" height="40" fill="#2b2b33"/>
+		<text x="360" y="41" text-anchor="middle" font-family="Cantarell, 'DejaVu Sans', sans-serif" font-size="13" font-weight="bold" fill="#eeeeee">Lieutenant Fizz — Screensaver</text>
+		<circle cx="676" cy="36" r="11" fill="#3d3d46"/>
+		<path d="M671.5 31.5 L680.5 40.5 M680.5 31.5 L671.5 40.5" stroke="#eeeeee" stroke-width="1.6" stroke-linecap="round"/>
+
+		<!-- Banner: the saver's own scene at a fixed moment, darkened to the left under the title. -->
+		<g shape-rendering="crispEdges">
+			<rect x="20" y="56" width="680" height="88" fill="#5555ff"/>
+			<rect x="20" y="56" width="680" height="30" fill="#0000aa"/>
+			<path d="M20 120 H80 V104 H150 V96 H230 V110 H320 V98 H420 V92 H500 V106 H600 V98 H700 V144 H20 Z" fill="#aa5500"/>
+			<path d="M20 132 H120 V124 H220 V128 H340 V118 H460 V126 H560 V120 H700 V144 H20 Z" fill="#00aa00"/>
+			<rect x="20" y="136" width="680" height="8" fill="#55ff55"/>
+			<rect x="20" y="56" width="300" height="88" fill="#000000" opacity="0.55"/>
+			<!-- Ben mid-hop, 3x. -->
+			<g transform="translate(560 82) scale(2)">
+				<rect x="4" y="1" width="9" height="5" fill="#55ff55"/><rect x="3" y="5" width="12" height="1" fill="#00aa00"/>
+				<rect x="5" y="6" width="7" height="4" fill="#ffffff"/><rect x="9" y="7" width="1" height="1" fill="#000000"/>
+				<rect x="4" y="10" width="8" height="6" fill="#ff5555"/><rect x="7" y="12" width="2" height="2" fill="#ffff55"/>
+				<rect x="5" y="16" width="6" height="5" fill="#0000aa"/><rect x="4" y="21" width="3" height="2" fill="#ff5555"/>
+				<rect x="9" y="21" width="3" height="2" fill="#ff5555"/>
+			</g>
+		</g>
+		<text x="40" y="94" font-family="'DejaVu Sans Mono', monospace" font-size="11" font-weight="bold" fill="#55ffff">BEN BLAZE IN</text>
+		<text x="40" y="122" font-family="'DejaVu Sans Mono', monospace" font-size="24" font-weight="bold" fill="#ffff55">LIEUTENANT FIZZ</text>
+		<text x="40" y="138" font-family="'DejaVu Sans Mono', monospace" font-size="10" fill="#ffffff">Screensaver</text>
+
+		<!-- Left column: the rows, in the game's menu look (stepped plate on the chosen row). -->
+		<g font-family="'DejaVu Sans Mono', monospace" font-size="12" fill="#ffffff">
+			<text x="40" y="172" font-size="10" fill="#aaaaaa">LOOK</text>
+			<rect x="36" y="178" width="300" height="22" fill="#ffaa40"/>
+			<rect x="36" y="178" width="4" height="4" fill="#14141c"/><rect x="332" y="178" width="4" height="4" fill="#14141c"/>
+			<rect x="36" y="196" width="4" height="4" fill="#14141c"/><rect x="332" y="196" width="4" height="4" fill="#14141c"/>
+			<text x="48" y="193" fill="#1a1020">Scene</text>
+			<text x="196" y="193" fill="#1a1020">◄ Parade ►</text>
+			<text x="48" y="219">Speed</text>
+			<g shape-rendering="crispEdges" fill="#ffaa40">
+				<rect x="196" y="210" width="10" height="10"/><rect x="209" y="210" width="10" height="10"/><rect x="222" y="210" width="10" height="10"/>
+				<rect x="235" y="210" width="10" height="10"/>
+			</g>
+			<g shape-rendering="crispEdges" fill="#3d3d46">
+				<rect x="248" y="210" width="10" height="10"/><rect x="261" y="210" width="10" height="10"/><rect x="274" y="210" width="10" height="10"/>
+				<rect x="287" y="210" width="10" height="10"/>
+			</g>
+			<text x="48" y="243">Palette</text>
+			<!-- Swatches: EGA, Night, CGA, Amber, Phosphor, Mono; the chosen one ringed. -->
+			<g shape-rendering="crispEdges">
+				<rect x="194" y="230" width="22" height="18" fill="none" stroke="#ffff55" stroke-width="2"/>
+				<rect x="196" y="232" width="18" height="6" fill="#5555ff"/><rect x="196" y="238" width="18" height="4" fill="#00aa00"/><rect x="196" y="242" width="18" height="4" fill="#aa00aa"/>
+				<rect x="222" y="232" width="18" height="6" fill="#000055"/><rect x="222" y="238" width="18" height="4" fill="#14202a"/><rect x="222" y="242" width="18" height="4" fill="#2a1a30"/>
+				<rect x="248" y="232" width="18" height="6" fill="#000000"/><rect x="248" y="238" width="18" height="4" fill="#55ffff"/><rect x="248" y="242" width="18" height="4" fill="#ff55ff"/>
+				<rect x="274" y="232" width="18" height="6" fill="#2a1400"/><rect x="274" y="238" width="18" height="4" fill="#aa5500"/><rect x="274" y="242" width="18" height="4" fill="#ffaa00"/>
+				<rect x="300" y="232" width="18" height="6" fill="#002a00"/><rect x="300" y="238" width="18" height="4" fill="#00aa00"/><rect x="300" y="242" width="18" height="4" fill="#55ff55"/>
+			</g>
+			<text x="48" y="267">Pixels</text>
+			<text x="196" y="267">◄ Fill ►</text>
+			<text x="48" y="291">Monitors</text>
+			<text x="196" y="291">◄ Different ►</text>
+
+			<text x="40" y="320" font-size="10" fill="#aaaaaa">SOUND</text>
+			<text x="48" y="342">Music</text>
+			<text x="196" y="342">◄ On ►</text>
+			<text x="48" y="366">Volume</text>
+			<g shape-rendering="crispEdges">
+				<rect x="196" y="357" width="10" height="10" fill="#ffaa40"/><rect x="209" y="357" width="10" height="10" fill="#ffaa40"/>
+				<rect x="222" y="357" width="10" height="10" fill="#3d3d46"/><rect x="235" y="357" width="10" height="10" fill="#3d3d46"/>
+				<rect x="248" y="357" width="10" height="10" fill="#3d3d46"/><rect x="261" y="357" width="10" height="10" fill="#3d3d46"/>
+				<rect x="274" y="357" width="10" height="10" fill="#3d3d46"/><rect x="287" y="357" width="10" height="10" fill="#3d3d46"/>
+			</g>
+			<text x="48" y="390">Effects</text>
+			<text x="196" y="390">◄ Off ►</text>
+		</g>
+
+		<!-- Right column: the live preview (the real scene at the pane's size), then the actions. -->
+		<g font-family="'DejaVu Sans Mono', monospace" font-size="10" fill="#aaaaaa">
+			<text x="372" y="172">PREVIEW</text>
+		</g>
+		<g shape-rendering="crispEdges">
+			<rect x="372" y="178" width="308" height="192" fill="#000000"/>
+			<rect x="372" y="218" width="308" height="40" fill="#0000aa"/>
+			<rect x="372" y="258" width="308" height="40" fill="#5555ff"/>
+			<path d="M372 300 H420 V284 H480 V276 H540 V290 H600 V280 H680 V330 H372 Z" fill="#aa5500"/>
+			<path d="M372 316 H440 V306 H520 V312 H600 V302 H680 V340 H372 Z" fill="#00aa00"/>
+			<rect x="372" y="334" width="160" height="36" fill="#aa00aa"/>
+			<rect x="560" y="334" width="120" height="36" fill="#aa00aa"/>
+			<rect x="372" y="334" width="160" height="4" fill="#55ff55"/>
+			<rect x="560" y="334" width="120" height="4" fill="#55ff55"/>
+			<g transform="translate(500 296) scale(2)">
+				<rect x="4" y="1" width="9" height="5" fill="#55ff55"/><rect x="5" y="6" width="7" height="4" fill="#ffffff"/>
+				<rect x="4" y="10" width="8" height="6" fill="#ff5555"/><rect x="5" y="16" width="6" height="3" fill="#0000aa"/>
+			</g>
+			<rect x="612" y="306" width="28" height="28" fill="#555555"/>
+			<rect x="616" y="310" width="12" height="10" fill="#aaaaaa"/>
+		</g>
+		<g font-family="Cantarell, 'DejaVu Sans', sans-serif" font-size="12">
+			<rect x="372" y="388" width="140" height="30" rx="6" fill="#3d3d46"/>
+			<text x="442" y="408" text-anchor="middle" fill="#eeeeee">Try it full screen</text>
+			<rect x="520" y="388" width="74" height="30" rx="6" fill="#3d3d46"/>
+			<text x="557" y="408" text-anchor="middle" fill="#eeeeee">Defaults</text>
+			<rect x="602" y="388" width="78" height="30" rx="6" fill="#3584e4"/>
+			<text x="641" y="408" text-anchor="middle" fill="#ffffff" font-weight="bold">Done</text>
+		</g>
+		<text x="40" y="440" font-family="'DejaVu Sans Mono', monospace" font-size="10" fill="#aaaaaa">↑↓ choose   ◄► change   Enter select   Esc back</text>
+	</g>
+</svg>
